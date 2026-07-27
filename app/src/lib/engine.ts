@@ -56,7 +56,10 @@ export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
   const cached = tableCache.get(key);
   if (cached) return cached;
 
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  // Merged lookup (curated roster ∪ broad opponent pool): opponents scanned
+  // for breakpoint/bulkpoint relevance need their own ranked table too, not
+  // just the curated main roster.
+  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
   const all: RankedEntry[] = [];
   for (let a = 0; a < 16; a++) {
@@ -99,10 +102,18 @@ export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league
   return best!;
 }
 
-// ── Opponent representative — best-possible (hundo) stats, primary fast move
-// and charge move as the incoming attack. Sourced from the broad opponent
-// pool (top ~300/league), not just the curated main roster, so a real but
-// niche threshold isn't excluded for being outside the top-60 meta cut. ──
+// ── Opponent representative — the opponent's own rank-1 stat-product spread
+// (not a blanket hundo assumption), primary fast move and charge move as the
+// incoming attack. Sourced from the broad opponent pool (top ~300/league),
+// not just the curated main roster, so a real but niche threshold isn't
+// excluded for being outside the top-60 meta cut. ──
+//
+// Every species' realistic "best" roll is different - rank 1 is frequently
+// NOT 15/15/15 (a low attack IV often trades a hair of damage for enough
+// extra bulk/level headroom to raise the overall stat product under a CP
+// cap), so representing every opponent with a uniform hundo overstates their
+// attack and understates their bulk. Using each species' own table.best
+// keeps the comparison "relative to itself."
 export interface OpponentInfo {
   id: string;
   dex: number;
@@ -117,16 +128,15 @@ export interface OpponentInfo {
 
 export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
   const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
-  const league = LEAGUE_BY_ID.get(leagueId)!;
-  const r = bestAt(species, { a: 15, d: 15, s: 15 }, league);
+  const best = getTable(speciesId, leagueId).best;
   return {
     id: species.id,
     dex: species.dex,
     name: species.name,
     types: species.types,
-    atk: r.atk,
-    def: r.def,
-    hp: r.hp,
+    atk: best.atk,
+    def: best.def,
+    hp: best.hp,
     fastMove: species.fastMoves[0],
     chargeMove: species.chargeMove,
   };

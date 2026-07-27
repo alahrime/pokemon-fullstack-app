@@ -1,5 +1,5 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
-import { LEAGUE_BY_ID, SPECIES_BY_ID, opponentsFor } from './data';
+import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor } from './data';
 import type {
   BattleMon,
   BattleResult,
@@ -99,24 +99,107 @@ export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league
   return best!;
 }
 
-// ── Opponent representative — best-possible (hundo) stats, primary fast move as the incoming attack ──
+// ── Opponent representative — best-possible (hundo) stats, primary fast move
+// and charge move as the incoming attack. Sourced from the broad opponent
+// pool (top ~300/league), not just the curated main roster, so a real but
+// niche threshold isn't excluded for being outside the top-60 meta cut. ──
 export interface OpponentInfo {
-  species: Species;
+  id: string;
+  dex: number;
+  name: string;
+  types: string[];
   atk: number;
   def: number;
   hp: number;
   fastMove: FastMove;
+  chargeMove: ChargeMove;
 }
 
 export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
   const r = bestAt(species, { a: 15, d: 15, s: 15 }, league);
-  return { species, atk: r.atk, def: r.def, hp: r.hp, fastMove: species.fastMoves[0] };
+  return {
+    id: species.id,
+    dex: species.dex,
+    name: species.name,
+    types: species.types,
+    atk: r.atk,
+    def: r.def,
+    hp: r.hp,
+    fastMove: species.fastMoves[0],
+    chargeMove: species.chargeMove,
+  };
 }
 
 export function opponentList(leagueId: LeagueId): Species[] {
   return opponentsFor(leagueId);
+}
+
+// ── Does a real breakpoint/bulkpoint exist for this pairing, across every
+// reachable stat in the 4096 spread? A flat pairing (same rounded damage no
+// matter the IV roll) isn't a relevant matchup to surface. ──
+export function hasBreakpoint(table: SpeciesTable, move: FastMove, oppDef: number): boolean {
+  const seen = new Set<number>();
+  for (const e of table.all) {
+    seen.add(dmg(e.atk, oppDef, move));
+    if (seen.size > 1) return true;
+  }
+  return false;
+}
+
+export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: FastMove): boolean {
+  const seen = new Set<number>();
+  for (const e of table.all) {
+    seen.add(dmg(oppAtk, e.def, oppFastMove));
+    if (seen.size > 1) return true;
+  }
+  return false;
+}
+
+export type RelevanceKind = 'break' | 'bulk' | 'either';
+
+const relevantCache = new Map<string, OpponentInfo[]>();
+
+// Scans the broad opponent-candidate pool and keeps only matchups where the
+// relevant threshold actually exists - a bulkpoint is common enough (roughly
+// half of all matchups have one) that an "either" filter barely narrows
+// anything, so when the caller is specifically looking at breakpoints (or
+// specifically bulkpoints), only that one threshold type should gate
+// inclusion. Toxapex, for example, has a real Psywave breakpoint from
+// Malamar but ranks outside the top 60 meta list - so it must be found via
+// this scan, not the curated top-N list, or it never surfaces at all.
+// Ranked by the candidate's own pvpoke league rank so the most meta-relevant
+// *and* actually-relevant matchups surface first.
+export function relevantOpponents(
+  speciesId: string,
+  leagueId: LeagueId,
+  moveIdx: number,
+  kind: RelevanceKind = 'either',
+  limit = 16,
+): OpponentInfo[] {
+  const key = `${speciesId}|${leagueId}|${moveIdx}|${kind}|${limit}`;
+  const cached = relevantCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const table = getTable(speciesId, leagueId);
+  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== speciesId);
+
+  const scored = candidates
+    .map((c) => {
+      const info = opponentInfo(c.id, leagueId);
+      const hb = kind !== 'bulk' && hasBreakpoint(table, move, info.def);
+      const hk = kind !== 'break' && hasBulkpoint(table, info.atk, info.fastMove);
+      return { info, relevant: hb || hk, rank: c.leagueRank[leagueId] ?? Number.MAX_SAFE_INTEGER };
+    })
+    .filter((x) => x.relevant)
+    .sort((a, b) => a.rank - b.rank || a.info.name.localeCompare(b.info.name));
+
+  const out = scored.slice(0, limit).map((x) => x.info);
+  relevantCache.set(key, out);
+  return out;
 }
 
 // ── Breakpoint / bulkpoint threshold rows ──
@@ -177,7 +260,7 @@ export function bpRowsFor(
     const v = seenB.get(d)!;
     rows.push({
       kind: 'Bulkpoint',
-      move: `${opp.species.name} ${opp.fastMove.name}`,
+      move: `${opp.name} ${opp.fastMove.name}`,
       needLabel: `def ${v.def.toFixed(2)}`,
       need: v.def,
       spread: `${v.e.a}/${v.e.d}/${v.e.s}`,
@@ -284,7 +367,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
     const reached = th.filter((x) => entry.atk >= x.at).length;
     out.push(
       mk(
-        `${mv.name} → ${opp.species.name}`,
+        `${mv.name} → ${opp.name}`,
         `${mv.turns}-turn · ${mv.power} power · target def ${opp.def.toFixed(1)}`,
         aMin,
         aMax,
@@ -307,7 +390,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
   const thB = [...seenB.keys()].sort((x, y) => y - x).map((d) => ({ at: seenB.get(d)!, label: `takes ${d}` }));
   out.push(
     mk(
-      `Bulkpoints vs ${opp.species.name} ${opp.fastMove.name}`,
+      `Bulkpoints vs ${opp.name} ${opp.fastMove.name}`,
       `your defense axis · attacker atk ${opp.atk.toFixed(1)}`,
       dMin,
       dMax,
@@ -529,7 +612,7 @@ export function flipGrid(
   const species = SPECIES_BY_ID.get(speciesId)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const opp = opponentInfo(oppSpeciesId, leagueId);
-  const opponentMon = mkBattleMon(opp, opp.fastMove, opp.species.chargeMove);
+  const opponentMon = mkBattleMon(opp, opp.fastMove, opp.chargeMove);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
 
   const slice: RankedEntry[] = [];
@@ -549,7 +632,7 @@ export function flipGrid(
 }
 
 export interface FlipMatchupRow {
-  species: Species;
+  species: OpponentInfo;
   cells: { win: boolean; margin: number }[];
   cmpWin: boolean;
   flips: number;
@@ -569,13 +652,13 @@ export function flipMatchupRows(
 
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);
-    const foe = mkBattleMon(opp, opp.fastMove, opp.species.chargeMove);
+    const foe = mkBattleMon(opp, opp.fastMove, opp.chargeMove);
     const cells = [0, 1, 2].map((sh) => {
       const r = battle(you, foe, sh, sh);
       return { win: r.win, margin: r.margin };
     });
     return {
-      species: opp.species,
+      species: opp,
       cells,
       cmpWin: entry.atk >= foe.atk,
       flips: cells.filter((c) => c.win).length,

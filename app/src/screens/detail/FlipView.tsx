@@ -138,7 +138,7 @@ export function FlipView({
                 color: now.win ? 'var(--color-accent-700)' : 'var(--color-text)',
               }}
             >
-              {now.win ? 'WIN' : 'LOSS'} vs {grid.opponentInfo.species.name} · {now.margin >= 0 ? '+' : ''}
+              {now.win ? 'WIN' : 'LOSS'} vs {grid.opponentInfo.name} · {now.margin >= 0 ? '+' : ''}
               {now.margin.toFixed(0)}% HP margin
             </div>
             <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>

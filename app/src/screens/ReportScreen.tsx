@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppState, type Viz } from '../state/AppState';
-import { SPECIES_BY_ID, opponentsFor } from '../lib/data';
+import { SPECIES_BY_ID } from '../lib/data';
 import {
   bestLeagueFor,
   bpRowsFor,
@@ -9,6 +9,7 @@ import {
   flipMatchupRows,
   getEntry,
   opponentInfo,
+  relevantOpponents,
   rulersFor,
   verdictLine,
 } from '../lib/engine';
@@ -33,9 +34,17 @@ export function ReportScreen() {
 
   const species = SPECIES_BY_ID.get(speciesId)!;
   const { entry, table } = getEntry(speciesId, iv, league);
-  const opponents = useMemo(() => opponentsFor(league), [league]);
-  const activeOppIdx = Math.max(0, opponents.findIndex((o) => o.id === oppId));
-  const opp = useMemo(() => opponentInfo(oppId || opponents[0]?.id, league), [oppId, opponents, league]);
+  const relevanceKind = viz === 'heat' && colorBy !== 'rank' ? colorBy : 'either';
+  const opponents = useMemo(
+    () => relevantOpponents(speciesId, league, moveIdx, relevanceKind, 16),
+    [speciesId, league, moveIdx, relevanceKind],
+  );
+  const effectiveOppId = opponents.some((o) => o.id === oppId) ? oppId : (opponents[0]?.id ?? oppId);
+  useEffect(() => {
+    if (effectiveOppId !== oppId) set('oppId', effectiveOppId);
+  }, [effectiveOppId, oppId, set]);
+  const activeOppIdx = Math.max(0, opponents.findIndex((o) => o.id === effectiveOppId));
+  const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
 
   const spPct = entry.sp / table.best.sp;
   const bestLeague = bestLeagueFor(speciesId, iv);
@@ -47,7 +56,7 @@ export function ReportScreen() {
   );
   const rulers = useMemo(() => (viz === 'ruler' ? rulersFor(speciesId, iv, league, opp) : []), [viz, speciesId, iv, league, opp]);
   const grid = useMemo(
-    () => (viz === 'flip' ? flipGrid(speciesId, iv, league, opp.species.id, moveIdx, state.shields) : null),
+    () => (viz === 'flip' ? flipGrid(speciesId, iv, league, opp.id, moveIdx, state.shields) : null),
     [viz, speciesId, iv, league, opp, moveIdx, state.shields],
   );
   const flipRows = useMemo(
@@ -60,7 +69,7 @@ export function ReportScreen() {
 
   const bpBlurb = beginner
     ? 'Every square is one of the 4096 possible catches. A breakpoint is the attack value where your fast move starts doing one more damage — cross it and every hit for the rest of the fight is stronger.'
-    : `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.species.name}, and where incoming ${opp.fastMove.name} steps down.`;
+    : `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.name}, and where incoming ${opp.fastMove.name} steps down.`;
 
   const footnote = beginner
     ? 'Rank compares your Pokémon against every one of the 4096 possible IV rolls at this CP cap. #1 is the best possible. Click any heatmap cell to load that spread.'
@@ -190,7 +199,7 @@ export function ReportScreen() {
               vs
             </span>
             {opponents.map((o) => (
-              <ChipButton key={o.id} active={oppId === o.id} onClick={() => set('oppId', o.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ChipButton key={o.id} active={effectiveOppId === o.id} onClick={() => set('oppId', o.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Sprite dex={o.dex} size={22} />
                 {o.name}
               </ChipButton>

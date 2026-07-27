@@ -27,6 +27,7 @@ export interface Species {
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
   leagues: string[];
+  leagueRank: Partial<Record<LeagueId, number>>;
 }
 
 export type LeagueId = 'great' | 'ultra' | 'master';

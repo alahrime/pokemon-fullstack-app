@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/modernist-9dd963f7-5ade-477f-bdc7-c7fa9bb1fe76/styles.css">
+  <script src="_ds/modernist-9dd963f7-5ade-477f-bdc7-c7fa9bb1fe76/_ds_bundle.js"></script>
+  <style>
+    body { margin: 0; background: var(--color-bg); }
+    a { color: var(--color-accent); }
+    a:hover { color: var(--color-accent-700); }
+    input[type=range] { accent-color: var(--color-accent); }
+  </style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;font-family:var(--font-body)">
+
+  <div class="nav" style="position:sticky;top:0;z-index:20;background:var(--color-bg);flex-wrap:wrap;row-gap:8px">
+    <span class="nav-brand" style="letter-spacing:-0.03em">PARAGON<span style="color:var(--color-accent)">/</span>IV</span>
+    <div style="display:flex;gap:0;border:1px solid var(--color-divider)">
+      <sc-for list="{{ navItems }}" as="it" hint-placeholder-count="6">
+        <button class="btn" style="{{ it.style }}" onClick="{{ it.go }}">{{ it.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:0;border:1px solid var(--color-divider)">
+      <sc-for list="{{ leagueItems }}" as="lg" hint-placeholder-count="3">
+        <button class="btn" style="{{ lg.style }}" onClick="{{ lg.go }}">{{ lg.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:0;border:1px solid var(--color-divider)">
+      <sc-for list="{{ modeItems }}" as="md" hint-placeholder-count="2">
+        <button class="btn" style="{{ md.style }}" onClick="{{ md.go }}">{{ md.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding:24px 24px 64px;max-width:1440px;width:100%;margin:0 auto">
+
+    <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:0;border:2px solid var(--color-divider)">
+
+        <div style="border-right:2px solid var(--color-divider);padding:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="flex:none;width:88px;height:88px;background:var(--color-surface);border:1px solid var(--color-divider);display:grid;place-items:center">
+              <div style="{{ heroSpriteStyle }}"></div>
+            </div>
+            <div style="min-width:0">
+              <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent)">{{ dexNo }} · caught {{ caughtWhen }}</div>
+              <h2 style="margin:2px 0 4px;font-size:28px">{{ speciesName }}</h2>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
+                <sc-for list="{{ typeTags }}" as="t" hint-placeholder-count="2">
+                  <span class="tag tag-neutral" style="text-transform:uppercase;letter-spacing:0.08em;font-size:10px">{{ t.label }}</span>
+                </sc-for>
+              </div>
+              <div class="text-muted" style="font-size:13px">IV {{ ivLabel }} · CP {{ cp }} · L{{ level }}</div>
+            </div>
+          </div>
+
+          <div style="background:var(--color-text);color:var(--color-bg);padding:16px 18px">
+            <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;opacity:0.6">Stat product rank</div>
+            <div style="display:flex;align-items:baseline;gap:6px">
+              <span style="font-family:var(--font-heading);font-weight:800;font-size:52px;line-height:1;letter-spacing:-0.04em">#{{ rank }}</span>
+              <span style="font-size:15px;opacity:0.55">/ 4096</span>
+            </div>
+            <div style="height:2px;background:rgba(255,255,255,0.25);margin:12px 0 8px">
+              <div style="height:2px;background:var(--color-accent);width:{{ rankBarW }}"></div>
+            </div>
+            <div style="font-size:12px;opacity:0.75">{{ verdictLine }}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--color-divider)">
+            <div style="padding:10px 12px;border-right:1px solid var(--color-divider)">
+              <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">Attack</div>
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:20px">{{ atkStat }}</div>
+            </div>
+            <div style="padding:10px 12px;border-right:1px solid var(--color-divider)">
+              <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">Defense</div>
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:20px">{{ defStat }}</div>
+            </div>
+            <div style="padding:10px 12px">
+              <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">HP</div>
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:20px">{{ hpStat }}</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span class="text-muted">Stat product</span><span>{{ spLabel }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span class="text-muted">% of rank 1</span><span>{{ spPctLabel }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span class="text-muted">Rank 1 spread</span><span>{{ bestIvLabel }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span class="text-muted">Best league here</span><span>{{ bestLeague }}</span>
+            </div>
+          </div>
+
+          <hr class="hr" style="margin:2px 0">
+
+          <div>
+            <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px" class="text-muted">Adjust roll</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ ivRows }}" as="row" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:66px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase" class="text-muted">{{ row.label }}</span>
+                  <button class="btn btn-secondary" style="width:34px;height:34px;padding:0;justify-content:center" onClick="{{ row.dec }}">–</button>
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:18px;width:26px;text-align:center">{{ row.value }}</span>
+                  <button class="btn btn-secondary" style="width:34px;height:34px;padding:0;justify-content:center" onClick="{{ row.inc }}">+</button>
+                  <div style="flex:1;height:6px;background:var(--color-neutral-300)">
+                    <div style="height:6px;background:var(--color-accent);width:{{ row.bar }}"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:12px">
+              <select class="input" value="{{ species }}" onChange="{{ setSpecies }}">
+                <sc-for list="{{ speciesOptions }}" as="op" hint-placeholder-count="8">
+                  <option value="{{ op.id }}">{{ op.name }}</option>
+                </sc-for>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;justify-content:space-between">
+            <div>
+              <h4 style="margin:0">Breakpoints &amp; bulkpoints</h4>
+              <div class="text-muted" style="font-size:12px;max-width:52ch">{{ bpBlurb }}</div>
+            </div>
+            <div style="display:flex;gap:0;border:1px solid var(--color-divider)">
+              <sc-for list="{{ vizItems }}" as="v" hint-placeholder-count="3">
+                <button class="btn" style="{{ v.style }}" onClick="{{ v.go }}">{{ v.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">vs</span>
+            <sc-for list="{{ oppItems }}" as="o" hint-placeholder-count="4">
+              <button class="btn" style="{{ o.style }}" onClick="{{ o.go }}">
+                <span style="{{ o.spriteStyle }}"></span>{{ o.label }}
+              </button>
+            </sc-for>
+            <span style="width:2px;height:20px;background:var(--color-divider)"></span>
+            <sc-for list="{{ moveItems }}" as="m" hint-placeholder-count="2">
+              <button class="btn" style="{{ m.style }}" onClick="{{ m.go }}">{{ m.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ vizHeat }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+              <div>
+                <div style="display:flex;gap:6px;margin-bottom:8px">
+                  <sc-for list="{{ colorByItems }}" as="c" hint-placeholder-count="3">
+                    <button class="btn" style="{{ c.style }}" onClick="{{ c.go }}">{{ c.label }}</button>
+                  </sc-for>
+                </div>
+                <div style="display:flex;gap:6px">
+                  <div style="display:flex;flex-direction:column;justify-content:space-between;font-size:9px;padding:12px 0" class="text-muted">
+                    <span>15</span><span>DEF IV</span><span>0</span>
+                  </div>
+                  <div style="min-width:0;width:min(560px,100%)">
+                    <div style="display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:2px;border:1px solid var(--color-divider);padding:3px;background:var(--color-bg)">
+                      <sc-for list="{{ heatCells }}" as="c" hint-placeholder-count="256">
+                        <div title="{{ c.tip }}" onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.mark }}</div>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:4px" class="text-muted">
+                      <span>0</span><span>ATTACK IV</span><span>15</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+                  <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap" class="text-muted">HP IV slice {{ ivS }}</span>
+                  <input type="range" min="0" max="15" step="1" value="{{ ivS }}" onChange="{{ setS }}" style="flex:1;min-width:140px">
+                </div>
+              </div>
+              <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:10px">
+                <div style="border:1px solid var(--color-divider);padding:12px">
+                  <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:8px">Legend — {{ colorByLabel }}</div>
+                  <sc-for list="{{ legend }}" as="l" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:2px 0">
+                      <span style="{{ l.swatch }}"></span><span>{{ l.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="border:1px solid var(--color-divider);padding:12px;font-size:12px;line-height:1.5">
+                  <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:6px">Reading this slice</div>
+                  {{ heatNote }}
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ vizRuler }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:22px;padding:8px 0 0">
+              <sc-for list="{{ rulers }}" as="r" hint-placeholder-count="2">
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:26px">
+                    <div style="min-width:0">
+                      <div style="font-family:var(--font-heading);font-weight:800;font-size:16px">{{ r.title }}</div>
+                      <div class="text-muted" style="font-size:12px">{{ r.sub }}</div>
+                    </div>
+                    <span class="tag tag-accent" style="flex:none;white-space:nowrap">{{ r.badge }}</span>
+                  </div>
+                  <div style="position:relative;height:74px;border-left:2px solid var(--color-divider);border-right:2px solid var(--color-divider)">
+                    <div style="position:absolute;left:0;right:0;top:34px;height:2px;background:var(--color-divider)"></div>
+                    <sc-for list="{{ r.bands }}" as="b" hint-placeholder-count="4">
+                      <div style="{{ b.style }}">{{ b.label }}</div>
+                    </sc-for>
+                    <sc-for list="{{ r.ticks }}" as="t" hint-placeholder-count="4">
+                      <div style="{{ t.style }}"></div>
+                    </sc-for>
+                    <div style="{{ r.youStyle }}">
+                      <div style="position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;letter-spacing:0.08em;background:var(--color-accent);color:var(--color-bg);padding:1px 5px">YOU {{ r.youLabel }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:22px" class="text-muted">
+                    <span>{{ r.min }} {{ r.unit }}</span><span>{{ r.note }}</span><span>{{ r.max }} {{ r.unit }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ vizFlip }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">Shields</span>
+              <sc-for list="{{ shieldItems }}" as="s" hint-placeholder-count="3">
+                <button class="btn" style="{{ s.style }}" onClick="{{ s.go }}">{{ s.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+              <div style="min-width:0;width:min(520px,100%)">
+                <div style="display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:2px;border:1px solid var(--color-divider);padding:3px">
+                  <sc-for list="{{ flipCells }}" as="c" hint-placeholder-count="256">
+                    <div title="{{ c.tip }}" onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.mark }}</div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:4px" class="text-muted">
+                  <span>0 · ATTACK IV · 15</span><span>rows = DEF IV 15 → 0</span>
+                </div>
+                <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+                  <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap" class="text-muted">HP IV slice {{ ivS }}</span>
+                  <input type="range" min="0" max="15" step="1" value="{{ ivS }}" onChange="{{ setS }}" style="flex:1;min-width:140px">
+                </div>
+                <div style="{{ cmpStyle }};margin-top:14px">{{ cmpLine }}</div>
+              </div>
+              <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px">
+                <div style="border:2px solid var(--color-divider);padding:14px">
+                  <div style="{{ flipVerdictStyle }}">{{ flipVerdict }}</div>
+                  <div class="text-muted" style="font-size:12px;margin-top:2px">{{ flipWinCount }}</div>
+                  <div style="font-size:13px;margin-top:8px">{{ flipNeed }}</div>
+                </div>
+                <table class="table">
+                  <thead><tr><th>Opponent</th><th>0s</th><th>1s</th><th>2s</th><th>CMP</th></tr></thead>
+                  <tbody>
+                    <sc-for list="{{ flipRows }}" as="r" hint-placeholder-count="4">
+                      <tr style="{{ r.rowStyle }}" onClick="{{ r.go }}">
+                        <td>
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <span style="{{ r.spriteStyle }}"></span><span style="font-size:13px">{{ r.name }}</span>
+                          </div>
+                        </td>
+                        <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3">
+                          <td>
+                            <div style="{{ c.style }}">{{ c.label }}</div>
+                            <div class="text-muted" style="font-size:10px">{{ c.sub }}</div>
+                          </td>
+                        </sc-for>
+                        <td style="{{ r.cmpStyle }}">{{ r.cmp }}</td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+                <p class="text-muted" style="font-size:11px;margin:0">{{ flipNote }}</p>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ vizTable }}" hint-placeholder-val="{{ false }}">
+            <div style="overflow-x:auto">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Threshold</th><th>Move</th><th>Needs attack ≥</th><th>Min IV spread</th><th>Damage / turn</th><th>Your roll</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ bpRows }}" as="r" hint-placeholder-count="6">
+                    <tr style="{{ r.rowStyle }}">
+                      <td><span class="{{ r.kindTag }}">{{ r.kind }}</span></td>
+                      <td>{{ r.move }}</td>
+                      <td style="font-family:var(--font-heading);font-weight:800">{{ r.need }}</td>
+                      <td class="text-muted">{{ r.spread }}</td>
+                      <td>{{ r.dmg }}</td>
+                      <td style="{{ r.statusStyle }}">{{ r.status }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <p class="text-muted" style="font-size:11px;margin-top:10px">{{ footnote }}</p>
+    </sc-if>
+
+    <sc-if value="{{ isOverlay }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="display:flex;gap:0;border:1px solid var(--color-divider);margin-bottom:14px">
+            <sc-for list="{{ overlayStates }}" as="o" hint-placeholder-count="3">
+              <button class="btn" style="{{ o.style }}" onClick="{{ o.go }}">{{ o.label }}</button>
+            </sc-for>
+          </div>
+          <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+            <div style="position:relative;height:100%;background:#1b2420;overflow:hidden">
+              <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,0.035) 0 1px,transparent 1px 26px)"></div>
+              <div style="position:absolute;top:18px;left:16px;right:16px;display:flex;justify-content:space-between;color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;text-transform:uppercase">
+                <span>Game capture (simulated)</span><span>CP {{ cp }}</span>
+              </div>
+              <div style="position:absolute;top:120px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.22);font-family:var(--font-heading);font-weight:800;font-size:26px;letter-spacing:-0.02em">{{ speciesName }}</div>
+              <div style="position:absolute;top:186px;left:50%;transform:translateX(-50%);width:150px;height:150px;border:2px solid rgba(255,255,255,0.16);display:grid;place-items:center">
+                <div style="{{ gameSpriteStyle }}"></div>
+              </div>
+              <div style="position:absolute;top:360px;left:38px;right:38px;display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ appraisalBars }}" as="b" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px"><span>{{ b.label }}</span><span>{{ b.value }}/15</span></div>
+                    <div style="display:flex;gap:2px">
+                      <sc-for list="{{ b.pips }}" as="p" hint-placeholder-count="15">
+                        <span style="{{ p.style }}"></span>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ overlayCollapsed }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ openOverlay }}" style="position:absolute;right:14px;bottom:150px;width:64px;height:64px;background:var(--color-accent);color:#fff;border:0;box-shadow:var(--shadow-lg);cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 0 0 8px;gap:0">
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:11px;letter-spacing:0.06em;opacity:0.8">RANK</span>
+                  <span style="font-family:var(--font-heading);font-weight:800;font-size:22px;line-height:1">#{{ rank }}</span>
+                </button>
+                <div style="position:absolute;right:86px;bottom:166px;background:var(--color-text);color:var(--color-bg);font-size:11px;padding:5px 8px;letter-spacing:0.04em">{{ bubbleHint }}</div>
+              </sc-if>
+
+              <sc-if value="{{ overlayScan }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:color-mix(in srgb, #0d0f0e 55%, transparent)"></div>
+                <div style="position:absolute;left:0;right:0;bottom:0;background:var(--color-bg);border-top:4px solid var(--color-accent);padding:18px 18px 26px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent)">Scan · {{ ocrConfidence }}% match</span>
+                    <button class="btn btn-ghost" style="min-height:44px" onClick="{{ closeOverlay }}">Dismiss</button>
+                  </div>
+                  <h4 style="margin:0 0 2px">Confirm what I read</h4>
+                  <p class="text-muted" style="font-size:12px;margin:0 0 14px">{{ scanBlurb }}</p>
+                  <div style="display:flex;flex-direction:column;gap:10px">
+                    <sc-for list="{{ ivRows }}" as="row" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:10px;border:1px solid var(--color-divider);padding:6px 8px;background:{{ row.flagBg }}">
+                        <span style="flex:1;font-size:12px;letter-spacing:0.06em;text-transform:uppercase">{{ row.label }}</span>
+                        <span style="font-size:10px;letter-spacing:0.06em" class="text-muted">{{ row.flag }}</span>
+                        <button class="btn btn-secondary" style="width:44px;height:44px;padding:0;justify-content:center" onClick="{{ row.dec }}">–</button>
+                        <span style="font-family:var(--font-heading);font-weight:800;font-size:20px;width:30px;text-align:center">{{ row.value }}</span>
+                        <button class="btn btn-secondary" style="width:44px;height:44px;padding:0;justify-content:center" onClick="{{ row.inc }}">+</button>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <button class="btn btn-primary btn-block" style="min-height:48px" onClick="{{ toResult }}">Rank it →</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ overlayResult }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:color-mix(in srgb, #0d0f0e 55%, transparent)"></div>
+                <div style="position:absolute;left:0;right:0;bottom:0;background:var(--color-bg);border-top:4px solid var(--color-accent);max-height:78%;overflow:auto">
+                  <div style="padding:16px 18px 22px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent)">{{ leagueName }}</span>
+                      <button class="btn btn-ghost" style="min-height:44px" onClick="{{ closeOverlay }}">Close</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="{{ cardSpriteStyle }}"></div>
+                      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                        <span style="font-family:var(--font-heading);font-weight:800;font-size:46px;line-height:1;letter-spacing:-0.04em">#{{ rank }}</span>
+                        <span class="text-muted" style="font-size:13px">/ 4096 · {{ spPctLabel }} of rank 1</span>
+                      </div>
+                    </div>
+                    <div style="font-size:13px;margin:4px 0 12px">{{ verdictLine }}</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--color-divider);margin-bottom:12px">
+                      <sc-for list="{{ miniStats }}" as="s" hint-placeholder-count="3">
+                        <div style="{{ s.style }}">
+                          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">{{ s.label }}</div>
+                          <div style="font-family:var(--font-heading);font-weight:800;font-size:19px">{{ s.value }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:6px">Breakpoints vs {{ oppName }}</div>
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+                      <sc-for list="{{ overlayBps }}" as="b" hint-placeholder-count="3">
+                        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px solid var(--color-divider);padding-bottom:5px">
+                          <span>{{ b.text }}</span><span style="{{ b.style }}">{{ b.status }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(16,1fr);gap:1px;border:1px solid var(--color-divider);padding:2px">
+                      <sc-for list="{{ heatCellsMini }}" as="c" hint-placeholder-count="256">
+                        <div style="{{ c.style }}"></div>
+                      </sc-for>
+                    </div>
+                    <div class="text-muted" style="font-size:10px;margin-top:5px;letter-spacing:0.06em">ATK×DEF at HP IV {{ ivS }} — your cell outlined</div>
+                    <div style="display:flex;gap:8px;margin-top:14px">
+                      <button class="btn btn-primary" style="flex:1;min-height:48px;justify-content:flex-start" onClick="{{ saveCatch }}">Save to collection</button>
+                      <button class="btn btn-secondary" style="min-height:48px" onClick="{{ goDetail }}">Full report</button>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </x-import>
+        </div>
+        <div style="max-width:400px;display:flex;flex-direction:column;gap:14px">
+          <h3 style="margin:0">Android: overlay on the live game</h3>
+          <p style="font-size:13px;margin:0">A 64px square bubble parks over the game and shows the one number that matters. Tap it and the sheet rises from the bottom edge — thumb-reachable, never covering the appraisal bars it just read.</p>
+          <hr class="hr" style="margin:0">
+          <sc-for list="{{ overlayNotes }}" as="n" hint-placeholder-count="4">
+            <div style="display:flex;gap:12px;font-size:13px">
+              <span style="font-family:var(--font-heading);font-weight:800;color:var(--color-accent);min-width:22px">{{ n.num }}</span>
+              <span>{{ n.text }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isIOS }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="display:flex;gap:0;border:1px solid var(--color-divider);margin-bottom:14px">
+            <sc-for list="{{ iosFlows }}" as="f" hint-placeholder-count="3">
+              <button class="btn" style="{{ f.style }}" onClick="{{ f.go }}">{{ f.label }}</button>
+            </sc-for>
+          </div>
+          <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ iosDark }}" hint-size="393px,852px">
+            <div style="position:relative;height:100%;background:{{ iosBg }};overflow:hidden">
+
+              <sc-if value="{{ iosShare }}" hint-placeholder-val="{{ true }}">
+                <div style="position:absolute;inset:0;background:#1b2420">
+                  <div style="position:absolute;top:40px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.25);font-size:11px;letter-spacing:0.14em;text-transform:uppercase">Screenshot preview</div>
+                  <div style="position:absolute;top:80px;left:60px;right:60px;bottom:330px;border:2px solid rgba(255,255,255,0.14);display:grid;place-items:center;color:rgba(255,255,255,0.2);font-size:11px;letter-spacing:0.1em">CATCH SCREEN</div>
+                </div>
+                <div style="position:absolute;left:0;right:0;bottom:0;background:var(--color-bg);border-top:4px solid var(--color-accent);padding:16px 18px 24px">
+                  <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:10px">Share sheet · Paragon extension</div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div style="{{ cardSpriteStyle }}"></div>
+                    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                      <span style="font-family:var(--font-heading);font-weight:800;font-size:44px;line-height:1;letter-spacing:-0.04em">#{{ rank }}</span>
+                      <span class="text-muted" style="font-size:13px">/ 4096 · {{ speciesName }} {{ ivLabel }}</span>
+                    </div>
+                  </div>
+                  <div style="font-size:13px;margin:4px 0 12px">{{ verdictLine }}</div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--color-divider);margin-bottom:14px">
+                    <sc-for list="{{ miniStats }}" as="s" hint-placeholder-count="3">
+                      <div style="{{ s.style }}">
+                        <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase" class="text-muted">{{ s.label }}</div>
+                        <div style="font-family:var(--font-heading);font-weight:800;font-size:19px">{{ s.value }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn btn-primary" style="flex:1;min-height:48px;justify-content:flex-start" onClick="{{ saveCatch }}">Save</button>
+                    <button class="btn btn-secondary" style="min-height:48px" onClick="{{ goDetail }}">Open app</button>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ iosLibrary }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:56px 18px 0">
+                  <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent)">Import</div>
+                  <h3 style="margin:2px 0 12px">Recent screenshots</h3>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <sc-for list="{{ shots }}" as="s" hint-placeholder-count="4">
+                      <button onClick="{{ s.pick }}" style="{{ s.style }}">
+                        <span style="position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,0.22);font-size:10px;letter-spacing:0.1em">{{ s.kind }}</span>
+                        <span style="{{ s.spriteStyle }}"></span>
+                        <span style="position:absolute;left:0;bottom:0;right:0;background:var(--color-text);color:var(--color-bg);font-size:10px;padding:4px 6px;text-align:left;letter-spacing:0.04em">{{ s.label }}</span>
+                        <span style="{{ s.badge }}">{{ s.badgeText }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <button class="btn btn-primary btn-block" style="min-height:48px;margin-top:16px" onClick="{{ toResult }}">Rank {{ shotCount }} selected →</button>
+                  <p class="text-muted" style="font-size:12px;margin-top:10px">Batch import reads every screenshot in one pass. Anything the parser is unsure of gets a red corner and lands in a confirm queue.</p>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ iosAuto }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:#1b2420">
+                  <div style="position:absolute;top:150px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.16);font-size:13px;letter-spacing:0.14em;text-transform:uppercase">Lock screen</div>
+                </div>
+                <div style="position:absolute;top:56px;left:14px;right:14px;background:var(--color-bg);border-left:4px solid var(--color-accent);box-shadow:var(--shadow-lg);padding:12px 14px">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent)"><span>Paragon</span><span class="text-muted">now</span></div>
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-top:2px">
+                    <span style="font-family:var(--font-heading);font-weight:800;font-size:30px;line-height:1">#{{ rank }}</span>
+                    <span style="font-size:13px">{{ speciesName }} {{ ivLabel }}</span>
+                  </div>
+                  <div class="text-muted" style="font-size:12px;margin-top:2px">{{ verdictLine }}</div>
+                </div>
+                <div style="position:absolute;top:210px;left:14px;right:14px;display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ autoQueue }}" as="q" hint-placeholder-count="3">
+                    <div style="background:color-mix(in srgb, var(--color-bg) 92%, transparent);padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px">
+                      <span style="{{ q.spriteStyle }}"></span>
+                      <span style="flex:1">{{ q.name }}</span><span style="{{ q.style }}">{{ q.rank }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="position:absolute;left:14px;right:14px;bottom:26px">
+                  <p style="font-size:12px;background:var(--color-bg);padding:10px 12px;margin:0">Photos permission lets Paragon watch for new screenshots and rank them silently. No overlay, no app switch — the answer arrives as a notification.</p>
+                </div>
+              </sc-if>
+            </div>
+          </x-import>
+        </div>
+        <div style="max-width:400px;display:flex;flex-direction:column;gap:14px">
+          <h3 style="margin:0">iOS: three ways in</h3>
+          <p style="font-size:13px;margin:0">iOS forbids drawing over another app, so the screenshot is the input. Each flow trades speed for friction differently — pick one as primary and ship the other two as settings.</p>
+          <hr class="hr" style="margin:0">
+          <sc-for list="{{ iosNotes }}" as="n" hint-placeholder-count="3">
+            <div style="border-left:2px solid var(--color-divider);padding-left:12px">
+              <div style="font-family:var(--font-heading);font-weight:800;font-size:14px">{{ n.title }}</div>
+              <div class="text-muted" style="font-size:12px">{{ n.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isExplorer }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="{{ cardSpriteStyle }}"></div>
+              <div>
+                <h3 style="margin:0">{{ speciesName }} — the whole 4096</h3>
+                <div class="text-muted" style="font-size:12px">{{ explorerBlurb }}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{ colorByItems }}" as="c" hint-placeholder-count="3">
+                <button class="btn" style="{{ c.style }}" onClick="{{ c.go }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="display:flex;flex-direction:column;justify-content:space-between;font-size:10px;padding:14px 0" class="text-muted">
+              <span>15</span><span style="writing-mode:vertical-rl;letter-spacing:0.1em">DEF IV</span><span>0</span>
+            </div>
+            <div style="min-width:0;width:min(680px,100%)">
+              <div style="display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:2px;border:2px solid var(--color-divider);padding:4px">
+                <sc-for list="{{ bigCells }}" as="c" hint-placeholder-count="256">
+                  <div title="{{ c.tip }}" onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.mark }}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:6px;letter-spacing:0.1em" class="text-muted">
+                <span>0</span><span>ATTACK IV</span><span>15</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;align-items:center;gap:12px;max-width:520px">
+            <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap" class="text-muted">HP IV slice</span>
+            <input type="range" min="0" max="15" step="1" value="{{ ivS }}" onChange="{{ setS }}" style="flex:1">
+            <span style="font-family:var(--font-heading);font-weight:800;font-size:18px;width:24px;text-align:right">{{ ivS }}</span>
+          </div>
+        </div>
+        <div style="flex:1;min-width:300px">
+          <h4 style="margin:0 0 8px">Top of the space</h4>
+          <table class="table">
+            <thead><tr><th>#</th><th>IV</th><th>CP</th><th>L</th><th>SP</th><th>%</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ topRows }}" as="r" hint-placeholder-count="12">
+                <tr style="{{ r.rowStyle }}">
+                  <td style="font-family:var(--font-heading);font-weight:800">{{ r.rank }}</td>
+                  <td>{{ r.iv }}</td><td>{{ r.cp }}</td><td>{{ r.lvl }}</td><td>{{ r.sp }}</td>
+                  <td style="{{ r.pctStyle }}">{{ r.pct }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <p class="text-muted" style="font-size:11px;margin-top:10px">{{ explorerNote }}</p>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCollection }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0">Collection</h3>
+          <div class="text-muted" style="font-size:12px">{{ collectionBlurb }}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input class="input" style="width:190px" placeholder="Filter species…" value="{{ query }}" onChange="{{ setQuery }}">
+          <div style="display:flex;gap:0;border:1px solid var(--color-divider)">
+            <sc-for list="{{ sortItems }}" as="s" hint-placeholder-count="4">
+              <button class="btn" style="{{ s.style }}" onClick="{{ s.go }}">{{ s.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr><th>Species</th><th>IV</th><th>Rank</th><th>% of #1</th><th>CP / L</th><th>Breakpoints</th><th>Verdict</th><th></th></tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{ collectionRows }}" as="r" hint-placeholder-count="7">
+            <tr style="{{ r.rowStyle }}">
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="{{ r.spriteStyle }}"></span>
+                  <span style="font-family:var(--font-heading);font-weight:800">{{ r.name }}</span>
+                </div>
+              </td>
+              <td>{{ r.iv }}</td>
+              <td><span style="{{ r.rankStyle }}">#{{ r.rank }}</span></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:70px;height:6px;background:var(--color-neutral-300)"><div style="height:6px;background:var(--color-accent);width:{{ r.bar }}"></div></div>
+                  <span style="font-size:12px">{{ r.pct }}</span>
+                </div>
+              </td>
+              <td class="text-muted">{{ r.cp }} / {{ r.lvl }}</td>
+              <td>{{ r.bp }}</td>
+              <td><span class="{{ r.tagClass }}">{{ r.verdict }}</span></td>
+              <td><button class="btn btn-ghost" onClick="{{ r.open }}">Open</button></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+      <p class="text-muted" style="font-size:11px;margin-top:12px">{{ collectionNote }}</p>
+    </sc-if>
+
+    <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-bottom:16px">
+        <h3 style="margin:0">Compare two catches</h3>
+        <div class="text-muted" style="font-size:12px">{{ compareBlurb }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:2px solid var(--color-divider)">
+        <sc-for list="{{ compareCols }}" as="c" hint-placeholder-count="2">
+          <div style="{{ c.style }}">
+            <select class="input" value="{{ c.id }}" onChange="{{ c.set }}">
+              <sc-for list="{{ collectionOptions }}" as="op" hint-placeholder-count="6">
+                <option value="{{ op.id }}">{{ op.label }}</option>
+              </sc-for>
+            </select>
+            <div style="margin-top:14px;display:flex;gap:12px;align-items:flex-start">
+              <div style="{{ c.spriteStyle }}"></div>
+              <div style="min-width:0">
+              <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase" class="text-muted">{{ c.leagueName }}</div>
+              <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+                <span style="font-family:var(--font-heading);font-weight:800;font-size:42px;line-height:1;letter-spacing:-0.04em">#{{ c.rank }}</span>
+                <span class="text-muted" style="font-size:13px">/ 4096</span>
+                <span style="{{ c.winStyle }}">{{ c.winLabel }}</span>
+              </div>
+              <div style="font-size:13px;margin-top:2px">{{ c.name }} {{ c.iv }} · CP {{ c.cp }} · L{{ c.lvl }}</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ c.bars }}" as="b" hint-placeholder-count="4">
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:0.06em;text-transform:uppercase" class="text-muted">
+                    <span>{{ b.label }}</span><span style="{{ b.deltaStyle }}">{{ b.value }} {{ b.delta }}</span>
+                  </div>
+                  <div style="height:8px;background:var(--color-neutral-300);margin-top:3px"><div style="height:8px;background:{{ b.fill }};width:{{ b.w }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+            <hr class="hr">
+            <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-accent);margin-bottom:6px">Breakpoints vs {{ oppName }}</div>
+            <sc-for list="{{ c.bps }}" as="b" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px solid var(--color-divider);padding:5px 0">
+                <span>{{ b.text }}</span><span style="{{ b.style }}">{{ b.status }}</span>
+              </div>
+            </sc-for>
+            <div style="margin-top:16px;display:grid;grid-template-columns:repeat(16,1fr);gap:1px;border:1px solid var(--color-divider);padding:2px;max-width:280px">
+              <sc-for list="{{ c.cells }}" as="cell" hint-placeholder-count="256">
+                <div style="{{ cell.style }}"></div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border:2px solid var(--color-divider);border-top:0;padding:16px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <span class="tag tag-accent">Recommendation</span>
+        <span style="font-size:14px">{{ compareVerdict }}</span>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:980}}">
+const CPM=[0.094,0.1351374,0.16639787,0.192650919,0.21573247,0.236572661,0.25572005,0.273530381,0.29024988,0.306057377,0.3210876,0.335445036,0.34921268,0.362457751,0.37523559,0.387592406,0.39956728,0.411193551,0.42250001,0.432926419,0.44310755,0.453059959,0.46279839,0.472336083,0.48168495,0.4908558,0.49985844,0.508701765,0.51739395,0.525942511,0.53435433,0.542635767,0.55079269,0.558830576,0.56675452,0.574569153,0.58227891,0.589887917,0.59740001,0.604818814,0.61215729,0.619399365,0.62656713,0.633644533,0.64065295,0.647576426,0.65443563,0.661214806,0.667934,0.674577537,0.68116492,0.687680648,0.69414365,0.700538673,0.70688421,0.713164996,0.71939909,0.725571552,0.7317,0.734741009,0.73776948,0.740785574,0.74378943,0.746781211,0.74976104,0.752729087,0.75568551,0.758630378,0.76156384,0.764486065,0.76739717,0.770297266,0.7731865,0.776064962,0.77893275,0.781790055,0.78463697,0.787473578,0.79030001,0.792803968,0.79530001,0.797800015,0.80030001,0.802799995,0.80530001,0.807799995,0.81030001,0.812799985,0.81530001,0.81780001,0.82030001,0.82280001,0.82530001,0.82780001,0.83030001,0.83280001,0.83530001,0.83780001,0.84029999];
+const LVL = i => 1 + i * 0.5;
+
+const DEX = {
+  medicham:{name:'Medicham',dex:308,types:['fighting','psychic'],atk:121,def:152,sta:155,moves:[{n:'Counter',p:8,t:2,stab:1.2},{n:'Psycho Cut',p:3,t:1,stab:1.2}]},
+  azumarill:{name:'Azumarill',dex:184,types:['water','fairy'],atk:112,def:152,sta:225,moves:[{n:'Bubble',p:7,t:3,stab:1.2},{n:'Ice Fang',p:4,t:2,stab:1}]},
+  registeel:{name:'Registeel',dex:379,types:['steel'],atk:143,def:285,sta:190,moves:[{n:'Metal Claw',p:8,t:2,stab:1.2},{n:'Lock On',p:1,t:1,stab:1.2}]},
+  swampert:{name:'Swampert',dex:260,types:['water','ground'],atk:208,def:175,sta:225,moves:[{n:'Mud Shot',p:3,t:1,stab:1.2},{n:'Water Gun',p:3,t:1,stab:1.2}]},
+  skarmory:{name:'Skarmory',dex:227,types:['steel','flying'],atk:148,def:226,sta:163,moves:[{n:'Air Slash',p:9,t:2,stab:1.2},{n:'Steel Wing',p:7,t:2,stab:1.2}]},
+  stunfiskg:{name:'Stunfisk (Galarian)',dex:10169,types:['ground','steel'],atk:144,def:171,sta:265,moves:[{n:'Mud Shot',p:3,t:1,stab:1},{n:'Metal Claw',p:8,t:2,stab:1.2}]},
+  bastiodon:{name:'Bastiodon',dex:411,types:['rock','steel'],atk:94,def:286,sta:155,moves:[{n:'Smack Down',p:12,t:3,stab:1.2},{n:'Iron Tail',p:9,t:3,stab:1.2}]},
+  lickitung:{name:'Lickitung',dex:108,types:['normal'],atk:55,def:133,sta:207,moves:[{n:'Lick',p:5,t:2,stab:1.2},{n:'Zen Headbutt',p:8,t:3,stab:1}]},
+  talonflame:{name:'Talonflame',dex:663,types:['fire','flying'],atk:176,def:155,sta:186,moves:[{n:'Incinerate',p:15,t:5,stab:1.2},{n:'Fire Spin',p:7,t:2,stab:1.2}]},
+  giratinaa:{name:'Giratina (Altered)',dex:487,types:['ghost','dragon'],atk:187,def:225,sta:300,moves:[{n:'Shadow Claw',p:6,t:2,stab:1.2},{n:'Dragon Breath',p:4,t:1,stab:1.2}]},
+  dragonite:{name:'Dragonite',dex:149,types:['dragon','flying'],atk:263,def:198,sta:209,moves:[{n:'Dragon Breath',p:4,t:1,stab:1.2},{n:'Steel Wing',p:7,t:2,stab:1}]},
+  metagross:{name:'Metagross',dex:376,types:['steel','psychic'],atk:257,def:228,sta:190,moves:[{n:'Bullet Punch',p:6,t:2,stab:1.2},{n:'Zen Headbutt',p:8,t:3,stab:1.2}]},
+};
+/* Fast-move energy gain per use, and one charge move per species — the inputs a
+   shield-scenario sim needs beyond raw damage. Approximate pvpoke values. */
+const FE = {
+  'Counter':7,'Psycho Cut':4,'Bubble':11,'Ice Fang':5,'Metal Claw':6,'Lock On':5,
+  'Mud Shot':9,'Water Gun':3,'Air Slash':9,'Steel Wing':6,'Smack Down':8,'Iron Tail':7,
+  'Lick':6,'Zen Headbutt':7,'Incinerate':20,'Fire Spin':10,'Shadow Claw':8,
+  'Dragon Breath':3,'Bullet Punch':7,
+};
+const CHG = {
+  medicham:{n:'Ice Punch',p:55,e:40,stab:1},
+  azumarill:{n:'Ice Beam',p:90,e:55,stab:1},
+  registeel:{n:'Focus Blast',p:150,e:75,stab:1},
+  swampert:{n:'Hydro Cannon',p:80,e:40,stab:1.2},
+  skarmory:{n:'Sky Attack',p:75,e:45,stab:1.2},
+  stunfiskg:{n:'Rock Slide',p:80,e:45,stab:1},
+  bastiodon:{n:'Stone Edge',p:100,e:55,stab:1.2},
+  lickitung:{n:'Body Slam',p:60,e:35,stab:1.2},
+  talonflame:{n:'Brave Bird',p:130,e:55,stab:1.2},
+  giratinaa:{n:'Shadow Ball',p:100,e:55,stab:1.2},
+  dragonite:{n:'Dragon Claw',p:50,e:35,stab:1.2},
+  metagross:{n:'Meteor Mash',p:100,e:50,stab:1.2},
+};
+
+/* Turn-based PvP approximation: 1 turn = 500ms, throw-as-soon-as-charged,
+   shields absorb a charge move down to 1 damage, and simultaneous charge moves
+   are resolved by CMP — higher attack stat throws first. */
+function battle(A, B, shA, shB){
+  let hpA = A.hp, hpB = B.hp, eA = 0, eB = 0, sA = shA, sB = shB;
+  let tA = A.fast.t, tB = B.fast.t, cmpDecided = false;
+  const fA = dmg(A.atk, B.def, A.fast), fB = dmg(B.atk, A.def, B.fast);
+  const cA = dmg(A.atk, B.def, A.charge), cB = dmg(B.atk, A.def, B.charge);
+  for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++){
+    const goA = eA >= A.charge.e, goB = eB >= B.charge.e;
+    if (goA || goB){
+      const order = (goA && goB) ? (A.atk >= B.atk ? ['A','B'] : ['B','A']) : (goA ? ['A'] : ['B']);
+      if (goA && goB) cmpDecided = true;
+      for (const who of order){
+        if (who === 'A' && hpA > 0){ eA -= A.charge.e; if (sB > 0){ sB--; hpB -= 1; } else hpB -= cA; tA = A.fast.t; }
+        if (who === 'B' && hpB > 0){ eB -= B.charge.e; if (sA > 0){ sA--; hpA -= 1; } else hpA -= cB; tB = B.fast.t; }
+      }
+      continue;
+    }
+    if (--tA <= 0){ hpB -= fA; eA = Math.min(100, eA + A.fast.e); tA = A.fast.t; }
+    if (--tB <= 0){ hpA -= fB; eB = Math.min(100, eB + B.fast.e); tB = B.fast.t; }
+  }
+  const mine = Math.max(0, hpA) / A.hp, theirs = Math.max(0, hpB) / B.hp;
+  const win = hpA <= 0 && hpB <= 0 ? A.atk >= B.atk : mine > theirs;
+  return { win, mine, theirs, cmpDecided, margin:(mine - theirs) * 100 };
+}
+
+const SPR = id => 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + DEX[id].dex + '.png';
+
+const LEAGUES = [
+  {id:'great', label:'Great 1500', name:'Great League · 1500', cap:1500, maxIdx:98},
+  {id:'ultra', label:'Ultra 2500', name:'Ultra League · 2500', cap:2500, maxIdx:98},
+  {id:'master', label:'Master', name:'Master League · no cap', cap:1e9, maxIdx:98},
+];
+
+const OPPONENTS = {
+  great:[{id:'azumarill',mv:{n:'Bubble',p:7,t:3,stab:1.2}},{id:'registeel',mv:{n:'Metal Claw',p:8,t:2,stab:1.2}},{id:'swampert',mv:{n:'Mud Shot',p:3,t:1,stab:1.2}},{id:'stunfiskg',mv:{n:'Mud Shot',p:3,t:1,stab:1}}],
+  ultra:[{id:'giratinaa',mv:{n:'Shadow Claw',p:6,t:2,stab:1.2}},{id:'swampert',mv:{n:'Mud Shot',p:3,t:1,stab:1.2}},{id:'registeel',mv:{n:'Metal Claw',p:8,t:2,stab:1.2}},{id:'talonflame',mv:{n:'Incinerate',p:15,t:5,stab:1.2}}],
+  master:[{id:'dragonite',mv:{n:'Dragon Breath',p:4,t:1,stab:1.2}},{id:'metagross',mv:{n:'Bullet Punch',p:6,t:2,stab:1.2}},{id:'giratinaa',mv:{n:'Shadow Claw',p:6,t:2,stab:1.2}}],
+};
+
+const MOCK = [
+  {id:'c1', sp:'medicham', a:1,  d:15, s:14, when:'2 min ago'},
+  {id:'c2', sp:'azumarill', a:0, d:14, s:15, when:'yesterday'},
+  {id:'c3', sp:'registeel', a:4, d:13, s:12, when:'2 days ago'},
+  {id:'c4', sp:'swampert',  a:15,d:15, s:14, when:'last week'},
+  {id:'c5', sp:'stunfiskg', a:2, d:15, s:13, when:'last week'},
+  {id:'c6', sp:'talonflame',a:12,d:9,  s:10, when:'last week'},
+  {id:'c7', sp:'skarmory',  a:0, d:15, s:15, when:'2 weeks ago'},
+];
+
+function statsAt(b, iv, cpm){
+  return { a:(b.atk+iv.a)*cpm, d:(b.def+iv.d)*cpm, hRaw:(b.sta+iv.s)*cpm, h:Math.floor((b.sta+iv.s)*cpm) };
+}
+function cpOf(s){ return Math.max(10, Math.floor(s.a * Math.sqrt(s.d) * Math.sqrt(s.hRaw) / 10)); }
+
+function bestAt(b, iv, lg){
+  for (let i = lg.maxIdx; i >= 0; i--){
+    const s = statsAt(b, iv, CPM[i]);
+    const cp = cpOf(s);
+    if (cp <= lg.cap) return { lvl:LVL(i), cp, atk:s.a, def:s.d, hp:Math.max(10,s.h), sp:s.a*s.d*Math.max(10,s.h) };
+  }
+  const s = statsAt(b, iv, CPM[0]);
+  return { lvl:1, cp:cpOf(s), atk:s.a, def:s.d, hp:Math.max(10,s.h), sp:s.a*s.d*Math.max(10,s.h) };
+}
+
+function dmg(atk, def, mv){ return Math.floor(0.5 * mv.p * (atk/def) * mv.stab) + 1; }
+
+class Component extends DCLogic {
+  state = {
+    screen:'detail', league:'great', mode:'expert', species:'medicham',
+    iv:{a:1,d:15,s:14}, viz:'heat', colorBy:'rank', opp:0, move:0,
+    overlay:'collapsed', iosFlow:'share', query:'', sort:'rank', shields:1,
+    cmpA:'c1', cmpB:'c2', saved:false,
+  };
+
+  table(speciesId, leagueId){
+    this._c = this._c || {};
+    const key = speciesId + '|' + leagueId;
+    if (this._c[key]) return this._c[key];
+    const b = DEX[speciesId], lg = LEAGUES.find(l=>l.id===leagueId);
+    const all = [];
+    for (let a=0;a<16;a++) for (let d=0;d<16;d++) for (let s=0;s<16;s++){
+      const r = bestAt(b, {a,d,s}, lg);
+      all.push({a,d,s,...r});
+    }
+    const sorted = all.slice().sort((x,y)=>y.sp-x.sp);
+    sorted.forEach((e,i)=>{ e.rank = i+1; });
+    const map = {};
+    sorted.forEach(e=>{ map[e.a*256+e.d*16+e.s] = e; });
+    const out = { all:sorted, map, best:sorted[0], worst:sorted[sorted.length-1], lg, b };
+    this._c[key] = out;
+    return out;
+  }
+
+  entry(speciesId, iv, leagueId){
+    const t = this.table(speciesId, leagueId);
+    return { e: t.map[iv.a*256+iv.d*16+iv.s], t };
+  }
+
+  bestLeagueFor(speciesId, iv){
+    let bl = null;
+    LEAGUES.forEach(l=>{
+      const { e } = this.entry(speciesId, iv, l.id);
+      if (!bl || e.rank < bl.rank) bl = { rank:e.rank, name:l.label };
+    });
+    return bl;
+  }
+
+  segStyle(active){
+    return 'min-height:38px;border-radius:0;border:0;font-size:12px;letter-spacing:0.04em;padding:0 12px;' +
+      (active ? 'background:var(--color-accent);color:var(--color-bg);' : 'background:transparent;color:var(--color-text);');
+  }
+  chipStyle(active){
+    return 'min-height:32px;border-radius:0;font-size:12px;padding:0 10px;border:1px solid ' +
+      (active ? 'var(--color-accent)' : 'var(--color-divider)') + ';' +
+      (active ? 'background:var(--color-accent);color:var(--color-bg);' : 'background:transparent;');
+  }
+
+  mine(ent, moveIdx){
+    const f = DEX[this.state.species].moves[moveIdx];
+    return { atk:ent.atk, def:ent.def, hp:ent.hp, fast:{ ...f, e:FE[f.n] || 6 }, charge:CHG[this.state.species] };
+  }
+  oppMon(){
+    const st = this.state, opp = this.oppInfo();
+    const r = bestAt(DEX[opp.id], {a:15,d:15,s:15}, LEAGUES.find(l=>l.id===st.league));
+    return { name:opp.name, id:opp.id, atk:r.atk, def:r.def, hp:r.hp,
+      fast:{ ...opp.mv, e:FE[opp.mv.n] || 6 }, charge:CHG[opp.id] };
+  }
+
+  flipData(){
+    const st = this.state;
+    const key = [st.species, st.league, st.opp, st.move, st.shields, st.iv.s].join('|');
+    this._fd = this._fd || {};
+    if (this._fd[key]) return this._fd[key];
+    const { t } = this.entry(st.species, st.iv, st.league);
+    const B = this.oppMon();
+    const slice = [];
+    for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(t.map[a*256 + d*16 + st.iv.s]);
+    const results = slice.map(x=>({ x, r:battle(this.mine(x, st.move), B, st.shields, st.shields) }));
+    const winners = results.filter(o=>o.r.win);
+    const cheapest = winners.slice().sort((p,q)=>p.x.rank - q.x.rank)[0];
+    const minAtkWin = winners.slice().sort((p,q)=>p.x.atk - q.x.atk)[0];
+    const out = { results, B, winners, cheapest, minAtkWin, total:slice.length };
+    this._fd[key] = out;
+    return out;
+  }
+
+  flipVals(){
+    const st = this.state;
+    if (st.viz !== 'flip') return {};
+    const { e } = this.entry(st.species, st.iv, st.league);
+    const fd = this.flipData(), B = fd.B;
+    const you = this.mine(e, st.move);
+    const now = battle(you, B, st.shields, st.shields);
+    const cmpWin = e.atk >= B.atk;
+    const needAtk = fd.minAtkWin ? fd.minAtkWin.x : null;
+    const beg = st.mode === 'beginner';
+
+    const flipCells = fd.results.map(o=>{
+      const isYou = o.x.a === st.iv.a && o.x.d === st.iv.d;
+      return {
+        style: 'aspect-ratio:1;min-width:0;background:' + (o.r.win ? 'var(--color-accent-500)' : 'var(--color-neutral-200)') + ';' +
+          'display:grid;place-items:center;font-size:8px;cursor:pointer;color:' + (o.r.win ? 'var(--color-bg)' : 'var(--color-neutral-600)') + ';' +
+          (isYou ? 'outline:2px solid var(--color-text);z-index:2;' : ''),
+        mark: isYou ? '●' : '',
+        tip: 'ATK ' + o.x.a + ' / DEF ' + o.x.d + ' — ' + (o.r.win ? 'WIN' : 'LOSS') + ' by ' + o.r.margin.toFixed(0) + '% HP · #' + o.x.rank,
+        pick: ()=>this.setState({ iv:{ ...st.iv, a:o.x.a, d:o.x.d } }),
+      };
+    });
+
+    const flipRows = this.oppInfo().list.map((o,i)=>{
+      const r2 = bestAt(DEX[o.id], {a:15,d:15,s:15}, LEAGUES.find(l=>l.id===st.league));
+      const foe = { atk:r2.atk, def:r2.def, hp:r2.hp, fast:{ ...o.mv, e:FE[o.mv.n] || 6 }, charge:CHG[o.id] };
+      const cells = [0,1,2].map(sh=>{
+        const r = battle(you, foe, sh, sh);
+        return {
+          label: r.win ? 'W' : 'L',
+          style: 'font-family:var(--font-heading);font-weight:800;font-size:13px;color:' +
+            (r.win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)'),
+          sub: (r.margin >= 0 ? '+' : '') + r.margin.toFixed(0) + '%',
+        };
+      });
+      const flips = cells.filter(c=>c.label === 'W').length;
+      return {
+        name: DEX[o.id].name, spriteStyle: this.spr(o.id, 26), cells,
+        cmp: e.atk >= foe.atk ? 'you' : 'them',
+        cmpStyle: 'font-size:11px;color:' + (e.atk >= foe.atk ? 'var(--color-accent-700)' : 'var(--color-neutral-600)'),
+        summary: flips === 3 ? 'all scenarios' : flips === 0 ? 'none' : flips + ' of 3',
+        rowStyle: i === st.opp ? 'background:color-mix(in srgb, var(--color-accent) 6%, transparent);' : '',
+        go: ()=>this.set('opp', i),
+      };
+    });
+
+    return {
+      shieldItems: [[0,'0 shields'],[1,'1 shield each'],[2,'2 shields each']].map(([n,label])=>({
+        label, style:this.chipStyle(st.shields===n), go:()=>this.set('shields',n),
+      })),
+      flipCells, flipRows,
+      flipVerdict: (now.win ? 'WIN' : 'LOSS') + ' vs ' + B.name + ' · ' + (now.margin >= 0 ? '+' : '') + now.margin.toFixed(0) + '% HP margin',
+      flipVerdictStyle: 'font-family:var(--font-heading);font-weight:800;font-size:20px;color:' +
+        (now.win ? 'var(--color-accent-700)' : 'var(--color-text)'),
+      flipWinCount: fd.winners.length + ' of ' + fd.total + ' spreads in this HP slice win',
+      flipNeed: now.win
+        ? (fd.cheapest ? 'Cheapest winning spread here: ' + fd.cheapest.x.a + '/' + fd.cheapest.x.d + '/' + fd.cheapest.x.s + ' (#' + fd.cheapest.x.rank + ')' : '')
+        : (needAtk ? 'Flips to a win at attack ' + needAtk.atk.toFixed(1) + ' — spread ' + needAtk.a + '/' + needAtk.d + '/' + needAtk.s + ' (#' + needAtk.rank + ')' : 'No spread in this slice wins — the matchup is lost on stats alone'),
+      cmpLine: cmpWin
+        ? 'You win CMP ties: attack ' + e.atk.toFixed(1) + ' vs ' + B.atk.toFixed(1) + '. Simultaneous charge moves land yours first.'
+        : 'You lose CMP ties: attack ' + e.atk.toFixed(1) + ' vs ' + B.atk.toFixed(1) + '. Their charge move resolves first — you need ' + B.atk.toFixed(1) + '+ attack to flip it.',
+      cmpStyle: 'font-size:12px;padding:10px 12px;border-left:3px solid ' + (cmpWin ? 'var(--color-accent)' : 'var(--color-neutral-500)') + ';background:var(--color-surface)',
+      flipNote: beg
+        ? 'Green squares are IV spreads that beat this opponent in this shield scenario. The edge between green and grey is the breakpoint that actually matters — everything else is noise.'
+        : 'Simulated at 500ms turns, throw-as-soon-as-charged, neutral typing, both sides on their default fast + charge move. Shield counts change which side of the boundary you need to be on; CMP is decided by raw attack.',
+    };
+  }
+
+  spr(id, size, extra){
+    return 'width:' + size + 'px;height:' + size + 'px;flex:none;background-image:url(' + SPR(id) + ');' +
+      'background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;' + (extra || '');
+  }
+
+  set(k, v){ this.setState({ [k]:v }); }
+  bump(k, n){
+    const iv = { ...this.state.iv };
+    iv[k] = Math.max(0, Math.min(15, iv[k]+n));
+    this.setState({ iv });
+  }
+
+  cellColor(pct){
+    const w = Math.round(Math.pow(pct, 2.2) * 100);
+    return 'color-mix(in srgb, var(--color-accent) ' + w + '%, var(--color-neutral-200))';
+  }
+  tierColor(i, n){
+    const steps = ['var(--color-neutral-200)','var(--color-accent-200)','var(--color-accent-400)','var(--color-accent-500)','var(--color-accent-600)','var(--color-accent-700)'];
+    if (n <= 1) return steps[2];
+    return steps[Math.min(steps.length-1, Math.round(i/(n-1)*(steps.length-1)))];
+  }
+
+  buildCells(size, mini){
+    const st = this.state;
+    const { t } = this.entry(st.species, st.iv, st.league);
+    const opp = this.oppInfo();
+    const mv = DEX[st.species].moves[st.move];
+    const slice = [];
+    for (let d=15; d>=0; d--) for (let a=0; a<16; a++) slice.push(t.map[a*256+d*16+st.iv.s]);
+    const spMax = t.best.sp, spMin = Math.min(...slice.map(e=>e.sp));
+    let tiers = [];
+    if (st.colorBy === 'break') tiers = [...new Set(slice.map(e=>dmg(e.atk, opp.def, mv)))].sort((x,y)=>x-y);
+    if (st.colorBy === 'bulk') tiers = [...new Set(slice.map(e=>dmg(opp.atk, e.def, opp.mv)))].sort((x,y)=>y-x);
+    return slice.map(e=>{
+      const you = e.a===st.iv.a && e.d===st.iv.d;
+      let bg, label = '';
+      if (st.colorBy === 'rank'){
+        bg = this.cellColor((e.sp - spMin) / Math.max(1e-9, spMax - spMin));
+        label = '#' + e.rank;
+      } else if (st.colorBy === 'break'){
+        const dv = dmg(e.atk, opp.def, mv);
+        bg = this.tierColor(tiers.indexOf(dv), tiers.length);
+        label = dv + ' dmg / ' + mv.t + 't';
+      } else {
+        const dv = dmg(opp.atk, e.def, opp.mv);
+        bg = this.tierColor(tiers.indexOf(dv), tiers.length);
+        label = 'takes ' + dv;
+      }
+      const style = 'aspect-ratio:1;background:' + bg + ';cursor:pointer;' +
+        (you ? 'outline:2px solid var(--color-text);outline-offset:0;z-index:2;' : '') +
+        (mini ? '' : 'display:grid;place-items:center;font-size:8px;color:color-mix(in srgb, var(--color-text) 45%, transparent);');
+      return {
+        style,
+        mark: (!mini && size > 22 && you) ? '●' : '',
+        tip: 'ATK ' + e.a + ' / DEF ' + e.d + ' / HP ' + st.iv.s + ' — #' + e.rank + ' · ' + label,
+        pick: () => this.setState({ iv:{ ...st.iv, a:e.a, d:e.d } }),
+      };
+    });
+  }
+
+  oppInfo(){
+    const st = this.state;
+    const list = OPPONENTS[st.league];
+    const o = list[Math.min(st.opp, list.length-1)];
+    const b = DEX[o.id], lg = LEAGUES.find(l=>l.id===st.league);
+    const r = bestAt(b, {a:15,d:15,s:15}, lg);
+    return { id:o.id, name:b.name, def:r.def, atk:r.atk, mv:o.mv, list };
+  }
+
+  bpRowsFor(){
+    const st = this.state;
+    const { e, t } = this.entry(st.species, st.iv, st.league);
+    const opp = this.oppInfo();
+    const rows = [];
+    DEX[st.species].moves.forEach(mv=>{
+      const vals = t.all.map(x=>({atk:x.atk, d:dmg(x.atk, opp.def, mv), e:x})).sort((x,y)=>x.atk-y.atk);
+      const seen = {};
+      vals.forEach(v=>{ if (seen[v.d]===undefined) seen[v.d] = v; });
+      Object.keys(seen).map(Number).sort((x,y)=>x-y).forEach(d=>{
+        const v = seen[d];
+        rows.push({ kind:'Breakpoint', move:mv.n + ' (' + mv.t + 't)', need:v.atk.toFixed(2), spread:v.e.a+'/'+v.e.d+'/'+v.e.s, dmg:d + ' dmg', have:e.atk, at:v.atk });
+      });
+    });
+    const dvals = t.all.map(x=>({def:x.def, d:dmg(opp.atk, x.def, opp.mv), e:x})).sort((x,y)=>x.def-y.def);
+    const seenB = {};
+    dvals.forEach(v=>{ if (seenB[v.d]===undefined) seenB[v.d] = v; });
+    Object.keys(seenB).map(Number).sort((x,y)=>y-x).forEach(d=>{
+      const v = seenB[d];
+      rows.push({ kind:'Bulkpoint', move:opp.name + ' ' + opp.mv.n, need:v.def.toFixed(2), spread:v.e.a+'/'+v.e.d+'/'+v.e.s, dmg:'takes ' + d, have:e.def, at:v.def, bulk:true });
+    });
+    return rows.map(r=>{
+      const met = r.bulk ? r.have >= r.at : r.have >= r.at;
+      const near = !met && (r.at - r.have) / r.at < 0.03;
+      return {
+        ...r,
+        kindTag: r.bulk ? 'tag tag-neutral' : 'tag tag-accent',
+        need: (r.bulk ? 'def ' : 'atk ') + r.need,
+        status: met ? 'Reached' : (near ? 'Just short' : 'Out of reach'),
+        statusStyle: 'font-size:12px;' + (met ? 'color:var(--color-accent-700);font-weight:600;' : near ? 'color:var(--color-neutral-700);' : 'color:var(--color-neutral-500);'),
+        rowStyle: met ? 'background:color-mix(in srgb, var(--color-accent) 6%, transparent);' : '',
+      };
+    });
+  }
+
+  rulersFor(){
+    const st = this.state;
+    const { e, t } = this.entry(st.species, st.iv, st.league);
+    const opp = this.oppInfo();
+    const atks = t.all.map(x=>x.atk);
+    const aMin = Math.min(...atks), aMax = Math.max(...atks);
+    const defs = t.all.map(x=>x.def);
+    const dMin = Math.min(...defs), dMax = Math.max(...defs);
+    const pos = (v, lo, hi) => ((v - lo) / (hi - lo)) * 100;
+
+    const mk = (title, sub, lo, hi, you, thresholds, badge, note, kind) => {
+      const bands = [];
+      thresholds.forEach((th, i)=>{
+        const start = i === 0 ? 0 : pos(th.at, lo, hi);
+        const end = i === thresholds.length-1 ? 100 : pos(thresholds[i+1].at, lo, hi);
+        const active = you >= th.at && (i === thresholds.length-1 || you < thresholds[i+1].at);
+        bands.push({
+          label: (end - start) < 6 ? '' : th.label,
+          style: 'position:absolute;top:0;height:34px;left:' + Math.max(0,start) + '%;width:' + Math.max(0, end-start) + '%;' +
+            'background:' + (active ? 'var(--color-accent)' : 'color-mix(in srgb, var(--color-text) ' + (6 + i*5) + '%, transparent)') + ';' +
+            'color:' + (active ? 'var(--color-bg)' : 'var(--color-text)') + ';font-size:10px;letter-spacing:0.06em;' +
+            'display:flex;align-items:center;padding-left:5px;overflow:hidden;white-space:nowrap;border-right:2px solid var(--color-bg);',
+        });
+      });
+      const ticks = thresholds.filter((_,i)=>i>0).map(th=>({
+        style: 'position:absolute;top:34px;height:14px;width:2px;background:var(--color-text);left:' + pos(th.at, lo, hi) + '%;',
+      }));
+      const flat = thresholds.length <= 1;
+      const bulk = kind === 'def';
+      return {
+        title, sub, unit: bulk ? 'def' : 'atk',
+        badge: flat ? ('No ' + (bulk ? 'bulkpoint' : 'breakpoint') + ' in reach') : badge,
+        note: flat
+          ? (bulk
+              ? 'The incoming move deals the same damage across every reachable defense value — no bulkpoint exists for this pairing.'
+              : 'This target\u2019s defense flattens the move — every reachable spread deals the same damage. Try another opponent.')
+          : note,
+        min: lo.toFixed(1), max: hi.toFixed(1),
+        bands, ticks,
+        youStyle: 'position:absolute;top:-6px;bottom:22px;width:2px;background:var(--color-accent);left:' + Math.min(99.6, Math.max(0, pos(you, lo, hi))) + '%;',
+        youLabel: you.toFixed(2),
+      };
+    };
+
+    const out = [];
+    DEX[st.species].moves.forEach(mv=>{
+      const seen = {};
+      t.all.slice().sort((x,y)=>x.atk-y.atk).forEach(x=>{ const d = dmg(x.atk, opp.def, mv); if (seen[d]===undefined) seen[d] = x.atk; });
+      const th = Object.keys(seen).map(Number).sort((x,y)=>x-y).map(d=>({ at:seen[d], label:d + ' dmg' }));
+      const reached = th.filter(x=>e.atk >= x.at).length;
+      out.push(mk(mv.n + ' → ' + opp.name, mv.t + '-turn · ' + mv.p + ' power · target def ' + opp.def.toFixed(1),
+        aMin, aMax, e.atk, th, reached + ' / ' + th.length + ' breakpoints', 'Bands are damage per use; the rule marks where it steps up', 'atk'));
+    });
+    const seenB = {};
+    t.all.slice().sort((x,y)=>x.def-y.def).forEach(x=>{ const d = dmg(opp.atk, x.def, opp.mv); if (seenB[d]===undefined) seenB[d] = x.def; });
+    const thB = Object.keys(seenB).map(Number).sort((x,y)=>y-x).map(d=>({ at:seenB[d], label:'takes ' + d }));
+    out.push(mk('Bulkpoints vs ' + opp.name + ' ' + opp.mv.n, 'your defense axis · attacker atk ' + opp.atk.toFixed(1),
+      dMin, dMax, e.def, thB, thB.filter(x=>e.def >= x.at).length + ' / ' + thB.length + ' bulkpoints', 'Further right takes less damage per hit', 'def'));
+    return out;
+  }
+
+  verdict(rank){
+    const beg = this.state.mode === 'beginner';
+    if (rank === 1) return beg ? 'Perfect for this league. Never transfer this one.' : 'Rank 1 · maximum stat product at cap';
+    if (rank <= 10) return beg ? 'Elite roll — build it, this is as good as it gets.' : 'Top 10 · elite spread, worth full investment';
+    if (rank <= 100) return beg ? 'Excellent. Worth your dust and candy.' : 'Top 100 · strong spread, safe investment';
+    if (rank <= 500) return beg ? 'Good enough to use if you have nothing better.' : 'Top 500 · playable, expect small SP losses';
+    if (rank <= 1500) return beg ? 'Usable but you can do better. Keep hunting.' : 'Mid pack · replace when a better spread appears';
+    return beg ? 'Weak for this league — trade or transfer it.' : 'Bottom half · not competitive at this cap';
+  }
+  verdictTag(rank){
+    if (rank <= 10) return 'tag tag-accent';
+    if (rank <= 500) return 'tag tag-neutral';
+    return 'tag tag-outline';
+  }
+  shortVerdict(rank){
+    if (rank <= 10) return 'Elite';
+    if (rank <= 100) return 'Strong';
+    if (rank <= 500) return 'Playable';
+    if (rank <= 1500) return 'Mid';
+    return 'Transfer';
+  }
+
+  renderVals(){
+    const st = this.state;
+    const beg = st.mode === 'beginner';
+    const lg = LEAGUES.find(l=>l.id===st.league);
+    const { e, t } = this.entry(st.species, st.iv, st.league);
+    const opp = this.oppInfo();
+    const mv = DEX[st.species].moves[st.move];
+    const spPct = e.sp / t.best.sp;
+    const bpRows = this.bpRowsFor();
+    const reached = bpRows.filter(r=>r.status === 'Reached');
+    const cellSize = 34;
+
+    const screens = [['overlay','Android overlay'],['ios','iOS capture'],['detail','Report'],['explorer','4096 explorer'],['collection','Collection'],['compare','Compare']];
+
+    const miniStats = [
+      { label:'Attack', value:e.atk.toFixed(1) },
+      { label:'Defense', value:e.def.toFixed(1) },
+      { label:'HP', value:e.hp },
+    ].map((s,i)=>({ ...s, style:'padding:8px 10px;' + (i < 2 ? 'border-right:1px solid var(--color-divider);' : '') }));
+
+    const collection = MOCK.map(m=>{
+      const r = this.entry(m.sp, {a:m.a,d:m.d,s:m.s}, st.league);
+      return { ...m, name:DEX[m.sp].name, ent:r.e, tbl:r.t };
+    }).filter(m=>m.name.toLowerCase().includes(st.query.toLowerCase()));
+    const sorted = collection.slice().sort((x,y)=>{
+      if (st.sort === 'rank') return x.ent.rank - y.ent.rank;
+      if (st.sort === 'cp') return y.ent.cp - x.ent.cp;
+      if (st.sort === 'name') return x.name.localeCompare(y.name);
+      return MOCK.findIndex(z=>z.id===x.id) - MOCK.findIndex(z=>z.id===y.id);
+    });
+
+    const cmp = [st.cmpA, st.cmpB].map((id, idx)=>{
+      const m = MOCK.find(x=>x.id===id) || MOCK[0];
+      const r = this.entry(m.sp, {a:m.a,d:m.d,s:m.s}, st.league);
+      return { id, m, e:r.e, t:r.t, idx };
+    });
+    const cmpWin = cmp[0].e.rank <= cmp[1].e.rank ? 0 : 1;
+
+    const cmpCols = cmp.map(c=>{
+      const b = DEX[c.m.sp];
+      const other = cmp[1-c.idx];
+      const bars = [
+        { label:'Stat product', v:c.e.sp, o:other.e.sp, max:Math.max(c.e.sp, other.e.sp), fmt:v=>Math.round(v/1000)+'k' },
+        { label:'Attack', v:c.e.atk, o:other.e.atk, max:Math.max(c.e.atk, other.e.atk), fmt:v=>v.toFixed(1) },
+        { label:'Defense', v:c.e.def, o:other.e.def, max:Math.max(c.e.def, other.e.def), fmt:v=>v.toFixed(1) },
+        { label:'HP', v:c.e.hp, o:other.e.hp, max:Math.max(c.e.hp, other.e.hp), fmt:v=>String(v) },
+      ].map(x=>{
+        const dp = ((x.v - x.o) / x.o) * 100;
+        return {
+          label:x.label, value:x.fmt(x.v), w:(x.v/x.max*100).toFixed(1)+'%',
+          fill: x.v >= x.o ? 'var(--color-accent)' : 'var(--color-neutral-500)',
+          delta: (dp >= 0 ? '+' : '') + dp.toFixed(1) + '%',
+          deltaStyle:'color:' + (dp >= 0 ? 'var(--color-accent-700)' : 'var(--color-neutral-600)'),
+        };
+      });
+      const oppD = this.oppInfo();
+      const bps = b.moves.map(m2=>{
+        const seen = {};
+        c.t.all.slice().sort((x,y)=>x.atk-y.atk).forEach(x=>{ const d = dmg(x.atk, oppD.def, m2); if (seen[d]===undefined) seen[d] = x.atk; });
+        const th = Object.keys(seen).map(Number).sort((x,y)=>x-y);
+        const hit = th.filter(d=>c.e.atk >= seen[d]);
+        const next = th.find(d=>c.e.atk < seen[d]);
+        return {
+          text: m2.n + ' — ' + (hit.length ? hit[hit.length-1] + ' dmg' : '—') + (next ? ' (next at atk ' + seen[next].toFixed(1) + ')' : ' (max tier)'),
+          status: next ? 'tier ' + hit.length + '/' + th.length : 'top tier',
+          style: 'font-size:12px;color:' + (next ? 'var(--color-neutral-600)' : 'var(--color-accent-700)'),
+        };
+      });
+      const slice = [];
+      for (let d=15; d>=0; d--) for (let a=0; a<16; a++) slice.push(c.t.map[a*256+d*16+c.m.s]);
+      const spMax = c.t.best.sp, spMin = Math.min(...slice.map(x=>x.sp));
+      const cells = slice.map(x=>({
+        style:'aspect-ratio:1;background:' + this.cellColor((x.sp-spMin)/Math.max(1e-9,spMax-spMin)) + ';' +
+          (x.a===c.m.a && x.d===c.m.d ? 'outline:2px solid var(--color-text);' : ''),
+      }));
+      return {
+        id:c.id, name:b.name, spriteStyle:this.spr(c.m.sp, 72), iv:c.m.a+'/'+c.m.d+'/'+c.m.s, rank:c.e.rank, cp:c.e.cp, lvl:c.e.lvl,
+        leagueName:lg.name, bars, bps, cells,
+        set: ev => this.set(c.idx === 0 ? 'cmpA' : 'cmpB', ev.target.value),
+        style:'padding:20px;' + (c.idx === 0 ? 'border-right:2px solid var(--color-divider);' : ''),
+        winLabel: cmpWin === c.idx ? 'BETTER' : '',
+        winStyle: cmpWin === c.idx ? 'font-size:10px;letter-spacing:0.12em;background:var(--color-accent);color:var(--color-bg);padding:2px 6px;margin-left:4px' : 'display:none',
+      };
+    });
+
+    const bestLeague = this.bestLeagueFor(st.species, st.iv);
+
+    return {
+      screen: st.screen,
+      isOverlay: st.screen === 'overlay', isIOS: st.screen === 'ios', isDetail: st.screen === 'detail',
+      isExplorer: st.screen === 'explorer', isCollection: st.screen === 'collection', isCompare: st.screen === 'compare',
+      navItems: screens.map(([id,label])=>({ label, style:this.segStyle(st.screen===id), go:()=>this.set('screen',id) })),
+      leagueItems: LEAGUES.map(l=>({ label:l.label, style:this.segStyle(st.league===l.id), go:()=>{ this.setState({ league:l.id, opp:0 }); } })),
+      modeItems: [['beginner','Beginner'],['expert','Expert']].map(([id,label])=>({ label, style:this.segStyle(st.mode===id), go:()=>this.set('mode',id) })),
+
+      species: st.species,
+      speciesName: DEX[st.species].name,
+      speciesOptions: Object.keys(DEX).map(k=>({ id:k, name:DEX[k].name })),
+      setSpecies: ev => this.setState({ species:ev.target.value, opp:0, move:0 }),
+      leagueName: lg.name,
+      caughtWhen: '2 minutes ago',
+      ivLabel: st.iv.a + '/' + st.iv.d + '/' + st.iv.s,
+      ivS: st.iv.s,
+      setS: ev => this.setState({ iv:{ ...st.iv, s:Number(ev.target.value) } }),
+      cp: e.cp, level: e.lvl, rank: e.rank,
+      rankBarW: (100 - (e.rank-1)/4095*100).toFixed(2) + '%',
+      atkStat: e.atk.toFixed(1), defStat: e.def.toFixed(1), hpStat: e.hp,
+      spLabel: (e.sp/1000).toFixed(2) + 'k',
+      spPctLabel: (spPct*100).toFixed(2) + '%',
+      bestIvLabel: t.best.a + '/' + t.best.d + '/' + t.best.s + ' (' + (t.best.sp/1000).toFixed(2) + 'k)',
+      bestLeague: bestLeague.name + ' · #' + bestLeague.rank,
+      verdictLine: this.verdict(e.rank),
+      footnote: beg
+        ? 'Rank compares your Pokémon against every one of the 4096 possible IV rolls at this CP cap. #1 is the best possible.'
+        : 'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1.',
+      miniStats,
+
+      ivRows: [['a','Attack'],['d','Defense'],['s','HP']].map(([k,label], i)=>({
+        label, value: st.iv[k], bar: (st.iv[k]/15*100) + '%',
+        inc: ()=>this.bump(k, 1), dec: ()=>this.bump(k, -1),
+        flag: i === 1 ? 'low confidence' : 'read ok',
+        flagBg: i === 1 ? 'var(--color-accent-100)' : 'transparent',
+      })),
+
+      vizItems: [['heat','Heatmap'],['ruler','Damage ruler'],['table','Threshold table'],['flip','Matchup flips']].map(([id,label])=>({
+        label, style:this.segStyle(st.viz===id), go:()=>this.set('viz',id),
+      })),
+      vizHeat: st.viz === 'heat', vizRuler: st.viz === 'ruler', vizTable: st.viz === 'table', vizFlip: st.viz === 'flip',
+      ...this.flipVals(),
+      colorByItems: [['rank','Rank'],['break','Breakpoints'],['bulk','Bulkpoints']].map(([id,label])=>({
+        label, style:this.chipStyle(st.colorBy===id), go:()=>this.set('colorBy',id),
+      })),
+      colorByLabel: st.colorBy === 'rank' ? 'stat product rank' : st.colorBy === 'break' ? mv.n + ' damage dealt' : opp.mv.n + ' damage taken',
+      oppItems: opp.list.map((o,i)=>({
+        label:DEX[o.id].name, spriteStyle:this.spr(o.id, 22),
+        style:this.chipStyle(st.opp===i) + 'display:inline-flex;align-items:center;gap:6px;',
+        go:()=>this.set('opp',i),
+      })),
+      heroSpriteStyle: this.spr(st.species, 80),
+      gameSpriteStyle: this.spr(st.species, 120),
+      cardSpriteStyle: this.spr(st.species, 56),
+      dexNo: '#' + String(DEX[st.species].dex).padStart(3,'0'),
+      typeTags: DEX[st.species].types.map(t=>({ label:t })),
+      moveItems: DEX[st.species].moves.map((m,i)=>({ label:m.n, style:this.chipStyle(st.move===i), go:()=>this.set('move',i) })),
+      oppName: opp.name,
+      bpBlurb: beg
+        ? 'A breakpoint is the attack value where your fast move starts doing one more damage. Cross it and every single hit for the rest of the fight is stronger.'
+        : 'Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ' + mv.n + ' into ' + opp.name + ', and where incoming ' + opp.mv.n + ' steps down.',
+      heatCells: this.buildCells(cellSize, false).map(c=>({ ...c, style:c.style + 'min-width:0;' })),
+      heatCellsMini: this.buildCells(10, true),
+      bigCells: this.buildCells(42, false).map(c=>({ ...c, style:c.style + 'min-width:0;font-size:9px;' })),
+      legend: (st.colorBy === 'rank'
+        ? [['Rank 1–10','var(--color-accent-700)'],['Top 100','var(--color-accent-500)'],['Top 1000','var(--color-accent-300)'],['Mid pack','var(--color-accent-100)'],['Bottom half','var(--color-neutral-200)']]
+        : st.colorBy === 'break'
+          ? [['Highest damage tier','var(--color-accent-700)'],['One breakpoint down','var(--color-accent-500)'],['Two down','var(--color-accent-300)'],['Lowest tier','var(--color-neutral-200)']]
+          : [['Takes least damage','var(--color-accent-700)'],['One bulkpoint worse','var(--color-accent-500)'],['Two worse','var(--color-accent-300)'],['Takes most','var(--color-neutral-200)']]
+      ).map(([label,c])=>({ label, swatch:'width:14px;height:14px;flex:none;background:' + c })),
+      heatNote: st.colorBy === 'rank'
+        ? 'Rank ridges run diagonally: trading one attack point for one defense point barely moves stat product, which is why so many spreads cluster near the top.'
+        : st.colorBy === 'break'
+          ? 'Vertical bands: only attack moves the breakpoint, so every cell in a column deals identical damage. Pick the tallest band you can reach, then maximise rank inside it.'
+          : 'Horizontal bands: bulkpoints depend only on defense. A cell one band up survives one more hit before dropping — often worth more than a few rank places.',
+
+      rulers: this.rulersFor(),
+      bpRows,
+
+      overlayStates: [['collapsed','Bubble'],['scan','Confirm scan'],['result','Result sheet']].map(([id,label])=>({
+        label, style:this.segStyle(st.overlay===id), go:()=>this.set('overlay',id),
+      })),
+      overlayCollapsed: st.overlay === 'collapsed', overlayScan: st.overlay === 'scan', overlayResult: st.overlay === 'result',
+      openOverlay: ()=>this.set('overlay','scan'),
+      closeOverlay: ()=>this.set('overlay','collapsed'),
+      toResult: ()=>this.set('overlay','result'),
+      goDetail: ()=>this.set('screen','detail'),
+      saveCatch: ()=>this.set('overlay','collapsed'),
+      bubbleHint: beg ? 'Tap for the verdict' : '#' + e.rank + ' · ' + (spPct*100).toFixed(1) + '%',
+      ocrConfidence: 94,
+      scanBlurb: beg
+        ? 'I read these from the appraisal bars. Fix anything that looks wrong — one wrong number changes the rank a lot.'
+        : 'Parsed from appraisal bars at 94% confidence. Defense flagged: bar edge ambiguous between 14 and 15.',
+      appraisalBars: [['Attack', st.iv.a],['Defense', st.iv.d],['HP', st.iv.s]].map(([label,value])=>({
+        label, value,
+        pips: Array.from({length:15}, (_,i)=>({ style:'flex:1;height:8px;background:' + (i < value ? 'rgba(236,48,19,0.85)' : 'rgba(255,255,255,0.14)') })),
+      })),
+      overlayBps: bpRows.filter(r=>!r.bulk).slice(0, 3).map(r=>({
+        text: r.move + ' — ' + r.dmg + ' at ' + r.need, status: r.status, style: r.statusStyle,
+      })),
+      overlayNotes: [
+        'Bubble shows rank only. One glance, no reading — colour carries the verdict, the number confirms it.',
+        'Sheet opens on the confirm step, not the result: OCR of appraisal bars is the weak link, so correction gets the biggest touch targets in the app.',
+        'Everything above 60% of the screen height stays clear, so the game\u2019s own appraisal UI is never hidden while you check.',
+        'Save writes to the collection and collapses back to the bubble — the next catch is one tap away.',
+      ].map((text,i)=>({ num:'0'+(i+1), text })),
+
+      iosFlows: [['share','Share sheet'],['library','Batch import'],['auto','Auto-detect']].map(([id,label])=>({
+        label, style:this.segStyle(st.iosFlow===id), go:()=>this.set('iosFlow',id),
+      })),
+      iosShare: st.iosFlow === 'share', iosLibrary: st.iosFlow === 'library', iosAuto: st.iosFlow === 'auto',
+      iosDark: st.iosFlow !== 'library',
+      iosBg: st.iosFlow === 'library' ? 'var(--color-bg)' : '#12100f',
+      shots: [
+        { kind:'CATCH', label:DEX[st.species].name + ' · CP ' + e.cp, ok:true, sp:st.species },
+        { kind:'CATCH', label:'Azumarill · CP 1487', ok:true, sp:'azumarill' },
+        { kind:'CATCH', label:'Registeel · CP 1495', ok:false, sp:'registeel' },
+        { kind:'MAP', label:'Not a catch screen', ok:null, sp:null },
+      ].map(s=>({
+        kind:s.kind, label:s.label,
+        spriteStyle: s.sp ? this.spr(s.sp, 64, 'position:absolute;top:14px;left:50%;transform:translateX(-50%);') : 'display:none',
+        style:'position:relative;aspect-ratio:0.62;background:#1b2420;border:2px solid ' + (s.ok === true ? 'var(--color-accent)' : 'var(--color-divider)') + ';padding:0;cursor:pointer',
+        badge: s.ok === false
+          ? 'position:absolute;top:0;right:0;background:var(--color-accent);color:var(--color-bg);font-size:9px;padding:2px 5px;letter-spacing:0.06em'
+          : s.ok === null ? 'position:absolute;top:0;right:0;background:var(--color-neutral-600);color:var(--color-bg);font-size:9px;padding:2px 5px' : 'display:none',
+        badgeText: s.ok === false ? 'CHECK' : s.ok === null ? 'SKIP' : '',
+        pick: ()=>this.set('iosFlow','share'),
+      })),
+      shotCount: 2,
+      autoQueue: [
+        { name:DEX[st.species].name + ' ' + st.iv.a + '/' + st.iv.d + '/' + st.iv.s, rank:'#' + e.rank, sp:st.species },
+        { name:'Azumarill 0/14/15', rank:'#7', sp:'azumarill' },
+        { name:'Registeel 4/13/12', rank:'#1204', sp:'registeel' },
+      ].map(q=>({ ...q, spriteStyle:this.spr(q.sp, 28), style:'font-family:var(--font-heading);font-weight:800;color:var(--color-accent)' })),
+      iosNotes: [
+        { title:'Share sheet — fastest', text:'Screenshot, share, done. One extra tap over Android and no permissions, but it interrupts the catch streak.' },
+        { title:'Batch import — least interruption', text:'Play a session, screenshot everything, rank the pile later. Best for raid days and community days.' },
+        { title:'Auto-detect — closest to the overlay', text:'Photos access plus a background task: the verdict arrives as a notification seconds after the screenshot. Highest trust cost.' },
+      ],
+
+      explorerBlurb: beg
+        ? 'Every square is one possible catch. Darker red means better. Your catch is outlined.'
+        : lg.name + ' · ' + t.best.a + '/' + t.best.d + '/' + t.best.s + ' is rank 1 at ' + (t.best.sp/1000).toFixed(2) + 'k · slice fixes HP IV',
+      explorerNote: 'Click any cell to load that spread into the report. The slider moves through the third axis — 16 slices make up the full 4096.',
+      topRows: t.all.slice(0, 12).map(x=>({
+        rank:x.rank, iv:x.a+'/'+x.d+'/'+x.s, cp:x.cp, lvl:x.lvl, sp:(x.sp/1000).toFixed(2)+'k',
+        pct:(x.sp/t.best.sp*100).toFixed(2)+'%',
+        pctStyle:'font-size:12px;color:var(--color-accent-700)',
+        rowStyle: (x.a===st.iv.a && x.d===st.iv.d && x.s===st.iv.s) ? 'background:color-mix(in srgb, var(--color-accent) 12%, transparent);' : '',
+      })),
+
+      query: st.query,
+      setQuery: ev => this.set('query', ev.target.value),
+      sortItems: [['rank','Rank'],['cp','CP'],['name','Name'],['new','Newest']].map(([id,label])=>({
+        label, style:this.segStyle(st.sort===id), go:()=>this.set('sort',id),
+      })),
+      collectionBlurb: sorted.length + ' catches · ranked for ' + lg.name,
+      collectionRows: sorted.map(m=>{
+        const bpCount = DEX[m.sp].moves.length;
+        return {
+          name:m.name, spriteStyle:this.spr(m.sp, 34), iv:m.a+'/'+m.d+'/'+m.s, rank:m.ent.rank,
+          rankStyle:'font-family:var(--font-heading);font-weight:800;font-size:15px;color:' + (m.ent.rank <= 100 ? 'var(--color-accent)' : 'var(--color-text)'),
+          pct:(m.ent.sp/m.tbl.best.sp*100).toFixed(1)+'%',
+          bar:(m.ent.sp/m.tbl.best.sp*100).toFixed(1)+'%',
+          cp:m.ent.cp, lvl:'L'+m.ent.lvl,
+          bp: (m.ent.atk >= m.tbl.best.atk ? bpCount : Math.max(1, bpCount-1)) + ' of ' + bpCount + ' met',
+          verdict:this.shortVerdict(m.ent.rank), tagClass:this.verdictTag(m.ent.rank),
+          rowStyle:'',
+          open: ()=>this.setState({ screen:'detail', species:m.sp, iv:{a:m.a,d:m.d,s:m.s} }),
+        };
+      }),
+      collectionNote: beg
+        ? 'Sorted best-first. Anything tagged Transfer is safe to send to the professor.'
+        : 'Ranks are league-scoped — switching the league selector re-sorts the whole table against the new cap.',
+
+      compareBlurb: beg ? 'Which one should you power up? The better column is marked.' : 'Same league, same opponent, stat-by-stat delta with breakpoint tiers.',
+      compareCols: cmpCols,
+      collectionOptions: MOCK.map(m=>({ id:m.id, label:DEX[m.sp].name + ' ' + m.a + '/' + m.d + '/' + m.s })),
+      compareVerdict: (()=>{
+        const w = cmp[cmpWin], l = cmp[1-cmpWin];
+        const gap = ((w.e.sp - l.e.sp) / l.e.sp * 100).toFixed(1);
+        return beg
+          ? 'Power up the ' + DEX[w.m.sp].name + '. It is ' + gap + '% bulkier overall and ranks ' + (l.e.rank - w.e.rank) + ' places higher.'
+          : DEX[w.m.sp].name + ' #' + w.e.rank + ' beats ' + DEX[l.m.sp].name + ' #' + l.e.rank + ' by ' + gap + '% stat product; verify move-specific breakpoints before investing.';
+      })(),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,12 +1,13 @@
 import { AppStateProvider, useAppState, type Screen } from './state/AppState';
 import { SegButton, SegGroup } from './components/Seg';
+import { SpeciesSearch } from './components/SpeciesSearch';
 import { LEAGUES, opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
-import { CompareScreen } from './screens/CompareScreen';
+import { BattleScreen } from './screens/BattleScreen';
 
 const SCREENS: [Screen, string][] = [
   ['report', 'Report'],
-  ['compare', 'Compare'],
+  ['battle', 'Battle'],
 ];
 
 function Nav() {
@@ -19,6 +20,13 @@ function Nav() {
       <span className="nav-brand" style={{ letterSpacing: '-0.03em' }}>
         PARAGON<span style={{ color: 'var(--color-accent)' }}>/</span>IV
       </span>
+      <SpeciesSearch
+        id="nav-species"
+        value={state.species}
+        onChange={(id) => patch({ species: id, moveIdx: 0 })}
+        placeholder="Search species…"
+        style={{ width: 200 }}
+      />
       <SegGroup>
         {SCREENS.map(([id, label]) => (
           <SegButton key={id} active={state.screen === id} onClick={() => set('screen', id)}>
@@ -53,8 +61,8 @@ function Screens() {
   switch (state.screen) {
     case 'report':
       return <ReportScreen />;
-    case 'compare':
-      return <CompareScreen />;
+    case 'battle':
+      return <BattleScreen />;
   }
 }
 

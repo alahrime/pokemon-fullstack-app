@@ -384,11 +384,18 @@ export function buildHeatCells(
 // ── Turn-based shield/CMP battle simulator ──
 // 1 turn = 500ms; throw-as-soon-as-charged; shields absorb a charge move down to
 // 1 damage; simultaneous charge moves (CMP) resolve by higher attack stat first.
-export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number): BattleResult {
+export function battle(
+  a: BattleMon,
+  b: BattleMon,
+  shieldsA: number,
+  shieldsB: number,
+  energyA = 0,
+  energyB = 0,
+): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
-  let eA = 0;
-  let eB = 0;
+  let eA = energyA;
+  let eB = energyB;
   let sA = shieldsA;
   let sB = shieldsB;
   let tA = a.fast.turns;
@@ -574,4 +581,9 @@ export function flipMatchupRows(
       flips: cells.filter((c) => c.win).length,
     };
   });
+}
+
+// ── Head-to-head battle simulator: full 3x3 shield-count matrix ──
+export function shieldMatrix(a: BattleMon, b: BattleMon, energyA = 0, energyB = 0): BattleResult[][] {
+  return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB)));
 }

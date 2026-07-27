@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppState, type Viz } from '../state/AppState';
-import { SPECIES, SPECIES_BY_ID, opponentsFor } from '../lib/data';
+import { SPECIES_BY_ID, opponentsFor } from '../lib/data';
 import {
   bestLeagueFor,
   bpRowsFor,
@@ -13,6 +13,7 @@ import {
   verdictLine,
 } from '../lib/engine';
 import { Sprite } from '../components/Sprite';
+import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton, SegButton, SegGroup } from '../components/Seg';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
@@ -162,40 +163,7 @@ export function ReportScreen() {
             <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
               Adjust roll
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(['a', 'd', 's'] as const).map((k, i) => {
-                const label = ['Attack', 'Defense', 'HP'][i];
-                const value = iv[k];
-                return (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="text-muted" style={{ width: 66, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                      {label}
-                    </span>
-                    <button className="btn btn-secondary" style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }} onClick={() => bumpIv(k, -1)}>
-                      –
-                    </button>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 18, width: 26, textAlign: 'center' }}>{value}</span>
-                    <button className="btn btn-secondary" style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }} onClick={() => bumpIv(k, 1)}>
-                      +
-                    </button>
-                    <div style={{ flex: 1, height: 6, background: 'var(--color-neutral-300)' }}>
-                      <div style={{ height: 6, background: 'var(--color-accent)', width: `${(value / 15) * 100}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <select className="input" value={speciesId} onChange={(e) => patch({ species: e.target.value, moveIdx: 0 })}>
-                {SPECIES.slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
+            <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>
         </div>
 

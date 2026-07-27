@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor } from '../lib/data';
 
-export type Screen = 'report' | 'compare';
+export type Screen = 'report' | 'battle';
 export type Mode = 'beginner' | 'expert';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
@@ -18,8 +18,18 @@ export interface AppStateShape {
   oppId: string;
   moveIdx: number;
   shields: number;
-  cmpA: string;
-  cmpB: string;
+  battleA: string;
+  battleB: string;
+  ivA: IV;
+  ivB: IV;
+  fastA: number;
+  fastB: number;
+  chargeA: number;
+  chargeB: number;
+  shieldsA: number;
+  shieldsB: number;
+  energyA: number;
+  energyB: number;
 }
 
 const initialState: AppStateShape = {
@@ -33,8 +43,18 @@ const initialState: AppStateShape = {
   oppId: opponentsFor('great')[0]?.id ?? '',
   moveIdx: 0,
   shields: 1,
-  cmpA: 'c1',
-  cmpB: 'c2',
+  battleA: 'azumarill',
+  battleB: 'mimikyu',
+  ivA: { a: 15, d: 15, s: 15 },
+  ivB: { a: 15, d: 15, s: 15 },
+  fastA: 0,
+  fastB: 0,
+  chargeA: 0,
+  chargeB: 0,
+  shieldsA: 1,
+  shieldsB: 1,
+  energyA: 0,
+  energyB: 0,
 };
 
 interface AppStateContextValue {

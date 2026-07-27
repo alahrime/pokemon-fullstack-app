@@ -1,0 +1,18 @@
+@import './styles/modernist.css';
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+}
+a {
+  color: var(--color-accent);
+}
+a:hover {
+  color: var(--color-accent-700);
+}
+input[type='range'] {
+  accent-color: var(--color-accent);
+}
+#root {
+  min-height: 100vh;
+}

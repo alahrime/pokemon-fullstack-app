@@ -1,0 +1,32 @@
+{
+ "great": [
+  "mimikyu",
+  "lickilicky",
+  "tinkaton",
+  "altaria",
+  "empoleon",
+  "quagsire",
+  "jellicent",
+  "forretress"
+ ],
+ "ultra": [
+  "mimikyu",
+  "lickilicky",
+  "corviknight",
+  "tinkaton",
+  "florges",
+  "virizion",
+  "empoleon",
+  "moltres_galarian"
+ ],
+ "master": [
+  "zacian_crowned_sword",
+  "palkia_origin",
+  "metagross",
+  "kyurem_white",
+  "lunala",
+  "xerneas",
+  "dialga_origin",
+  "reshiram"
+ ]
+}

@@ -1,0 +1,6521 @@
+[
+ {
+  "id": "altaria",
+  "dex": 334,
+  "name": "Altaria",
+  "types": [
+   "dragon",
+   "flying"
+  ],
+  "atk": 141,
+  "def": 201,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SKY_ATTACK",
+   "name": "Sky Attack",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FLAMETHROWER",
+   "name": "Flamethrower",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "ampharos",
+  "dex": 181,
+  "name": "Ampharos",
+  "types": [
+   "electric"
+  ],
+  "atk": 211,
+  "def": 169,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "VOLT_SWITCH",
+    "name": "Volt Switch",
+    "power": 14,
+    "turns": 4,
+    "energyGain": 16,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "TRAILBLAZE",
+   "name": "Trailblaze",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "annihilape",
+  "dex": 979,
+  "name": "Annihilape",
+  "types": [
+   "fighting",
+   "ghost"
+  ],
+  "atk": 220,
+  "def": 178,
+  "hp": 242,
+  "fastMoves": [
+   {
+    "id": "LOW_KICK",
+    "name": "Low Kick",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "COUNTER",
+    "name": "Counter",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "RAGE_FIST",
+   "name": "Rage Fist",
+   "power": 50,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "CLOSE_COMBAT",
+   "name": "Close Combat",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "aromatisse",
+  "dex": 683,
+  "name": "Aromatisse",
+  "types": [
+   "fairy"
+  ],
+  "atk": 173,
+  "def": 150,
+  "hp": 226,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARM",
+    "name": "Charm",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYSHOCK",
+   "name": "Psyshock",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "aurorus",
+  "dex": 699,
+  "name": "Aurorus",
+  "types": [
+   "rock",
+   "ice"
+  ],
+  "atk": 186,
+  "def": 163,
+  "hp": 265,
+  "fastMoves": [
+   {
+    "id": "POWDER_SNOW",
+    "name": "Powder Snow",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "FROST_BREATH",
+    "name": "Frost Breath",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "WEATHER_BALL_ICE",
+   "name": "Weather Ball (Ice)",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "METEOR_BEAM",
+   "name": "Meteor Beam",
+   "power": 120,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "azumarill",
+  "dex": 184,
+  "name": "Azumarill",
+  "types": [
+   "water",
+   "fairy"
+  ],
+  "atk": 112,
+  "def": 152,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "BUBBLE",
+    "name": "Bubble",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   },
+   {
+    "id": "ROCK_SMASH",
+    "name": "Rock Smash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "ICE_BEAM",
+   "name": "Ice Beam",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "PLAY_ROUGH",
+   "name": "Play Rough",
+   "power": 90,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "bastiodon",
+  "dex": 411,
+  "name": "Bastiodon",
+  "types": [
+   "rock",
+   "steel"
+  ],
+  "atk": 94,
+  "def": 286,
+  "hp": 155,
+  "fastMoves": [
+   {
+    "id": "SMACK_DOWN",
+    "name": "Smack Down",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "IRON_TAIL",
+    "name": "Iron Tail",
+    "power": 10,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "STONE_EDGE",
+   "name": "Stone Edge",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FLAMETHROWER",
+   "name": "Flamethrower",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "baxcalibur",
+  "dex": 998,
+  "name": "Baxcalibur",
+  "types": [
+   "dragon",
+   "ice"
+  ],
+  "atk": 254,
+  "def": 168,
+  "hp": 229,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "ICE_FANG",
+    "name": "Ice Fang",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "GLAIVE_RUSH",
+   "name": "Glaive Rush",
+   "power": 90,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "AVALANCHE",
+   "name": "Avalanche",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "bellibolt",
+  "dex": 939,
+  "name": "Bellibolt",
+  "types": [
+   "electric"
+  ],
+  "atk": 184,
+  "def": 165,
+  "hp": 240,
+  "fastMoves": [
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   },
+   {
+    "id": "THUNDER_SHOCK",
+    "name": "Thunder Shock",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PARABOLIC_CHARGE",
+   "name": "Parabolic Charge",
+   "power": 70,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ZAP_CANNON",
+   "name": "Zap Cannon",
+   "power": 150,
+   "energy": 80,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "blastoise",
+  "dex": 9,
+  "name": "Blastoise",
+  "types": [
+   "water"
+  ],
+  "atk": 171,
+  "def": 207,
+  "hp": 188,
+  "fastMoves": [
+   {
+    "id": "ROLLOUT",
+    "name": "Rollout",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.0
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SKULL_BASH",
+   "name": "Skull Bash",
+   "power": 130,
+   "energy": 75,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "charjabug",
+  "dex": 737,
+  "name": "Charjabug",
+  "types": [
+   "bug",
+   "electric"
+  ],
+  "atk": 145,
+  "def": 161,
+  "hp": 149,
+  "fastMoves": [
+   {
+    "id": "VOLT_SWITCH",
+    "name": "Volt Switch",
+    "power": 14,
+    "turns": 4,
+    "energyGain": 16,
+    "stab": 1.2
+   },
+   {
+    "id": "BUG_BITE",
+    "name": "Bug Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "X_SCISSOR",
+   "name": "X-Scissor",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DISCHARGE",
+   "name": "Discharge",
+   "power": 55,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "clefable",
+  "dex": 36,
+  "name": "Clefable",
+  "types": [
+   "fairy"
+  ],
+  "atk": 178,
+  "def": 162,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "METEOR_MASH",
+   "name": "Meteor Mash",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "clodsire",
+  "dex": 980,
+  "name": "Clodsire",
+  "types": [
+   "poison",
+   "ground"
+  ],
+  "atk": 127,
+  "def": 151,
+  "hp": 277,
+  "fastMoves": [
+   {
+    "id": "POISON_STING",
+    "name": "Poison Sting",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "STONE_EDGE",
+   "name": "Stone Edge",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "cobalion",
+  "dex": 638,
+  "name": "Cobalion",
+  "types": [
+   "steel",
+   "fighting"
+  ],
+  "atk": 192,
+  "def": 229,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "DOUBLE_KICK",
+    "name": "Double Kick",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SACRED_SWORD",
+   "name": "Sacred Sword",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "STONE_EDGE",
+   "name": "Stone Edge",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "corsola_galarian",
+  "dex": 222,
+  "name": "Corsola (Galarian)",
+  "types": [
+   "ghost"
+  ],
+  "atk": 116,
+  "def": 182,
+  "hp": 155,
+  "fastMoves": [
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "TACKLE",
+    "name": "Tackle",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "NIGHT_SHADE",
+   "name": "Night Shade",
+   "power": 70,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "POWER_GEM",
+   "name": "Power Gem",
+   "power": 85,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "corviknight",
+  "dex": 823,
+  "name": "Corviknight",
+  "types": [
+   "flying",
+   "steel"
+  ],
+  "atk": 163,
+  "def": 192,
+  "hp": 221,
+  "fastMoves": [
+   {
+    "id": "SAND_ATTACK",
+    "name": "Sand Attack",
+    "power": 2,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "STEEL_WING",
+    "name": "Steel Wing",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AIR_CUTTER",
+   "name": "Air Cutter",
+   "power": 45,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "PAYBACK",
+   "name": "Payback",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "cradily",
+  "dex": 346,
+  "name": "Cradily",
+  "types": [
+   "rock",
+   "grass"
+  ],
+  "atk": 152,
+  "def": 194,
+  "hp": 200,
+  "fastMoves": [
+   {
+    "id": "ACID",
+    "name": "Acid",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   },
+   {
+    "id": "INFESTATION",
+    "name": "Infestation",
+    "power": 6,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "ROCK_TOMB",
+   "name": "Rock Tomb",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "GRASS_KNOT",
+   "name": "Grass Knot",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "cresselia",
+  "dex": 488,
+  "name": "Cresselia",
+  "types": [
+   "psychic"
+  ],
+  "atk": 152,
+  "def": 258,
+  "hp": 260,
+  "fastMoves": [
+   {
+    "id": "PSYCHO_CUT",
+    "name": "Psycho Cut",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "GRASS_KNOT",
+   "name": "Grass Knot",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "dewgong",
+  "dex": 87,
+  "name": "Dewgong",
+  "types": [
+   "water",
+   "ice"
+  ],
+  "atk": 139,
+  "def": 177,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "ICE_SHARD",
+    "name": "Ice Shard",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "FROST_BREATH",
+    "name": "Frost Breath",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ICY_WIND",
+   "name": "Icy Wind",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "dialga",
+  "dex": 483,
+  "name": "Dialga",
+  "types": [
+   "steel",
+   "dragon"
+  ],
+  "atk": 275,
+  "def": 211,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "IRON_HEAD",
+   "name": "Iron Head",
+   "power": 70,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRACO_METEOR",
+   "name": "Draco Meteor",
+   "power": 150,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "dialga_origin",
+  "dex": 483,
+  "name": "Dialga (Origin)",
+  "types": [
+   "steel",
+   "dragon"
+  ],
+  "atk": 270,
+  "def": 225,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ROAR_OF_TIME",
+   "name": "Roar of Time",
+   "power": 150,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "IRON_HEAD",
+   "name": "Iron Head",
+   "power": 70,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "diggersby",
+  "dex": 660,
+  "name": "Diggersby",
+  "types": [
+   "normal",
+   "ground"
+  ],
+  "atk": 112,
+  "def": 155,
+  "hp": 198,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "QUICK_ATTACK",
+    "name": "Quick Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FIRE_PUNCH",
+   "name": "Fire Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SCORCHING_SANDS",
+   "name": "Scorching Sands",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "dondozo",
+  "dex": 977,
+  "name": "Dondozo",
+  "types": [
+   "water"
+  ],
+  "atk": 176,
+  "def": 178,
+  "hp": 312,
+  "fastMoves": [
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SURF",
+   "name": "Surf",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "OUTRAGE",
+   "name": "Outrage",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "dragalge",
+  "dex": 691,
+  "name": "Dragalge",
+  "types": [
+   "poison",
+   "dragon"
+  ],
+  "atk": 177,
+  "def": 207,
+  "hp": 163,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "OUTRAGE",
+   "name": "Outrage",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "dragonair",
+  "dex": 148,
+  "name": "Dragonair",
+  "types": [
+   "dragon"
+  ],
+  "atk": 163,
+  "def": 135,
+  "hp": 156,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "IRON_TAIL",
+    "name": "Iron Tail",
+    "power": 10,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "DRAGON_PULSE",
+   "name": "Dragon Pulse",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "dragonite",
+  "dex": 149,
+  "name": "Dragonite",
+  "types": [
+   "dragon",
+   "flying"
+  ],
+  "atk": 263,
+  "def": 198,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "THUNDER_PUNCH",
+   "name": "Thunder Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SUPER_POWER",
+   "name": "Superpower",
+   "power": 85,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "dudunsparce",
+  "dex": 982,
+  "name": "Dudunsparce",
+  "types": [
+   "normal"
+  ],
+  "atk": 188,
+  "def": 150,
+  "hp": 268,
+  "fastMoves": [
+   {
+    "id": "ROLLOUT",
+    "name": "Rollout",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.0
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "dunsparce",
+  "dex": 206,
+  "name": "Dunsparce",
+  "types": [
+   "normal"
+  ],
+  "atk": 131,
+  "def": 128,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "ROLLOUT",
+    "name": "Rollout",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.0
+   },
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "ROCK_SLIDE",
+   "name": "Rock Slide",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "dusclops",
+  "dex": 356,
+  "name": "Dusclops",
+  "types": [
+   "ghost"
+  ],
+  "atk": 124,
+  "def": 234,
+  "hp": 120,
+  "fastMoves": [
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "ICE_PUNCH",
+   "name": "Ice Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SHADOW_PUNCH",
+   "name": "Shadow Punch",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "dusknoir",
+  "dex": 477,
+  "name": "Dusknoir",
+  "types": [
+   "ghost"
+  ],
+  "atk": 180,
+  "def": 254,
+  "hp": 128,
+  "fastMoves": [
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SHADOW_PUNCH",
+   "name": "Shadow Punch",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "empoleon",
+  "dex": 395,
+  "name": "Empoleon",
+  "types": [
+   "water",
+   "steel"
+  ],
+  "atk": 210,
+  "def": 186,
+  "hp": 197,
+  "fastMoves": [
+   {
+    "id": "METAL_SOUND",
+    "name": "Metal Sound",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRILL_PECK",
+   "name": "Drill Peck",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "enamorus_therian",
+  "dex": 905,
+  "name": "Enamorus (Therian)",
+  "types": [
+   "fairy",
+   "flying"
+  ],
+  "atk": 250,
+  "def": 201,
+  "hp": 179,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "MYSTICAL_FIRE",
+   "name": "Mystical Fire",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "eternatus",
+  "dex": 890,
+  "name": "Eternatus",
+  "types": [
+   "poison",
+   "dragon"
+  ],
+  "atk": 278,
+  "def": 192,
+  "hp": 268,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "POISON_JAB",
+    "name": "Poison Jab",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DYNAMAX_CANNON",
+   "name": "Dynamax Cannon",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FLAMETHROWER",
+   "name": "Flamethrower",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "fearow",
+  "dex": 22,
+  "name": "Fearow",
+  "types": [
+   "normal",
+   "flying"
+  ],
+  "atk": 182,
+  "def": 133,
+  "hp": 163,
+  "fastMoves": [
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "STEEL_WING",
+    "name": "Steel Wing",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DRILL_PECK",
+   "name": "Drill Peck",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "feraligatr",
+  "dex": 160,
+  "name": "Feraligatr",
+  "types": [
+   "water"
+  ],
+  "atk": 205,
+  "def": 188,
+  "hp": 198,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ICE_BEAM",
+   "name": "Ice Beam",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "florges",
+  "dex": 671,
+  "name": "Florges",
+  "types": [
+   "fairy"
+  ],
+  "atk": 212,
+  "def": 244,
+  "hp": 186,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "VINE_WHIP",
+    "name": "Vine Whip",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "CHILLING_WATER",
+   "name": "Chilling Water",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "DISARMING_VOICE",
+   "name": "Disarming Voice",
+   "power": 70,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "forretress",
+  "dex": 205,
+  "name": "Forretress",
+  "types": [
+   "bug",
+   "steel"
+  ],
+  "atk": 161,
+  "def": 205,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "VOLT_SWITCH",
+    "name": "Volt Switch",
+    "power": 14,
+    "turns": 4,
+    "energyGain": 16,
+    "stab": 1.0
+   },
+   {
+    "id": "BUG_BITE",
+    "name": "Bug Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ROCK_TOMB",
+   "name": "Rock Tomb",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SAND_TOMB",
+   "name": "Sand Tomb",
+   "power": 40,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "furret",
+  "dex": 162,
+  "name": "Furret",
+  "types": [
+   "normal"
+  ],
+  "atk": 148,
+  "def": 125,
+  "hp": 198,
+  "fastMoves": [
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   },
+   {
+    "id": "QUICK_ATTACK",
+    "name": "Quick Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SWIFT",
+   "name": "Swift",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "TRAILBLAZE",
+   "name": "Trailblaze",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "garchomp",
+  "dex": 445,
+  "name": "Garchomp",
+  "types": [
+   "dragon",
+   "ground"
+  ],
+  "atk": 261,
+  "def": 193,
+  "hp": 239,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "TWISTER",
+   "name": "Twister",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "gastrodon",
+  "dex": 423,
+  "name": "Gastrodon",
+  "types": [
+   "water",
+   "ground"
+  ],
+  "atk": 169,
+  "def": 143,
+  "hp": 244,
+  "fastMoves": [
+   {
+    "id": "MUD_SLAP",
+    "name": "Mud Slap",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "HIDDEN_POWER_BUG",
+    "name": "Hidden Power (Bug)",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "gholdengo",
+  "dex": 1000,
+  "name": "Gholdengo",
+  "types": [
+   "steel",
+   "ghost"
+  ],
+  "atk": 252,
+  "def": 190,
+  "hp": 202,
+  "fastMoves": [
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FOCUS_BLAST",
+   "name": "Focus Blast",
+   "power": 150,
+   "energy": 75,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "giratina_altered",
+  "dex": 487,
+  "name": "Giratina (Altered)",
+  "types": [
+   "ghost",
+   "dragon"
+  ],
+  "atk": 187,
+  "def": 225,
+  "hp": 284,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DRAGON_CLAW",
+   "name": "Dragon Claw",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_SNEAK",
+   "name": "Shadow Sneak",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "giratina_origin",
+  "dex": 487,
+  "name": "Giratina (Origin)",
+  "types": [
+   "ghost",
+   "dragon"
+  ],
+  "atk": 225,
+  "def": 187,
+  "hp": 284,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "OMINOUS_WIND",
+   "name": "Ominous Wind",
+   "power": 45,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "golisopod",
+  "dex": 768,
+  "name": "Golisopod",
+  "types": [
+   "bug",
+   "water"
+  ],
+  "atk": 218,
+  "def": 226,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "FURY_CUTTER",
+    "name": "Fury Cutter",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "X_SCISSOR",
+   "name": "X-Scissor",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "AQUA_JET",
+   "name": "Aqua Jet",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "goodra",
+  "dex": 706,
+  "name": "Goodra",
+  "types": [
+   "dragon"
+  ],
+  "atk": 220,
+  "def": 242,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "POWER_WHIP",
+   "name": "Power Whip",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "gourgeist_large",
+  "dex": 711,
+  "name": "Gourgeist (Large)",
+  "types": [
+   "ghost",
+   "grass"
+  ],
+  "atk": 179,
+  "def": 206,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "INCINERATE",
+    "name": "Incinerate",
+    "power": 20,
+    "turns": 5,
+    "energyGain": 20,
+    "stab": 1.0
+   },
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SEED_BOMB",
+   "name": "Seed Bomb",
+   "power": 55,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "greedent",
+  "dex": 820,
+  "name": "Greedent",
+  "types": [
+   "normal"
+  ],
+  "atk": 160,
+  "def": 156,
+  "hp": 260,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.0
+   },
+   {
+    "id": "TACKLE",
+    "name": "Tackle",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "TRAILBLAZE",
+   "name": "Trailblaze",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "groudon",
+  "dex": 383,
+  "name": "Groudon",
+  "types": [
+   "ground"
+  ],
+  "atk": 270,
+  "def": 228,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.0
+   },
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FIRE_PUNCH",
+   "name": "Fire Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "PRECIPICE_BLADES",
+   "name": "Precipice Blades",
+   "power": 130,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "grumpig",
+  "dex": 326,
+  "name": "Grumpig",
+  "types": [
+   "psychic"
+  ],
+  "atk": 171,
+  "def": 188,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "PSYWAVE",
+    "name": "Psywave",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "guzzlord",
+  "dex": 799,
+  "name": "Guzzlord",
+  "types": [
+   "dark",
+   "dragon"
+  ],
+  "atk": 188,
+  "def": 99,
+  "hp": 440,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "SNARL",
+    "name": "Snarl",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SLUDGE_BOMB",
+   "name": "Sludge Bomb",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "gyarados",
+  "dex": 130,
+  "name": "Gyarados",
+  "types": [
+   "water",
+   "flying"
+  ],
+  "atk": 237,
+  "def": 186,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "TWISTER",
+   "name": "Twister",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "heatran",
+  "dex": 485,
+  "name": "Heatran",
+  "types": [
+   "fire",
+   "steel"
+  ],
+  "atk": 251,
+  "def": 213,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "FIRE_SPIN",
+    "name": "Fire Spin",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "BUG_BITE",
+    "name": "Bug Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "MAGMA_STORM",
+   "name": "Magma Storm",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "hippowdon",
+  "dex": 450,
+  "name": "Hippowdon",
+  "types": [
+   "ground"
+  ],
+  "atk": 201,
+  "def": 191,
+  "hp": 239,
+  "fastMoves": [
+   {
+    "id": "SAND_ATTACK",
+    "name": "Sand Attack",
+    "power": 2,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "WEATHER_BALL_ROCK",
+   "name": "Weather Ball (Rock)",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "ho_oh",
+  "dex": 250,
+  "name": "Ho-Oh",
+  "types": [
+   "fire",
+   "flying"
+  ],
+  "atk": 239,
+  "def": 244,
+  "hp": 214,
+  "fastMoves": [
+   {
+    "id": "INCINERATE",
+    "name": "Incinerate",
+    "power": 20,
+    "turns": 5,
+    "energyGain": 20,
+    "stab": 1.2
+   },
+   {
+    "id": "EXTRASENSORY",
+    "name": "Extrasensory",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BRAVE_BIRD",
+   "name": "Brave Bird",
+   "power": 130,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SACRED_FIRE",
+   "name": "Sacred Fire",
+   "power": 130,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "hydreigon",
+  "dex": 635,
+  "name": "Hydreigon",
+  "types": [
+   "dark",
+   "dragon"
+  ],
+  "atk": 256,
+  "def": 188,
+  "hp": 211,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FLY",
+   "name": "Fly",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "jellicent",
+  "dex": 593,
+  "name": "Jellicent",
+  "types": [
+   "water",
+   "ghost"
+  ],
+  "atk": 159,
+  "def": 178,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "BUBBLE",
+    "name": "Bubble",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SURF",
+   "name": "Surf",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "jirachi",
+  "dex": 385,
+  "name": "Jirachi",
+  "types": [
+   "steel",
+   "psychic"
+  ],
+  "atk": 210,
+  "def": 210,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DOOM_DESIRE",
+   "name": "Doom Desire",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "AURA_SPHERE",
+   "name": "Aura Sphere",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "jumpluff",
+  "dex": 189,
+  "name": "Jumpluff",
+  "types": [
+   "grass",
+   "flying"
+  ],
+  "atk": 118,
+  "def": 183,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.0
+   },
+   {
+    "id": "BULLET_SEED",
+    "name": "Bullet Seed",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ENERGY_BALL",
+   "name": "Energy Ball",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ACROBATICS",
+   "name": "Acrobatics",
+   "power": 110,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "kartana",
+  "dex": 798,
+  "name": "Kartana",
+  "types": [
+   "grass",
+   "steel"
+  ],
+  "atk": 323,
+  "def": 182,
+  "hp": 139,
+  "fastMoves": [
+   {
+    "id": "FURY_CUTTER",
+    "name": "Fury Cutter",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "AIR_SLASH",
+    "name": "Air Slash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 9,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "LEAF_BLADE",
+   "name": "Leaf Blade",
+   "power": 70,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SACRED_SWORD",
+   "name": "Sacred Sword",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "keldeo_ordinary",
+  "dex": 647,
+  "name": "Keldeo (Ordinary)",
+  "types": [
+   "water",
+   "fighting"
+  ],
+  "atk": 260,
+  "def": 192,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "LOW_KICK",
+    "name": "Low Kick",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "POISON_JAB",
+    "name": "Poison Jab",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_JET",
+   "name": "Aqua Jet",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SACRED_SWORD",
+   "name": "Sacred Sword",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "keldeo_resolute",
+  "dex": 647,
+  "name": "Keldeo (Resolute)",
+  "types": [
+   "water",
+   "fighting"
+  ],
+  "atk": 260,
+  "def": 192,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "LOW_KICK",
+    "name": "Low Kick",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "POISON_JAB",
+    "name": "Poison Jab",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "SECRET_SWORD",
+   "name": "Secret Sword",
+   "power": 70,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "AQUA_JET",
+   "name": "Aqua Jet",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "kingdra",
+  "dex": 230,
+  "name": "Kingdra",
+  "types": [
+   "water",
+   "dragon"
+  ],
+  "atk": 194,
+  "def": 194,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SURF",
+   "name": "Surf",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SWIFT",
+   "name": "Swift",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "kyogre",
+  "dex": 382,
+  "name": "Kyogre",
+  "types": [
+   "water"
+  ],
+  "atk": 270,
+  "def": 228,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AVALANCHE",
+   "name": "Avalanche",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "ORIGIN_PULSE",
+   "name": "Origin Pulse",
+   "power": 130,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "kyurem",
+  "dex": 646,
+  "name": "Kyurem",
+  "types": [
+   "dragon",
+   "ice"
+  ],
+  "atk": 246,
+  "def": 170,
+  "hp": 245,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "STEEL_WING",
+    "name": "Steel Wing",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "GLACIATE",
+   "name": "Glaciate",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRAGON_CLAW",
+   "name": "Dragon Claw",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "kyurem_black",
+  "dex": 646,
+  "name": "Kyurem (Black)",
+  "types": [
+   "dragon",
+   "ice"
+  ],
+  "atk": 310,
+  "def": 183,
+  "hp": 245,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "FREEZE_SHOCK",
+   "name": "Freeze Shock",
+   "power": 120,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FUSION_BOLT",
+   "name": "Fusion Bolt",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "kyurem_white",
+  "dex": 646,
+  "name": "Kyurem (White)",
+  "types": [
+   "dragon",
+   "ice"
+  ],
+  "atk": 310,
+  "def": 183,
+  "hp": 245,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "STEEL_WING",
+    "name": "Steel Wing",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "FUSION_FLARE",
+   "name": "Fusion Flare",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "ICE_BURN",
+   "name": "Ice Burn",
+   "power": 120,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "landorus_therian",
+  "dex": 645,
+  "name": "Landorus (Therian)",
+  "types": [
+   "ground",
+   "flying"
+  ],
+  "atk": 289,
+  "def": 179,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "EXTRASENSORY",
+    "name": "Extrasensory",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "SANDSEAR_STORM",
+   "name": "Sandsear Storm",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "STONE_EDGE",
+   "name": "Stone Edge",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "lapras",
+  "dex": 131,
+  "name": "Lapras",
+  "types": [
+   "water",
+   "ice"
+  ],
+  "atk": 165,
+  "def": 174,
+  "hp": 277,
+  "fastMoves": [
+   {
+    "id": "PSYWAVE",
+    "name": "Psywave",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "FROST_BREATH",
+    "name": "Frost Breath",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SPARKLING_ARIA",
+   "name": "Sparkling Aria",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ICE_BEAM",
+   "name": "Ice Beam",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "latias",
+  "dex": 380,
+  "name": "Latias",
+  "types": [
+   "dragon",
+   "psychic"
+  ],
+  "atk": 228,
+  "def": 246,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "ZEN_HEADBUTT",
+    "name": "Zen Headbutt",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AURA_SPHERE",
+   "name": "Aura Sphere",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MIST_BALL",
+   "name": "Mist Ball",
+   "power": 120,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "latios",
+  "dex": 381,
+  "name": "Latios",
+  "types": [
+   "dragon",
+   "psychic"
+  ],
+  "atk": 268,
+  "def": 212,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "ZEN_HEADBUTT",
+    "name": "Zen Headbutt",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AURA_SPHERE",
+   "name": "Aura Sphere",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "LUSTER_PURGE",
+   "name": "Luster Purge",
+   "power": 120,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "lickilicky",
+  "dex": 463,
+  "name": "Lickilicky",
+  "types": [
+   "normal"
+  ],
+  "atk": 161,
+  "def": 181,
+  "hp": 242,
+  "fastMoves": [
+   {
+    "id": "ROLLOUT",
+    "name": "Rollout",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.0
+   },
+   {
+    "id": "LICK",
+    "name": "Lick",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "lugia",
+  "dex": 249,
+  "name": "Lugia",
+  "types": [
+   "psychic",
+   "flying"
+  ],
+  "atk": 193,
+  "def": 310,
+  "hp": 235,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.0
+   },
+   {
+    "id": "EXTRASENSORY",
+    "name": "Extrasensory",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AEROBLAST",
+   "name": "Aeroblast",
+   "power": 170,
+   "energy": 75,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FLY",
+   "name": "Fly",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "lunala",
+  "dex": 792,
+  "name": "Lunala",
+  "types": [
+   "psychic",
+   "ghost"
+  ],
+  "atk": 255,
+  "def": 191,
+  "hp": 264,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "malamar",
+  "dex": 687,
+  "name": "Malamar",
+  "types": [
+   "dark",
+   "psychic"
+  ],
+  "atk": 177,
+  "def": 165,
+  "hp": 200,
+  "fastMoves": [
+   {
+    "id": "PSYWAVE",
+    "name": "Psywave",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "FOUL_PLAY",
+   "name": "Foul Play",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SUPER_POWER",
+   "name": "Superpower",
+   "power": 85,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "mandibuzz",
+  "dex": 630,
+  "name": "Mandibuzz",
+  "types": [
+   "dark",
+   "flying"
+  ],
+  "atk": 129,
+  "def": 205,
+  "hp": 242,
+  "fastMoves": [
+   {
+    "id": "SNARL",
+    "name": "Snarl",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "AIR_SLASH",
+    "name": "Air Slash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FOUL_PLAY",
+   "name": "Foul Play",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "mantine",
+  "dex": 226,
+  "name": "Mantine",
+  "types": [
+   "water",
+   "flying"
+  ],
+  "atk": 148,
+  "def": 226,
+  "hp": 163,
+  "fastMoves": [
+   {
+    "id": "WING_ATTACK",
+    "name": "Wing Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "BUBBLE",
+    "name": "Bubble",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "TWISTER",
+   "name": "Twister",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "WATER_PULSE",
+   "name": "Water Pulse",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "marshadow",
+  "dex": 802,
+  "name": "Marshadow",
+  "types": [
+   "fighting",
+   "ghost"
+  ],
+  "atk": 265,
+  "def": 190,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "CLOSE_COMBAT",
+   "name": "Close Combat",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ICE_PUNCH",
+   "name": "Ice Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "medicham",
+  "dex": 308,
+  "name": "Medicham",
+  "types": [
+   "fighting",
+   "psychic"
+  ],
+  "atk": 121,
+  "def": 152,
+  "hp": 155,
+  "fastMoves": [
+   {
+    "id": "PSYCHO_CUT",
+    "name": "Psycho Cut",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "COUNTER",
+    "name": "Counter",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ICE_PUNCH",
+   "name": "Ice Punch",
+   "power": 60,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "melmetal",
+  "dex": 809,
+  "name": "Melmetal",
+  "types": [
+   "steel"
+  ],
+  "atk": 226,
+  "def": 190,
+  "hp": 264,
+  "fastMoves": [
+   {
+    "id": "THUNDER_SHOCK",
+    "name": "Thunder Shock",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DOUBLE_IRON_BASH",
+   "name": "Double Iron Bash",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "meloetta_aria",
+  "dex": 648,
+  "name": "Meloetta (Aria)",
+  "types": [
+   "normal",
+   "psychic"
+  ],
+  "atk": 250,
+  "def": 225,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   },
+   {
+    "id": "QUICK_ATTACK",
+    "name": "Quick Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYSHOCK",
+   "name": "Psyshock",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DAZZLING_GLEAM",
+   "name": "Dazzling Gleam",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "metagross",
+  "dex": 376,
+  "name": "Metagross",
+  "types": [
+   "steel",
+   "psychic"
+  ],
+  "atk": 257,
+  "def": 228,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   },
+   {
+    "id": "BULLET_PUNCH",
+    "name": "Bullet Punch",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "METEOR_MASH",
+   "name": "Meteor Mash",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "mewtwo",
+  "dex": 150,
+  "name": "Mewtwo",
+  "types": [
+   "psychic"
+  ],
+  "atk": 300,
+  "def": 182,
+  "hp": 214,
+  "fastMoves": [
+   {
+    "id": "PSYCHO_CUT",
+    "name": "Psycho Cut",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYSTRIKE",
+   "name": "Psystrike",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "milotic",
+  "dex": 350,
+  "name": "Milotic",
+  "types": [
+   "water"
+  ],
+  "atk": 192,
+  "def": 219,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "WRAP",
+   "name": "Wrap",
+   "power": 70,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "mimikyu",
+  "dex": 778,
+  "name": "Mimikyu",
+  "types": [
+   "ghost",
+   "fairy"
+  ],
+  "atk": 177,
+  "def": 199,
+  "hp": 146,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "HEX",
+    "name": "Hex",
+    "power": 7,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SHADOW_SNEAK",
+   "name": "Shadow Sneak",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "PLAY_ROUGH",
+   "name": "Play Rough",
+   "power": 90,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "moltres_galarian",
+  "dex": 146,
+  "name": "Moltres (Galarian)",
+  "types": [
+   "dark",
+   "flying"
+  ],
+  "atk": 202,
+  "def": 231,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   },
+   {
+    "id": "WING_ATTACK",
+    "name": "Wing Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FLY",
+   "name": "Fly",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "BRAVE_BIRD",
+   "name": "Brave Bird",
+   "power": 130,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "necrozma_dawn_wings",
+  "dex": 800,
+  "name": "Necrozma (Dawn Wings)",
+  "types": [
+   "psychic",
+   "ghost"
+  ],
+  "atk": 277,
+  "def": 220,
+  "hp": 200,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DARK_PULSE",
+   "name": "Dark Pulse",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MOONGEIST_BEAM",
+   "name": "Moongeist Beam",
+   "power": 135,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "necrozma_dusk_mane",
+  "dex": 800,
+  "name": "Necrozma (Dusk Mane)",
+  "types": [
+   "psychic",
+   "steel"
+  ],
+  "atk": 277,
+  "def": 220,
+  "hp": 200,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DARK_PULSE",
+   "name": "Dark Pulse",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SUNSTEEL_STRIKE",
+   "name": "Sunsteel Strike",
+   "power": 135,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "ninetales",
+  "dex": 38,
+  "name": "Ninetales",
+  "types": [
+   "fire"
+  ],
+  "atk": 169,
+  "def": 190,
+  "hp": 177,
+  "fastMoves": [
+   {
+    "id": "EMBER",
+    "name": "Ember",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "WEATHER_BALL_FIRE",
+   "name": "Weather Ball (Fire)",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ENERGY_BALL",
+   "name": "Energy Ball",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "ninetales_alolan",
+  "dex": 38,
+  "name": "Ninetales (Alolan)",
+  "types": [
+   "ice",
+   "fairy"
+  ],
+  "atk": 170,
+  "def": 193,
+  "hp": 177,
+  "fastMoves": [
+   {
+    "id": "POWDER_SNOW",
+    "name": "Powder Snow",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "WEATHER_BALL_ICE",
+   "name": "Weather Ball (Ice)",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "CHILLING_WATER",
+   "name": "Chilling Water",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "oinkologne_female",
+  "dex": 916,
+  "name": "Oinkologne (Female)",
+  "types": [
+   "normal"
+  ],
+  "atk": 169,
+  "def": 162,
+  "hp": 251,
+  "fastMoves": [
+   {
+    "id": "MUD_SLAP",
+    "name": "Mud Slap",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   },
+   {
+    "id": "TACKLE",
+    "name": "Tackle",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "TRAILBLAZE",
+   "name": "Trailblaze",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "oranguru",
+  "dex": 765,
+  "name": "Oranguru",
+  "types": [
+   "normal",
+   "psychic"
+  ],
+  "atk": 168,
+  "def": 192,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   },
+   {
+    "id": "ZEN_HEADBUTT",
+    "name": "Zen Headbutt",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "TRAILBLAZE",
+   "name": "Trailblaze",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "orthworm",
+  "dex": 968,
+  "name": "Orthworm",
+  "types": [
+   "steel"
+  ],
+  "atk": 161,
+  "def": 219,
+  "hp": 172,
+  "fastMoves": [
+   {
+    "id": "MUD_SLAP",
+    "name": "Mud Slap",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   },
+   {
+    "id": "IRON_TAIL",
+    "name": "Iron Tail",
+    "power": 10,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ROCK_TOMB",
+   "name": "Rock Tomb",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "palkia",
+  "dex": 484,
+  "name": "Palkia",
+  "types": [
+   "water",
+   "dragon"
+  ],
+  "atk": 280,
+  "def": 215,
+  "hp": 189,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FIRE_BLAST",
+   "name": "Fire Blast",
+   "power": 140,
+   "energy": 80,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "palkia_origin",
+  "dex": 484,
+  "name": "Palkia (Origin)",
+  "types": [
+   "water",
+   "dragon"
+  ],
+  "atk": 286,
+  "def": 223,
+  "hp": 189,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SPACIAL_REND",
+   "name": "Spacial Rend",
+   "power": 95,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "pelipper",
+  "dex": 279,
+  "name": "Pelipper",
+  "types": [
+   "water",
+   "flying"
+  ],
+  "atk": 175,
+  "def": 174,
+  "hp": 155,
+  "fastMoves": [
+   {
+    "id": "WING_ATTACK",
+    "name": "Wing Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "WEATHER_BALL_WATER",
+   "name": "Weather Ball (Water)",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "HURRICANE",
+   "name": "Hurricane",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "primarina",
+  "dex": 730,
+  "name": "Primarina",
+  "types": [
+   "water",
+   "fairy"
+  ],
+  "atk": 232,
+  "def": 195,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARM",
+    "name": "Charm",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DISARMING_VOICE",
+   "name": "Disarming Voice",
+   "power": 70,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "quagsire",
+  "dex": 195,
+  "name": "Quagsire",
+  "types": [
+   "water",
+   "ground"
+  ],
+  "atk": 152,
+  "def": 143,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_TAIL",
+   "name": "Aqua Tail",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "MUD_BOMB",
+   "name": "Mud Bomb",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "raikou",
+  "dex": 243,
+  "name": "Raikou",
+  "types": [
+   "electric"
+  ],
+  "atk": 241,
+  "def": 195,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "THUNDER_SHOCK",
+    "name": "Thunder Shock",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "VOLT_SWITCH",
+    "name": "Volt Switch",
+    "power": 14,
+    "turns": 4,
+    "energyGain": 16,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AURA_SPHERE",
+   "name": "Aura Sphere",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "WILD_CHARGE",
+   "name": "Wild Charge",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "regidrago",
+  "dex": 895,
+  "name": "Regidrago",
+  "types": [
+   "dragon"
+  ],
+  "atk": 202,
+  "def": 101,
+  "hp": 400,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DRAGON_ENERGY",
+   "name": "Dragon Energy",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "VICE_GRIP",
+   "name": "Vise Grip",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "registeel",
+  "dex": 379,
+  "name": "Registeel",
+  "types": [
+   "steel"
+  ],
+  "atk": 143,
+  "def": 285,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "LOCK_ON",
+    "name": "Lock On",
+    "power": 1,
+    "turns": 1,
+    "energyGain": 5,
+    "stab": 1.0
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FLASH_CANNON",
+   "name": "Flash Cannon",
+   "power": 110,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FOCUS_BLAST",
+   "name": "Focus Blast",
+   "power": 150,
+   "energy": 75,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "reshiram",
+  "dex": 643,
+  "name": "Reshiram",
+  "types": [
+   "dragon",
+   "fire"
+  ],
+  "atk": 275,
+  "def": 211,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "FIRE_FANG",
+    "name": "Fire Fang",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FUSION_FLARE",
+   "name": "Fusion Flare",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRACO_METEOR",
+   "name": "Draco Meteor",
+   "power": 150,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "rhyperior",
+  "dex": 464,
+  "name": "Rhyperior",
+  "types": [
+   "ground",
+   "rock"
+  ],
+  "atk": 241,
+  "def": 190,
+  "hp": 251,
+  "fastMoves": [
+   {
+    "id": "MUD_SLAP",
+    "name": "Mud Slap",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "SMACK_DOWN",
+    "name": "Smack Down",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ROCK_WRECKER",
+   "name": "Rock Wrecker",
+   "power": 110,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "runerigus",
+  "dex": 867,
+  "name": "Runerigus",
+  "types": [
+   "ground",
+   "ghost"
+  ],
+  "atk": 163,
+  "def": 237,
+  "hp": 151,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ROCK_TOMB",
+   "name": "Rock Tomb",
+   "power": 75,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "sableye",
+  "dex": 302,
+  "name": "Sableye",
+  "types": [
+   "dark",
+   "ghost"
+  ],
+  "atk": 141,
+  "def": 136,
+  "hp": 137,
+  "fastMoves": [
+   {
+    "id": "SHADOW_CLAW",
+    "name": "Shadow Claw",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FOUL_PLAY",
+   "name": "Foul Play",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "POWER_GEM",
+   "name": "Power Gem",
+   "power": 85,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "samurott",
+  "dex": 503,
+  "name": "Samurott",
+  "types": [
+   "water"
+  ],
+  "atk": 212,
+  "def": 157,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "FURY_CUTTER",
+    "name": "Fury Cutter",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "MEGAHORN",
+   "name": "Megahorn",
+   "power": 110,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "seaking",
+  "dex": 119,
+  "name": "Seaking",
+  "types": [
+   "water"
+  ],
+  "atk": 175,
+  "def": 147,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   },
+   {
+    "id": "POISON_JAB",
+    "name": "Poison Jab",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "DRILL_RUN",
+   "name": "Drill Run",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "ICY_WIND",
+   "name": "Icy Wind",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "sealeo",
+  "dex": 364,
+  "name": "Sealeo",
+  "types": [
+   "ice",
+   "water"
+  ],
+  "atk": 137,
+  "def": 132,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "POWDER_SNOW",
+    "name": "Powder Snow",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SURF",
+   "name": "Surf",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "seismitoad",
+  "dex": 537,
+  "name": "Seismitoad",
+  "types": [
+   "water",
+   "ground"
+  ],
+  "atk": 188,
+  "def": 150,
+  "hp": 233,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "BUBBLE",
+    "name": "Bubble",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "ICY_WIND",
+   "name": "Icy Wind",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "sliggoo",
+  "dex": 705,
+  "name": "Sliggoo",
+  "types": [
+   "dragon"
+  ],
+  "atk": 159,
+  "def": 176,
+  "hp": 169,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BODY_SLAM",
+   "name": "Body Slam",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "DRAGON_PULSE",
+   "name": "Dragon Pulse",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "solgaleo",
+  "dex": 791,
+  "name": "Solgaleo",
+  "types": [
+   "psychic",
+   "steel"
+  ],
+  "atk": 255,
+  "def": 191,
+  "hp": 264,
+  "fastMoves": [
+   {
+    "id": "FIRE_SPIN",
+    "name": "Fire Spin",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   },
+   {
+    "id": "ZEN_HEADBUTT",
+    "name": "Zen Headbutt",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYCHIC_FANGS",
+   "name": "Psychic Fangs",
+   "power": 40,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "IRON_HEAD",
+   "name": "Iron Head",
+   "power": 70,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "steelix",
+  "dex": 208,
+  "name": "Steelix",
+  "types": [
+   "steel",
+   "ground"
+  ],
+  "atk": 148,
+  "def": 272,
+  "hp": 181,
+  "fastMoves": [
+   {
+    "id": "THUNDER_FANG",
+    "name": "Thunder Fang",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   },
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYCHIC_FANGS",
+   "name": "Psychic Fangs",
+   "power": 40,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "stunfisk",
+  "dex": 618,
+  "name": "Stunfisk",
+  "types": [
+   "ground",
+   "electric"
+  ],
+  "atk": 144,
+  "def": 171,
+  "hp": 240,
+  "fastMoves": [
+   {
+    "id": "THUNDER_SHOCK",
+    "name": "Thunder Shock",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "MUD_BOMB",
+   "name": "Mud Bomb",
+   "power": 65,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DISCHARGE",
+   "name": "Discharge",
+   "power": 55,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "stunfisk_galarian",
+  "dex": 618,
+  "name": "Stunfisk (Galarian)",
+  "types": [
+   "ground",
+   "steel"
+  ],
+  "atk": 144,
+  "def": 171,
+  "hp": 240,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ROCK_SLIDE",
+   "name": "Rock Slide",
+   "power": 75,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "swampert",
+  "dex": 260,
+  "name": "Swampert",
+  "types": [
+   "water",
+   "ground"
+  ],
+  "atk": 208,
+  "def": 175,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "MUD_SHOT",
+    "name": "Mud Shot",
+    "power": 3,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "HYDRO_CANNON",
+   "name": "Hydro Cannon",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "sylveon",
+  "dex": 700,
+  "name": "Sylveon",
+  "types": [
+   "fairy"
+  ],
+  "atk": 203,
+  "def": 205,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARM",
+    "name": "Charm",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SHADOW_BALL",
+   "name": "Shadow Ball",
+   "power": 100,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "talonflame",
+  "dex": 663,
+  "name": "Talonflame",
+  "types": [
+   "fire",
+   "flying"
+  ],
+  "atk": 176,
+  "def": 155,
+  "hp": 186,
+  "fastMoves": [
+   {
+    "id": "INCINERATE",
+    "name": "Incinerate",
+    "power": 20,
+    "turns": 5,
+    "energyGain": 20,
+    "stab": 1.2
+   },
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FLY",
+   "name": "Fly",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "BRAVE_BIRD",
+   "name": "Brave Bird",
+   "power": 130,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "tapu_lele",
+  "dex": 786,
+  "name": "Tapu Lele",
+  "types": [
+   "psychic",
+   "fairy"
+  ],
+  "atk": 259,
+  "def": 208,
+  "hp": 172,
+  "fastMoves": [
+   {
+    "id": "ASTONISH",
+    "name": "Astonish",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.0
+   },
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYSHOCK",
+   "name": "Psyshock",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "NATURES_MADNESS",
+   "name": "Nature's Madness",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "tentacruel",
+  "dex": 73,
+  "name": "Tentacruel",
+  "types": [
+   "water",
+   "poison"
+  ],
+  "atk": 166,
+  "def": 209,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "ACID",
+    "name": "Acid",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "POISON_JAB",
+    "name": "Poison Jab",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SCALD",
+   "name": "Scald",
+   "power": 85,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "PAYBACK",
+   "name": "Payback",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "tinkaton",
+  "dex": 959,
+  "name": "Tinkaton",
+  "types": [
+   "fairy",
+   "steel"
+  ],
+  "atk": 155,
+  "def": 196,
+  "hp": 198,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "ROCK_SMASH",
+    "name": "Rock Smash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "GIGATON_HAMMER",
+   "name": "Gigaton Hammer",
+   "power": 130,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "BULLDOZE",
+   "name": "Bulldoze",
+   "power": 45,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "togekiss",
+  "dex": 468,
+  "name": "Togekiss",
+  "types": [
+   "fairy",
+   "flying"
+  ],
+  "atk": 225,
+  "def": 217,
+  "hp": 198,
+  "fastMoves": [
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "AIR_SLASH",
+    "name": "Air Slash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "PSYSHOCK",
+   "name": "Psyshock",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "AURA_SPHERE",
+   "name": "Aura Sphere",
+   "power": 80,
+   "energy": 40,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ },
+ {
+  "id": "toucannon",
+  "dex": 733,
+  "name": "Toucannon",
+  "types": [
+   "normal",
+   "flying"
+  ],
+  "atk": 222,
+  "def": 146,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "PECK",
+    "name": "Peck",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "ROCK_SMASH",
+    "name": "Rock Smash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BEAK_BLAST",
+   "name": "Beak Blast",
+   "power": 110,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DRILL_PECK",
+   "name": "Drill Peck",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "turtonator",
+  "dex": 776,
+  "name": "Turtonator",
+  "types": [
+   "fire",
+   "dragon"
+  ],
+  "atk": 165,
+  "def": 215,
+  "hp": 155,
+  "fastMoves": [
+   {
+    "id": "INCINERATE",
+    "name": "Incinerate",
+    "power": 20,
+    "turns": 5,
+    "energyGain": 20,
+    "stab": 1.2
+   },
+   {
+    "id": "EMBER",
+    "name": "Ember",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "DRAGON_CLAW",
+   "name": "Dragon Claw",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great",
+   "ultra"
+  ]
+ },
+ {
+  "id": "tyranitar",
+  "dex": 248,
+  "name": "Tyranitar",
+  "types": [
+   "rock",
+   "dark"
+  ],
+  "atk": 251,
+  "def": 207,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.0
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "STONE_EDGE",
+   "name": "Stone Edge",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "umbreon",
+  "dex": 197,
+  "name": "Umbreon",
+  "types": [
+   "dark"
+  ],
+  "atk": 126,
+  "def": 240,
+  "hp": 216,
+  "fastMoves": [
+   {
+    "id": "SNARL",
+    "name": "Snarl",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "FOUL_PLAY",
+   "name": "Foul Play",
+   "power": 65,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "LAST_RESORT",
+   "name": "Last Resort",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.0
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "urshifu_rapid_strike",
+  "dex": 892,
+  "name": "Urshifu (Rapid Strike)",
+  "types": [
+   "fighting",
+   "water"
+  ],
+  "atk": 254,
+  "def": 177,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "WATERFALL",
+    "name": "Waterfall",
+    "power": 11,
+    "turns": 3,
+    "energyGain": 10,
+    "stab": 1.2
+   },
+   {
+    "id": "ROCK_SMASH",
+    "name": "Rock Smash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "AQUA_JET",
+   "name": "Aqua Jet",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "urshifu_single_strike",
+  "dex": 892,
+  "name": "Urshifu (Single Strike)",
+  "types": [
+   "fighting",
+   "dark"
+  ],
+  "atk": 254,
+  "def": 177,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   },
+   {
+    "id": "ROCK_SMASH",
+    "name": "Rock Smash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DYNAMIC_PUNCH",
+   "name": "Dynamic Punch",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "PAYBACK",
+   "name": "Payback",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "victini",
+  "dex": 494,
+  "name": "Victini",
+  "types": [
+   "psychic",
+   "fire"
+  ],
+  "atk": 210,
+  "def": 210,
+  "hp": 225,
+  "fastMoves": [
+   {
+    "id": "CONFUSION",
+    "name": "Confusion",
+    "power": 16,
+    "turns": 4,
+    "energyGain": 14,
+    "stab": 1.2
+   },
+   {
+    "id": "QUICK_ATTACK",
+    "name": "Quick Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "V_CREATE",
+   "name": "V-Create",
+   "power": 95,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "PSYSHOCK",
+   "name": "Psyshock",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "virizion",
+  "dex": 640,
+  "name": "Virizion",
+  "types": [
+   "grass",
+   "fighting"
+  ],
+  "atk": 192,
+  "def": 229,
+  "hp": 209,
+  "fastMoves": [
+   {
+    "id": "DOUBLE_KICK",
+    "name": "Double Kick",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "QUICK_ATTACK",
+    "name": "Quick Attack",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "LEAF_BLADE",
+   "name": "Leaf Blade",
+   "power": 70,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "SACRED_SWORD",
+   "name": "Sacred Sword",
+   "power": 60,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "volcanion",
+  "dex": 721,
+  "name": "Volcanion",
+  "types": [
+   "fire",
+   "water"
+  ],
+  "atk": 252,
+  "def": 216,
+  "hp": 190,
+  "fastMoves": [
+   {
+    "id": "INCINERATE",
+    "name": "Incinerate",
+    "power": 20,
+    "turns": 5,
+    "energyGain": 20,
+    "stab": 1.2
+   },
+   {
+    "id": "WATER_GUN",
+    "name": "Water Gun",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "SCALD",
+   "name": "Scald",
+   "power": 85,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTH_POWER",
+   "name": "Earth Power",
+   "power": 90,
+   "energy": 50,
+   "stab": 1.0
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "walrein",
+  "dex": 365,
+  "name": "Walrein",
+  "types": [
+   "ice",
+   "water"
+  ],
+  "atk": 182,
+  "def": 176,
+  "hp": 242,
+  "fastMoves": [
+   {
+    "id": "POWDER_SNOW",
+    "name": "Powder Snow",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "FROST_BREATH",
+    "name": "Frost Breath",
+    "power": 7,
+    "turns": 2,
+    "energyGain": 5,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "ICICLE_SPEAR",
+   "name": "Icicle Spear",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.0
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "weezing_galarian",
+  "dex": 110,
+  "name": "Weezing (Galarian)",
+  "types": [
+   "poison",
+   "fairy"
+  ],
+  "atk": 174,
+  "def": 197,
+  "hp": 163,
+  "fastMoves": [
+   {
+    "id": "FAIRY_WIND",
+    "name": "Fairy Wind",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "TACKLE",
+    "name": "Tackle",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "BRUTAL_SWING",
+   "name": "Brutal Swing",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SLUDGE",
+   "name": "Sludge",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "leagues": [
+   "ultra"
+  ]
+ },
+ {
+  "id": "wigglytuff",
+  "dex": 40,
+  "name": "Wigglytuff",
+  "types": [
+   "normal",
+   "fairy"
+  ],
+  "atk": 156,
+  "def": 90,
+  "hp": 295,
+  "fastMoves": [
+   {
+    "id": "CHARM",
+    "name": "Charm",
+    "power": 12,
+    "turns": 3,
+    "energyGain": 8,
+    "stab": 1.2
+   },
+   {
+    "id": "FEINT_ATTACK",
+    "name": "Feint Attack",
+    "power": 6,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "ICY_WIND",
+   "name": "Icy Wind",
+   "power": 60,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "SWIFT",
+   "name": "Swift",
+   "power": 55,
+   "energy": 35,
+   "stab": 1.2
+  },
+  "leagues": [
+   "great"
+  ]
+ },
+ {
+  "id": "xerneas",
+  "dex": 716,
+  "name": "Xerneas",
+  "types": [
+   "fairy"
+  ],
+  "atk": 250,
+  "def": 185,
+  "hp": 246,
+  "fastMoves": [
+   {
+    "id": "GEOMANCY",
+    "name": "Geomancy",
+    "power": 8,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   },
+   {
+    "id": "TACKLE",
+    "name": "Tackle",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 3,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "CLOSE_COMBAT",
+   "name": "Close Combat",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "MOONBLAST",
+   "name": "Moonblast",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "yveltal",
+  "dex": 717,
+  "name": "Yveltal",
+  "types": [
+   "dark",
+   "flying"
+  ],
+  "atk": 250,
+  "def": 185,
+  "hp": 246,
+  "fastMoves": [
+   {
+    "id": "SUCKER_PUNCH",
+    "name": "Sucker Punch",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   },
+   {
+    "id": "SNARL",
+    "name": "Snarl",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 13,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DARK_PULSE",
+   "name": "Dark Pulse",
+   "power": 80,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "OBLIVION_WING",
+   "name": "Oblivion Wing",
+   "power": 85,
+   "energy": 50,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "zacian_crowned_sword",
+  "dex": 888,
+  "name": "Zacian (Crowned Sword)",
+  "types": [
+   "fairy",
+   "steel"
+  ],
+  "atk": 332,
+  "def": 240,
+  "hp": 192,
+  "fastMoves": [
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   },
+   {
+    "id": "AIR_SLASH",
+    "name": "Air Slash",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 9,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "CLOSE_COMBAT",
+   "name": "Close Combat",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "BEHEMOTH_BLADE",
+   "name": "Behemoth Blade",
+   "power": 100,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "zamazenta_crowned_shield",
+  "dex": 889,
+  "name": "Zamazenta (Crowned Shield)",
+  "types": [
+   "fighting",
+   "steel"
+  ],
+  "atk": 250,
+  "def": 292,
+  "hp": 192,
+  "fastMoves": [
+   {
+    "id": "ICE_FANG",
+    "name": "Ice Fang",
+    "power": 8,
+    "turns": 2,
+    "energyGain": 6,
+    "stab": 1.0
+   },
+   {
+    "id": "METAL_CLAW",
+    "name": "Metal Claw",
+    "power": 5,
+    "turns": 2,
+    "energyGain": 7,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "CLOSE_COMBAT",
+   "name": "Close Combat",
+   "power": 100,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "BEHEMOTH_BASH",
+   "name": "Behemoth Bash",
+   "power": 80,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "zapdos",
+  "dex": 145,
+  "name": "Zapdos",
+  "types": [
+   "electric",
+   "flying"
+  ],
+  "atk": 253,
+  "def": 185,
+  "hp": 207,
+  "fastMoves": [
+   {
+    "id": "THUNDER_SHOCK",
+    "name": "Thunder Shock",
+    "power": 4,
+    "turns": 2,
+    "energyGain": 9,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "DRILL_PECK",
+   "name": "Drill Peck",
+   "power": 70,
+   "energy": 40,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "THUNDERBOLT",
+   "name": "Thunderbolt",
+   "power": 90,
+   "energy": 55,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "zekrom",
+  "dex": 644,
+  "name": "Zekrom",
+  "types": [
+   "dragon",
+   "electric"
+  ],
+  "atk": 275,
+  "def": 211,
+  "hp": 205,
+  "fastMoves": [
+   {
+    "id": "DRAGON_BREATH",
+    "name": "Dragon Breath",
+    "power": 3,
+    "turns": 1,
+    "energyGain": 4,
+    "stab": 1.2
+   },
+   {
+    "id": "CHARGE_BEAM",
+    "name": "Charge Beam",
+    "power": 5,
+    "turns": 3,
+    "energyGain": 11,
+    "stab": 1.2
+   }
+  ],
+  "chargeMove": {
+   "id": "OUTRAGE",
+   "name": "Outrage",
+   "power": 110,
+   "energy": 60,
+   "stab": 1.2
+  },
+  "chargeMove2": {
+   "id": "FUSION_BOLT",
+   "name": "Fusion Bolt",
+   "power": 90,
+   "energy": 45,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master"
+  ]
+ },
+ {
+  "id": "zygarde_complete",
+  "dex": 718,
+  "name": "Zygarde (Complete Forme)",
+  "types": [
+   "dragon",
+   "ground"
+  ],
+  "atk": 184,
+  "def": 207,
+  "hp": 389,
+  "fastMoves": [
+   {
+    "id": "DRAGON_TAIL",
+    "name": "Dragon Tail",
+    "power": 9,
+    "turns": 3,
+    "energyGain": 12,
+    "stab": 1.2
+   },
+   {
+    "id": "BITE",
+    "name": "Bite",
+    "power": 4,
+    "turns": 1,
+    "energyGain": 2,
+    "stab": 1.0
+   }
+  ],
+  "chargeMove": {
+   "id": "CRUNCH",
+   "name": "Crunch",
+   "power": 70,
+   "energy": 45,
+   "stab": 1.0
+  },
+  "chargeMove2": {
+   "id": "EARTHQUAKE",
+   "name": "Earthquake",
+   "power": 120,
+   "energy": 65,
+   "stab": 1.2
+  },
+  "leagues": [
+   "master",
+   "ultra"
+  ]
+ }
+]

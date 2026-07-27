@@ -1,0 +1,577 @@
+import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
+import { LEAGUE_BY_ID, SPECIES_BY_ID, opponentsFor } from './data';
+import type {
+  BattleMon,
+  BattleResult,
+  ChargeMove,
+  FastMove,
+  IV,
+  League,
+  LeagueId,
+  RankedEntry,
+  Species,
+  SpeciesTable,
+  StatLine,
+} from './types';
+
+export function ivKey(iv: IV): number {
+  return iv.a * 256 + iv.d * 16 + iv.s;
+}
+
+function statsAt(species: Species, iv: IV, cpm: number) {
+  return {
+    atk: (species.atk + iv.a) * cpm,
+    def: (species.def + iv.d) * cpm,
+    hRaw: (species.hp + iv.s) * cpm,
+    h: Math.floor((species.hp + iv.s) * cpm),
+  };
+}
+
+function cpOf(s: { atk: number; def: number; hRaw: number }): number {
+  return Math.max(10, Math.floor((s.atk * Math.sqrt(s.def) * Math.sqrt(s.hRaw)) / 10));
+}
+
+export function bestAt(species: Species, iv: IV, league: League): StatLine {
+  for (let i = MAX_LEVEL_IDX; i >= 0; i--) {
+    const s = statsAt(species, iv, CPM[i]);
+    const cp = cpOf(s);
+    if (cp <= league.cap) {
+      const hp = Math.max(10, s.h);
+      return { lvl: LVL(i), cp, atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+    }
+  }
+  const s = statsAt(species, iv, CPM[0]);
+  const hp = Math.max(10, s.h);
+  return { lvl: 1, cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+}
+
+export function dmg(atk: number, def: number, move: FastMove | ChargeMove): number {
+  return Math.floor(0.5 * move.power * (atk / def) * move.stab) + 1;
+}
+
+const tableCache = new Map<string, SpeciesTable>();
+
+export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
+  const key = `${speciesId}|${leagueId}`;
+  const cached = tableCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const league = LEAGUE_BY_ID.get(leagueId)!;
+  const all: RankedEntry[] = [];
+  for (let a = 0; a < 16; a++) {
+    for (let d = 0; d < 16; d++) {
+      for (let s = 0; s < 16; s++) {
+        const r = bestAt(species, { a, d, s }, league);
+        all.push({ a, d, s, ...r, rank: 0 });
+      }
+    }
+  }
+  const sorted = all.slice().sort((x, y) => y.sp - x.sp);
+  sorted.forEach((e, i) => {
+    e.rank = i + 1;
+  });
+  const map = new Map<number, RankedEntry>();
+  sorted.forEach((e) => map.set(ivKey(e), e));
+  const out: SpeciesTable = {
+    all: sorted,
+    map,
+    best: sorted[0],
+    worst: sorted[sorted.length - 1],
+    league,
+    species,
+  };
+  tableCache.set(key, out);
+  return out;
+}
+
+export function getEntry(speciesId: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
+  const table = getTable(speciesId, leagueId);
+  return { entry: table.map.get(ivKey(iv))!, table };
+}
+
+export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league: League } {
+  let best: { rank: number; league: League } | null = null;
+  for (const league of LEAGUE_BY_ID.values()) {
+    const { entry } = getEntry(speciesId, iv, league.id);
+    if (!best || entry.rank < best.rank) best = { rank: entry.rank, league };
+  }
+  return best!;
+}
+
+// ── Opponent representative — best-possible (hundo) stats, primary fast move as the incoming attack ──
+export interface OpponentInfo {
+  species: Species;
+  atk: number;
+  def: number;
+  hp: number;
+  fastMove: FastMove;
+}
+
+export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const league = LEAGUE_BY_ID.get(leagueId)!;
+  const r = bestAt(species, { a: 15, d: 15, s: 15 }, league);
+  return { species, atk: r.atk, def: r.def, hp: r.hp, fastMove: species.fastMoves[0] };
+}
+
+export function opponentList(leagueId: LeagueId): Species[] {
+  return opponentsFor(leagueId);
+}
+
+// ── Breakpoint / bulkpoint threshold rows ──
+export interface ThresholdRow {
+  kind: 'Breakpoint' | 'Bulkpoint';
+  move: string;
+  needLabel: string;
+  need: number;
+  spread: string;
+  dmgLabel: string;
+  have: number;
+  at: number;
+  met: boolean;
+  near: boolean;
+}
+
+export function bpRowsFor(
+  speciesId: string,
+  iv: IV,
+  leagueId: LeagueId,
+  opp: OpponentInfo,
+): ThresholdRow[] {
+  const { entry, table } = getEntry(speciesId, iv, leagueId);
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const rows: Omit<ThresholdRow, 'met' | 'near'>[] = [];
+
+  species.fastMoves.forEach((mv) => {
+    const vals = table.all
+      .map((x) => ({ atk: x.atk, d: dmg(x.atk, opp.def, mv), e: x }))
+      .sort((x, y) => x.atk - y.atk);
+    const seen = new Map<number, (typeof vals)[number]>();
+    vals.forEach((v) => {
+      if (!seen.has(v.d)) seen.set(v.d, v);
+    });
+    [...seen.keys()].sort((x, y) => x - y).forEach((d) => {
+      const v = seen.get(d)!;
+      rows.push({
+        kind: 'Breakpoint',
+        move: `${mv.name} (${mv.turns}t)`,
+        needLabel: `atk ${v.atk.toFixed(2)}`,
+        need: v.atk,
+        spread: `${v.e.a}/${v.e.d}/${v.e.s}`,
+        dmgLabel: `${d} dmg`,
+        have: entry.atk,
+        at: v.atk,
+      });
+    });
+  });
+
+  const dvals = table.all
+    .map((x) => ({ def: x.def, d: dmg(opp.atk, x.def, opp.fastMove), e: x }))
+    .sort((x, y) => x.def - y.def);
+  const seenB = new Map<number, (typeof dvals)[number]>();
+  dvals.forEach((v) => {
+    if (!seenB.has(v.d)) seenB.set(v.d, v);
+  });
+  [...seenB.keys()].sort((x, y) => y - x).forEach((d) => {
+    const v = seenB.get(d)!;
+    rows.push({
+      kind: 'Bulkpoint',
+      move: `${opp.species.name} ${opp.fastMove.name}`,
+      needLabel: `def ${v.def.toFixed(2)}`,
+      need: v.def,
+      spread: `${v.e.a}/${v.e.d}/${v.e.s}`,
+      dmgLabel: `takes ${d}`,
+      have: entry.def,
+      at: v.def,
+    });
+  });
+
+  return rows.map((r) => {
+    const met = r.have >= r.at;
+    const near = !met && (r.at - r.have) / r.at < 0.03;
+    return { ...r, met, near };
+  });
+}
+
+// ── Ruler bands (damage-per-use vs. attack/defense axis) ──
+export interface RulerBand {
+  label: string;
+  start: number;
+  width: number;
+  active: boolean;
+}
+export interface RulerTick {
+  pos: number;
+}
+export interface RulerData {
+  title: string;
+  sub: string;
+  unit: 'atk' | 'def';
+  badge: string;
+  note: string;
+  min: string;
+  max: string;
+  bands: RulerBand[];
+  ticks: RulerTick[];
+  youPos: number;
+  youLabel: string;
+  flat: boolean;
+}
+
+export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: OpponentInfo): RulerData[] {
+  const { entry, table } = getEntry(speciesId, iv, leagueId);
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const atks = table.all.map((x) => x.atk);
+  const aMin = Math.min(...atks);
+  const aMax = Math.max(...atks);
+  const defs = table.all.map((x) => x.def);
+  const dMin = Math.min(...defs);
+  const dMax = Math.max(...defs);
+  const pos = (v: number, lo: number, hi: number) => ((v - lo) / (hi - lo)) * 100;
+
+  function mk(
+    title: string,
+    sub: string,
+    lo: number,
+    hi: number,
+    you: number,
+    thresholds: { at: number; label: string }[],
+    badge: string,
+    note: string,
+    kind: 'atk' | 'def',
+  ): RulerData {
+    const bands: RulerBand[] = thresholds.map((th, i) => {
+      const start = i === 0 ? 0 : pos(th.at, lo, hi);
+      const end = i === thresholds.length - 1 ? 100 : pos(thresholds[i + 1].at, lo, hi);
+      const active = you >= th.at && (i === thresholds.length - 1 || you < thresholds[i + 1].at);
+      return { label: end - start < 6 ? '' : th.label, start: Math.max(0, start), width: Math.max(0, end - start), active };
+    });
+    const ticks: RulerTick[] = thresholds.filter((_, i) => i > 0).map((th) => ({ pos: pos(th.at, lo, hi) }));
+    const flat = thresholds.length <= 1;
+    const bulk = kind === 'def';
+    return {
+      title,
+      sub,
+      unit: bulk ? 'def' : 'atk',
+      badge: flat ? `No ${bulk ? 'bulkpoint' : 'breakpoint'} in reach` : badge,
+      note: flat
+        ? bulk
+          ? 'The incoming move deals the same damage across every reachable defense value — no bulkpoint exists for this pairing.'
+          : "This target's defense flattens the move — every reachable spread deals the same damage. Try another opponent."
+        : note,
+      min: lo.toFixed(1),
+      max: hi.toFixed(1),
+      bands,
+      ticks,
+      youPos: Math.min(99.6, Math.max(0, pos(you, lo, hi))),
+      youLabel: you.toFixed(2),
+      flat,
+    };
+  }
+
+  const out: RulerData[] = [];
+  species.fastMoves.forEach((mv) => {
+    const seen = new Map<number, number>();
+    table.all
+      .slice()
+      .sort((x, y) => x.atk - y.atk)
+      .forEach((x) => {
+        const d = dmg(x.atk, opp.def, mv);
+        if (!seen.has(d)) seen.set(d, x.atk);
+      });
+    const th = [...seen.keys()].sort((x, y) => x - y).map((d) => ({ at: seen.get(d)!, label: `${d} dmg` }));
+    const reached = th.filter((x) => entry.atk >= x.at).length;
+    out.push(
+      mk(
+        `${mv.name} → ${opp.species.name}`,
+        `${mv.turns}-turn · ${mv.power} power · target def ${opp.def.toFixed(1)}`,
+        aMin,
+        aMax,
+        entry.atk,
+        th,
+        `${reached} / ${th.length} breakpoints`,
+        'Bands are damage per use; the ruler marks where it steps up',
+        'atk',
+      ),
+    );
+  });
+  const seenB = new Map<number, number>();
+  table.all
+    .slice()
+    .sort((x, y) => x.def - y.def)
+    .forEach((x) => {
+      const d = dmg(opp.atk, x.def, opp.fastMove);
+      if (!seenB.has(d)) seenB.set(d, x.def);
+    });
+  const thB = [...seenB.keys()].sort((x, y) => y - x).map((d) => ({ at: seenB.get(d)!, label: `takes ${d}` }));
+  out.push(
+    mk(
+      `Bulkpoints vs ${opp.species.name} ${opp.fastMove.name}`,
+      `your defense axis · attacker atk ${opp.atk.toFixed(1)}`,
+      dMin,
+      dMax,
+      entry.def,
+      thB,
+      `${thB.filter((x) => entry.def >= x.at).length} / ${thB.length} bulkpoints`,
+      'Further right takes less damage per hit',
+      'def',
+    ),
+  );
+  return out;
+}
+
+// ── Heatmap cell data (rank / breakpoint-tier / bulkpoint-tier colouring) ──
+export interface HeatCell {
+  a: number;
+  d: number;
+  entry: RankedEntry;
+  bg: string;
+  label: string;
+  tip: string;
+  isYou: boolean;
+}
+
+export function buildHeatCells(
+  speciesId: string,
+  iv: IV,
+  leagueId: LeagueId,
+  opp: OpponentInfo,
+  moveIdx: number,
+  colorBy: 'rank' | 'break' | 'bulk',
+): HeatCell[] {
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const { table } = getEntry(speciesId, iv, leagueId);
+  const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+
+  const slice: RankedEntry[] = [];
+  for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
+
+  const spMax = table.best.sp;
+  const spMin = Math.min(...slice.map((e) => e.sp));
+  let tiers: number[] = [];
+  if (colorBy === 'break') tiers = [...new Set(slice.map((e) => dmg(e.atk, opp.def, mv)))].sort((x, y) => x - y);
+  if (colorBy === 'bulk') tiers = [...new Set(slice.map((e) => dmg(opp.atk, e.def, opp.fastMove)))].sort((x, y) => y - x);
+
+  return slice.map((entry) => {
+    const isYou = entry.a === iv.a && entry.d === iv.d;
+    let bg: string;
+    let label: string;
+    if (colorBy === 'rank') {
+      bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin));
+      label = `#${entry.rank}`;
+    } else if (colorBy === 'break') {
+      const dv = dmg(entry.atk, opp.def, mv);
+      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      label = `${dv} dmg / ${mv.turns}t`;
+    } else {
+      const dv = dmg(opp.atk, entry.def, opp.fastMove);
+      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      label = `takes ${dv}`;
+    }
+    return {
+      a: entry.a,
+      d: entry.d,
+      entry,
+      bg,
+      label,
+      isYou,
+      tip: `ATK ${entry.a} / DEF ${entry.d} / HP ${iv.s} — #${entry.rank} · ${label}`,
+    };
+  });
+}
+
+// ── Turn-based shield/CMP battle simulator ──
+// 1 turn = 500ms; throw-as-soon-as-charged; shields absorb a charge move down to
+// 1 damage; simultaneous charge moves (CMP) resolve by higher attack stat first.
+export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number): BattleResult {
+  let hpA = a.hp;
+  let hpB = b.hp;
+  let eA = 0;
+  let eB = 0;
+  let sA = shieldsA;
+  let sB = shieldsB;
+  let tA = a.fast.turns;
+  let tB = b.fast.turns;
+  let cmpDecided = false;
+  const cA = dmg(a.atk, b.def, a.charge);
+  const cB = dmg(b.atk, a.def, b.charge);
+  const fA = dmg(a.atk, b.def, a.fast);
+  const fB = dmg(b.atk, a.def, b.fast);
+
+  for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
+    const goA = eA >= a.charge.energy;
+    const goB = eB >= b.charge.energy;
+    if (goA || goB) {
+      const order: ('A' | 'B')[] = goA && goB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : goA ? ['A'] : ['B'];
+      if (goA && goB) cmpDecided = true;
+      for (const who of order) {
+        if (who === 'A' && hpA > 0) {
+          eA -= a.charge.energy;
+          if (sB > 0) {
+            sB--;
+            hpB -= 1;
+          } else hpB -= cA;
+          tA = a.fast.turns;
+        }
+        if (who === 'B' && hpB > 0) {
+          eB -= b.charge.energy;
+          if (sA > 0) {
+            sA--;
+            hpA -= 1;
+          } else hpA -= cB;
+          tB = b.fast.turns;
+        }
+      }
+      continue;
+    }
+    if (--tA <= 0) {
+      hpB -= fA;
+      eA = Math.min(100, eA + a.fast.energyGain);
+      tA = a.fast.turns;
+    }
+    if (--tB <= 0) {
+      hpA -= fB;
+      eB = Math.min(100, eB + b.fast.energyGain);
+      tB = b.fast.turns;
+    }
+  }
+  const mine = Math.max(0, hpA) / a.hp;
+  const theirs = Math.max(0, hpB) / b.hp;
+  const win = hpA <= 0 && hpB <= 0 ? a.atk >= b.atk : mine > theirs;
+  return { win, mine, theirs, cmpDecided, margin: (mine - theirs) * 100 };
+}
+
+export function mkBattleMon(entry: { atk: number; def: number; hp: number }, fast: FastMove, charge: ChargeMove): BattleMon {
+  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charge };
+}
+
+// ── Verdict copy ──
+export function verdictLine(rank: number, beginner: boolean): string {
+  if (rank === 1) return beginner ? 'Perfect for this league. Never transfer this one.' : 'Rank 1 · maximum stat product at cap';
+  if (rank <= 10) return beginner ? 'Elite roll — build it, this is as good as it gets.' : 'Top 10 · elite spread, worth full investment';
+  if (rank <= 100) return beginner ? 'Excellent. Worth your dust and candy.' : 'Top 100 · strong spread, safe investment';
+  if (rank <= 500) return beginner ? 'Good enough to use if you have nothing better.' : 'Top 500 · playable, expect small SP losses';
+  if (rank <= 1500) return beginner ? 'Usable but you can do better. Keep hunting.' : 'Mid pack · replace when a better spread appears';
+  return beginner ? 'Weak for this league — trade or transfer it.' : 'Bottom half · not competitive at this cap';
+}
+
+export function verdictTagClass(rank: number): string {
+  if (rank <= 10) return 'tag tag-accent';
+  if (rank <= 500) return 'tag tag-neutral';
+  return 'tag tag-outline';
+}
+
+export function shortVerdict(rank: number): string {
+  if (rank <= 10) return 'Elite';
+  if (rank <= 100) return 'Strong';
+  if (rank <= 500) return 'Playable';
+  if (rank <= 1500) return 'Mid';
+  return 'Transfer';
+}
+
+// ── Heatmap cell color helpers ──
+export function cellColorMix(pct: number): string {
+  const w = Math.round(Math.pow(Math.max(0, Math.min(1, pct)), 2.2) * 100);
+  return `color-mix(in srgb, var(--color-accent) ${w}%, var(--color-neutral-200))`;
+}
+
+const TIER_STEPS = [
+  'var(--color-neutral-200)',
+  'var(--color-accent-200)',
+  'var(--color-accent-400)',
+  'var(--color-accent-500)',
+  'var(--color-accent-600)',
+  'var(--color-accent-700)',
+];
+
+export function tierColor(i: number, n: number): string {
+  if (n <= 1) return TIER_STEPS[2];
+  return TIER_STEPS[Math.min(TIER_STEPS.length - 1, Math.round((i / (n - 1)) * (TIER_STEPS.length - 1)))];
+}
+
+// ── Matchup flips: which IV spreads flip a shielded/CMP scenario from loss to win ──
+export interface FlipCellResult {
+  entry: RankedEntry;
+  result: BattleResult;
+}
+export interface FlipGrid {
+  results: FlipCellResult[];
+  winners: FlipCellResult[];
+  cheapest: FlipCellResult | null;
+  minAtkWin: FlipCellResult | null;
+  total: number;
+  opponentMon: BattleMon;
+  opponentInfo: OpponentInfo;
+}
+
+const flipCache = new Map<string, FlipGrid>();
+
+export function flipGrid(
+  speciesId: string,
+  iv: IV,
+  leagueId: LeagueId,
+  oppSpeciesId: string,
+  moveIdx: number,
+  shields: number,
+): FlipGrid {
+  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shields, iv.s].join('|');
+  const cached = flipCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const { table } = getEntry(speciesId, iv, leagueId);
+  const opp = opponentInfo(oppSpeciesId, leagueId);
+  const opponentMon = mkBattleMon(opp, opp.fastMove, opp.species.chargeMove);
+  const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+
+  const slice: RankedEntry[] = [];
+  for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
+
+  const results: FlipCellResult[] = slice.map((entry) => ({
+    entry,
+    result: battle(mkBattleMon(entry, myFast, species.chargeMove), opponentMon, shields, shields),
+  }));
+  const winners = results.filter((o) => o.result.win);
+  const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
+  const minAtkWin = winners.length ? winners.slice().sort((p, q) => p.entry.atk - q.entry.atk)[0] : null;
+
+  const out: FlipGrid = { results, winners, cheapest, minAtkWin, total: slice.length, opponentMon, opponentInfo: opp };
+  flipCache.set(key, out);
+  return out;
+}
+
+export interface FlipMatchupRow {
+  species: Species;
+  cells: { win: boolean; margin: number }[];
+  cmpWin: boolean;
+  flips: number;
+}
+
+export function flipMatchupRows(
+  speciesId: string,
+  iv: IV,
+  leagueId: LeagueId,
+  moveIdx: number,
+  opponentIds: string[],
+): FlipMatchupRow[] {
+  const species = SPECIES_BY_ID.get(speciesId)!;
+  const { entry } = getEntry(speciesId, iv, leagueId);
+  const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const you = mkBattleMon(entry, myFast, species.chargeMove);
+
+  return opponentIds.map((oid) => {
+    const opp = opponentInfo(oid, leagueId);
+    const foe = mkBattleMon(opp, opp.fastMove, opp.species.chargeMove);
+    const cells = [0, 1, 2].map((sh) => {
+      const r = battle(you, foe, sh, sh);
+      return { win: r.win, margin: r.margin };
+    });
+    return {
+      species: opp.species,
+      cells,
+      cmpWin: entry.atk >= foe.atk,
+      flips: cells.filter((c) => c.win).length,
+    };
+  });
+}

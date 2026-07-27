@@ -2,13 +2,10 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor } from '../lib/data';
 
-export type Screen = 'overlay' | 'ios' | 'detail' | 'explorer' | 'collection' | 'compare';
+export type Screen = 'report' | 'compare';
 export type Mode = 'beginner' | 'expert';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
-export type OverlayState = 'collapsed' | 'scan' | 'result';
-export type IOSFlow = 'share' | 'library' | 'auto';
-export type SortKey = 'rank' | 'cp' | 'name' | 'new';
 
 export interface AppStateShape {
   screen: Screen;
@@ -20,17 +17,13 @@ export interface AppStateShape {
   colorBy: ColorBy;
   oppId: string;
   moveIdx: number;
-  overlay: OverlayState;
-  iosFlow: IOSFlow;
-  query: string;
-  sort: SortKey;
   shields: number;
   cmpA: string;
   cmpB: string;
 }
 
 const initialState: AppStateShape = {
-  screen: 'detail',
+  screen: 'report',
   league: 'great',
   mode: 'expert',
   species: 'azumarill',
@@ -39,10 +32,6 @@ const initialState: AppStateShape = {
   colorBy: 'rank',
   oppId: opponentsFor('great')[0]?.id ?? '',
   moveIdx: 0,
-  overlay: 'collapsed',
-  iosFlow: 'share',
-  query: '',
-  sort: 'rank',
   shields: 1,
   cmpA: 'c1',
   cmpB: 'c2',

@@ -1,19 +1,11 @@
 import { AppStateProvider, useAppState, type Screen } from './state/AppState';
 import { SegButton, SegGroup } from './components/Seg';
 import { LEAGUES, opponentsFor } from './lib/data';
-import { DetailScreen } from './screens/DetailScreen';
-import { OverlayScreen } from './screens/OverlayScreen';
-import { IOSScreen } from './screens/IOSScreen';
-import { ExplorerScreen } from './screens/ExplorerScreen';
-import { CollectionScreen } from './screens/CollectionScreen';
+import { ReportScreen } from './screens/ReportScreen';
 import { CompareScreen } from './screens/CompareScreen';
 
 const SCREENS: [Screen, string][] = [
-  ['overlay', 'Android overlay'],
-  ['ios', 'iOS capture'],
-  ['detail', 'Report'],
-  ['explorer', '4096 explorer'],
-  ['collection', 'Collection'],
+  ['report', 'Report'],
   ['compare', 'Compare'],
 ];
 
@@ -59,16 +51,8 @@ function Nav() {
 function Screens() {
   const { state } = useAppState();
   switch (state.screen) {
-    case 'overlay':
-      return <OverlayScreen />;
-    case 'ios':
-      return <IOSScreen />;
-    case 'detail':
-      return <DetailScreen />;
-    case 'explorer':
-      return <ExplorerScreen />;
-    case 'collection':
-      return <CollectionScreen />;
+    case 'report':
+      return <ReportScreen />;
     case 'compare':
       return <CompareScreen />;
   }

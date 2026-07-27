@@ -20,13 +20,13 @@ import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
 
 const VIZ_ITEMS: [Viz, string][] = [
-  ['heat', 'Heatmap'],
+  ['heat', '4096 heatmap'],
   ['ruler', 'Damage ruler'],
   ['table', 'Threshold table'],
   ['flip', 'Matchup flips'],
 ];
 
-export function DetailScreen() {
+export function ReportScreen() {
   const { state, set, patch, bumpIv, beginner } = useAppState();
   const { league, species: speciesId, iv, viz, colorBy, oppId, moveIdx } = state;
 
@@ -58,12 +58,12 @@ export function DetailScreen() {
   const colorByLabel = colorBy === 'rank' ? 'stat product rank' : colorBy === 'break' ? `${mv.name} damage dealt` : `${opp.fastMove.name} damage taken`;
 
   const bpBlurb = beginner
-    ? 'A breakpoint is the attack value where your fast move starts doing one more damage. Cross it and every single hit for the rest of the fight is stronger.'
-    : `Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.species.name}, and where incoming ${opp.fastMove.name} steps down.`;
+    ? 'Every square is one of the 4096 possible catches. A breakpoint is the attack value where your fast move starts doing one more damage — cross it and every hit for the rest of the fight is stronger.'
+    : `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.species.name}, and where incoming ${opp.fastMove.name} steps down.`;
 
   const footnote = beginner
-    ? 'Rank compares your Pokémon against every one of the 4096 possible IV rolls at this CP cap. #1 is the best possible.'
-    : 'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1.';
+    ? 'Rank compares your Pokémon against every one of the 4096 possible IV rolls at this CP cap. #1 is the best possible. Click any heatmap cell to load that spread.'
+    : 'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1. Click any heatmap cell to load that spread.';
 
   const rankBarW = (100 - ((entry.rank - 1) / 4095) * 100).toFixed(2) + '%';
 
@@ -88,7 +88,7 @@ export function DetailScreen() {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>
-                #{String(species.dex).padStart(3, '0')} · caught 2 minutes ago
+                #{String(species.dex).padStart(3, '0')}
               </div>
               <h2 style={{ margin: '2px 0 4px', fontSize: 28 }}>{species.name}</h2>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -186,11 +186,7 @@ export function DetailScreen() {
               })}
             </div>
             <div style={{ marginTop: 12 }}>
-              <select
-                className="input"
-                value={speciesId}
-                onChange={(e) => patch({ species: e.target.value, moveIdx: 0 })}
-              >
+              <select className="input" value={speciesId} onChange={(e) => patch({ species: e.target.value, moveIdx: 0 })}>
                 {SPECIES.slice()
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((s) => (
@@ -207,8 +203,8 @@ export function DetailScreen() {
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
             <div>
-              <h4 style={{ margin: 0 }}>Breakpoints &amp; bulkpoints</h4>
-              <div className="text-muted" style={{ fontSize: 12, maxWidth: '52ch' }}>
+              <h4 style={{ margin: 0 }}>Breakpoints &amp; bulkpoints across the 4096</h4>
+              <div className="text-muted" style={{ fontSize: 12, maxWidth: '58ch' }}>
                 {bpBlurb}
               </div>
             </div>
@@ -248,6 +244,8 @@ export function DetailScreen() {
               onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
               ivS={iv.s}
               onIvS={(v) => patch({ iv: { ...iv, s: v } })}
+              table={table}
+              iv={iv}
             />
           )}
           {viz === 'ruler' && <RulerView rulers={rulers} />}

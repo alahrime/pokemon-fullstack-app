@@ -20,6 +20,8 @@ import {
   opponentInfo,
   rankedOpponents,
   selectedCharges,
+  flipGrid,
+  flipMatchupRows,
 } from '../src/lib/engine';
 import type { LeagueId } from '../src/lib/types';
 
@@ -181,6 +183,34 @@ console.log('\n── movepool selection ─────────────
   check('explicit selection is honoured', selectedCharges(s, pick)[0].id === pick[0]);
   const multi = SPECIES.filter((x) => x.chargeMoves.length > 2).length;
   check('movepool selection is meaningful across the roster', multi > 300, `${multi} species have >2 charged moves`);
+}
+
+console.log('\n── asymmetric shields ─────────────────────────────────');
+{
+  // The report screen used to offer only "N shields each", which hides the
+  // scenarios that decide most real matchups: whoever burns a shield first is
+  // playing a different game from that point on. Assert the two sides are
+  // genuinely independent rather than silently collapsing to the diagonal.
+  const iv = { a: 0, d: 15, s: 15 };
+  const oppId = OPPONENTS.great[0];
+  const sym = flipGrid('azumarill', iv, 'great', oppId, 0, 1);
+  const asym = flipGrid('azumarill', iv, 'great', oppId, 0, 1, undefined, 2);
+  check('symmetric and asymmetric grids differ', sym.winners.length !== asym.winners.length ||
+    sym.results.some((r, i) => r.result.win !== asym.results[i].result.win),
+    `${sym.winners.length} winners at 1v1, ${asym.winners.length} at 1v2`);
+
+  // Giving the opponent more shields should never help you.
+  const s0 = flipGrid('azumarill', iv, 'great', oppId, 0, 1, undefined, 0).winners.length;
+  const s2 = flipGrid('azumarill', iv, 'great', oppId, 0, 1, undefined, 2).winners.length;
+  check('more opposing shields never helps', s2 <= s0, `${s0} winners at 1v0 vs ${s2} at 1v2`);
+
+  // And the default still means symmetric, so old call sites are unchanged.
+  const def = flipGrid('azumarill', iv, 'great', oppId, 0, 2);
+  const explicit = flipGrid('azumarill', iv, 'great', oppId, 0, 2, undefined, 2);
+  check('omitting theirs defaults to symmetric', def.winners.length === explicit.winners.length);
+
+  const rows = flipMatchupRows('azumarill', iv, 'great', 0, [oppId], undefined, 2);
+  check('matchup rows accept a fixed opposing count', rows.length === 1 && rows[0].cells.length === 3);
 }
 
 console.log('\n── opponent relevance ─────────────────────────────────');

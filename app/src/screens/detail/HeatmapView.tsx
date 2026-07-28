@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Heatmap } from '../../components/Heatmap';
-import { ChipButton, SegButton, SegGroup } from '../../components/Seg';
+import { SegButton, SegGroup } from '../../components/Seg';
+import { ShieldIcon, SwordIcon, TrophyIcon } from '../../components/Icons';
 import { HudLabel } from '../../components/Hud';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
@@ -12,10 +13,12 @@ import type { IV, SpeciesTable } from '../../lib/types';
    and fetched on first use. The 2D grid stays in the main chunk. */
 const Heatmap3D = lazy(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
 
-const COLOR_BY_ITEMS: [ColorBy, string][] = [
-  ['rank', 'Rank'],
-  ['break', 'Breakpoints'],
-  ['bulk', 'Bulkpoints'],
+/** Icon carries the meaning faster than the word: trophy = standing,
+ *  sword = damage you deal, shield = damage you take. */
+const COLOR_BY_ITEMS: { id: ColorBy; label: string; hint: string; Icon: typeof TrophyIcon }[] = [
+  { id: 'rank', label: 'Rank', hint: 'Stat product standing within the 4096', Icon: TrophyIcon },
+  { id: 'break', label: 'Breakpoints', hint: 'Damage you deal', Icon: SwordIcon },
+  { id: 'bulk', label: 'Bulkpoints', hint: 'Damage you take', Icon: ShieldIcon },
 ];
 
 const NOTES: Record<ColorBy, string> = {
@@ -78,11 +81,14 @@ export function HeatmapView({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        {COLOR_BY_ITEMS.map(([id, label]) => (
-          <ChipButton key={id} active={colorBy === id} onClick={() => onColorBy(id)}>
-            {label}
-          </ChipButton>
-        ))}
+        <SegGroup>
+          {COLOR_BY_ITEMS.map(({ id, label, hint, Icon }) => (
+            <SegButton key={id} active={colorBy === id} onClick={() => onColorBy(id)} title={hint}>
+              <Icon />
+              {label}
+            </SegButton>
+          ))}
+        </SegGroup>
       </div>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Viewport controls are pinned to this wrapper's top-right, in a

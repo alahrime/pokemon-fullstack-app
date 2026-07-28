@@ -16,10 +16,10 @@ import {
 } from '../lib/engine';
 import { Sprite } from '../components/Sprite';
 import { IVAdjuster } from '../components/IVAdjuster';
-import { ChipButton, SegButton, SegGroup } from '../components/Seg';
+import { SegButton, SegGroup } from '../components/Seg';
 import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
-import { MovepoolPicker } from '../components/MovepoolPicker';
+import { MovesPanel } from '../components/MovesPanel';
 import { FormToggle } from '../components/FormToggle';
 import { TypeBadge } from '../components/TypeBadge';
 import { HeatmapView } from './detail/HeatmapView';
@@ -67,12 +67,12 @@ export function ReportScreen() {
   );
   const rulers = useMemo(() => (viz === 'ruler' ? rulersFor(ref, iv, league, opp) : []), [viz, ref, iv, league, opp]);
   const grid = useMemo(
-    () => (viz === 'flip' ? flipGrid(ref, iv, league, opp.id, moveIdx, state.shields, chargeIds) : null),
-    [viz, ref, iv, league, opp, moveIdx, state.shields, chargeIds],
+    () => (viz === 'flip' ? flipGrid(ref, iv, league, opp.id, moveIdx, state.shields, chargeIds, state.shieldsOpp) : null),
+    [viz, ref, iv, league, opp, moveIdx, state.shields, state.shieldsOpp, chargeIds],
   );
   const flipRows = useMemo(
-    () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, opponents.map((o) => o.id), chargeIds) : []),
-    [viz, ref, iv, league, moveIdx, opponents, chargeIds],
+    () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, opponents.map((o) => o.id), chargeIds, state.shieldsOpp) : []),
+    [viz, ref, iv, league, moveIdx, opponents, chargeIds, state.shieldsOpp],
   );
 
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
@@ -309,21 +309,12 @@ export function ReportScreen() {
             <OpponentGrid items={relevance} activeId={effectiveOppId} onSelect={(id) => set('oppId', id)} />
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className="text-muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Fast move
-            </span>
-            {species.fastMoves.map((m, i) => (
-              <ChipButton key={m.id} active={moveIdx === i} onClick={() => set('moveIdx', i)}>
-                {m.name}
-              </ChipButton>
-            ))}
-          </div>
-
-          <MovepoolPicker
+          <MovesPanel
             species={species}
-            selected={chargeIds}
-            onChange={(ids) => set('chargeIds', ids)}
+            moveIdx={moveIdx}
+            onMoveIdx={(i) => set('moveIdx', i)}
+            chargeIds={chargeIds}
+            onChargeIds={(ids) => set('chargeIds', ids)}
           />
 
           {viz === 'heat' && (
@@ -345,8 +336,9 @@ export function ReportScreen() {
             <FlipView
               ivA={iv.a}
               ivD={iv.d}
-              shields={state.shields}
-              onShields={(n) => set('shields', n)}
+              shieldsMine={state.shields}
+              shieldsTheirs={state.shieldsOpp}
+              onShields={(mine, theirs) => patch({ shields: mine, shieldsOpp: theirs })}
               grid={grid}
               ivS={iv.s}
               onIvS={(v) => patch({ iv: { ...iv, s: v } })}

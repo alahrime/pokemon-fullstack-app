@@ -280,6 +280,86 @@ input[type='range'] { accent-color: var(--color-accent); }
   border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
 }
 
+/* — moves panel: fast and charged side by side — */
+.moves-panel {
+  display: grid;
+  /* Two columns wherever they fit, stacking only when genuinely narrow. */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3) var(--space-6);
+  align-items: start;
+}
+.moves-col { min-width: 0; }
+.moves-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 5px;
+}
+/* Chips size to content but wrap into even rows — a fixed grid would leave
+   long move names truncated and short ones swimming. */
+.moves-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.moves-grid .chip-btn {
+  gap: 5px;
+  padding: 0 8px;
+  min-height: 30px;
+}
+.moves-name { white-space: nowrap; }
+.moves-meta {
+  font-size: var(--text-2xs);
+  opacity: 0.6;
+}
+
+/* — compact 3x3 shield-scenario picker — */
+.shield-matrix {
+  display: inline-grid;
+  grid-template-columns: auto repeat(3, 28px);
+  gap: 2px;
+  align-items: center;
+}
+.shield-matrix-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: center;
+}
+.shield-cell {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  min-height: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.shield-cell:hover:not(.is-active) {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+.shield-cell.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+/* The symmetric scenarios are the common case; mark the diagonal so the
+   asymmetric cells read as the deliberate choice they are. */
+.shield-cell.is-even:not(.is-active) {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* — segmented buttons carrying an icon — */
+.seg-btn svg { opacity: 0.85; }
+.seg-btn.is-active svg { opacity: 1; }
+
 /* — opponent grid cell — */
 .opp-cell {
   display: flex;

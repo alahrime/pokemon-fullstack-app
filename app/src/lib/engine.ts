@@ -1054,16 +1054,22 @@ export interface FlipGrid {
 
 const flipCache = new Map<string, FlipGrid>();
 
+/**
+ * `shieldsTheirs` defaults to `shieldsMine` so existing symmetric callers are
+ * unchanged, but the two are independent: shielding is rarely even, and a
+ * spread that wins 1v1 can lose 1v2.
+ */
 export function flipGrid(
   speciesId: string,
   iv: IV,
   leagueId: LeagueId,
   oppSpeciesId: string,
   moveIdx: number,
-  shields: number,
+  shieldsMine: number,
   chargeIds?: string[],
+  shieldsTheirs: number = shieldsMine,
 ): FlipGrid {
-  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shields, iv.s, (chargeIds ?? []).join('+')].join('|');
+  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shieldsMine, shieldsTheirs, iv.s, (chargeIds ?? []).join('+')].join('|');
   const cached = flipCache.get(key);
   if (cached) return cached;
 
@@ -1079,7 +1085,7 @@ export function flipGrid(
 
   const results: FlipCellResult[] = slice.map((entry) => ({
     entry,
-    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shields, shields),
+    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shieldsMine, shieldsTheirs),
   }));
   const winners = results.filter((o) => o.result.win);
   const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
@@ -1097,6 +1103,12 @@ export interface FlipMatchupRow {
   flips: number;
 }
 
+/**
+ * One row per opponent, three cells = *your* shield count 0/1/2 against a
+ * fixed opponent count. Previously both sides moved together, which could only
+ * ever show the symmetric diagonal; holding theirs fixed is what makes the
+ * asymmetric scenarios comparable across opponents.
+ */
 export function flipMatchupRows(
   speciesId: string,
   iv: IV,
@@ -1104,6 +1116,7 @@ export function flipMatchupRows(
   moveIdx: number,
   opponentIds: string[],
   chargeIds?: string[],
+  shieldsTheirs?: number,
 ): FlipMatchupRow[] {
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
@@ -1113,8 +1126,8 @@ export function flipMatchupRows(
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);
     const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
-    const cells = [0, 1, 2].map((sh) => {
-      const r = battle(you, foe, sh, sh);
+    const cells = [0, 1, 2].map((mine) => {
+      const r = battle(you, foe, mine, shieldsTheirs ?? mine);
       return { win: r.win, margin: r.margin };
     });
     return {

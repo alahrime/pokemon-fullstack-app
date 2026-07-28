@@ -19,7 +19,9 @@ export interface AppStateShape {
   colorBy: ColorBy;
   oppId: string;
   moveIdx: number;
+  /** Report screen shield scenario; the two sides are independent. */
   shields: number;
+  shieldsOpp: number;
   battleA: string;
   battleB: string;
   ivA: IV;
@@ -49,6 +51,7 @@ const initialState: AppStateShape = {
   oppId: opponentsFor('great')[0]?.id ?? '',
   moveIdx: 0,
   shields: 1,
+  shieldsOpp: 1,
   battleA: 'azumarill',
   battleB: 'mimikyu',
   ivA: { a: 15, d: 15, s: 15 },

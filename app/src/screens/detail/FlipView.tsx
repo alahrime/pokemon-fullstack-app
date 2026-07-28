@@ -1,5 +1,5 @@
-import { ChipButton } from '../../components/Seg';
 import { Sprite } from '../../components/Sprite';
+import { ShieldMatrix } from '../../components/ShieldMatrix';
 import type { FlipGrid, FlipMatchupRow } from '../../lib/engine';
 
 /** One face of a matchup flip card. Both faces always render; CSS turns the card. */
@@ -31,16 +31,11 @@ function FlipFace({ win, margin, back = false }: { win: boolean; margin: number;
   );
 }
 
-const SHIELD_ITEMS: [number, string][] = [
-  [0, '0 shields'],
-  [1, '1 shield each'],
-  [2, '2 shields each'],
-];
-
 export function FlipView({
   ivA,
   ivD,
-  shields,
+  shieldsMine,
+  shieldsTheirs,
   onShields,
   grid,
   ivS,
@@ -54,8 +49,9 @@ export function FlipView({
 }: {
   ivA: number;
   ivD: number;
-  shields: number;
-  onShields: (n: number) => void;
+  shieldsMine: number;
+  shieldsTheirs: number;
+  onShields: (mine: number, theirs: number) => void;
   grid: FlipGrid;
   ivS: number;
   onIvS: (v: number) => void;
@@ -82,20 +78,11 @@ export function FlipView({
     : `You lose CMP ties: their attack is higher. Their charge move resolves first if thrown together.`;
 
   const flipNote =
+    `Columns are your shield count against the opponent's ${shieldsTheirs}. ` +
     'Simulated at 500ms turns, throw-as-soon-as-charged, neutral typing, both sides on their default fast + charge move. Shield counts change which side of the boundary you need to be on; CMP is decided by raw attack.';
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
-        <span className="text-muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Shields
-        </span>
-        {SHIELD_ITEMS.map(([n, label]) => (
-          <ChipButton key={n} active={shields === n} onClick={() => onShields(n)}>
-            {label}
-          </ChipButton>
-        ))}
-      </div>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0, width: 'min(520px,100%)' }}>
           <div
@@ -172,13 +159,14 @@ export function FlipView({
             </div>
             <div style={{ fontSize: 13, marginTop: 8 }}>{flipNeed}</div>
           </div>
+          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} onChange={onShields} />
           <table className="table">
             <thead>
               <tr>
                 <th>Opponent</th>
-                <th>0s</th>
-                <th>1s</th>
-                <th>2s</th>
+                <th title={`your 0 shields vs their ${shieldsTheirs}`}>0s</th>
+                <th title={`your 1 shield vs their ${shieldsTheirs}`}>1s</th>
+                <th title={`your 2 shields vs their ${shieldsTheirs}`}>2s</th>
                 <th>CMP</th>
               </tr>
             </thead>

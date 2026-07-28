@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BASE_ROSTER, ROSTER, displayName, type RosterEntry } from '../lib/data';
 import { Sprite } from './Sprite';
+import { TypeIcon } from './TypeBadge';
 
 const RESULT_LIMIT = 40;
 const DEBOUNCE_MS = 120;
@@ -177,6 +178,13 @@ export function SpeciesSearch({
               <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} shadow={r.shadow} />
               <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.name}
+              </span>
+              {/* Typing is the fastest way to tell near-identical forms apart
+                  while scanning; icons carry it without stealing name width. */}
+              <span style={{ display: 'inline-flex', gap: 2, flex: 'none' }}>
+                {r.species.types.map((t) => (
+                  <TypeIcon key={t} type={t} size={14} />
+                ))}
               </span>
               <span
                 className="numeric"

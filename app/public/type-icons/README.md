@@ -21,17 +21,25 @@ type, matching the `type` strings in `species.json`.
 
 ## How they're used
 
-`components/TypeBadge.tsx` renders each glyph as a **CSS mask** over a solid
-`currentColor` background, not as an `<img>`. The icons are flat monochrome and
-have to take 18 different colours; a `filter` chain can't reach an arbitrary hue
-from black with any accuracy, whereas a mask gives the exact colour for free and
-inherits the badge's text colour in both themes.
+Each SVG is a **type-coloured disc with a white glyph on top** — full colour,
+not a monochrome shape. So `components/TypeBadge.tsx` renders them as a plain
+`<img>`: no mask, no tint, no filter. (An earlier pass assumed monochrome
+glyphs and masked them to recolour; that would have flattened every icon into a
+solid circle, since the disc covers the whole viewBox.)
 
-Because a mask has no load event, availability is probed once with a single
-`Image()` and shared across every badge. If the directory is empty the probe
-fails and badges render as text only — the app still builds and runs, it just
-looks plainer. That is deliberate: these are third-party assets that a fresh
-checkout may not have.
+A missing file just fails the image load and the badge renders text-only, so a
+checkout without these assets still builds and runs. That's deliberate — they're
+third-party and not committed by the build.
 
-Colours live in `src/styles/types.css` and are intentionally outside the theme
-system: type colours are brand constants and must not shift between themes.
+The badge tint in `src/styles/types.css` is taken from the disc fills in these
+very files, so icon and badge can't drift apart. Re-extract after updating the
+set:
+
+```bash
+grep -h 'fill:' public/type-icons/*.svg
+```
+
+Those colours sit outside the theme system on purpose: type colours are brand
+constants and must not shift between themes. Only the badge *treatment* adapts
+— tinted fill with coloured text on the dark ground, saturated fill with a
+white label on the light one.

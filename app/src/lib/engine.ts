@@ -94,7 +94,22 @@ export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
       }
     }
   }
-  const sorted = all.slice().sort((x, y) => y.sp - x.sp);
+  // Stat-product ties are common — HP is floored, so e.g. 15/15/14 and
+  // 15/15/15 frequently produce an identical product. A plain `y.sp - x.sp`
+  // sort then resolved them by insertion order, which put the *lower* IV
+  // first: 211 species reported a rank-1 of 15/15/14 in Master purely as a
+  // sort artifact. On a tie, prefer the strictly better roll — higher IV
+  // total, then HP, then defense — so rank 1 is the spread you'd actually want.
+  const sorted = all
+    .slice()
+    .sort(
+      (x, y) =>
+        y.sp - x.sp ||
+        y.a + y.d + y.s - (x.a + x.d + x.s) ||
+        y.s - x.s ||
+        y.d - x.d ||
+        y.a - x.a,
+    );
   sorted.forEach((e, i) => {
     e.rank = i + 1;
   });
@@ -294,6 +309,18 @@ const PROBE_BAND = 0.25;
 /** Matches verdictLine's "usable" cutoff — beyond this, it isn't a real option. */
 const KEEPABLE_RANK = 1500;
 
+/**
+ * Minimum IV worth considering in an uncapped league.
+ *
+ * Great and Ultra reward a deliberately low attack IV — it buys extra level
+ * under the cap — so the whole 4096 is legitimately in play. Master has no cap
+ * and no such trade-off: every mon sits at level 50 and every IV point is
+ * strictly better, so a sub-perfect roll is never a *choice*, just a worse
+ * Pokémon. Probing 15/15/0 against 15/0/15 there would manufacture "flips"
+ * between two spreads no serious player would field.
+ */
+const UNCAPPED_IV_FLOOR = 13;
+
 type ProbeLabel = 'rank1' | 'atk' | 'def' | 'hp' | 'cmp+' | 'cmp-';
 
 interface Probe {
@@ -308,7 +335,11 @@ interface ProbeSet {
 }
 
 function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
-  const band = table.all.slice(0, Math.max(8, Math.round(table.all.length * PROBE_BAND)));
+  // Uncapped: only near-perfect rolls are real options, so the band is an IV
+  // floor rather than a slice of the stat-product ranking.
+  const band = table.league.uncapped
+    ? table.all.filter((e) => e.a >= UNCAPPED_IV_FLOOR && e.d >= UNCAPPED_IV_FLOOR && e.s >= UNCAPPED_IV_FLOOR)
+    : table.all.slice(0, Math.max(8, Math.round(table.all.length * PROBE_BAND)));
 
   let maxAtk = band[0];
   let maxDef = band[0];

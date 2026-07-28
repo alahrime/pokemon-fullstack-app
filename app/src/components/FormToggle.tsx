@@ -3,9 +3,8 @@
  *
  * Deliberately not a SegGroup: "Shadow" is a property of the Pokémon, not a
  * view option, so it gets its own visual language rather than the accent used
- * for selected controls. Active Shadow renders the in-game read — violet
- * corona, drifting wisp — with the red eyes standing in as a pair of glowing
- * dots, since sprite artwork can't be feature-located across 1123 forms.
+ * for selected controls. The violet corona on the sprite carries the read; the
+ * button just echoes the same hue.
  */
 export function FormToggle({
   shadow,
@@ -36,10 +35,6 @@ export function FormToggle({
         onClick={() => onChange(true)}
         title={eligible ? 'Attack x1.2, defense x5/6' : `${speciesName} has no Shadow form`}
       >
-        <span className="form-eyes" aria-hidden>
-          <i />
-          <i />
-        </span>
         Shadow
       </button>
     </div>

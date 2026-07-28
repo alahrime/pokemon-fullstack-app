@@ -169,11 +169,10 @@ input[type='range'] { accent-color: var(--color-accent); }
 }
 
 /* ── Shadow ────────────────────────────────────────────────────────────────
-   In game a Shadow Pokémon is wreathed in a violet aura with red eyes. The
-   eyes aren't reachable — sprites are flat images and there's no way to locate
-   features across 1123 of them — so the aura carries the whole read: a dark
-   violet corona behind the sprite, a purple rim light on it, and a slow drift
-   so it feels alive rather than pasted on. */
+   In game a Shadow Pokémon is wreathed in a violet aura. That aura carries the
+   whole read here: a dark violet corona behind the sprite, a purple rim light
+   on the artwork itself, and a slow drift so it feels alive rather than pasted
+   on. */
 .sprite-shadow {
   position: relative;
   isolation: isolate;
@@ -272,24 +271,6 @@ input[type='range'] { accent-color: var(--color-accent); }
   pointer-events: none;
   background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--shadow-aura) 40%, transparent) 50%, transparent 70%);
   animation: aura-sweep 3.2s var(--ease-in-out) infinite;
-}
-/* The two red eyes, as a pair of dots on the Shadow control. */
-.form-eyes {
-  display: inline-flex;
-  gap: 3px;
-  flex: none;
-}
-.form-eyes i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--shadow-eye);
-  box-shadow: 0 0 6px var(--shadow-eye);
-  display: block;
-}
-.form-opt:not(.is-active) .form-eyes i {
-  background: color-mix(in srgb, var(--shadow-eye) 45%, transparent);
-  box-shadow: none;
 }
 
 /* Shadow badge used beside names. */

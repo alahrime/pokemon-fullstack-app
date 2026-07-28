@@ -130,6 +130,47 @@ console.log('\n── engine smoke ───────────────
   check('relevance scan runs across a roster sample', ok, detail);
 }
 
+console.log('\n── uncapped (master) ──────────────────────────────────');
+{
+  // No CP cap means no level/IV trade-off: everything sits at level 50 and
+  // stat product rises with every IV point. Rank 1 must therefore be the hundo
+  // for every species. It wasn't, before the tie-break fix — floored HP makes
+  // 15/15/14 tie with 15/15/15, and insertion order handed rank 1 to the lower
+  // roll for 211 species.
+  let notHundo = 0;
+  let notL50 = 0;
+  let nonMono = 0;
+  const examples: string[] = [];
+  for (const s of SPECIES) {
+    const t = getTable(s.id, 'master');
+    const b = t.best;
+    if (!(b.a === 15 && b.d === 15 && b.s === 15)) {
+      notHundo++;
+      if (examples.length < 5) examples.push(`${s.id} ${b.a}/${b.d}/${b.s}`);
+    }
+    if (b.lvl !== 50) notL50++;
+    for (const e of t.all) {
+      if (e.a < 15 && t.map.get((e.a + 1) * 256 + e.d * 16 + e.s)!.sp < e.sp) {
+        nonMono++;
+        break;
+      }
+    }
+  }
+  check('master rank 1 is always 15/15/15', notHundo === 0, examples.join(', '));
+  check('master is always level 50', notL50 === 0, `${notL50} off`);
+  check('master stat product is monotonic in IVs', nonMono === 0, `${nonMono} species`);
+
+  // And the capped leagues must NOT be degenerate - a low attack IV genuinely
+  // wins there, which is the whole reason the two are treated differently.
+  const greatHundo = SPECIES.filter((s) => {
+    const b = getTable(s.id, 'great').best;
+    return b.a === 15 && b.d === 15 && b.s === 15;
+  }).length;
+  check('great is not degenerate (hundo is often not rank 1)', greatHundo < SPECIES.length * 0.5, `${greatHundo}/${SPECIES.length} hundo`);
+  check('master league is flagged uncapped', getTable(SPECIES[0].id, 'master').league.uncapped === true);
+  check('great league is not flagged uncapped', getTable(SPECIES[0].id, 'great').league.uncapped === false);
+}
+
 console.log('\n── movepool selection ─────────────────────────────────');
 {
   const s = SPECIES_BY_ID.get('azumarill')!;

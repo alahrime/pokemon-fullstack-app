@@ -84,6 +84,13 @@ export function ReportScreen() {
 
   const rankBarW = (100 - ((entry.rank - 1) / 4095) * 100).toFixed(2) + '%';
 
+  // Master has no CP cap, so there's no level/IV trade-off: every mon sits at
+  // level 50 and every IV point is strictly better. Rank still sorts, but it
+  // encodes nothing a player can act on - only near-perfect rolls are real
+  // options - so the report says so rather than implying a decision exists.
+  const uncapped = table.league.uncapped;
+  const ivFloor = Math.min(iv.a, iv.d, iv.s);
+
   // Normal vs Shadow at the *same* IVs against the current opponent. Since the
   // multipliers cancel in stat product, rank is identical either way - the only
   // thing that moves is damage, so that's all this compares.
@@ -161,8 +168,24 @@ export function ReportScreen() {
                 style={{ height: 2, background: 'var(--color-accent)', width: rankBarW, boxShadow: 'var(--glow-accent)' }}
               />
             </div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>{verdictLine(entry.rank)}</div>
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
+              {uncapped
+                ? ivFloor === 15
+                  ? 'Perfect. In an uncapped league that is the only spread that matters.'
+                  : `Uncapped: every IV point is strictly better, so rank is just "more is better". Lowest IV is ${ivFloor}.`
+                : verdictLine(entry.rank)}
+            </div>
           </HudFrame>
+
+          {uncapped && (
+            <div className="panel" style={{ fontSize: 11, lineHeight: 1.5 }}>
+              <div className="panel-title">Master League</div>
+              With no CP cap there is no trade-off to solve — nothing is gained by
+              a lower attack IV, so stat product rises with every point and rank 1
+              is always 15/15/15. Sub-perfect spreads aren't a choice, just a worse
+              Pokémon, so matchup analysis here only probes rolls of 13+ in every stat.
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: 'var(--border-hairline) solid var(--rule-strong)' }}>
             {[

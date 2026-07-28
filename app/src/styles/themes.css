@@ -104,12 +104,11 @@
 
   --chrome-opacity: 1;
 
-  /* Shadow Pokémon read purple in-game: a violet aura with red eyes. Kept as
+  /* Shadow Pokémon read purple in-game. Kept as
      its own hue rather than reusing the accent so "Shadow" never reads as
      "selected". */
   --shadow-aura: #a855f7;
   --shadow-aura-deep: #6d28d9;
-  --shadow-eye: #ff2d2d;
   --shadow-ink: #1a0b2e;
 }
 
@@ -194,6 +193,5 @@
   /* Slightly deeper violet so the aura still reads against a light ground. */
   --shadow-aura: #7e22ce;
   --shadow-aura-deep: #4c1d95;
-  --shadow-eye: #dc2626;
   --shadow-ink: #2e1065;
 }

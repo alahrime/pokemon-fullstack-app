@@ -57,6 +57,13 @@ export interface League {
   label: string;
   name: string;
   cap: number;
+  /**
+   * No CP cap. With no cap there is no level/IV trade-off: every mon sits at
+   * level 50 and stat product rises monotonically with every IV point, so the
+   * 4096 ranking carries no information beyond "more is better" and only
+   * near-perfect rolls are worth analysing.
+   */
+  uncapped: boolean;
 }
 
 export interface IV {

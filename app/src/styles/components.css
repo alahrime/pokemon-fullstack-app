@@ -442,6 +442,64 @@ input[type='range'] { accent-color: var(--color-accent); }
 .iv-step:hover:not(:disabled) { border-color: var(--iv-fill); color: var(--iv-fill); }
 .iv-step:disabled { opacity: 0.3; cursor: not-allowed; }
 
+/* — energy ring: the moveset as a bounded cycle — */
+.energy-ring {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+.energy-ring svg { flex: none; }
+.ring-ept {
+  font-family: var(--font-numeric);
+  font-size: 21px;
+  font-weight: 800;
+  fill: var(--color-text);
+}
+.ring-unit,
+.ring-fast {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  fill: var(--text-faint);
+}
+.ring-fast { font-size: 8px; fill: var(--text-muted); letter-spacing: 0.04em; }
+
+.ring-key {
+  flex: 1;
+  min-width: 190px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ring-key-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.ring-key-row.is-on { color: var(--color-text); }
+.ring-key-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ring-key-row:not(.is-on) .ring-key-dot { opacity: 0.45; }
+.ring-key-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ring-key-num { font-size: var(--text-2xs); opacity: 0.8; }
+.ring-key-counts {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.ring-key-row.is-on .ring-key-counts { color: var(--color-accent-700); }
+
 /* — moves panel: fast and charged tiles side by side — */
 .moves-panel {
   display: grid;

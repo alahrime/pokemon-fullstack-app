@@ -6,7 +6,7 @@ import { HudLabel } from '../../components/Hud';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
 import type { ColorBy } from '../../state/AppState';
-import type { HeatCell } from '../../lib/engine';
+import { paletteRamp, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
 
 /* three.js + R3F is ~1.1MB of the bundle and 3D is opt-in, so it's split out
@@ -28,26 +28,12 @@ const NOTES: Record<ColorBy, string> = {
   bulk: 'Horizontal bands: bulkpoints depend only on defense. A cell one band up survives one more hit before dropping — often worth more than a few rank places.',
 };
 
-const LEGENDS: Record<ColorBy, [string, string][]> = {
-  rank: [
-    ['Rank 1–10', 'var(--color-accent-700)'],
-    ['Top 100', 'var(--color-accent-500)'],
-    ['Top 1000', 'var(--color-accent-300)'],
-    ['Mid pack', 'var(--color-accent-100)'],
-    ['Bottom half', 'var(--color-neutral-200)'],
-  ],
-  break: [
-    ['Highest damage tier', 'var(--color-accent-700)'],
-    ['One breakpoint down', 'var(--color-accent-500)'],
-    ['Two down', 'var(--color-accent-300)'],
-    ['Lowest tier', 'var(--color-neutral-200)'],
-  ],
-  bulk: [
-    ['Takes least damage', 'var(--color-accent-700)'],
-    ['One bulkpoint worse', 'var(--color-accent-500)'],
-    ['Two worse', 'var(--color-accent-300)'],
-    ['Takes most', 'var(--color-neutral-200)'],
-  ],
+/* Labels only — the swatch colours are sampled from the live palette so the
+   legend can never describe a ramp the grid isn't drawing. */
+const LEGEND_LABELS: Record<ColorBy, string[]> = {
+  rank: ['Rank 1–10', 'Top 100', 'Top 1000', 'Mid pack', 'Bottom half'],
+  break: ['Highest damage tier', 'One breakpoint down', 'Two down', 'Lowest tier'],
+  bulk: ['Takes least damage', 'One bulkpoint worse', 'Two worse', 'Takes most'],
 };
 
 export function HeatmapView({
@@ -60,6 +46,7 @@ export function HeatmapView({
   onIvS,
   table,
   iv,
+  palette,
 }: {
   cells: HeatCell[];
   colorBy: ColorBy;
@@ -70,6 +57,7 @@ export function HeatmapView({
   onIvS: (v: number) => void;
   table: SpeciesTable;
   iv: IV;
+  palette: HeatPalette;
 }) {
   const topRows = table.all.slice(0, 12);
   // Probed once — if the browser can't give us a context, the 3D toggle never
@@ -168,12 +156,16 @@ export function HeatmapView({
         <div className="stagger" style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="panel hud-frame" style={{ ['--i' as string]: 0 }}>
             <div className="panel-title">Legend — {colorByLabel}</div>
-            {LEGENDS[colorBy].map(([label, color]) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '2px 0' }}>
-                <span style={{ width: 14, height: 14, flex: 'none', background: color }} />
-                <span>{label}</span>
-              </div>
-            ))}
+            {(() => {
+              const labels = LEGEND_LABELS[colorBy];
+              const ramp = paletteRamp(palette, labels.length);
+              return labels.map((label, i) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '2px 0' }}>
+                  <span style={{ width: 14, height: 14, flex: 'none', background: ramp[i] }} />
+                  <span>{label}</span>
+                </div>
+              ));
+            })()}
           </div>
 
           {colorBy === 'rank' ? (

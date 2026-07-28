@@ -10,6 +10,7 @@ import {
   flipMatchupRows,
   getEntry,
   opponentInfo,
+  paletteFor,
   rankedOpponents,
   rulersFor,
   scenarioMatrix,
@@ -74,6 +75,8 @@ export function ReportScreen() {
     [viz, ref, iv, league, moveIdx, opponents, chargeIds, state.shieldsOpp],
   );
 
+  // One palette for the whole report, derived from this species' typing.
+  const palette = useMemo(() => paletteFor(species), [species]);
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const colorByLabel = colorBy === 'rank' ? 'stat product rank' : colorBy === 'break' ? `${mv.name} damage dealt` : `${opp.fastMove.name} damage taken`;
 
@@ -254,8 +257,6 @@ export function ReportScreen() {
 
         {/* Right column */}
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          <VizTabs value={viz} onChange={(v) => set('viz', v)} />
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div className="hud-label">
               <span>Matchups where your roll decides it</span>
@@ -271,6 +272,11 @@ export function ReportScreen() {
             onChargeIds={(ids) => set('chargeIds', ids)}
           />
 
+          {/* Sits directly above the view it switches. At the top of the column
+              it was several hundred pixels from the thing it re-rendered, so
+              the cause and its effect were never on screen together. */}
+          <VizTabs value={viz} onChange={(v) => set('viz', v)} />
+
           {viz === 'heat' && (
             <HeatmapView
               cells={heatCells}
@@ -282,6 +288,7 @@ export function ReportScreen() {
               onIvS={(v) => patch({ iv: { ...iv, s: v } })}
               table={table}
               iv={iv}
+              palette={palette}
             />
           )}
           {viz === 'ruler' && <RulerView rulers={rulers} />}

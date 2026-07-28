@@ -864,6 +864,7 @@ export function buildHeatCells(
   colorBy: 'rank' | 'break' | 'bulk',
 ): HeatCell[] {
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
+  const pal = paletteFor(species);
   const { table } = getEntry(speciesId, iv, leagueId);
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
 
@@ -881,15 +882,15 @@ export function buildHeatCells(
     let bg: string;
     let label: string;
     if (colorBy === 'rank') {
-      bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin));
+      bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin), pal);
       label = `#${entry.rank}`;
     } else if (colorBy === 'break') {
       const dv = dmg(entry.atk, opp.def, mv);
-      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `${dv} dmg / ${mv.turns}t`;
     } else {
       const dv = dmg(opp.atk, entry.def, opp.fastMove);
-      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `takes ${dv}`;
     }
     return {
@@ -1095,24 +1096,56 @@ export function shortVerdict(rank: number): string {
   return 'Transfer';
 }
 
-// ── Heatmap cell color helpers ──
-export function cellColorMix(pct: number): string {
-  const w = Math.round(Math.pow(Math.max(0, Math.min(1, pct)), 2.2) * 100);
-  return `color-mix(in srgb, var(--color-accent) ${w}%, var(--color-neutral-200))`;
+// ── Heatmap palette ──────────────────────────────────────────────────────
+//
+// The ramp used to run from neutral to the app accent, so every species got
+// the same orange heatmap regardless of what it was. It now derives from the
+// Pokémon's own typing: intensity still encodes the metric, but hue travels
+// from the primary type to the secondary as the value climbs, giving each
+// species a recognisable palette. Mono-types collapse to a single hue, which
+// is the correct degenerate case rather than a special one.
+//
+// Expressed as nested color-mix() so the values stay CSS: the 3D terrain
+// resolves them through the browser (see lib/cssColor.ts), which means the
+// flat grid and the terrain can't drift apart.
+
+export interface HeatPalette {
+  /** Primary type colour — the low end of the ramp. */
+  a: string;
+  /** Secondary type colour, or the primary again for mono-types. */
+  b: string;
 }
 
-const TIER_STEPS = [
-  'var(--color-neutral-200)',
-  'var(--color-accent-200)',
-  'var(--color-accent-400)',
-  'var(--color-accent-500)',
-  'var(--color-accent-600)',
-  'var(--color-accent-700)',
-];
+export function paletteFor(species: Species): HeatPalette {
+  const t = species.types.filter(Boolean);
+  const a = t[0] ? `var(--type-${t[0]})` : 'var(--color-accent)';
+  return { a, b: t[1] ? `var(--type-${t[1]})` : a };
+}
 
-export function tierColor(i: number, n: number): string {
-  if (n <= 1) return TIER_STEPS[2];
-  return TIER_STEPS[Math.min(TIER_STEPS.length - 1, Math.round((i / (n - 1)) * (TIER_STEPS.length - 1)))];
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+/** Hue at position `t` along the ramp, primary → secondary. */
+function hueAt(pal: HeatPalette, t: number): string {
+  return pal.a === pal.b ? pal.a : `color-mix(in srgb, ${pal.b} ${Math.round(clamp01(t) * 100)}%, ${pal.a})`;
+}
+
+export function cellColorMix(pct: number, pal: HeatPalette): string {
+  const p = clamp01(pct);
+  // Gamma keeps the crowded top of the rank distribution from washing out.
+  const w = Math.round(Math.pow(p, 2.2) * 100);
+  return `color-mix(in srgb, ${hueAt(pal, p)} ${w}%, var(--color-neutral-200))`;
+}
+
+export function tierColor(i: number, n: number, pal: HeatPalette): string {
+  const t = n <= 1 ? 0.5 : i / (n - 1);
+  // Discrete tiers need a floor, or the lowest band is invisible.
+  const w = Math.round(16 + t * 84);
+  return `color-mix(in srgb, ${hueAt(pal, t)} ${w}%, var(--color-neutral-200))`;
+}
+
+/** Ramp samples for the legend, so swatches and cells can't disagree. */
+export function paletteRamp(pal: HeatPalette, steps: number): string[] {
+  return Array.from({ length: steps }, (_, i) => tierColor(steps - 1 - i, steps, pal));
 }
 
 // ── Matchup flips: which IV spreads flip a shielded/CMP scenario from loss to win ──

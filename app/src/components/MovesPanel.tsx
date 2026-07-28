@@ -1,5 +1,6 @@
 import { chargeMoveStats, fastMoveCounts, fastMoveStats } from '../lib/engine';
 import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
+import { EnergyRing } from './EnergyRing';
 import type { ChargeMove, FastMove, Species } from '../lib/types';
 
 const MAX_CHARGES = 2;
@@ -161,7 +162,12 @@ export function MovesPanel({
   };
 
   return (
-    <div className="moves-panel">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      {/* Overview first: where every charged move sits on the 0-100 bar, and
+          how fast the chosen fast move fills it. */}
+      <EnergyRing fast={fast} charges={species.chargeMoves} selected={active} />
+
+      <div className="moves-panel">
       <section className="moves-col">
         <div className="moves-head">
           <span className="hud-label" style={{ flex: 1 }}>
@@ -192,6 +198,7 @@ export function MovesPanel({
           ))}
         </div>
       </section>
+      </div>
     </div>
   );
 }

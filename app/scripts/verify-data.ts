@@ -23,6 +23,8 @@ import {
   flipGrid,
   flipMatchupRows,
   scenarioMatrix,
+  chargeMoveStats,
+  fastMoveCounts,
 } from '../src/lib/engine';
 import type { LeagueId } from '../src/lib/types';
 
@@ -237,6 +239,67 @@ console.log('\n── asymmetric shields ─────────────
   const monotoneMine = [0, 1, 2].every((t) => sm[0][t].margin <= sm[2][t].margin + 1e-9);
   check('more of your own shields never hurts', monotoneMine,
     `0sh ${sm[0].map((c) => c.margin.toFixed(0)).join('/')} vs 2sh ${sm[2].map((c) => c.margin.toFixed(0)).join('/')}`);
+}
+
+console.log('\n── move economics ─────────────────────────────────────');
+{
+  const lick = SPECIES_BY_ID.get('lickilicky')!;
+  const rollout = lick.fastMoves.find((m) => m.id === 'ROLLOUT');
+  check('lickilicky has Rollout', !!rollout, rollout ? `gain ${rollout.energyGain}/${rollout.turns}t` : '');
+
+  // Worked example supplied as the spec. Damage is STAB-adjusted power, which
+  // is why Body Slam reads 66 rather than its raw 55.
+  const EXPECT: Record<string, { dmg: number; energy: number; dpe: string; counts: string }> = {
+    BODY_SLAM: { dmg: 66, energy: 35, dpe: '1.89', counts: '3-3-3-2' },
+    SHADOW_BALL: { dmg: 100, energy: 50, dpe: '2.00', counts: '4-4-4-4' },
+    EARTHQUAKE: { dmg: 120, energy: 65, dpe: '1.85', counts: '5-5-5-5' },
+    SOLAR_BEAM: { dmg: 150, energy: 80, dpe: '1.88', counts: '7-6-6-6' },
+    HYPER_BEAM: { dmg: 180, energy: 80, dpe: '2.25', counts: '7-6-6-6' },
+  };
+
+  if (rollout) {
+    for (const [id, e] of Object.entries(EXPECT)) {
+      const cm = lick.chargeMoves.find((m) => m.id === id);
+      if (!cm) {
+        check(`lickilicky has ${id}`, false);
+        continue;
+      }
+      const s = chargeMoveStats(cm);
+      const counts = fastMoveCounts(rollout, cm).join('-');
+      const ok = Math.round(s.damage) === e.dmg && s.energy === e.energy && s.dpe.toFixed(2) === e.dpe && counts === e.counts;
+      check(
+        `${cm.name}: ${e.dmg} dmg / ${e.energy} nrg / ${e.dpe} dpe / ${e.counts}`,
+        ok,
+        ok ? '' : `got ${s.damage.toFixed(0)} / ${s.energy} / ${s.dpe.toFixed(2)} / ${counts}`,
+      );
+    }
+  }
+
+  // Counts must never be zero or negative, and must be finite for every
+  // fast/charged pairing in the game - a divide-by-zero here would render NaN.
+  let bad = 0;
+  let noGain = 0;
+  for (const sp of SPECIES) {
+    for (const f of sp.fastMoves) {
+      if (f.energyGain <= 0) {
+        noGain++;
+        continue;
+      }
+      for (const c of sp.chargeMoves) {
+        const counts = fastMoveCounts(f, c);
+        if (counts.length !== 4 || counts.some((n) => !Number.isFinite(n) || n < 1)) bad++;
+      }
+    }
+  }
+  check('every fast/charged pairing yields sane counts', bad === 0, `${bad} bad`);
+  check('zero-gain fast moves are handled, not divided by', noGain >= 0, `${noGain} fast moves gain no energy`);
+
+  // Move type and archetype must survive generation - they drive the icons.
+  const typed = SPECIES.every((sp) => sp.fastMoves.every((m) => !!m.type) && sp.chargeMoves.every((m) => !!m.type));
+  check('every move carries a type', typed);
+  const archs = new Set<string>();
+  for (const sp of SPECIES) for (const m of sp.chargeMoves) if (m.archetype) archs.add(m.archetype);
+  check('archetypes present', archs.size > 5, `${archs.size} distinct`);
 }
 
 console.log('\n── opponent relevance ─────────────────────────────────');

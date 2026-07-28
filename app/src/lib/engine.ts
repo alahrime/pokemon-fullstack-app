@@ -192,6 +192,84 @@ export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] 
   return picked.length ? picked : chargesOf(species.chargeMove, species.chargeMove2);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Move economics
+//
+// Everything a player compares moves on is a ratio, and all of them fall out
+// of four numbers: power, energy, turns and STAB. Displayed damage is always
+// STAB-adjusted — Lickilicky's Body Slam reads 66, not its raw 55.
+// ══════════════════════════════════════════════════════════════════════════
+
+/** In-game energy ceiling. Overflow past this is lost, not banked. */
+const ENERGY_CAP = 100;
+
+export interface FastMoveStats {
+  /** STAB-adjusted power. */
+  damage: number;
+  /** Battle turns; one turn is 500ms. */
+  turns: number;
+  seconds: number;
+  energyGain: number;
+  /** Damage per turn. */
+  dpt: number;
+  /** Energy per turn — the number that decides how fast you reach a charge move. */
+  ept: number;
+}
+
+export function fastMoveStats(m: FastMove): FastMoveStats {
+  const damage = m.power * m.stab;
+  return {
+    damage,
+    turns: m.turns,
+    seconds: m.turns * 0.5,
+    energyGain: m.energyGain,
+    dpt: damage / m.turns,
+    ept: m.energyGain / m.turns,
+  };
+}
+
+export interface ChargeMoveStats {
+  /** STAB-adjusted power. */
+  damage: number;
+  energy: number;
+  /** Damage per energy — the standard efficiency measure. */
+  dpe: number;
+}
+
+export function chargeMoveStats(m: ChargeMove): ChargeMoveStats {
+  const damage = m.power * m.stab;
+  return { damage, energy: m.energy, dpe: m.energy > 0 ? damage / m.energy : 0 };
+}
+
+/**
+ * How many fast moves each successive charge move costs.
+ *
+ * The first throw starts from empty, but every throw after it begins with
+ * whatever energy overflowed the last one — you almost never land exactly on
+ * the cost. That residue accumulates, so the count drifts down and eventually
+ * cycles.
+ *
+ * Lickilicky is the worked example: Rollout gains 13, Body Slam costs 35, so
+ * the sequence is 3-3-3-2. Three Rollouts bank 39 for the first throw, leaving
+ * 4; by the fourth throw enough residue has piled up that two Rollouts suffice.
+ * Solar Beam at 80 gives 7-6-6-6 for the same reason.
+ *
+ * Energy is capped at 100 in game, so surplus past that is dropped rather than
+ * carried — it can't matter at these numbers, but the cap is the rule.
+ */
+export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): number[] {
+  if (fast.energyGain <= 0) return [];
+  const out: number[] = [];
+  let energy = 0;
+  for (let i = 0; i < throws; i++) {
+    const need = Math.max(0, charge.energy - energy);
+    const n = Math.ceil(need / fast.energyGain);
+    energy = Math.min(ENERGY_CAP, energy + n * fast.energyGain) - charge.energy;
+    out.push(n);
+  }
+  return out;
+}
+
 export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;

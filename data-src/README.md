@@ -25,6 +25,10 @@ cd ../app && npm run data && npm run verify
 
 ## Notes
 
+- **Move objects are interned.** `species.json` ships a `moves` table and each
+  species references keys into it. The same move appeared in every species that
+  learns it — 7730 embedded objects for 567 distinct ones, 62% of the file.
+  `lib/data.ts` rehydrates it once at load, so the in-memory shape is unchanged.
 - **Shadows are not emitted as separate rows.** A Shadow shares its base form's
   stats, typing and movepool exactly, so the generator records `shadowEligible`
   plus the Shadow's ranks, and the engine derives the variant by applying

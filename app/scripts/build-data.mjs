@@ -15,6 +15,13 @@
  * frozen 139-entry snapshot, which is why regional forms and shadows were
  * missing. Re-run this after a game update and everything refreshes.
  *
+ * MOVE TABLE. Move objects are interned rather than embedded. The same
+ * BODY_SLAM appeared in every species that learns it - 7730 embedded objects
+ * across the roster, but only 567 distinct ones. species.json now ships a
+ * `moves` table and each species references keys into it, which cuts the file
+ * from 1.48MB to 0.56MB. lib/data.ts rehydrates it once at load, so the
+ * in-memory shape - and every consumer - is unchanged.
+ *
  * SHADOWS. Shadow variants are not emitted as separate rows. A shadow shares
  * its base form's stats, typing and movepool exactly, so it is represented as
  * `shadowEligible` plus a separate rank set, and the engine derives the
@@ -109,6 +116,10 @@ function fastMove(id, types) {
   return {
     id,
     name: m.name,
+    // Move type drives the icon and colour in the UI; archetype is PvPoke's
+    // own label ("Spam/Bait", "Nuke") and is what players already talk in.
+    type: m.type,
+    archetype: m.archetype ?? null,
     power: m.power,
     // PvPoke stores cooldown in ms; turns is the 500ms-tick count the sim uses.
     turns: m.turns ?? Math.max(1, Math.round((m.cooldown ?? 500) / 500)),
@@ -123,11 +134,24 @@ function chargeMove(id, types) {
   return {
     id,
     name: m.name,
+    type: m.type,
+    archetype: m.archetype ?? null,
     power: m.power,
     energy: m.energy,
     stab: types.includes(m.type) ? 1.2 : 1.0,
   };
 }
+
+// ── move interning ─────────────────────────────────────────────────────────
+// Keyed by id *and* STAB: the same move is a different object for a species
+// that gets same-type bonus and one that doesn't.
+const moveTable = {};
+const intern = (m) => {
+  if (!m) return null;
+  const key = `${m.id}|${m.stab}`;
+  if (!moveTable[key]) moveTable[key] = m;
+  return key;
+};
 
 // ── build ──────────────────────────────────────────────────────────────────
 const released = pokemon.filter((p) => p.released);
@@ -193,11 +217,11 @@ for (const p of bases) {
     hp: p.baseStats.hp,
     tags: (p.tags ?? []).filter((t) => ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter'].includes(t)),
     shadowEligible: (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`),
-    fastMoves: orderedFasts,
-    chargeMoves: charges,
+    fastMoves: orderedFasts.map(intern),
+    chargeMoves: charges.map(intern),
     // Kept for the existing engine/UI shape: the recommended pair.
-    chargeMove: defCharges[0],
-    chargeMove2: defCharges[1] ?? null,
+    chargeMove: intern(defCharges[0]),
+    chargeMove2: intern(defCharges[1] ?? null),
     leagues,
     leagueRank,
     shadowLeagueRank: shadowRank,
@@ -218,13 +242,15 @@ for (const lg of LEAGUES) {
     .map(([id]) => id);
 }
 
-fs.writeFileSync(path.join(OUT, 'species.json'), JSON.stringify(species));
+fs.writeFileSync(path.join(OUT, 'species.json'), JSON.stringify({ moves: moveTable, species }));
 fs.writeFileSync(path.join(OUT, 'opponents.json'), JSON.stringify(opponents, null, 2));
 
 // ── report ─────────────────────────────────────────────────────────────────
 const shadowCount = species.filter((s) => s.shadowEligible).length;
 const formCount = species.filter((s) => s.id.includes('_')).length;
+const embedded = species.reduce((n, s) => n + s.fastMoves.length + s.chargeMoves.length, 0);
 console.log(`species.json    ${species.length} entries (${formCount} alternate forms, ${shadowCount} shadow-eligible)`);
+console.log(`  moves         ${Object.keys(moveTable).length} interned, ${embedded} references`);
 for (const lg of LEAGUES) {
   console.log(`  ${lg.id.padEnd(7)} ${species.filter((s) => s.leagues.includes(lg.id)).length} in-league, ${opponents[lg.id].length} curated`);
 }

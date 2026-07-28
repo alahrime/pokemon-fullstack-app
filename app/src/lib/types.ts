@@ -1,7 +1,12 @@
 export interface FastMove {
   id: string;
   name: string;
+  /** Move type, for the icon and colour. */
+  type: string;
+  /** PvPoke's own label — "Spam/Bait", "Nuke", "Fast Charge"… */
+  archetype: string | null;
   power: number;
+  /** Duration in 500ms battle turns. */
   turns: number;
   energyGain: number;
   stab: number;
@@ -10,6 +15,8 @@ export interface FastMove {
 export interface ChargeMove {
   id: string;
   name: string;
+  type: string;
+  archetype: string | null;
   power: number;
   energy: number;
   stab: number;

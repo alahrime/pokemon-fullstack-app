@@ -1,6 +1,6 @@
 import speciesRaw from '../data/species.json';
 import opponentsRaw from '../data/opponents.json';
-import type { League, LeagueId, Species, SpeciesRef } from './types';
+import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesRef } from './types';
 
 /**
  * The roster is now the whole released game — every species and alternate
@@ -13,7 +13,34 @@ import type { League, LeagueId, Species, SpeciesRef } from './types';
  * typing and movepool exactly, so it's modelled as a flag on the selection
  * (SpeciesRef) rather than a duplicate entry. See SHADOW_ATK_MULT in engine.ts.
  */
-export const SPECIES: Species[] = speciesRaw as Species[];
+/**
+ * species.json interns its move objects: the same BODY_SLAM appeared in every
+ * species that learns it — 7730 embedded objects across the roster, but only
+ * 567 distinct ones, which was 62% of the file. Species now hold keys into a
+ * `moves` table.
+ *
+ * Rehydrating here, once at module load, means the in-memory shape is exactly
+ * what it always was and no consumer knows the difference. Shared references
+ * are a bonus: identity comparison on moves now works.
+ */
+interface RawSpecies extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2'> {
+  fastMoves: string[];
+  chargeMoves: string[];
+  chargeMove: string;
+  chargeMove2: string | null;
+}
+const raw = speciesRaw as unknown as {
+  moves: Record<string, FastMove & ChargeMove>;
+  species: RawSpecies[];
+};
+
+export const SPECIES: Species[] = raw.species.map((s) => ({
+  ...s,
+  fastMoves: s.fastMoves.map((k) => raw.moves[k] as FastMove),
+  chargeMoves: s.chargeMoves.map((k) => raw.moves[k] as ChargeMove),
+  chargeMove: raw.moves[s.chargeMove] as ChargeMove,
+  chargeMove2: s.chargeMove2 ? (raw.moves[s.chargeMove2] as ChargeMove) : null,
+}));
 
 export const SPECIES_BY_ID: Map<string, Species> = new Map(SPECIES.map((s) => [s.id, s]));
 

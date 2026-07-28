@@ -280,12 +280,12 @@ input[type='range'] { accent-color: var(--color-accent); }
   border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
 }
 
-/* — moves panel: fast and charged side by side — */
+/* — moves panel: fast and charged tiles side by side — */
 .moves-panel {
   display: grid;
   /* Two columns wherever they fit, stacking only when genuinely narrow. */
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-3) var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3) var(--space-5);
   align-items: start;
 }
 .moves-col { min-width: 0; }
@@ -293,24 +293,139 @@ input[type='range'] { accent-color: var(--color-accent); }
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
-/* Chips size to content but wrap into even rows — a fixed grid would leave
-   long move names truncated and short ones swimming. */
 .moves-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px;
+}
+
+/* Tinted by `--type`, set per tile from the move's own typing. */
+.move-tile {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.moves-grid .chip-btn {
+  flex-direction: column;
   gap: 5px;
-  padding: 0 8px;
-  min-height: 30px;
+  min-width: 0;
+  padding: 7px 9px 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--type, var(--color-text)) 7%, transparent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 28%, transparent);
+  border-left: 3px solid var(--type, var(--rule-strong));
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
 }
-.moves-name { white-space: nowrap; }
-.moves-meta {
-  font-size: var(--text-2xs);
-  opacity: 0.6;
+.move-tile:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--type, var(--color-text)) 14%, transparent);
+}
+/* Selection is a ring plus a stronger wash — the type tint has to survive it,
+   since that's how you identify the move at a glance. */
+.move-tile.is-active {
+  background: color-mix(in srgb, var(--type, var(--color-text)) 22%, transparent);
+  border-color: var(--type, var(--color-accent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type, var(--color-accent)) 45%, transparent);
+}
+
+.move-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.move-type {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  display: block;
+}
+.move-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-base);
+  line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-flag,
+.move-arch {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+.move-flag {
+  color: var(--color-on-accent);
+  background: var(--type, var(--color-accent));
+}
+.move-arch {
+  color: var(--text-muted);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+
+.move-stats {
+  display: flex;
+  gap: var(--space-3);
+}
+.move-stats-ratio {
+  padding-top: 4px;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.move-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.move-stat-value {
+  font-size: var(--text-base);
+  font-weight: 800;
+  line-height: 1.1;
+}
+/* The ratios are the comparison; the raw numbers are supporting detail. */
+.move-stat-value.is-strong { color: var(--type, var(--color-accent)); }
+.move-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  line-height: 1.2;
+}
+
+.move-counts {
+  padding-top: 4px;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.move-counts-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-counts-seq {
+  display: flex;
+  gap: 3px;
+}
+.move-count {
+  min-width: 18px;
+  padding: 1px 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--type, var(--color-text)) 20%, transparent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 30%, transparent);
 }
 
 /* — shield-scenario matrix: picker and readout in one — */

@@ -1,20 +1,118 @@
-import type { Species } from '../lib/types';
-import { ChipButton } from './Seg';
+import { chargeMoveStats, fastMoveCounts, fastMoveStats } from '../lib/engine';
+import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
+import type { ChargeMove, FastMove, Species } from '../lib/types';
 
 const MAX_CHARGES = 2;
 
 /**
- * Fast and charged moves in one panel.
+ * Fast and charged moves as full tiles rather than name chips.
  *
- * These were two separate stacked rows — a fast-move chip strip and a
- * standalone movepool picker — which between them ate a lot of vertical space
- * for what is one decision: the loadout. Side by side in an auto-fitting grid,
- * they collapse to a single row on desktop and stack only when narrow.
+ * Every comparison a player makes here is a ratio — energy per turn decides
+ * how fast you reach a charge move, damage per energy decides whether it was
+ * worth reaching — and none of it was visible when these were bare names.
  *
- * An empty charged selection means "PvPoke's recommended pair", so state that
- * predates movepool selection, or carried over from another species, still
- * resolves to a valid moveset.
+ * Tiles are tinted and iconed by move type, reusing the vendored type icons
+ * so a move's typing reads the same way the Pokémon's does.
  */
+
+function typeStyle(type: string) {
+  return isPokemonType(type) ? { ['--type' as string]: `var(--type-${type})` } : {};
+}
+
+function TypeMark({ type }: { type: string }) {
+  if (!isPokemonType(type)) return null;
+  return <img className="move-type" src={typeIconUrl(type)} alt="" aria-hidden loading="lazy" />;
+}
+
+function Stat({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="move-stat">
+      <span className={`move-stat-value numeric${strong ? ' is-strong' : ''}`}>{value}</span>
+      <span className="move-stat-label">{label}</span>
+    </div>
+  );
+}
+
+function FastTile({ move, active, onClick }: { move: FastMove; active: boolean; onClick: () => void }) {
+  const s = fastMoveStats(move);
+  return (
+    <button
+      type="button"
+      className={`move-tile${active ? ' is-active' : ''}`}
+      style={typeStyle(move.type)}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      <div className="move-head">
+        <TypeMark type={move.type} />
+        <span className="move-name">{move.name}</span>
+        {move.stab > 1 && <span className="move-flag">STAB</span>}
+      </div>
+      <div className="move-stats">
+        <Stat label="dmg" value={s.damage.toFixed(0)} />
+        <Stat label="energy" value={`+${s.energyGain}`} />
+        <Stat label="turns" value={`${s.turns}`} />
+      </div>
+      <div className="move-stats move-stats-ratio">
+        <Stat label="dmg/turn" value={s.dpt.toFixed(2)} strong />
+        <Stat label="nrg/turn" value={s.ept.toFixed(2)} strong />
+        <Stat label="seconds" value={s.seconds.toFixed(1)} />
+      </div>
+    </button>
+  );
+}
+
+function ChargeTile({
+  move,
+  fast,
+  active,
+  onClick,
+}: {
+  move: ChargeMove;
+  fast: FastMove;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const s = chargeMoveStats(move);
+  const counts = fastMoveCounts(fast, move);
+  return (
+    <button
+      type="button"
+      className={`move-tile${active ? ' is-active' : ''}`}
+      style={typeStyle(move.type)}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      <div className="move-head">
+        <TypeMark type={move.type} />
+        <span className="move-name">{move.name}</span>
+        {move.stab > 1 && <span className="move-flag">STAB</span>}
+        {move.archetype && <span className="move-arch">{move.archetype}</span>}
+      </div>
+      <div className="move-stats">
+        <Stat label="dmg" value={s.damage.toFixed(0)} />
+        <Stat label="energy" value={`${s.energy}`} />
+        <Stat label="dmg/nrg" value={s.dpe.toFixed(2)} strong />
+      </div>
+      {counts.length > 0 && (
+        <div
+          className="move-counts"
+          title={`Fast moves needed for each successive ${move.name}. Later throws start with leftover energy, so the count drifts down.`}
+        >
+          <span className="move-counts-label">{fast.name} to charge</span>
+          <span className="move-counts-seq numeric">
+            {counts.map((n, i) => (
+              <span key={i} className="move-count">
+                {n}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+    </button>
+  );
+}
+
 export function MovesPanel({
   species,
   moveIdx,
@@ -28,7 +126,7 @@ export function MovesPanel({
   chargeIds: string[];
   onChargeIds: (ids: string[]) => void;
 }) {
-  const pool = species.chargeMoves;
+  const fast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
   const active = chargeIds.length ? chargeIds : recommended;
   const isDefault = chargeIds.length === 0;
@@ -54,15 +152,7 @@ export function MovesPanel({
         </div>
         <div className="moves-grid">
           {species.fastMoves.map((m, i) => (
-            <ChipButton
-              key={m.id}
-              active={moveIdx === i}
-              onClick={() => onMoveIdx(i)}
-              title={`${m.power} power · ${m.energyGain}e gain · ${m.turns} turn${m.turns > 1 ? 's' : ''}${m.stab > 1 ? ' · STAB' : ''}`}
-            >
-              <span className="moves-name">{m.name}</span>
-              <span className="moves-meta numeric">{m.turns}t</span>
-            </ChipButton>
+            <FastTile key={m.id} move={m} active={moveIdx === i} onClick={() => onMoveIdx(i)} />
           ))}
         </div>
       </section>
@@ -79,16 +169,8 @@ export function MovesPanel({
           )}
         </div>
         <div className="moves-grid">
-          {pool.map((m) => (
-            <ChipButton
-              key={m.id}
-              active={active.includes(m.id)}
-              onClick={() => toggle(m.id)}
-              title={`${m.power} power · ${m.energy} energy${m.stab > 1 ? ' · STAB' : ''}`}
-            >
-              <span className="moves-name">{m.name}</span>
-              <span className="moves-meta numeric">{m.energy}e</span>
-            </ChipButton>
+          {species.chargeMoves.map((m) => (
+            <ChargeTile key={m.id} move={m} fast={fast} active={active.includes(m.id)} onClick={() => toggle(m.id)} />
           ))}
         </div>
       </section>

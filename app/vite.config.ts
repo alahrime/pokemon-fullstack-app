@@ -14,10 +14,10 @@ export default defineConfig({
     stringify: false,
   },
   build: {
-    // Two known-large chunks: the lazy-loaded 3D view (three.js, ~900kB) and
-    // the main chunk carrying the full national-dex roster. Both are
-    // deliberate, so the limit is set above them rather than left to warn on
-    // every build.
-    chunkSizeWarningLimit: 1300,
+    // Above the lazy-loaded 3D view (three.js, ~900kB), which is deliberate,
+    // and just above the main chunk (~790kB) so real growth still warns.
+    // Interning the move table cut the main chunk from 1563kB; if it climbs
+    // back past this, something has started duplicating data again.
+    chunkSizeWarningLimit: 950,
   },
 })

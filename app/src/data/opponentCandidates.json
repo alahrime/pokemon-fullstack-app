@@ -40,7 +40,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -92,7 +98,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -142,7 +154,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -443,7 +461,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -490,14 +514,26 @@
    "name": "Rage Fist",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CLOSE_COMBAT",
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -551,7 +587,13 @@
    "name": "Bubble Beam",
    "power": 25,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -594,14 +636,26 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "ENERGY_BALL",
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -643,14 +697,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PSYCHIC_FANGS",
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -693,7 +759,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_SLIDE",
@@ -743,14 +815,26 @@
    "name": "Ancient Power",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "CRUNCH",
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "master"
@@ -852,7 +936,13 @@
    "name": "Cross Poison",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "leagues": [
    "master"
@@ -902,7 +992,13 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -955,7 +1051,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -1000,7 +1102,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -1050,7 +1158,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HURRICANE",
@@ -1104,14 +1218,26 @@
    "name": "Ancient Power",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "BRAVE_BIRD",
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -1161,7 +1287,13 @@
    "name": "Meteor Beam",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -1207,14 +1339,26 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CRUNCH",
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "great",
@@ -1268,7 +1412,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -1518,7 +1668,13 @@
    "name": "Glaive Rush",
    "power": 90,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "AVALANCHE",
@@ -1576,7 +1732,13 @@
    "name": "Liquidation",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "master"
@@ -1618,14 +1780,26 @@
    "name": "Parabolic Charge",
    "power": 70,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": 1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ZAP_CANNON",
    "name": "Zap Cannon",
    "power": 150,
    "energy": 80,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.33
+   }
   },
   "leagues": [
    "great",
@@ -1723,7 +1897,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "STOMP",
@@ -1823,7 +2003,13 @@
    "name": "Mind Blown",
    "power": 90,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -4,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -1881,7 +2067,13 @@
    "name": "Skull Bash",
    "power": 130,
    "energy": 75,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": 1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -1979,7 +2171,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DAZZLING_GLEAM",
@@ -2036,7 +2234,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -2130,14 +2334,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BRAVE_BIRD",
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -2180,7 +2396,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "FLY",
@@ -2289,7 +2511,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -2334,14 +2562,26 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "LUNGE",
    "name": "Lunge",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -2384,14 +2624,26 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -2443,7 +2695,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -2486,7 +2744,13 @@
    "name": "Liquidation",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -2542,7 +2806,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -2739,7 +3009,13 @@
    "name": "Leaf Storm",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -2789,7 +3065,13 @@
    "name": "Bulldoze",
    "power": 45,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "master"
@@ -2839,7 +3121,13 @@
    "name": "Lunge",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -2891,7 +3179,13 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -2942,7 +3236,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -3045,7 +3345,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -3095,7 +3401,13 @@
    "name": "Air Cutter",
    "power": 45,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "great",
@@ -3199,7 +3511,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -3346,7 +3664,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -3395,7 +3719,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "METEOR_MASH",
@@ -3506,7 +3836,13 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -3758,7 +4094,13 @@
    "name": "Air Cutter",
    "power": 45,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "PAYBACK",
@@ -3819,7 +4161,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -3862,7 +4210,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "GRASS_KNOT",
@@ -3914,7 +4268,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "GRASS_KNOT",
@@ -3970,7 +4330,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -4017,7 +4383,13 @@
    "name": "Air Cutter",
    "power": 45,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -4118,14 +4490,26 @@
    "name": "Triple Axel",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "NIGHT_SLASH",
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "leagues": [
    "master"
@@ -4216,7 +4600,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PLAY_ROUGH",
@@ -4323,7 +4713,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -4372,7 +4768,13 @@
    "name": "Overheat",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -4415,14 +4817,26 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ENERGY_BALL",
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -4472,7 +4886,13 @@
    "name": "Spirit Shackle",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.33
+   }
   },
   "leagues": [
    "master",
@@ -4524,7 +4944,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -4672,7 +5098,13 @@
    "name": "Psycho Boost",
    "power": 70,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_SLIDE",
@@ -4723,7 +5155,13 @@
    "name": "Psycho Boost",
    "power": 70,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SWIFT",
@@ -4773,7 +5211,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRILL_RUN",
@@ -4933,7 +5377,13 @@
    "name": "Draco Meteor",
    "power": 150,
    "energy": 65,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -5037,7 +5487,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -5087,7 +5543,13 @@
    "name": "Scorching Sands",
    "power": 80,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -5187,7 +5649,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -5546,7 +6014,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -5647,7 +6121,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "AQUA_TAIL",
@@ -5699,7 +6179,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -5750,14 +6236,26 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -6104,7 +6602,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ICE_PUNCH",
@@ -6209,14 +6713,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ENERGY_BALL",
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -6467,14 +6983,26 @@
    "name": "Mystical Fire",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "MOONBLAST",
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master",
@@ -6518,14 +7046,26 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SCORCHING_SANDS",
    "name": "Scorching Sands",
    "power": 80,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -6568,7 +7108,13 @@
    "name": "Razor Shell",
    "power": 35,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "chargeMove2": {
    "id": "DRILL_RUN",
@@ -6619,7 +7165,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -6778,7 +7330,13 @@
    "name": "Psychic",
    "power": 75,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -6828,7 +7386,13 @@
    "name": "Draco Meteor",
    "power": 150,
    "energy": 65,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -6927,7 +7491,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -7127,14 +7697,26 @@
    "name": "Upper Hand",
    "power": 70,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "BRAVE_BIRD",
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -7228,7 +7810,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HEAT_WAVE",
@@ -7327,7 +7915,13 @@
    "name": "Chilling Water",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DISARMING_VOICE",
@@ -7388,7 +7982,13 @@
    "name": "Sand Tomb",
    "power": 40,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -7433,14 +8033,26 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SAND_TOMB",
    "name": "Sand Tomb",
    "power": 40,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -7592,7 +8204,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -7635,7 +8253,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "LEAF_BLADE",
@@ -7696,7 +8320,13 @@
    "name": "Lunge",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -7746,7 +8376,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -7800,7 +8436,13 @@
    "name": "Triple Axel",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -7842,7 +8484,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_BLAST",
@@ -7903,7 +8551,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -8309,14 +8963,26 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "METEOR_BEAM",
    "name": "Meteor Beam",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -8361,14 +9027,26 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -8615,7 +9293,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "DIG",
@@ -8665,7 +9349,13 @@
    "name": "Meteor Beam",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "POWER_GEM",
@@ -8722,7 +9412,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "leagues": [
    "great",
@@ -8822,7 +9518,13 @@
    "name": "Poison Fang",
    "power": 45,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -8929,7 +9631,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -9403,7 +10111,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -9455,7 +10169,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "leagues": [
    "great",
@@ -9500,7 +10220,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "SLUDGE_BOMB",
@@ -9703,7 +10429,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "STONE_EDGE",
@@ -9863,14 +10595,26 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -9912,7 +10656,13 @@
    "name": "Upper Hand",
    "power": 70,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "HEAVY_SLAM",
@@ -10017,7 +10767,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "DRAGON_CLAW",
@@ -10074,7 +10830,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master",
@@ -10119,14 +10881,26 @@
    "name": "Upper Hand",
    "power": 70,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -10172,7 +10946,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -10228,7 +11008,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -10274,14 +11060,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "TRIPLE_AXEL",
    "name": "Triple Axel",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -10324,14 +11122,26 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SACRED_FIRE",
    "name": "Sacred Fire",
    "power": 130,
    "energy": 65,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "master",
@@ -10383,7 +11193,13 @@
    "name": "Psychic",
    "power": 75,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -10482,7 +11298,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -10889,7 +11711,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "ACROBATICS",
@@ -10988,14 +11816,26 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CRUNCH",
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "master"
@@ -11549,7 +12389,13 @@
    "name": "Mirror Shot",
    "power": 35,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "FLASH_CANNON",
@@ -11599,14 +12445,26 @@
    "name": "Clanging Scales",
    "power": 120,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "UPPER_HAND",
    "name": "Upper Hand",
    "power": 70,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "great",
@@ -11653,14 +12511,26 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "SAND_TOMB",
    "name": "Sand Tomb",
    "power": 40,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -11744,7 +12614,13 @@
    "name": "Glaciate",
    "power": 60,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRAGON_CLAW",
@@ -11796,7 +12672,13 @@
    "name": "Freeze Shock",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "FUSION_BOLT",
@@ -11853,7 +12735,13 @@
    "name": "Ice Burn",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "master"
@@ -11896,7 +12784,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -11946,7 +12840,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_SLIDE",
@@ -11996,7 +12896,13 @@
    "name": "Sandsear Storm",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "STONE_EDGE",
@@ -12154,7 +13060,13 @@
    "name": "Mist Ball",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "chargeMove2": {
    "id": "AURA_SPHERE",
@@ -12215,7 +13127,13 @@
    "name": "Luster Purge",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "great",
@@ -12513,7 +13431,13 @@
    "name": "Ancient Power",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "GRASS_KNOT",
@@ -12619,7 +13543,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -12772,7 +13702,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -12817,7 +13753,13 @@
    "name": "Aeroblast",
    "power": 170,
    "energy": 75,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "FLY",
@@ -12877,7 +13819,13 @@
    "name": "Silver Wind",
    "power": 75,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -12927,7 +13875,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -13028,7 +13982,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -13072,14 +14032,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PSYCHIC_FANGS",
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -13224,14 +14196,26 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "OVERHEAT",
    "name": "Overheat",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -13280,7 +14264,13 @@
    "name": "Scorching Sands",
    "power": 80,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "ultra"
@@ -13422,14 +14412,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "MIRROR_SHOT",
    "name": "Mirror Shot",
    "power": 35,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "great",
@@ -13483,7 +14485,13 @@
    "name": "Superpower",
    "power": 85,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -13740,7 +14748,13 @@
    "name": "Shadow Bone",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "great"
@@ -13783,7 +14797,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ICE_PUNCH",
@@ -13891,7 +14911,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "great"
@@ -14182,7 +15208,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "FRENZY_PLANT",
@@ -14389,7 +15421,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -14491,7 +15529,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -14533,14 +15577,26 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "POISON_FANG",
    "name": "Poison Fang",
    "power": 45,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -14589,7 +15645,13 @@
    "name": "Wrap",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -14847,7 +15909,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -14944,14 +16012,26 @@
    "name": "Aura Wheel",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PSYCHIC_FANGS",
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -15003,7 +16083,13 @@
    "name": "Psychic",
    "power": 75,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "ultra"
@@ -15053,7 +16139,13 @@
    "name": "Triple Axel",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -15205,7 +16297,13 @@
    "name": "Acid Spray",
    "power": 20,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -15256,7 +16354,13 @@
    "name": "Bulldoze",
    "power": 45,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "great"
@@ -15397,7 +16501,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_BLAST",
@@ -15646,14 +16756,26 @@
    "name": "Poison Fang",
    "power": 45,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "EARTH_POWER",
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -15697,7 +16819,13 @@
    "name": "Poison Fang",
    "power": 45,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "THUNDERBOLT",
@@ -15803,7 +16931,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -15855,7 +16989,13 @@
    "name": "Chilling Water",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16002,7 +17142,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "CROSS_CHOP",
@@ -16060,7 +17206,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16113,7 +17265,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16217,7 +17375,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16271,7 +17435,13 @@
    "name": "Bug Buzz",
    "power": 100,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "great",
@@ -16315,7 +17485,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "EARTHQUAKE",
@@ -16581,7 +17757,13 @@
    "name": "Sand Tomb",
    "power": 40,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16626,14 +17808,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "NIGHT_SLASH",
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "leagues": [
    "great",
@@ -16679,7 +17873,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BRUTAL_SWING",
@@ -16729,14 +17929,26 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "WILD_CHARGE",
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -16781,7 +17993,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "X_SCISSOR",
@@ -16882,7 +18100,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "FOUL_PLAY",
@@ -16934,14 +18158,26 @@
    "name": "Air Cutter",
    "power": 45,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "BRAVE_BIRD",
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -17037,7 +18273,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "X_SCISSOR",
@@ -17138,7 +18380,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DYNAMIC_PUNCH",
@@ -17240,7 +18488,13 @@
    "name": "Tri Attack",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "chargeMove2": {
    "id": "RETURN",
@@ -17289,7 +18543,13 @@
    "name": "Tri Attack",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "chargeMove2": {
    "id": "BLIZZARD",
@@ -17392,14 +18652,26 @@
    "name": "Rage Fist",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CLOSE_COMBAT",
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -17494,7 +18766,13 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DARK_PULSE",
@@ -17596,7 +18874,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HYDRO_CANNON",
@@ -17802,14 +19086,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -17854,14 +19150,26 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "WILD_CHARGE",
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -17905,7 +19213,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "AURA_SPHERE",
@@ -18007,7 +19321,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRILL_RUN",
@@ -18066,7 +19386,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -18111,7 +19437,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "RETURN",
@@ -18161,14 +19493,26 @@
    "name": "Breaking Swipe",
    "power": 50,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRAGON_ASCENT",
    "name": "Dragon Ascent",
    "power": 110,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -18316,7 +19660,13 @@
    "name": "Thunder Cage",
    "power": 60,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HYPER_BEAM",
@@ -18528,7 +19878,13 @@
    "name": "Ancient Power",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -18582,7 +19938,13 @@
    "name": "Draco Meteor",
    "power": 150,
    "energy": 65,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -18683,7 +20045,13 @@
    "name": "Overheat",
    "power": 130,
    "energy": 55,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -18827,14 +20195,26 @@
    "name": "Drum Beating",
    "power": 60,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "EARTH_POWER",
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -18884,7 +20264,13 @@
    "name": "Leaf Storm",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -18929,7 +20315,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "FLY",
@@ -18979,7 +20371,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -19135,7 +20533,13 @@
    "name": "Poison Fang",
    "power": 45,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRAGON_PULSE",
@@ -19245,7 +20649,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -19291,14 +20701,26 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "WRAP",
    "name": "Wrap",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -19343,7 +20765,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "GYRO_BALL",
@@ -19392,14 +20820,26 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -19502,7 +20942,13 @@
    "name": "Breaking Swipe",
    "power": 50,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -19545,14 +20991,26 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -19707,7 +21165,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -19802,14 +21266,26 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "ICY_WIND",
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -19913,7 +21389,13 @@
    "name": "Wrap",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -19962,7 +21444,13 @@
    "name": "Seed Flare",
    "power": 130,
    "energy": 75,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "opponent",
+    "chance": 0.4
+   }
   },
   "leagues": [
    "master"
@@ -20005,7 +21493,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "GRASS_KNOT",
@@ -20105,7 +21599,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -20155,7 +21655,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master",
@@ -20199,7 +21705,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "LEAF_BLADE",
@@ -20249,7 +21761,13 @@
    "name": "Torch Song",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -20303,14 +21821,26 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -20406,7 +21936,13 @@
    "name": "Drain Punch",
    "power": 40,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": 1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ICE_BEAM",
@@ -20460,7 +21996,13 @@
    "name": "Drain Punch",
    "power": 40,
    "energy": 40,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": 1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SLUDGE_BOMB",
@@ -20615,7 +22157,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "FLAMETHROWER",
@@ -20667,7 +22215,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "AERIAL_ACE",
@@ -20770,7 +22324,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "IRON_HEAD",
@@ -20873,14 +22433,26 @@
    "name": "Lunge",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -20922,14 +22494,26 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ICY_WIND",
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -20972,7 +22556,13 @@
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -21024,7 +22614,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "FLY",
@@ -21081,7 +22677,13 @@
    "name": "Bulldoze",
    "power": 45,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "master"
@@ -21176,7 +22778,13 @@
    "name": "Psychic Fangs",
    "power": 40,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "EARTHQUAKE",
@@ -21270,14 +22878,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CRUNCH",
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "master"
@@ -21430,7 +23050,13 @@
    "name": "Scald",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "master",
@@ -21629,7 +23255,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "chargeMove2": {
    "id": "SHADOW_BALL",
@@ -21690,7 +23322,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -21791,7 +23429,13 @@
    "name": "Nature's Madness",
    "power": 80,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -21841,7 +23485,13 @@
    "name": "Nature's Madness",
    "power": 80,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -21895,7 +23545,13 @@
    "name": "Nature's Madness",
    "power": 80,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -21947,7 +23603,13 @@
    "name": "Nature's Madness",
    "power": 80,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -21999,7 +23661,13 @@
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -22044,14 +23712,26 @@
    "name": "Flame Charge",
    "power": 65,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -22093,14 +23773,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "TRAILBLAZE",
    "name": "Trailblaze",
    "power": 65,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -22143,7 +23835,13 @@
    "name": "Scald",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "PAYBACK",
@@ -22246,7 +23944,13 @@
    "name": "Night Slash",
    "power": 50,
    "energy": 35,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 0.125
+   }
   },
   "chargeMove2": {
    "id": "PLAY_ROUGH",
@@ -22297,7 +24001,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -22351,7 +24061,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "THUNDER",
@@ -22401,7 +24117,13 @@
    "name": "Wildbolt Storm",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "FOCUS_BLAST",
@@ -22458,7 +24180,13 @@
    "name": "Bulldoze",
    "power": 45,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.5
+   }
   },
   "leagues": [
    "great",
@@ -22560,7 +24288,13 @@
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great",
@@ -22607,14 +24341,26 @@
    "name": "Fell Stinger",
    "power": 20,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "WILD_CHARGE",
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great"
@@ -22767,7 +24513,13 @@
    "name": "Overheat",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -22860,7 +24612,13 @@
    "name": "Bleakwind Storm",
    "power": 60,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HEAT_WAVE",
@@ -22917,7 +24675,13 @@
    "name": "Sand Tomb",
    "power": 40,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -22964,7 +24728,13 @@
    "name": "Beak Blast",
    "power": 110,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DRILL_PECK",
@@ -23118,14 +24888,26 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "POWER_UP_PUNCH",
    "name": "Power-Up Punch",
    "power": 20,
    "energy": 35,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "ultra"
@@ -23319,14 +25101,26 @@
    "name": "Triple Axel",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HIGH_JUMP_KICK",
    "name": "High Jump Kick",
    "power": 110,
    "energy": 55,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -4,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -23578,14 +25372,26 @@
    "name": "Meteor Beam",
    "power": 120,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "ROCK_TOMB",
    "name": "Rock Tomb",
    "power": 75,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -23737,7 +25543,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -23836,7 +25648,13 @@
    "name": "Brick Break",
    "power": 50,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "DYNAMIC_PUNCH",
@@ -23990,7 +25808,13 @@
    "name": "Liquidation",
    "power": 70,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "master",
@@ -24139,7 +25963,13 @@
    "name": "V-Create",
    "power": 95,
    "energy": 40,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PSYSHOCK",
@@ -24398,14 +26228,26 @@
    "name": "Scald",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "EARTH_POWER",
    "name": "Earth Power",
    "power": 90,
    "energy": 50,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master",
@@ -24450,7 +26292,13 @@
    "name": "Overheat",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -2,
+    "defStage": 0,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "HURRICANE",
@@ -24499,7 +26347,13 @@
    "name": "Scald",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "BODY_SLAM",
@@ -24861,7 +26715,13 @@
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "great"
@@ -24911,7 +26771,13 @@
    "name": "Scald",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "leagues": [
    "great",
@@ -24956,7 +26822,13 @@
    "name": "Icy Wind",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "SWIFT",
@@ -25006,7 +26878,13 @@
    "name": "Bug Buzz",
    "power": 100,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.3
+   }
   },
   "chargeMove2": {
    "id": "IRON_HEAD",
@@ -25056,7 +26934,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "STOMP",
@@ -25157,14 +27041,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "MOONBLAST",
    "name": "Moonblast",
    "power": 110,
    "energy": 60,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": -1,
+    "defStage": 0,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master",
@@ -25265,7 +27161,13 @@
    "name": "Ancient Power",
    "power": 60,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 1,
+    "defStage": 1,
+    "target": "self",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -25315,7 +27217,13 @@
    "name": "Oblivion Wing",
    "power": 85,
    "energy": 50,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": 1,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master",
@@ -25360,7 +27268,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BEHEMOTH_BLADE",
@@ -25409,7 +27323,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "PLAY_ROUGH",
@@ -25459,7 +27379,13 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "BEHEMOTH_BASH",
@@ -25508,14 +27434,26 @@
    "name": "Close Combat",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "chargeMove2": {
    "id": "CRUNCH",
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "leagues": [
    "master"
@@ -25619,7 +27557,13 @@
    "name": "Brave Bird",
    "power": 130,
    "energy": 55,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -3,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "master"
@@ -25669,7 +27613,13 @@
    "name": "Energy Ball",
    "power": 80,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.1
+   }
   },
   "leagues": [
    "master"
@@ -25770,7 +27720,13 @@
    "name": "Wild Charge",
    "power": 100,
    "energy": 45,
-   "stab": 1.2
+   "stab": 1.2,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -2,
+    "target": "self",
+    "chance": 1
+   }
   },
   "leagues": [
    "great",
@@ -25917,7 +27873,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "EARTHQUAKE",
@@ -25969,7 +27931,13 @@
    "name": "Crunch",
    "power": 70,
    "energy": 45,
-   "stab": 1.0
+   "stab": 1.0,
+   "buffs": {
+    "atkStage": 0,
+    "defStage": -1,
+    "target": "opponent",
+    "chance": 0.2
+   }
   },
   "chargeMove2": {
    "id": "EARTHQUAKE",

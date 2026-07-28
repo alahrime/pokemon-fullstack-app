@@ -336,8 +336,10 @@ export function BattleScreen() {
                 <th>Pokémon</th>
                 <th>Move</th>
                 <th>Outcome</th>
+                <th>Buff/debuff</th>
                 <th>{speciesA.name} HP</th>
                 <th>{speciesB.name} HP</th>
+                <th>Stages (A / B)</th>
               </tr>
             </thead>
             <tbody>
@@ -358,8 +360,15 @@ export function BattleScreen() {
                         <span style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{e.damage} dmg</span>
                       )}
                     </td>
+                    <td style={{ fontSize: 12, color: e.buffText ? 'var(--color-accent-700)' : undefined }}>
+                      {e.buffText ?? '—'}
+                    </td>
                     <td>{Math.round(e.hpA)}</td>
                     <td>{Math.round(e.hpB)}</td>
+                    <td className="text-muted" style={{ fontSize: 11 }}>
+                      atk {e.atkStageA >= 0 ? '+' : ''}{e.atkStageA}/def {e.defStageA >= 0 ? '+' : ''}{e.defStageA} · atk{' '}
+                      {e.atkStageB >= 0 ? '+' : ''}{e.atkStageB}/def {e.defStageB >= 0 ? '+' : ''}{e.defStageB}
+                    </td>
                   </tr>
                 );
               })}
@@ -369,7 +378,9 @@ export function BattleScreen() {
         <p className="text-muted" style={{ fontSize: 11, margin: '10px 0 0' }}>
           A shielded charge move always deals 1 damage regardless of which move is thrown, so a mon with two charge moves of
           different energy costs spends the cheaper one into a shield ("bait") and saves the pricier, harder-hitting move for
-          when the opponent is out of shields.
+          when the opponent is out of shields. Stat-changing moves (Superpower, Acid Spray, Night Slash, …) apply their
+          attack/defense stage change on every throw that lands its chance — even when shielded, since a shield only blocks
+          damage — and every later damage calculation in the fight uses the buffed stat.
         </p>
       </div>
     </>

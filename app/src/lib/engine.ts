@@ -9,6 +9,7 @@ import type {
   IV,
   League,
   LeagueId,
+  MoveBuffs,
   RankedEntry,
   Species,
   SpeciesTable,
@@ -48,6 +49,21 @@ export function bestAt(species: Species, iv: IV, league: League): StatLine {
 
 export function dmg(atk: number, def: number, move: FastMove | ChargeMove): number {
   return Math.floor(0.5 * move.power * (atk / def) * move.stab) + 1;
+}
+
+// ── Stat stages (attack/defense buffs & debuffs) ──
+// Pokémon GO clamps stat stages to ±4 and applies an asymmetric multiplier:
+// (4+stage)/4 going up, 4/(4-stage) going down (so -1 is 0.8x, not 1/1.25).
+export const STAGE_MIN = -4;
+export const STAGE_MAX = 4;
+
+export function buffMultiplier(stage: number): number {
+  const s = Math.max(STAGE_MIN, Math.min(STAGE_MAX, stage));
+  return s >= 0 ? (4 + s) / 4 : 4 / (4 - s);
+}
+
+function clampStage(stage: number): number {
+  return Math.max(STAGE_MIN, Math.min(STAGE_MAX, stage));
 }
 
 const tableCache = new Map<string, SpeciesTable>();
@@ -520,6 +536,37 @@ function pickCharge(roles: ChargeRoles, energy: number, oppShields: number): Cha
   return null;
 }
 
+// Deterministic PRNG (mulberry32), re-seeded fresh on every battle() call.
+// flipGrid/heatmap tools call battle() once per IV combo (up to 4096 times)
+// for the *same* moveset - for that to stay an apples-to-apples comparison,
+// and for the memoized/cached tools elsewhere in this file to stay valid,
+// battle() has to remain a pure function of its inputs. A fixed seed gives
+// real probabilistic buff behavior (a 10%-chance move usually misses) while
+// keeping every call reproducible.
+function mulberry32(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const BATTLE_RNG_SEED = 0xc0ffee;
+
+interface Stages {
+  atk: number;
+  def: number;
+}
+
+function describeBuff(buffs: MoveBuffs, selfLabel: string, oppLabel: string): string {
+  const parts: string[] = [];
+  if (buffs.atkStage) parts.push(`Atk ${buffs.atkStage > 0 ? '+' : ''}${buffs.atkStage}`);
+  if (buffs.defStage) parts.push(`Def ${buffs.defStage > 0 ? '+' : ''}${buffs.defStage}`);
+  return `${buffs.target === 'self' ? selfLabel : oppLabel} ${parts.join(', ')}`;
+}
+
 export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number, energyA = 0, energyB = 0): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
@@ -530,26 +577,53 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
-  const fA = dmg(a.atk, b.def, a.fast);
-  const fB = dmg(b.atk, a.def, b.fast);
+  const stageA: Stages = { atk: 0, def: 0 };
+  const stageB: Stages = { atk: 0, def: 0 };
+  const rng = mulberry32(BATTLE_RNG_SEED);
   const rolesA = classifyCharges(a.atk, b.def, a.charges);
   const rolesB = classifyCharges(b.atk, a.def, b.charges);
   const log: BattleLogEntry[] = [];
+
+  const effAtkA = () => a.atk * buffMultiplier(stageA.atk);
+  const effDefA = () => a.def * buffMultiplier(stageA.def);
+  const effAtkB = () => b.atk * buffMultiplier(stageB.atk);
+  const effDefB = () => b.def * buffMultiplier(stageB.def);
+
+  // Applies a landed charge move's own stat-stage effect *after* its damage
+  // is already computed, and regardless of `shielded` - a shield only blocks
+  // damage, never the secondary effect. Returns a log-friendly summary, or
+  // null when the move has no buff or its chance roll missed.
+  function resolveBuff(move: ChargeMove, selfStage: Stages, oppStage: Stages, selfLabel: string, oppLabel: string): string | null {
+    const buffs = move.buffs;
+    if (!buffs || rng() >= buffs.chance) return null;
+    const target = buffs.target === 'self' ? selfStage : oppStage;
+    target.atk = clampStage(target.atk + buffs.atkStage);
+    target.def = clampStage(target.def + buffs.defStage);
+    return describeBuff(buffs, selfLabel, oppLabel);
+  }
+
+  const stageSnapshot = () => ({ atkStageA: stageA.atk, defStageA: stageA.def, atkStageB: stageB.atk, defStageB: stageB.def });
 
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
     const moveA = pickCharge(rolesA, eA, sB);
     const moveB = pickCharge(rolesB, eB, sA);
     if (moveA || moveB) {
-      const order: ('A' | 'B')[] = moveA && moveB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
+      // CMP: simultaneous charge moves resolve fully sequentially, higher
+      // *current* (buffed) attack throwing first - so a debuff applied by
+      // the first mover is already in effect for the second mover's own
+      // damage calculation this same turn.
+      const order: ('A' | 'B')[] =
+        moveA && moveB ? (effAtkA() >= effAtkB() ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
       if (moveA && moveB) cmpDecided = true;
       for (const who of order) {
         if (who === 'A' && hpA > 0 && moveA) {
           eA -= moveA.energy;
           const shielded = sB > 0;
-          const damage = shielded ? 1 : dmg(a.atk, b.def, moveA);
+          const damage = shielded ? 1 : dmg(effAtkA(), effDefB(), moveA);
           if (shielded) sB--;
           hpB -= damage;
           tA = a.fast.turns;
+          const buffText = resolveBuff(moveA, stageA, stageB, 'A', 'B');
           log.push({
             turn,
             actor: 'A',
@@ -562,15 +636,18 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
             hpB: Math.max(0, hpB),
             energyA: eA,
             energyB: eB,
+            ...stageSnapshot(),
+            buffText,
           });
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
           const shielded = sA > 0;
-          const damage = shielded ? 1 : dmg(b.atk, a.def, moveB);
+          const damage = shielded ? 1 : dmg(effAtkB(), effDefA(), moveB);
           if (shielded) sA--;
           hpA -= damage;
           tB = b.fast.turns;
+          const buffText = resolveBuff(moveB, stageB, stageA, 'B', 'A');
           log.push({
             turn,
             actor: 'B',
@@ -583,13 +660,16 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
             hpB: Math.max(0, hpB),
             energyA: eA,
             energyB: eB,
+            ...stageSnapshot(),
+            buffText,
           });
         }
       }
       continue;
     }
     if (--tA <= 0) {
-      hpB -= fA;
+      const damage = dmg(effAtkA(), effDefB(), a.fast);
+      hpB -= damage;
       eA = Math.min(100, eA + a.fast.energyGain);
       tA = a.fast.turns;
       log.push({
@@ -599,15 +679,18 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
         moveName: a.fast.name,
         bait: false,
         shielded: false,
-        damage: fA,
+        damage,
         hpA: Math.max(0, hpA),
         hpB: Math.max(0, hpB),
         energyA: eA,
         energyB: eB,
+        ...stageSnapshot(),
+        buffText: null,
       });
     }
     if (--tB <= 0) {
-      hpA -= fB;
+      const damage = dmg(effAtkB(), effDefA(), b.fast);
+      hpA -= damage;
       eB = Math.min(100, eB + b.fast.energyGain);
       tB = b.fast.turns;
       log.push({
@@ -617,11 +700,13 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
         moveName: b.fast.name,
         bait: false,
         shielded: false,
-        damage: fB,
+        damage,
         hpA: Math.max(0, hpA),
         hpB: Math.max(0, hpB),
         energyA: eA,
         energyB: eB,
+        ...stageSnapshot(),
+        buffText: null,
       });
     }
   }
@@ -629,7 +714,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
   const finalHpB = Math.max(0, hpB);
   const mine = finalHpA / a.hp;
   const theirs = finalHpB / b.hp;
-  const win = hpA <= 0 && hpB <= 0 ? a.atk >= b.atk : mine > theirs;
+  const win = hpA <= 0 && hpB <= 0 ? effAtkA() >= effAtkB() : mine > theirs;
   return { win, mine, theirs, hpA: finalHpA, hpB: finalHpB, maxHpA: a.hp, maxHpB: b.hp, cmpDecided, margin: (mine - theirs) * 100, log };
 }
 

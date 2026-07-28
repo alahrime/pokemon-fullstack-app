@@ -66,23 +66,28 @@ export function BattleTimeline({
     const y = HP_HEIGHT - (hp / max) * HP_HEIGHT;
     const isActor = e.actor === side;
     if (!isActor) return null;
-    const label = e.shielded
-      ? e.bait
-        ? `${e.moveName} (bait — shielded, 1 dmg)`
-        : `${e.moveName} (shielded, 1 dmg)`
-      : `${e.moveName} (${e.damage} dmg)`;
+    const label =
+      (e.shielded
+        ? e.bait
+          ? `${e.moveName} (bait — shielded, 1 dmg)`
+          : `${e.moveName} (shielded, 1 dmg)`
+        : `${e.moveName} (${e.damage} dmg)`) + (e.buffText ? ` · ${e.buffText}` : '');
     return (
-      <circle
-        key={`${e.turn}-${e.actor}-${e.moveName}`}
-        cx={x}
-        cy={y}
-        r={e.shielded ? 4 : 5.5}
-        fill={e.shielded ? 'var(--color-bg)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
-        stroke={side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
-        strokeWidth={1.5}
-      >
-        <title>{`t=${seconds(e.turn)}s · ${side === 'A' ? nameA : nameB} · ${label}`}</title>
-      </circle>
+      <g key={`${e.turn}-${e.actor}-${e.moveName}`}>
+        {e.buffText && (
+          <circle cx={x} cy={y} r={9} fill="none" stroke="var(--color-accent-700)" strokeWidth={1.5} strokeDasharray="2,2" />
+        )}
+        <circle
+          cx={x}
+          cy={y}
+          r={e.shielded ? 4 : 5.5}
+          fill={e.shielded ? 'var(--color-bg)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
+          stroke={side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
+          strokeWidth={1.5}
+        >
+          <title>{`t=${seconds(e.turn)}s · ${side === 'A' ? nameA : nameB} · ${label}`}</title>
+        </circle>
+      </g>
     );
   };
 

@@ -280,6 +280,91 @@ input[type='range'] { accent-color: var(--color-accent); }
   border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
 }
 
+/* — report left column —
+   A single gap made the identity block, the two controls and the readouts all
+   feel equally weighted. The rhythm now groups them: controls sit close, and
+   a wider gap separates them from the numbers they produce. */
+.report-side {
+  border-right: var(--border-strong) solid var(--rule-strong);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.report-side > .hero { margin-bottom: var(--space-1); }
+.side-block { min-width: 0; }
+
+/* — battle stat strip — */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule-strong);
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface-1);
+  position: relative;
+}
+/* Accent tick at the top of each cell, so the row reads as instrumentation
+   rather than three loose numbers in boxes. */
+.stat-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 14px;
+  height: 2px;
+  background: var(--color-accent);
+  opacity: 0.75;
+}
+.stat-cell-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.stat-cell-value {
+  font-size: var(--size-h4);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+/* — detail rows — */
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 5px 2px;
+  font-size: var(--text-sm);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.detail-label { color: var(--text-muted); white-space: nowrap; }
+/* Dotted leader ties label to value across the gap, which a bare
+   space-between left visually unlinked at this width. */
+.detail-row::before {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 0;
+  margin-bottom: 3px;
+  border-bottom: 1px dotted var(--rule-hairline);
+}
+.detail-value { order: 2; font-weight: 800; white-space: nowrap; }
+
 /* — IV appraisal rows — */
 .iv-adjuster {
   display: flex;

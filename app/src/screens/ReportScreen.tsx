@@ -15,14 +15,13 @@ import {
   scenarioMatrix,
   verdictLine,
 } from '../lib/engine';
-import { Sprite } from '../components/Sprite';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
 import { MovesPanel } from '../components/MovesPanel';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
-import { TypeBadge } from '../components/TypeBadge';
+import { SpeciesHero } from '../components/SpeciesHero';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
@@ -113,44 +112,15 @@ export function ReportScreen() {
           name beside it. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,390px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
         {/* Left column */}
-        <div style={{ borderRight: 'var(--border-strong) solid var(--rule-strong)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="report-side">
           {/* Identity → form → roll. The three things you change sit together at
               the top; everything below is the readout they produce. */}
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            <HudFrame
-              style={{
-                flex: 'none',
-                width: 132,
-                height: 132,
-                background: 'var(--surface-2)',
-                border: 'var(--border-hairline) solid var(--rule-strong)',
-                display: 'grid',
-                placeItems: 'center',
-              }}
-            >
-              <Sprite sprite={species.sprite} dex={species.dex} size={120} shadow={isShadow} className="sprite-holo" />
-            </HudFrame>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>
-                #{String(species.dex).padStart(3, '0')}
-              </div>
-              <h2 style={{ margin: '2px 0 4px', fontSize: 26 }}>
-                {species.name}
-                {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
-              </h2>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
-                {species.types.map((t) => (
-                  <TypeBadge key={t} type={t} />
-                ))}
-                {isShadow ? <span className="tag tag-shadow" style={{ letterSpacing: '0.08em', fontSize: 10 }}>SHADOW</span> : null}
-              </div>
-              <div className="text-muted numeric" style={{ fontSize: 13 }}>
-                IV {iv.a}/{iv.d}/{iv.s} · CP {entry.cp} · L{entry.lvl}
-              </div>
-            </div>
-          </div>
+          <SpeciesHero species={species} entry={entry} league={league} shadow={isShadow} />
 
-          <div>
+          <div className="side-block">
+            <div className="hud-label" style={{ marginBottom: 7 }}>
+              <span>Form</span>
+            </div>
             <FormToggle
               shadow={isShadow}
               eligible={species.shadowEligible}
@@ -164,14 +134,12 @@ export function ReportScreen() {
             </div>
           </div>
 
-          <div>
-            <div className="hud-label" style={{ marginBottom: 8 }}>
+          <div className="side-block">
+            <div className="hud-label" style={{ marginBottom: 7 }}>
               <span>Adjust roll</span>
             </div>
             <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>
-
-          <hr className="hr" style={{ margin: '2px 0' }} />
 
           <HudFrame
             signal
@@ -211,22 +179,24 @@ export function ReportScreen() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: 'var(--border-hairline) solid var(--rule-strong)' }}>
-            {[
-              ['Attack', entry.atk.toFixed(1)],
-              ['Defense', entry.def.toFixed(1)],
-              ['HP', String(entry.hp)],
-            ].map(([label, value], i) => (
-              <div key={label} style={{ padding: '10px 12px', borderRight: i < 2 ? 'var(--border-hairline) solid var(--rule-strong)' : undefined }}>
-                <div className="text-muted" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  {label}
-                </div>
-                <div className="numeric" style={{ fontWeight: 800, fontSize: 20 }}>{value}</div>
+          {/* Battle stats — these carry the Shadow multipliers, unlike the
+              hero's CP/level, which don't. */}
+          <div className="stat-strip">
+            {(
+              [
+                ['Attack', entry.atk.toFixed(1)],
+                ['Defense', entry.def.toFixed(1)],
+                ['Stamina', String(entry.hp)],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="stat-cell">
+                <span className="stat-cell-label">{label}</span>
+                <span className="stat-cell-value numeric">{value}</span>
               </div>
             ))}
           </div>
 
-          <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="stagger detail-list">
             {(
               [
                 ['Stat product', `${(entry.sp / 1000).toFixed(2)}k`],
@@ -235,9 +205,9 @@ export function ReportScreen() {
                 ['Best league here', `${bestLeague.league.name} · #${bestLeague.rank}`],
               ] as [string, string][]
             ).map(([label, value], i) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, ['--i' as string]: i }}>
-                <span className="text-muted">{label}</span>
-                <span className="numeric">{value}</span>
+              <div key={label} className="detail-row" style={{ ['--i' as string]: i }}>
+                <span className="detail-label">{label}</span>
+                <span className="detail-value numeric">{value}</span>
               </div>
             ))}
           </div>

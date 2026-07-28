@@ -24,6 +24,114 @@
   --lg-master-accent: #d94fb4;
 }
 
+/* ── species hero ──────────────────────────────────────────────────────────
+   Lives here because the stage is league-tinted; the tokens are next door. */
+.hero {
+  border: var(--border-hairline) solid var(--rule-strong);
+  background: var(--surface-2);
+}
+
+.hero-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  /* Light pooling under the subject, plus a faint survey grid, so the sprite
+     stands on something instead of floating on a flat panel. */
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--lg) 45%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--lg-deep) 45%, transparent), transparent 65%),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
+    var(--surface-1);
+  border-bottom: var(--border-hairline) solid color-mix(in srgb, var(--lg) 40%, transparent);
+}
+/* Contact shadow — grounds the sprite against the stage. */
+.hero-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 46%;
+  height: 9px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--lg-deep) 70%, transparent), transparent 72%);
+  pointer-events: none;
+}
+.hero.is-shadow .hero-stage {
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--shadow-aura) 42%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--shadow-ink) 65%, transparent), transparent 65%),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
+    var(--surface-1);
+  border-bottom-color: color-mix(in srgb, var(--shadow-aura) 45%, transparent);
+}
+
+.hero-dex,
+.hero-league {
+  position: absolute;
+  top: 8px;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+}
+.hero-dex {
+  left: 10px;
+  padding: 2px 7px;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.hero-league { right: 10px; display: grid; place-items: center; opacity: 0.9; }
+
+.hero-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hero-name {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-tight);
+  /* Long form names (Necrozma Dawn Wings) must wrap rather than clip. */
+  overflow-wrap: anywhere;
+}
+.hero-shadow-mark { color: var(--shadow-aura); margin-left: 6px; }
+.hero-shadow-tag { letter-spacing: 0.08em; font-size: 10px; }
+
+.hero-types { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* Vitals read as instrument panel figures, not body copy. */
+.hero-vitals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 2px;
+  background: var(--rule-hairline);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.hero-vital {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  background: var(--surface-2);
+}
+.hero-vital-value {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1;
+}
+.hero-vital-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 .league-tabs {
   display: flex;
   align-items: flex-end;

@@ -110,28 +110,32 @@ export function ReportScreen() {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,340px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
+      {/* Widened from 340px to fit the larger sprite frame without crowding the
+          name beside it. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,390px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
         {/* Left column */}
         <div style={{ borderRight: 'var(--border-strong) solid var(--rule-strong)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          {/* Identity → form → roll. The three things you change sit together at
+              the top; everything below is the readout they produce. */}
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             <HudFrame
               style={{
                 flex: 'none',
-                width: 88,
-                height: 88,
+                width: 132,
+                height: 132,
                 background: 'var(--surface-2)',
                 border: 'var(--border-hairline) solid var(--rule-strong)',
                 display: 'grid',
                 placeItems: 'center',
               }}
             >
-              <Sprite sprite={species.sprite} dex={species.dex} size={80} shadow={isShadow} className="sprite-holo" />
+              <Sprite sprite={species.sprite} dex={species.dex} size={120} shadow={isShadow} className="sprite-holo" />
             </HudFrame>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>
                 #{String(species.dex).padStart(3, '0')}
               </div>
-              <h2 style={{ margin: '2px 0 4px', fontSize: 28 }}>
+              <h2 style={{ margin: '2px 0 4px', fontSize: 26 }}>
                 {species.name}
                 {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
               </h2>
@@ -148,6 +152,29 @@ export function ReportScreen() {
               </div>
             </div>
           </div>
+
+          <div>
+            <FormToggle
+              shadow={isShadow}
+              eligible={species.shadowEligible}
+              onChange={(v) => set('shadow', v)}
+              speciesName={species.name}
+            />
+            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
+              {species.shadowEligible
+                ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
+                : 'No Shadow form exists for this Pokémon.'}
+            </div>
+          </div>
+
+          <div>
+            <div className="hud-label" style={{ marginBottom: 8 }}>
+              <span>Adjust roll</span>
+            </div>
+            <IVAdjuster iv={iv} onBump={bumpIv} />
+          </div>
+
+          <hr className="hr" style={{ margin: '2px 0' }} />
 
           <HudFrame
             signal
@@ -218,33 +245,11 @@ export function ReportScreen() {
             ))}
           </div>
 
-          <hr className="hr" style={{ margin: '2px 0' }} />
-
+          {/* Sits with the other numbers rather than beside the toggle: the
+              control belongs at the top, but this is a readout of its effect. */}
           <div>
-            <div className="hud-label" style={{ marginBottom: 8 }}>
-              <span>Adjust roll</span>
-            </div>
-            <IVAdjuster iv={iv} onBump={bumpIv} />
-          </div>
-
-          <div>
-            <div className="hud-label" style={{ marginBottom: 8 }}>
-              <span>Form</span>
-            </div>
-            <FormToggle
-              shadow={isShadow}
-              eligible={species.shadowEligible}
-              onChange={(v) => set('shadow', v)}
-              speciesName={species.name}
-            />
-            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
-              {species.shadowEligible
-                ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
-                : 'No Shadow form exists for this Pokémon.'}
-            </div>
-
             {shadowCompare && (
-              <table className="table numeric" style={{ marginTop: 10, fontSize: 12 }}>
+              <table className="table numeric" style={{ fontSize: 12 }}>
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left' }}>vs {opp.name}</th>

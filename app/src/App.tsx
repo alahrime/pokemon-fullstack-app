@@ -4,7 +4,8 @@ import { SegButton, SegGroup } from './components/Seg';
 import { SpeciesSearch } from './components/SpeciesSearch';
 import { ThemeSwitch } from './components/ThemeSwitch';
 import { HudGround } from './components/Hud';
-import { LEAGUES, opponentsFor } from './lib/data';
+import { LeagueTabs } from './components/LeagueTabs';
+import { opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
@@ -35,17 +36,10 @@ function Nav() {
           </SegButton>
         ))}
       </SegGroup>
-      <SegGroup>
-        {LEAGUES.map((lg) => (
-          <SegButton
-            key={lg.id}
-            active={state.league === lg.id}
-            onClick={() => patch({ league: lg.id, oppId: opponentsFor(lg.id)[0]?.id ?? '' })}
-          >
-            {lg.label}
-          </SegButton>
-        ))}
-      </SegGroup>
+      <LeagueTabs
+        value={state.league}
+        onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}
+      />
       <ThemeSwitch />
     </div>
   );

@@ -18,6 +18,7 @@
 @import './styles/motion.css';
 @import './styles/hud.css';
 @import './styles/types.css';
+@import './styles/leagues.css';
 
 #root {
   min-height: 100vh;

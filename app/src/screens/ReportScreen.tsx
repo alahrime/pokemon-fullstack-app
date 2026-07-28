@@ -21,6 +21,7 @@ import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
 import { MovepoolPicker } from '../components/MovepoolPicker';
 import { FormToggle } from '../components/FormToggle';
+import { TypeBadge } from '../components/TypeBadge';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
@@ -141,9 +142,7 @@ export function ReportScreen() {
               </h2>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
                 {species.types.map((t) => (
-                  <span key={t} className="tag tag-neutral" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>
-                    {t}
-                  </span>
+                  <TypeBadge key={t} type={t} />
                 ))}
                 {isShadow ? <span className="tag tag-shadow" style={{ letterSpacing: '0.08em', fontSize: 10 }}>SHADOW</span> : null}
               </div>

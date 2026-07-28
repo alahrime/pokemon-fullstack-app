@@ -17,6 +17,7 @@
 @import './styles/components.css';
 @import './styles/motion.css';
 @import './styles/hud.css';
+@import './styles/types.css';
 
 #root {
   min-height: 100vh;

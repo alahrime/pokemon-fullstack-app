@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPE COLOURS
+
+   The 18 Pokémon types have canonical colours that players read faster than
+   they read the word. These sit outside the theme system deliberately: they
+   are brand constants, not design tokens, and must not shift between HUD and
+   modernist. Only their *treatment* (fill opacity, text contrast) adapts.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --type-normal: #a8a77a;
+  --type-fire: #ee8130;
+  --type-water: #6390f0;
+  --type-electric: #f7d02c;
+  --type-grass: #7ac74c;
+  --type-ice: #96d9d6;
+  --type-fighting: #c22e28;
+  --type-poison: #a33ea1;
+  --type-ground: #e2bf65;
+  --type-flying: #a98ff3;
+  --type-psychic: #f95587;
+  --type-bug: #a6b91a;
+  --type-rock: #b6a136;
+  --type-ghost: #735797;
+  --type-dragon: #6f35fc;
+  --type-dark: #705746;
+  --type-steel: #b7b7ce;
+  --type-fairy: #d685ad;
+}
+
+/* ── badge ─────────────────────────────────────────────────────────────────
+   `--type` is set inline per badge from the type name, so one rule covers all
+   eighteen rather than eighteen near-identical blocks. */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 5px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.6;
+  border-radius: var(--radius-sm);
+  color: var(--type, var(--color-text));
+  background: color-mix(in srgb, var(--type, var(--color-text)) 16%, transparent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 45%, transparent);
+}
+
+/* On the light ground the raw hues are too pale to read as text, so the badge
+   inverts: saturated fill, near-white label. */
+:root[data-theme='modernist'] .type-badge {
+  color: #fff;
+  background: var(--type, var(--color-text));
+  border-color: color-mix(in srgb, #000 18%, var(--type, var(--color-text)));
+}
+
+/* Glyph colour comes from `background-color: currentColor` behind a CSS mask
+   (see TypeBadge.tsx), so it inherits the badge's text colour automatically and
+   stays correct in both themes — accent hue on dark, knocked out to white on
+   the saturated light fill. No per-type image variants, no filter hacks. */

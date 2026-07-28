@@ -9,6 +9,7 @@ import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton } from '../components/Seg';
 import { BattleTimeline } from '../components/BattleTimeline';
 import { HudLabel } from '../components/Hud';
+import { TypeBadge } from '../components/TypeBadge';
 
 const SHIELD_LABELS = ['0 shields', '1 shield', '2 shields'];
 
@@ -69,9 +70,7 @@ function Side({
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '2px 0 4px' }}>
             {species.types.map((t) => (
-              <span key={t} className="tag tag-neutral" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>
-                {t}
-              </span>
+              <TypeBadge key={t} type={t} />
             ))}
           </div>
           <div className="text-muted numeric" style={{ fontSize: 12 }}>

@@ -4,9 +4,11 @@ import { SegButton, SegGroup } from './components/Seg';
 import { SpeciesSearch } from './components/SpeciesSearch';
 import { ThemeSwitch } from './components/ThemeSwitch';
 import { HudGround } from './components/Hud';
-import { LEAGUES, opponentsFor } from './lib/data';
+import { LeagueTabs } from './components/LeagueTabs';
+import { opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
+import { SpriteAudit } from './screens/SpriteAudit';
 
 const SCREENS: [Screen, string][] = [
   ['report', 'Report'],
@@ -24,8 +26,8 @@ function Nav() {
         id="nav-species"
         value={state.species}
         onChange={(id) => patch({ species: id, moveIdx: 0 })}
-        placeholder="Search species…"
-        style={{ width: 200 }}
+        placeholder="Search 1123 species…"
+        style={{ width: 220 }}
       />
       <SegGroup>
         {SCREENS.map(([id, label]) => (
@@ -34,24 +36,21 @@ function Nav() {
           </SegButton>
         ))}
       </SegGroup>
-      <SegGroup>
-        {LEAGUES.map((lg) => (
-          <SegButton
-            key={lg.id}
-            active={state.league === lg.id}
-            onClick={() => patch({ league: lg.id, oppId: opponentsFor(lg.id)[0]?.id ?? '' })}
-          >
-            {lg.label}
-          </SegButton>
-        ))}
-      </SegGroup>
+      <LeagueTabs
+        value={state.league}
+        onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}
+      />
       <ThemeSwitch />
     </div>
   );
 }
 
+/** Diagnostics reachable by query string, kept out of the nav. */
+const AUDIT = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('audit');
+
 function Screens() {
   const { state } = useAppState();
+  if (AUDIT === 'sprites') return <SpriteAudit />;
   // Keyed on the screen id so React remounts the subtree and the enter
   // animation replays on every switch.
   switch (state.screen) {

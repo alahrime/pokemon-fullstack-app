@@ -1,5 +1,5 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
-import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor } from './data';
+import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor, parseRef } from './data';
 import type {
   BattleLogEntry,
   BattleMon,
@@ -50,28 +50,66 @@ export function dmg(atk: number, def: number, move: FastMove | ChargeMove): numb
   return Math.floor(0.5 * move.power * (atk / def) * move.stab) + 1;
 }
 
+/**
+ * Shadow multipliers, as the game applies them: ×6/5 attack, ×5/6 defense.
+ *
+ * Note 1.2 × (5/6) === 1 exactly, so a Shadow's stat product - and therefore
+ * its rank within the 4096 - is identical to its non-Shadow counterpart. CP is
+ * likewise unchanged, because CP is derived from base stats and IVs before any
+ * Shadow adjustment. So the multipliers are applied *after* sp/cp/rank are
+ * computed, touching only the battle stats that feed damage, breakpoints,
+ * bulkpoints and the simulator.
+ *
+ * The practical upshot, worth knowing when reading the report: going Shadow
+ * never moves your rank. It moves every damage threshold.
+ */
+export const SHADOW_ATK_MULT = 6 / 5;
+export const SHADOW_DEF_MULT = 5 / 6;
+
 const tableCache = new Map<string, SpeciesTable>();
 
-export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
-  const key = `${speciesId}|${leagueId}`;
+/**
+ * Tables are keyed by *ref*, not plain species id - `machamp` and
+ * `machamp_shadow` are separate tables. Parsing the suffix here rather than
+ * threading a boolean means every existing call site (opponents, flip grids,
+ * rulers, the simulator) supports Shadow without a signature change.
+ */
+export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
+  const key = `${ref}|${leagueId}`;
   const cached = tableCache.get(key);
   if (cached) return cached;
 
-  // Merged lookup (curated roster ∪ broad opponent pool): opponents scanned
-  // for breakpoint/bulkpoint relevance need their own ranked table too, not
-  // just the curated main roster.
-  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
+  const aMult = shadow ? SHADOW_ATK_MULT : 1;
+  const dMult = shadow ? SHADOW_DEF_MULT : 1;
   const all: RankedEntry[] = [];
   for (let a = 0; a < 16; a++) {
     for (let d = 0; d < 16; d++) {
       for (let s = 0; s < 16; s++) {
         const r = bestAt(species, { a, d, s }, league);
-        all.push({ a, d, s, ...r, rank: 0 });
+        // sp / cp / lvl stay on the unadjusted stats; only the battle stats scale.
+        all.push({ a, d, s, ...r, atk: r.atk * aMult, def: r.def * dMult, rank: 0 });
       }
     }
   }
-  const sorted = all.slice().sort((x, y) => y.sp - x.sp);
+  // Stat-product ties are common — HP is floored, so e.g. 15/15/14 and
+  // 15/15/15 frequently produce an identical product. A plain `y.sp - x.sp`
+  // sort then resolved them by insertion order, which put the *lower* IV
+  // first: 211 species reported a rank-1 of 15/15/14 in Master purely as a
+  // sort artifact. On a tie, prefer the strictly better roll — higher IV
+  // total, then HP, then defense — so rank 1 is the spread you'd actually want.
+  const sorted = all
+    .slice()
+    .sort(
+      (x, y) =>
+        y.sp - x.sp ||
+        y.a + y.d + y.s - (x.a + x.d + x.s) ||
+        y.s - x.s ||
+        y.d - x.d ||
+        y.a - x.a,
+    );
   sorted.forEach((e, i) => {
     e.rank = i + 1;
   });
@@ -89,8 +127,8 @@ export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
   return out;
 }
 
-export function getEntry(speciesId: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
-  const table = getTable(speciesId, leagueId);
+export function getEntry(ref: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
+  const table = getTable(ref, leagueId);
   return { entry: table.map.get(ivKey(iv))!, table };
 }
 
@@ -116,9 +154,13 @@ export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league
 // attack and understates their bulk. Using each species' own table.best
 // keeps the comparison "relative to itself."
 export interface OpponentInfo {
+  /** The ref, Shadow suffix included - round-trips with state and selection. */
   id: string;
   dex: number;
   name: string;
+  /** Sprite slug of the underlying form (Shadows reuse the base artwork). */
+  sprite: string;
+  shadow: boolean;
   types: string[];
   atk: number;
   def: number;
@@ -135,13 +177,110 @@ export function chargesOf(chargeMove: ChargeMove, chargeMove2: ChargeMove | null
   return chargeMove2 ? [chargeMove, chargeMove2] : [chargeMove];
 }
 
-export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
-  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
-  const best = getTable(speciesId, leagueId).best;
+/**
+ * Resolve a chosen charged-move set against a species' full movepool.
+ *
+ * An empty or unresolvable selection falls back to PvPoke's recommended pair,
+ * so state that predates movepool selection - or a selection carried over from
+ * a different species - still produces a valid mon rather than an empty one.
+ */
+export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] {
+  if (!ids || ids.length === 0) return chargesOf(species.chargeMove, species.chargeMove2);
+  const picked = ids
+    .map((id) => species.chargeMoves.find((m) => m.id === id))
+    .filter((m): m is ChargeMove => !!m);
+  return picked.length ? picked : chargesOf(species.chargeMove, species.chargeMove2);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Move economics
+//
+// Everything a player compares moves on is a ratio, and all of them fall out
+// of four numbers: power, energy, turns and STAB. Displayed damage is always
+// STAB-adjusted — Lickilicky's Body Slam reads 66, not its raw 55.
+// ══════════════════════════════════════════════════════════════════════════
+
+/** In-game energy ceiling. Overflow past this is lost, not banked. */
+const ENERGY_CAP = 100;
+
+export interface FastMoveStats {
+  /** STAB-adjusted power. */
+  damage: number;
+  /** Battle turns; one turn is 500ms. */
+  turns: number;
+  seconds: number;
+  energyGain: number;
+  /** Damage per turn. */
+  dpt: number;
+  /** Energy per turn — the number that decides how fast you reach a charge move. */
+  ept: number;
+}
+
+export function fastMoveStats(m: FastMove): FastMoveStats {
+  const damage = m.power * m.stab;
   return {
-    id: species.id,
+    damage,
+    turns: m.turns,
+    seconds: m.turns * 0.5,
+    energyGain: m.energyGain,
+    dpt: damage / m.turns,
+    ept: m.energyGain / m.turns,
+  };
+}
+
+export interface ChargeMoveStats {
+  /** STAB-adjusted power. */
+  damage: number;
+  energy: number;
+  /** Damage per energy — the standard efficiency measure. */
+  dpe: number;
+}
+
+export function chargeMoveStats(m: ChargeMove): ChargeMoveStats {
+  const damage = m.power * m.stab;
+  return { damage, energy: m.energy, dpe: m.energy > 0 ? damage / m.energy : 0 };
+}
+
+/**
+ * How many fast moves each successive charge move costs.
+ *
+ * The first throw starts from empty, but every throw after it begins with
+ * whatever energy overflowed the last one — you almost never land exactly on
+ * the cost. That residue accumulates, so the count drifts down and eventually
+ * cycles.
+ *
+ * Lickilicky is the worked example: Rollout gains 13, Body Slam costs 35, so
+ * the sequence is 3-3-3-2. Three Rollouts bank 39 for the first throw, leaving
+ * 4; by the fourth throw enough residue has piled up that two Rollouts suffice.
+ * Solar Beam at 80 gives 7-6-6-6 for the same reason.
+ *
+ * Energy is capped at 100 in game, so surplus past that is dropped rather than
+ * carried — it can't matter at these numbers, but the cap is the rule.
+ */
+export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): number[] {
+  if (fast.energyGain <= 0) return [];
+  const out: number[] = [];
+  let energy = 0;
+  for (let i = 0; i < throws; i++) {
+    const need = Math.max(0, charge.energy - energy);
+    const n = Math.ceil(need / fast.energyGain);
+    energy = Math.min(ENERGY_CAP, energy + n * fast.energyGain) - charge.energy;
+    out.push(n);
+  }
+  return out;
+}
+
+export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
+  // best.atk/def already carry the Shadow multipliers when ref is a Shadow.
+  const best = getTable(ref, leagueId).best;
+  return {
+    id: ref,
     dex: species.dex,
-    name: species.name,
+    name: shadow ? `${species.name} (Shadow)` : species.name,
+    sprite: species.sprite,
+    shadow,
     types: species.types,
     atk: best.atk,
     def: best.def,
@@ -179,6 +318,287 @@ export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: F
 
 export type RelevanceKind = 'break' | 'bulk' | 'either';
 
+// ══════════════════════════════════════════════════════════════════════════
+// Nuanced opponent selection
+//
+// The old filter asked "does any damage number change across the 4096?" That
+// over-selects (about half of all matchups have *some* bulkpoint) and, worse,
+// it under-selects: it threw away matchups with no threshold at all that are
+// nonetheless decided by IVs. Two real cases it missed —
+//
+//   1. CMP. Simultaneous charge moves resolve by raw attack (see battle()'s
+//      `a.atk >= b.atk`). So the threshold is *exactly* the opponent's attack
+//      stat. If your 4096 attack range straddles it, some spreads throw first
+//      and some don't, which can flip a shielded scenario outright. Sableye
+//      into Feraligatr is the canonical one.
+//   2. HP. Surviving one extra fast hit is a function of total HP, not of
+//      damage-per-hit, so a matchup can flip with no breakpoint or bulkpoint
+//      anywhere in it.
+//
+// So instead of asking about thresholds, we ask the question the player
+// actually has: *does my IV roll change who wins?* That means simulating.
+//
+// Cost control: simulating all 4096 spreads against ~200 candidates across 3
+// shield scenarios is millions of battles. Outcomes are near-monotonic in the
+// underlying stats, so we probe the extremes of the space plus the two
+// spreads straddling the CMP threshold — the points where a flip can occur —
+// and check whether the verdict differs between them.
+// ══════════════════════════════════════════════════════════════════════════
+
+/** Why a matchup is worth a player's attention, strongest signal first. */
+export interface OpponentRelevance {
+  info: OpponentInfo;
+  score: number;
+  /** Shield counts (0/1/2, symmetric) where the IV roll changes who wins. */
+  flipShields: number[];
+  /** Opponent's attack sits inside our reachable attack range, so IVs decide CMP. */
+  cmpContested: boolean;
+  /** Rank of the best spread that wins charge-move priority, null if unaffordable. */
+  cmpCost: number | null;
+  hasBreak: boolean;
+  hasBulk: boolean;
+  /** Tightest absolute HP margin seen across probes, in percent. */
+  closest: number;
+  /** Short human-readable justification for the chip. */
+  reason: string;
+}
+
+/**
+ * Where probe spreads come from.
+ *
+ * Two failure modes had to be avoided, and they pull in opposite directions:
+ *
+ *   Too wide. Probing the true corners (15/0/0 against 0/15/15) flips almost
+ *   every matchup — an early run had every candidate reporting "flips at 0, 1
+ *   and 2 shields", which is technically true and completely useless.
+ *
+ *   Too narrow. Restricting to the top 5% by stat product silently discards
+ *   the high-attack rolls, because attack costs stat product. That threw away
+ *   the single most interesting case: Sableye's cheapest spread that wins CMP
+ *   against Feraligatr is rank 247 — clearly keepable — but its attack sits
+ *   above everything in the top 5%, so the matchup vanished entirely.
+ *
+ * So the bulk/attack extremes are drawn from a competitive band, while the CMP
+ * straddle is found over the *whole* table and admitted only if the spread
+ * that wins it is one you'd actually keep. That also yields the rank you'd
+ * have to accept, which is the real decision.
+ */
+const PROBE_BAND = 0.25;
+/** Matches verdictLine's "usable" cutoff — beyond this, it isn't a real option. */
+const KEEPABLE_RANK = 1500;
+
+/**
+ * Minimum IV worth considering in an uncapped league.
+ *
+ * Great and Ultra reward a deliberately low attack IV — it buys extra level
+ * under the cap — so the whole 4096 is legitimately in play. Master has no cap
+ * and no such trade-off: every mon sits at level 50 and every IV point is
+ * strictly better, so a sub-perfect roll is never a *choice*, just a worse
+ * Pokémon. Probing 15/15/0 against 15/0/15 there would manufacture "flips"
+ * between two spreads no serious player would field.
+ */
+const UNCAPPED_IV_FLOOR = 13;
+
+type ProbeLabel = 'rank1' | 'atk' | 'def' | 'hp' | 'cmp+' | 'cmp-';
+
+interface Probe {
+  label: ProbeLabel;
+  entry: RankedEntry;
+}
+
+interface ProbeSet {
+  probes: Probe[];
+  /** Rank of the best spread that wins charge-move priority, if affordable. */
+  cmpCost: number | null;
+}
+
+function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
+  // Uncapped: only near-perfect rolls are real options, so the band is an IV
+  // floor rather than a slice of the stat-product ranking.
+  const band = table.league.uncapped
+    ? table.all.filter((e) => e.a >= UNCAPPED_IV_FLOOR && e.d >= UNCAPPED_IV_FLOOR && e.s >= UNCAPPED_IV_FLOOR)
+    : table.all.slice(0, Math.max(8, Math.round(table.all.length * PROBE_BAND)));
+
+  let maxAtk = band[0];
+  let maxDef = band[0];
+  let maxHp = band[0];
+  for (const e of band) {
+    if (e.atk > maxAtk.atk) maxAtk = e;
+    if (e.def > maxDef.def) maxDef = e;
+    if (e.hp > maxHp.hp) maxHp = e;
+  }
+
+  // Best-ranked spread on each side of the priority threshold, over the full
+  // space — table.all is already sorted by stat product, so first match wins.
+  let cmpWinner: RankedEntry | null = null;
+  let cmpLoser: RankedEntry | null = null;
+  for (const e of table.all) {
+    if (!cmpWinner && e.atk >= oppAtk) cmpWinner = e;
+    else if (!cmpLoser && e.atk < oppAtk) cmpLoser = e;
+    if (cmpWinner && cmpLoser) break;
+  }
+
+  const out: Probe[] = [
+    { label: 'rank1', entry: table.best },
+    { label: 'atk', entry: maxAtk },
+    { label: 'def', entry: maxDef },
+    { label: 'hp', entry: maxHp },
+  ];
+
+  const affordable = cmpWinner && cmpWinner.rank <= KEEPABLE_RANK;
+  if (affordable && cmpWinner && cmpLoser) {
+    out.push({ label: 'cmp+', entry: cmpWinner });
+    out.push({ label: 'cmp-', entry: cmpLoser });
+  }
+
+  const seen = new Set<number>();
+  const probes = out.filter((p) => {
+    const k = ivKey(p.entry);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  return { probes, cmpCost: affordable && cmpLoser ? cmpWinner!.rank : null };
+}
+
+const SHIELD_SCENARIOS = [0, 1, 2];
+
+const relevanceCache = new Map<string, OpponentRelevance[]>();
+
+/**
+ * Scores every candidate in the league by how much the IV roll matters, and
+ * returns the most decision-relevant first.
+ */
+export function rankedOpponents(
+  ref: string,
+  leagueId: LeagueId,
+  moveIdx: number,
+  kind: RelevanceKind = 'either',
+  limit = 16,
+  chargeIds?: string[],
+): OpponentRelevance[] {
+  const key = `rel|${ref}|${leagueId}|${moveIdx}|${kind}|${limit}|${(chargeIds ?? []).join('+')}`;
+  const cached = relevanceCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
+  const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const table = getTable(ref, leagueId);
+  const myCharges = selectedCharges(species, chargeIds);
+  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== parseRef(ref).id);
+
+  const atkLo = Math.min(...table.all.map((e) => e.atk));
+  const atkHi = Math.max(...table.all.map((e) => e.atk));
+
+  const scored: OpponentRelevance[] = [];
+
+  for (const c of candidates) {
+    const info = opponentInfo(c.id, leagueId);
+    const hasBreak = hasBreakpoint(table, move, info.def);
+    const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
+    // Contested only if a spread you'd keep wins priority and one loses it —
+    // a CMP win that costs rank 3800 is not a decision anyone makes.
+    const cmpContested = info.atk > atkLo && info.atk <= atkHi;
+
+    const foe = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    const { probes, cmpCost } = probeSpreads(table, info.atk);
+
+    const flipShields: number[] = [];
+    let closest = Infinity;
+    // Which lever turns the matchup: attack, bulk, or charge-move priority.
+    let atkDecides = false;
+    let bulkDecides = false;
+    let cmpDecides = false;
+
+    for (const shields of SHIELD_SCENARIOS) {
+      const wins = new Map<ProbeLabel, boolean>();
+      for (const p of probes) {
+        const r = battle(mkBattleMon(p.entry, move, myCharges), foe, shields, shields, 0, 0, false);
+        wins.set(p.label, r.win);
+        const m = Math.abs(r.margin);
+        if (m < closest) closest = m;
+      }
+      const vals = [...wins.values()];
+      if (vals.some(Boolean) && !vals.every(Boolean)) {
+        flipShields.push(shields);
+        // Attribution: the attack-heavy roll wins where the bulky one doesn't
+        // (or vice versa), and the CMP straddle isolates priority specifically.
+        if (wins.get('atk') && wins.get('def') === false) atkDecides = true;
+        if (wins.get('def') && wins.get('atk') === false) bulkDecides = true;
+        if (wins.has('cmp+') && wins.has('cmp-') && wins.get('cmp+') !== wins.get('cmp-')) cmpDecides = true;
+      }
+    }
+
+    // Kind filter: when the user is specifically reading breakpoints, don't
+    // pad the list with matchups that are only bulk-relevant, and vice versa.
+    if (kind === 'break' && !hasBreak && flipShields.length === 0) continue;
+    if (kind === 'bulk' && !hasBulk && flipShields.length === 0) continue;
+
+    const rank = c.leagueRank[leagueId] ?? 9999;
+    const razor = closest < 3;
+
+    // A knife-edge — decided in some shield scenarios but not all — is more
+    // informative than one that swings everywhere, so weight it higher.
+    const knifeEdge = flipShields.length > 0 && flipShields.length < SHIELD_SCENARIOS.length;
+    const score =
+      (flipShields.length > 0 ? 600 : 0) +
+      (knifeEdge ? 400 : 0) +
+      (cmpDecides ? 500 : 0) +
+      // A cheap CMP win is a better tip than an expensive one.
+      (cmpCost != null && cmpCost <= 300 ? 120 : 0) +
+      (atkDecides || bulkDecides ? 200 : 0) +
+      (cmpContested ? 80 : 0) +
+      (hasBreak ? 60 : 0) +
+      (hasBulk ? 40 : 0) +
+      (razor ? 60 : 0) -
+      rank * 0.1;
+
+    // Nothing decidable and not even close: not worth a slot.
+    if (flipShields.length === 0 && !cmpContested && !hasBreak && !hasBulk && !razor) continue;
+
+    const bits: string[] = [];
+    if (cmpDecides) bits.push(cmpCost != null ? `CMP decides it (rank ${cmpCost})` : 'CMP decides it');
+    else if (atkDecides && !bulkDecides) bits.push('Needs attack');
+    else if (bulkDecides && !atkDecides) bits.push('Needs bulk');
+    else if (flipShields.length) bits.push('Spread-decided');
+
+    // Surface the priority tradeoff whenever it's purchasable, even if it
+    // wasn't the deciding lever — "you can win CMP for rank 247" is the kind
+    // of thing worth knowing before you transfer a spread.
+    if (cmpCost != null && !cmpDecides) bits.push(`CMP at rank ${cmpCost}`);
+
+    if (flipShields.length) {
+      bits.push(`flips at ${flipShields.map((s) => (s === 1 ? '1 shield' : `${s}sh`)).join('/')}`);
+    } else if (razor) {
+      bits.push(`within ${closest.toFixed(1)}%`);
+    } else if (cmpContested) {
+      bits.push('CMP contested');
+    } else if (hasBreak) {
+      bits.push('breakpoint');
+    } else {
+      bits.push('bulkpoint');
+    }
+
+    scored.push({
+      info,
+      score,
+      cmpCost,
+      flipShields,
+      cmpContested,
+      hasBreak,
+      hasBulk,
+      closest: closest === Infinity ? 100 : closest,
+      reason: bits.join(' · '),
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.info.name.localeCompare(b.info.name));
+  const out = scored.slice(0, limit);
+  relevanceCache.set(key, out);
+  return out;
+}
+
 const relevantCache = new Map<string, OpponentInfo[]>();
 
 // Scans the broad opponent-candidate pool and keeps only matchups where the
@@ -202,7 +622,7 @@ export function relevantOpponents(
   const cached = relevantCache.get(key);
   if (cached) return cached;
 
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(speciesId, leagueId);
   const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== speciesId);
@@ -243,7 +663,7 @@ export function bpRowsFor(
   opp: OpponentInfo,
 ): ThresholdRow[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const rows: Omit<ThresholdRow, 'met' | 'near'>[] = [];
 
   species.fastMoves.forEach((mv) => {
@@ -324,7 +744,7 @@ export interface RulerData {
 
 export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: OpponentInfo): RulerData[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const atks = table.all.map((x) => x.atk);
   const aMin = Math.min(...atks);
   const aMax = Math.max(...atks);
@@ -443,7 +863,8 @@ export function buildHeatCells(
   moveIdx: number,
   colorBy: 'rank' | 'break' | 'bulk',
 ): HeatCell[] {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
+  const pal = paletteFor(species);
   const { table } = getEntry(speciesId, iv, leagueId);
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
 
@@ -461,15 +882,15 @@ export function buildHeatCells(
     let bg: string;
     let label: string;
     if (colorBy === 'rank') {
-      bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin));
+      bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin), pal);
       label = `#${entry.rank}`;
     } else if (colorBy === 'break') {
       const dv = dmg(entry.atk, opp.def, mv);
-      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `${dv} dmg / ${mv.turns}t`;
     } else {
       const dv = dmg(opp.atk, entry.def, opp.fastMove);
-      bg = tierColor(tiers.indexOf(dv), tiers.length);
+      bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `takes ${dv}`;
     }
     return {
@@ -520,7 +941,21 @@ function pickCharge(roles: ChargeRoles, energy: number, oppShields: number): Cha
   return null;
 }
 
-export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number, energyA = 0, energyB = 0): BattleResult {
+/**
+ * `collectLog: false` skips building the per-turn log. The relevance scorer
+ * runs thousands of sims and only reads win/margin; allocating a log object
+ * per turn dominated that sweep. Same simulation either way - one branch, no
+ * parallel implementation to drift.
+ */
+export function battle(
+  a: BattleMon,
+  b: BattleMon,
+  shieldsA: number,
+  shieldsB: number,
+  energyA = 0,
+  energyB = 0,
+  collectLog = true,
+): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
   let eA = energyA;
@@ -550,7 +985,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sB--;
           hpB -= damage;
           tA = a.fast.turns;
-          log.push({
+          if (collectLog) log.push({
             turn,
             actor: 'A',
             kind: 'charge',
@@ -571,7 +1006,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sA--;
           hpA -= damage;
           tB = b.fast.turns;
-          log.push({
+          if (collectLog) log.push({
             turn,
             actor: 'B',
             kind: 'charge',
@@ -592,7 +1027,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
       hpB -= fA;
       eA = Math.min(100, eA + a.fast.energyGain);
       tA = a.fast.turns;
-      log.push({
+      if (collectLog) log.push({
         turn,
         actor: 'A',
         kind: 'fast',
@@ -610,7 +1045,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
       hpA -= fB;
       eB = Math.min(100, eB + b.fast.energyGain);
       tB = b.fast.turns;
-      log.push({
+      if (collectLog) log.push({
         turn,
         actor: 'B',
         kind: 'fast',
@@ -661,24 +1096,56 @@ export function shortVerdict(rank: number): string {
   return 'Transfer';
 }
 
-// ── Heatmap cell color helpers ──
-export function cellColorMix(pct: number): string {
-  const w = Math.round(Math.pow(Math.max(0, Math.min(1, pct)), 2.2) * 100);
-  return `color-mix(in srgb, var(--color-accent) ${w}%, var(--color-neutral-200))`;
+// ── Heatmap palette ──────────────────────────────────────────────────────
+//
+// The ramp used to run from neutral to the app accent, so every species got
+// the same orange heatmap regardless of what it was. It now derives from the
+// Pokémon's own typing: intensity still encodes the metric, but hue travels
+// from the primary type to the secondary as the value climbs, giving each
+// species a recognisable palette. Mono-types collapse to a single hue, which
+// is the correct degenerate case rather than a special one.
+//
+// Expressed as nested color-mix() so the values stay CSS: the 3D terrain
+// resolves them through the browser (see lib/cssColor.ts), which means the
+// flat grid and the terrain can't drift apart.
+
+export interface HeatPalette {
+  /** Primary type colour — the low end of the ramp. */
+  a: string;
+  /** Secondary type colour, or the primary again for mono-types. */
+  b: string;
 }
 
-const TIER_STEPS = [
-  'var(--color-neutral-200)',
-  'var(--color-accent-200)',
-  'var(--color-accent-400)',
-  'var(--color-accent-500)',
-  'var(--color-accent-600)',
-  'var(--color-accent-700)',
-];
+export function paletteFor(species: Species): HeatPalette {
+  const t = species.types.filter(Boolean);
+  const a = t[0] ? `var(--type-${t[0]})` : 'var(--color-accent)';
+  return { a, b: t[1] ? `var(--type-${t[1]})` : a };
+}
 
-export function tierColor(i: number, n: number): string {
-  if (n <= 1) return TIER_STEPS[2];
-  return TIER_STEPS[Math.min(TIER_STEPS.length - 1, Math.round((i / (n - 1)) * (TIER_STEPS.length - 1)))];
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+/** Hue at position `t` along the ramp, primary → secondary. */
+function hueAt(pal: HeatPalette, t: number): string {
+  return pal.a === pal.b ? pal.a : `color-mix(in srgb, ${pal.b} ${Math.round(clamp01(t) * 100)}%, ${pal.a})`;
+}
+
+export function cellColorMix(pct: number, pal: HeatPalette): string {
+  const p = clamp01(pct);
+  // Gamma keeps the crowded top of the rank distribution from washing out.
+  const w = Math.round(Math.pow(p, 2.2) * 100);
+  return `color-mix(in srgb, ${hueAt(pal, p)} ${w}%, var(--color-neutral-200))`;
+}
+
+export function tierColor(i: number, n: number, pal: HeatPalette): string {
+  const t = n <= 1 ? 0.5 : i / (n - 1);
+  // Discrete tiers need a floor, or the lowest band is invisible.
+  const w = Math.round(16 + t * 84);
+  return `color-mix(in srgb, ${hueAt(pal, t)} ${w}%, var(--color-neutral-200))`;
+}
+
+/** Ramp samples for the legend, so swatches and cells can't disagree. */
+export function paletteRamp(pal: HeatPalette, steps: number): string[] {
+  return Array.from({ length: steps }, (_, i) => tierColor(steps - 1 - i, steps, pal));
 }
 
 // ── Matchup flips: which IV spreads flip a shielded/CMP scenario from loss to win ──
@@ -698,31 +1165,41 @@ export interface FlipGrid {
 
 const flipCache = new Map<string, FlipGrid>();
 
+/**
+ * `shieldsTheirs` defaults to `shieldsMine` so existing symmetric callers are
+ * unchanged, but the two are independent: shielding is rarely even, and a
+ * spread that wins 1v1 can lose 1v2.
+ */
 export function flipGrid(
   speciesId: string,
   iv: IV,
   leagueId: LeagueId,
   oppSpeciesId: string,
   moveIdx: number,
-  shields: number,
+  shieldsMine: number,
+  chargeIds?: string[],
+  shieldsTheirs: number = shieldsMine,
 ): FlipGrid {
-  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shields, iv.s].join('|');
+  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shieldsMine, shieldsTheirs, iv.s, (chargeIds ?? []).join('+')].join('|');
   const cached = flipCache.get(key);
   if (cached) return cached;
 
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const opp = opponentInfo(oppSpeciesId, leagueId);
   const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const myCharges = chargesOf(species.chargeMove, species.chargeMove2);
+  const myCharges = selectedCharges(species, chargeIds);
 
   const slice: RankedEntry[] = [];
   for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
 
   const results: FlipCellResult[] = slice.map((entry) => ({
     entry,
-    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shields, shields),
+    // No log: the grid only ever reads win/margin, but these 256 results are
+    // cached indefinitely and a full turn log per cell is a large retained
+    // allocation for data nothing looks at.
+    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shieldsMine, shieldsTheirs, 0, 0, false),
   }));
   const winners = results.filter((o) => o.result.win);
   const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
@@ -740,23 +1217,31 @@ export interface FlipMatchupRow {
   flips: number;
 }
 
+/**
+ * One row per opponent, three cells = *your* shield count 0/1/2 against a
+ * fixed opponent count. Previously both sides moved together, which could only
+ * ever show the symmetric diagonal; holding theirs fixed is what makes the
+ * asymmetric scenarios comparable across opponents.
+ */
 export function flipMatchupRows(
   speciesId: string,
   iv: IV,
   leagueId: LeagueId,
   moveIdx: number,
   opponentIds: string[],
+  chargeIds?: string[],
+  shieldsTheirs?: number,
 ): FlipMatchupRow[] {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const you = mkBattleMon(entry, myFast, chargesOf(species.chargeMove, species.chargeMove2));
+  const you = mkBattleMon(entry, myFast, selectedCharges(species, chargeIds));
 
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);
     const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
-    const cells = [0, 1, 2].map((sh) => {
-      const r = battle(you, foe, sh, sh);
+    const cells = [0, 1, 2].map((mine) => {
+      const r = battle(you, foe, mine, shieldsTheirs ?? mine, 0, 0, false);
       return { win: r.win, margin: r.margin };
     });
     return {
@@ -771,4 +1256,51 @@ export function flipMatchupRows(
 // ── Head-to-head battle simulator: full 3x3 shield-count matrix ──
 export function shieldMatrix(a: BattleMon, b: BattleMon, energyA = 0, energyB = 0): BattleResult[][] {
   return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB)));
+}
+
+/** One outcome cell: everything the scenario picker needs to render. */
+export interface ScenarioCell {
+  win: boolean;
+  margin: number;
+}
+
+const scenarioCache = new Map<string, ScenarioCell[][]>();
+
+/**
+ * All nine shield scenarios for *this exact spread* against one opponent,
+ * indexed [yourShields][theirShields].
+ *
+ * Distinct from flipGrid, which sweeps 256 spreads at one scenario; this is
+ * one spread across every scenario. Keyed on the full IV rather than just the
+ * HP slice, because unlike the grid it depends on the specific roll.
+ *
+ * Logs are skipped — nothing here reads them, and nine simulations per
+ * keystroke of the IV adjuster is worth keeping cheap.
+ */
+export function scenarioMatrix(
+  ref: string,
+  iv: IV,
+  leagueId: LeagueId,
+  oppRef: string,
+  moveIdx: number,
+  chargeIds?: string[],
+): ScenarioCell[][] {
+  const key = [ref, leagueId, oppRef, moveIdx, ivKey(iv), (chargeIds ?? []).join('+')].join('|');
+  const cached = scenarioCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
+  const { entry } = getEntry(ref, iv, leagueId);
+  const opp = opponentInfo(oppRef, leagueId);
+  const you = mkBattleMon(entry, species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)], selectedCharges(species, chargeIds));
+  const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
+
+  const out = [0, 1, 2].map((mine) =>
+    [0, 1, 2].map((theirs) => {
+      const r = battle(you, foe, mine, theirs, 0, 0, false);
+      return { win: r.win, margin: r.margin };
+    }),
+  );
+  scenarioCache.set(key, out);
+  return out;
 }

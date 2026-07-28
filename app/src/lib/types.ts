@@ -1,7 +1,12 @@
 export interface FastMove {
   id: string;
   name: string;
+  /** Move type, for the icon and colour. */
+  type: string;
+  /** PvPoke's own label — "Spam/Bait", "Nuke", "Fast Charge"… */
+  archetype: string | null;
   power: number;
+  /** Duration in 500ms battle turns. */
   turns: number;
   energyGain: number;
   stab: number;
@@ -10,6 +15,8 @@ export interface FastMove {
 export interface ChargeMove {
   id: string;
   name: string;
+  type: string;
+  archetype: string | null;
   power: number;
   energy: number;
   stab: number;
@@ -19,15 +26,35 @@ export interface Species {
   id: string;
   dex: number;
   name: string;
+  /** Sprite slug (form-aware). See lib/data.ts spriteUrl. */
+  sprite: string;
   types: string[];
   atk: number;
   def: number;
   hp: number;
+  /** Subset of PvPoke tags worth surfacing: legendary, mythical, mega, etc. */
+  tags: string[];
+  /** Whether a Shadow variant of this form exists in the game. */
+  shadowEligible: boolean;
   fastMoves: FastMove[];
+  /** Full charged movepool. */
+  chargeMoves: ChargeMove[];
+  /** Recommended default pair, from PvPoke's ranked moveset. */
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
   leagues: string[];
   leagueRank: Partial<Record<LeagueId, number>>;
+  /** Ranks of this form's Shadow variant, where it's ranked. */
+  shadowLeagueRank: Partial<Record<LeagueId, number>>;
+}
+
+/**
+ * A roster selection: a species plus whether the Shadow variant is chosen.
+ * Serialised as `${id}_shadow` so it round-trips with PvPoke's own ids.
+ */
+export interface SpeciesRef {
+  id: string;
+  shadow: boolean;
 }
 
 export type LeagueId = 'great' | 'ultra' | 'master';
@@ -37,6 +64,13 @@ export interface League {
   label: string;
   name: string;
   cap: number;
+  /**
+   * No CP cap. With no cap there is no level/IV trade-off: every mon sits at
+   * level 50 and stat product rises monotonically with every IV point, so the
+   * 4096 ranking carries no information beyond "more is better" and only
+   * near-perfect rolls are worth analysing.
+   */
+  uncapped: boolean;
 }
 
 export interface IV {

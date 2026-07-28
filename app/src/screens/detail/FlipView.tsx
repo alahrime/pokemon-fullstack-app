@@ -1,17 +1,42 @@
-import { ChipButton } from '../../components/Seg';
 import { Sprite } from '../../components/Sprite';
-import type { FlipGrid, FlipMatchupRow } from '../../lib/engine';
+import { ShieldMatrix } from '../../components/ShieldMatrix';
+import type { FlipGrid, FlipMatchupRow, ScenarioCell } from '../../lib/engine';
 
-const SHIELD_ITEMS: [number, string][] = [
-  [0, '0 shields'],
-  [1, '1 shield each'],
-  [2, '2 shields each'],
-];
+/** One face of a matchup flip card. Both faces always render; CSS turns the card. */
+function FlipFace({ win, margin, back = false }: { win: boolean; margin: number; back?: boolean }) {
+  return (
+    <div
+      className={`flip-face${back ? ' flip-face-back' : ''}`}
+      style={{
+        background: win ? 'color-mix(in srgb, var(--color-accent) 16%, transparent)' : 'var(--surface-2)',
+      }}
+    >
+      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 800,
+            fontSize: 13,
+            color: win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
+          }}
+        >
+          {win ? 'W' : 'L'}
+        </div>
+        <div className="text-muted numeric" style={{ fontSize: 10 }}>
+          {margin >= 0 ? '+' : ''}
+          {margin.toFixed(0)}%
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function FlipView({
   ivA,
   ivD,
-  shields,
+  shieldsMine,
+  shieldsTheirs,
+  scenarios,
   onShields,
   grid,
   ivS,
@@ -25,8 +50,10 @@ export function FlipView({
 }: {
   ivA: number;
   ivD: number;
-  shields: number;
-  onShields: (n: number) => void;
+  shieldsMine: number;
+  shieldsTheirs: number;
+  scenarios: ScenarioCell[][];
+  onShields: (mine: number, theirs: number) => void;
   grid: FlipGrid;
   ivS: number;
   onIvS: (v: number) => void;
@@ -53,20 +80,11 @@ export function FlipView({
     : `You lose CMP ties: their attack is higher. Their charge move resolves first if thrown together.`;
 
   const flipNote =
+    `Columns are your shield count against the opponent's ${shieldsTheirs}. ` +
     'Simulated at 500ms turns, throw-as-soon-as-charged, neutral typing, both sides on their default fast + charge move. Shield counts change which side of the boundary you need to be on; CMP is decided by raw attack.';
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
-        <span className="text-muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Shields
-        </span>
-        {SHIELD_ITEMS.map(([n, label]) => (
-          <ChipButton key={n} active={shields === n} onClick={() => onShields(n)}>
-            {label}
-          </ChipButton>
-        ))}
-      </div>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0, width: 'min(520px,100%)' }}>
           <div
@@ -143,13 +161,14 @@ export function FlipView({
             </div>
             <div style={{ fontSize: 13, marginTop: 8 }}>{flipNeed}</div>
           </div>
+          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
           <table className="table">
             <thead>
               <tr>
                 <th>Opponent</th>
-                <th>0s</th>
-                <th>1s</th>
-                <th>2s</th>
+                <th title={`your 0 shields vs their ${shieldsTheirs}`}>0s</th>
+                <th title={`your 1 shield vs their ${shieldsTheirs}`}>1s</th>
+                <th title={`your 2 shields vs their ${shieldsTheirs}`}>2s</th>
                 <th>CMP</th>
               </tr>
             </thead>
@@ -162,25 +181,19 @@ export function FlipView({
                 >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Sprite dex={r.species.dex} size={26} />
+                      <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
                       <span style={{ fontSize: 13 }}>{r.species.name}</span>
                     </div>
                   </td>
                   {r.cells.map((c, ci) => (
                     <td key={ci}>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          fontWeight: 800,
-                          fontSize: 13,
-                          color: c.win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
-                        }}
-                      >
-                        {c.win ? 'W' : 'L'}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 10 }}>
-                        {c.margin >= 0 ? '+' : ''}
-                        {c.margin.toFixed(0)}%
+                      {/* The card turns over when the matchup does — the flip
+                          is the concept this whole view is named for. */}
+                      <div className={`flip-card${c.win ? ' is-won' : ''}`} style={{ height: 38, width: 54 }}>
+                        <div className="flip-card-inner">
+                          <FlipFace win={false} margin={c.margin} />
+                          <FlipFace win margin={c.margin} back />
+                        </div>
                       </div>
                     </td>
                   ))}

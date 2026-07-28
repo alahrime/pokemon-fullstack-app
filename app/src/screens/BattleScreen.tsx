@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
-import { SPECIES_BY_ID } from '../lib/data';
+import { SPECIES_BY_ID, displayName, parseRef } from '../lib/data';
 import { chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
 import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
@@ -9,6 +9,7 @@ import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton } from '../components/Seg';
 import { BattleTimeline } from '../components/BattleTimeline';
 import { HudLabel } from '../components/Hud';
+import { TypeBadge } from '../components/TypeBadge';
 
 const SHIELD_LABELS = ['0 shields', '1 shield', '2 shields'];
 
@@ -43,24 +44,33 @@ function Side({
   onEnergy: (n: number) => void;
   league: LeagueId;
 }) {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  // speciesId is a ref, so it may carry a `_shadow` suffix.
+  const { id: baseId, shadow: isShadow } = parseRef(speciesId);
+  const species = SPECIES_BY_ID.get(baseId)!;
   const { entry } = getEntry(speciesId, iv, league);
   const chargeOptions = chargesOf(species.chargeMove, species.chargeMove2);
 
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <HudLabel>{label}</HudLabel>
-      <SpeciesSearch id={`battle-${label}`} value={speciesId} onChange={onSpecies} placeholder="Search species…" />
+      <SpeciesSearch
+        id={`battle-${label}`}
+        value={speciesId}
+        onChange={onSpecies}
+        placeholder="Search species…"
+        includeShadow
+      />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <Sprite dex={species.dex} size={64} className="sprite-holo" />
+        <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} className="sprite-holo" />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>{species.name}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
+            {species.name}
+            {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
+          </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '2px 0 4px' }}>
             {species.types.map((t) => (
-              <span key={t} className="tag tag-neutral" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>
-                {t}
-              </span>
+              <TypeBadge key={t} type={t} />
             ))}
           </div>
           <div className="text-muted numeric" style={{ fontSize: 12 }}>
@@ -148,8 +158,13 @@ export function BattleScreen() {
   const { state, patch } = useAppState();
   const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB } = state;
 
-  const speciesA = SPECIES_BY_ID.get(battleA)!;
-  const speciesB = SPECIES_BY_ID.get(battleB)!;
+  // battleA / battleB are refs and may be Shadow variants, so resolve the base
+  // form for stats and movepool but label with the Shadow-aware display name.
+  const speciesA = SPECIES_BY_ID.get(parseRef(battleA).id)!;
+  const speciesB = SPECIES_BY_ID.get(parseRef(battleB).id)!;
+  const nameA = displayName(battleA);
+  const nameB = displayName(battleB);
+  // Shadow multipliers are already baked into these entries by getTable.
   const { entry: entryA } = getEntry(battleA, ivA, league);
   const { entry: entryB } = getEntry(battleB, ivB, league);
 
@@ -176,8 +191,8 @@ export function BattleScreen() {
   const toggleChargeB = (moveId: string) =>
     patch({ disabledChargesB: disabledChargesB.includes(moveId) ? disabledChargesB.filter((id) => id !== moveId) : [...disabledChargesB, moveId] });
 
-  const winner = current.win ? speciesA : speciesB;
-  const loser = current.win ? speciesB : speciesA;
+  const winner = current.win ? nameA : nameB;
+  const loser = current.win ? nameB : nameA;
   const margin = Math.abs(current.margin);
 
   return (
@@ -241,16 +256,16 @@ export function BattleScreen() {
                 marginTop: 4,
               }}
             >
-              {winner.name} beats {loser.name}
+              {winner} beats {loser}
             </div>
             <div className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>
               {margin.toFixed(0)}% HP margin at {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
               {current.cmpDecided ? ' · decided by CMP (simultaneous charge move, higher attack throws first)' : ''}
             </div>
           </div>
-          <HpBar label={speciesA.name} hp={current.hpA} maxHp={Math.round(current.maxHpA)} color="var(--color-accent)" />
-          <HpBar label={speciesB.name} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
-          <div style={{ fontSize: 12 }}>{winner.name} wins {winCount} of 9 shield-count combinations.</div>
+          <HpBar label={nameA} hp={current.hpA} maxHp={Math.round(current.maxHpA)} color="var(--color-accent)" />
+          <HpBar label={nameB} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
+          <div style={{ fontSize: 12 }}>{winner} wins {winCount} of 9 shield-count combinations.</div>
           <div className="text-muted" style={{ fontSize: 11, maxWidth: '42ch' }}>
             {verdictLine(entryA.rank)} · {verdictLine(entryB.rank)}
           </div>
@@ -325,8 +340,8 @@ export function BattleScreen() {
           maxHpB={Math.round(current.maxHpB)}
           startEnergyA={energyA}
           startEnergyB={energyB}
-          nameA={speciesA.name}
-          nameB={speciesB.name}
+          nameA={nameA}
+          nameB={nameB}
         />
       </div>
 
@@ -346,15 +361,15 @@ export function BattleScreen() {
                 <th>Pokémon</th>
                 <th>Move</th>
                 <th>Outcome</th>
-                <th>{speciesA.name} HP</th>
-                <th>{speciesB.name} HP</th>
+                <th>{nameA} HP</th>
+                <th>{nameB} HP</th>
               </tr>
             </thead>
             <tbody>
               {current.log
                 .filter((e) => e.kind === 'charge')
                 .map((e, i) => {
-                const actorName = e.actor === 'A' ? speciesA.name : speciesB.name;
+                const actorName = e.actor === 'A' ? nameA : nameB;
                 return (
                   <tr key={i}>
                     <td className="text-muted">{(e.turn * 0.5).toFixed(1)}s</td>

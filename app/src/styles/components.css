@@ -168,6 +168,767 @@ input[type='range'] { accent-color: var(--color-accent); }
   color: var(--color-on-accent);
 }
 
+/* ── Shadow ────────────────────────────────────────────────────────────────
+   In game a Shadow Pokémon is wreathed in a violet aura. That aura carries the
+   whole read here: a dark violet corona behind the sprite, a purple rim light
+   on the artwork itself, and a slow drift so it feels alive rather than pasted
+   on. */
+.sprite-shadow {
+  position: relative;
+  isolation: isolate;
+}
+/* Corona behind the sprite. */
+.sprite-shadow::before {
+  content: '';
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--shadow-aura) 55%, transparent) 0%, transparent 62%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent) 20%, transparent 72%);
+  filter: blur(5px);
+  animation: aura-breathe 3.6s var(--ease-in-out) infinite;
+}
+/* Wispy upper highlight, offset so the aura isn't a plain symmetric blob. */
+.sprite-shadow::after {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse 60% 40% at 50% 22%, color-mix(in srgb, var(--shadow-aura) 40%, transparent), transparent 70%);
+  filter: blur(7px);
+  animation: aura-drift 5.2s var(--ease-in-out) infinite alternate;
+}
+/* Rim-light the artwork itself so the sprite reads as lit by the aura. */
+.sprite-shadow img {
+  filter:
+    drop-shadow(0 0 5px color-mix(in srgb, var(--shadow-aura) 85%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent))
+    saturate(1.08) contrast(1.06);
+}
+
+/* Compact variant for 22–30px sprites in chips and search rows, where the
+   full corona would just smear. */
+.sprite-shadow.is-small::before { inset: -8%; filter: blur(3px); animation: none; }
+.sprite-shadow.is-small::after { display: none; }
+.sprite-shadow.is-small img {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--shadow-aura) 90%, transparent));
+}
+
+/* — form toggle (Normal / Shadow) — */
+.form-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+.form-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+  position: relative;
+  overflow: hidden;
+  transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+.form-opt + .form-opt { border-left: var(--border-hairline) solid var(--rule-strong); }
+.form-opt:hover:not(.is-active):not(:disabled) { color: var(--color-text); }
+.form-opt:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.form-opt-normal.is-active {
+  background: var(--color-text);
+  color: var(--surface-1);
+}
+
+.form-opt-shadow.is-active {
+  color: #fff;
+  background:
+    radial-gradient(ellipse 120% 90% at 50% 120%, color-mix(in srgb, var(--shadow-aura) 70%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--shadow-ink), var(--shadow-aura-deep));
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--shadow-aura) 45%, transparent),
+    0 0 16px color-mix(in srgb, var(--shadow-aura) 40%, transparent);
+}
+/* Creeping wisp across the active Shadow button. */
+.form-opt-shadow.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--shadow-aura) 40%, transparent) 50%, transparent 70%);
+  animation: aura-sweep 3.2s var(--ease-in-out) infinite;
+}
+
+/* Shadow badge used beside names. */
+.tag-shadow {
+  background: color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent);
+  color: #f3e8ff;
+  border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
+}
+
+/* — report left column —
+   A single gap made the identity block, the two controls and the readouts all
+   feel equally weighted. The rhythm now groups them: controls sit close, and
+   a wider gap separates them from the numbers they produce. */
+.report-side {
+  border-right: var(--border-strong) solid var(--rule-strong);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.report-side > .hero { margin-bottom: var(--space-1); }
+.side-block { min-width: 0; }
+
+/* — battle stat strip — */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule-strong);
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface-1);
+  position: relative;
+}
+/* Accent tick at the top of each cell, so the row reads as instrumentation
+   rather than three loose numbers in boxes. */
+.stat-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 14px;
+  height: 2px;
+  background: var(--color-accent);
+  opacity: 0.75;
+}
+.stat-cell-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.stat-cell-value {
+  font-size: var(--size-h4);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+/* — detail rows — */
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 5px 2px;
+  font-size: var(--text-sm);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.detail-label { color: var(--text-muted); white-space: nowrap; }
+/* Dotted leader ties label to value across the gap, which a bare
+   space-between left visually unlinked at this width. */
+.detail-row::before {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 0;
+  margin-bottom: 3px;
+  border-bottom: 1px dotted var(--rule-hairline);
+}
+.detail-value { order: 2; font-weight: 800; white-space: nowrap; }
+
+/* — IV appraisal rows — */
+.iv-adjuster {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.iv-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 22px auto;
+  align-items: center;
+  gap: 8px;
+}
+.iv-label {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--iv-fill);
+}
+.iv-row.is-perfect .iv-label { color: var(--iv-fill-max); }
+
+/* Segmented track: 15 ticks, wider gaps every fourth, as the game groups them. */
+.iv-track {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 1px;
+  height: 14px;
+  padding: 2px;
+  background: var(--iv-track);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.iv-track:focus-visible {
+  outline: var(--ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.iv-tick {
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.iv-tick:hover { background: color-mix(in srgb, var(--iv-fill) 35%, transparent); }
+.iv-tick.is-on { background: var(--iv-fill); }
+.iv-row.is-perfect .iv-tick.is-on {
+  background: var(--iv-fill-max);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--iv-fill-max) 55%, transparent);
+}
+.iv-tick.is-group-end { margin-right: 2px; }
+
+.iv-value {
+  font-weight: 800;
+  font-size: var(--text-md);
+  text-align: right;
+  transition: color var(--dur-2) var(--ease-out);
+}
+.iv-value.is-changing { color: var(--iv-fill-max); }
+.iv-buttons { display: flex; gap: 3px; }
+.iv-step {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--color-text);
+  background: transparent;
+  border: var(--border-hairline) solid var(--rule-strong);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.iv-step:hover:not(:disabled) { border-color: var(--iv-fill); color: var(--iv-fill); }
+.iv-step:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* — energy ring: the moveset as a bounded cycle — */
+.energy-ring {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+.energy-ring svg { flex: none; }
+.ring-ept {
+  font-family: var(--font-numeric);
+  font-size: 21px;
+  font-weight: 800;
+  fill: var(--color-text);
+}
+.ring-unit,
+.ring-fast {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  fill: var(--text-faint);
+}
+.ring-fast { font-size: 8px; fill: var(--text-muted); letter-spacing: 0.04em; }
+
+.ring-key {
+  flex: 1;
+  min-width: 190px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ring-key-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.ring-key-row.is-on { color: var(--color-text); }
+.ring-key-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ring-key-row:not(.is-on) .ring-key-dot { opacity: 0.45; }
+.ring-key-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ring-key-num { font-size: var(--text-2xs); opacity: 0.8; }
+.ring-key-counts {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.ring-key-row.is-on .ring-key-counts { color: var(--color-accent-700); }
+
+/* — moves panel: fast and charged tiles side by side — */
+.moves-panel {
+  display: grid;
+  /* Two columns wherever they fit, stacking only when genuinely narrow. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  align-items: start;
+}
+.moves-col { min-width: 0; }
+.moves-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+.moves-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px;
+}
+
+/* Tinted by `--type`, set per tile from the move's own typing.
+
+   Chamfered top-right corner and bracket marks give these a readout feel
+   rather than a form-control one. The cut is a clip-path, which kills the
+   border along that edge, so the "border" is drawn as an inset box-shadow
+   ring that follows the clip instead. */
+.move-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 10px 9px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 16%, transparent), transparent 62%),
+    color-mix(in srgb, var(--type, var(--color-text)) 6%, transparent);
+  border: 0;
+  border-left: 3px solid color-mix(in srgb, var(--type, var(--rule-strong)) 55%, transparent);
+  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type, var(--color-text)) 26%, transparent);
+  /* Unselected tiles recede, so selection differs by *kind* — muted vs vivid —
+     rather than by intensity of the same hue, which is what an all-tinted grid
+     gave before. Kept mild deliberately: these tiles exist to be compared, and
+     an earlier 0.6/0.35 pass made unselected stats hard to read. The pick mark
+     and ring carry the signal; this only supports them. */
+  opacity: 0.82;
+  filter: saturate(0.5);
+  transition: background-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out), filter var(--dur-1) var(--ease-out);
+}
+/* Fills the chamfer so the cut corner reads as deliberate rather than clipped. */
+.move-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(225deg, color-mix(in srgb, var(--type, var(--color-text)) 55%, transparent) 50%, transparent 50%);
+  pointer-events: none;
+}
+.move-tile:hover:not(.is-active) {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 26%, transparent), transparent 62%),
+    color-mix(in srgb, var(--type, var(--color-text)) 12%, transparent);
+  transform: translateY(-1px);
+  opacity: 0.95;
+  filter: saturate(0.85);
+}
+
+/* Selected has to be unmistakable, so it stacks four cues: a 2px ring in the
+   move's own colour, an outer glow, a brighter wash, and a corner flash. The
+   type tint has to survive all of it — that's how you identify the move. */
+.move-tile.is-active {
+  opacity: 1;
+  filter: none;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 42%, transparent), transparent 68%),
+    color-mix(in srgb, var(--type, var(--color-text)) 20%, transparent);
+  border-left-color: var(--type, var(--color-accent));
+  box-shadow:
+    inset 0 0 0 2px var(--type, var(--color-accent)),
+    0 0 14px color-mix(in srgb, var(--type, var(--color-accent)) 45%, transparent);
+}
+.move-tile.is-active::before {
+  background: linear-gradient(225deg, var(--type, var(--color-accent)) 50%, transparent 50%);
+}
+/* Scan sheen, active only — motion tokens collapse it when motion is off. */
+.move-tile.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--type, var(--color-accent)) 22%, transparent) 50%, transparent 65%);
+  animation: aura-sweep 4.5s var(--ease-in-out) infinite;
+}
+:root[data-motion='off'] .move-tile.is-active::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .move-tile.is-active::after { display: none; }
+}
+
+.move-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Explicit selection mark — round for the single-choice fast move, square for
+   the pick-two charged moves, so the control's arity is visible too. */
+.move-pick {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 800;
+  color: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 40%, transparent);
+  background: transparent;
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.move-pick-radio { border-radius: 50%; }
+.move-pick.is-on {
+  border-color: var(--type, var(--color-accent));
+  background: var(--type, var(--color-accent));
+  color: #fff;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--type, var(--color-accent)) 70%, transparent);
+}
+/* Filled dot for the radio, since a tick in 13px reads as noise. */
+.move-pick-radio.is-on {
+  box-shadow: inset 0 0 0 2.5px var(--surface-1),
+    0 0 8px color-mix(in srgb, var(--type, var(--color-accent)) 70%, transparent);
+}
+.move-type {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  display: block;
+}
+.move-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-base);
+  line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-flag,
+.move-arch {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+.move-flag {
+  color: var(--color-on-accent);
+  background: var(--type, var(--color-accent));
+}
+.move-arch {
+  color: var(--text-muted);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+
+.move-stats {
+  display: flex;
+  gap: var(--space-3);
+}
+.move-stats-ratio {
+  padding-top: 4px;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.move-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.move-stat-value {
+  font-size: var(--text-base);
+  font-weight: 800;
+  line-height: 1.1;
+}
+/* The ratios are the comparison; the raw numbers are supporting detail. */
+.move-stat-value.is-strong { color: var(--type, var(--color-accent)); }
+.move-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  line-height: 1.2;
+}
+
+.move-counts {
+  padding-top: 4px;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.move-counts-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-counts-seq {
+  display: flex;
+  gap: 3px;
+}
+.move-count {
+  min-width: 18px;
+  padding: 1px 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--type, var(--color-text)) 20%, transparent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 30%, transparent);
+}
+
+/* — shield-scenario matrix: picker and readout in one — */
+.shield-matrix {
+  display: inline-grid;
+  grid-template-columns: 16px repeat(3, 62px);
+  gap: 3px;
+  align-items: center;
+}
+.shield-matrix-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: center;
+}
+.shield-cell {
+  height: 46px;
+  padding: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: var(--border-hairline) solid var(--rule-hairline);
+  cursor: pointer;
+  transition: filter var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.shield-cell:hover:not(.is-active) { filter: brightness(1.18); }
+/* Selection is a ring, not a fill — the fill already encodes the outcome, so
+   overriding it to show "selected" would destroy the reading. */
+.shield-cell.is-active {
+  border-width: var(--border-strong);
+  box-shadow: var(--glow-accent);
+}
+.shield-cell-margin {
+  font-weight: 800;
+  font-size: var(--text-md);
+  line-height: 1;
+}
+.shield-cell-wl {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  line-height: 1;
+}
+.shield-axis-x {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 3px;
+}
+.shield-axis-y {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+}
+
+/* — analysis view tabs — */
+.viz-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0;
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+.viz-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 9px var(--space-3);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+  /* Reserved by the active rule so selection doesn't shift the row. */
+  border-top: var(--border-strong) solid transparent;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out);
+}
+.viz-tab + .viz-tab { border-left: var(--border-hairline) solid var(--rule-hairline); }
+.viz-tab:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  color: var(--color-text);
+}
+.viz-tab.is-active {
+  color: var(--color-text);
+  border-top-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.viz-tab-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  color: var(--text-faint);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+.viz-tab.is-active .viz-tab-icon {
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  box-shadow: var(--glow-accent);
+}
+.viz-tab-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-base);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.viz-tab-hint {
+  display: block;
+  font-size: var(--text-2xs);
+  line-height: 1.3;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.viz-tab.is-active .viz-tab-hint { color: var(--text-muted); }
+
+/* — segmented buttons carrying an icon — */
+.seg-btn svg { opacity: 0.85; }
+.seg-btn.is-active svg { opacity: 1; }
+
+/* — opponent grid cell — */
+.opp-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 400;
+  font-family: var(--font-body);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+}
+.opp-cell:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.opp-cell.is-active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  box-shadow: var(--glow-accent);
+}
+.opp-name {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-base);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opp-reason {
+  display: block;
+  font-size: var(--text-2xs);
+  line-height: 1.25;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A matchup the IV roll actually decides is the headline case — mark it. */
+.opp-reason.is-flip { color: var(--color-accent-700); }
+.opp-flag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
 /* — forms — */
 .field > label {
   display: block;

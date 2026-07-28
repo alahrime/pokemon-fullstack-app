@@ -1,0 +1,236 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEAGUES — folder tabs with per-league identity.
+
+   Like the type colours, these sit outside the theme system: Great Ball blue,
+   Ultra Ball gold-on-black and Master Ball violet are game constants and must
+   not shift between HUD and modernist. Only the *unselected* treatment adapts.
+
+   The tabs are the app's biggest state switch — changing league changes the CP
+   cap, the entire ranking table, the opponent pool and every simulation — so
+   they're deliberately loud, and the selected one physically leaves the row.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --lg-great: #2f56b5;
+  --lg-great-deep: #1d3a86;
+  --lg-great-accent: #e0402f;
+
+  --lg-ultra: #2b2b2f;
+  --lg-ultra-deep: #141417;
+  --lg-ultra-accent: #f0c034;
+
+  --lg-master: #40217a;
+  --lg-master-deep: #24124a;
+  --lg-master-accent: #d94fb4;
+}
+
+/* ── species hero ──────────────────────────────────────────────────────────
+   Lives here because the stage is league-tinted; the tokens are next door. */
+.hero {
+  border: var(--border-hairline) solid var(--rule-strong);
+  background: var(--surface-2);
+}
+
+.hero-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  /* Light pooling under the subject, plus a faint survey grid, so the sprite
+     stands on something instead of floating on a flat panel. */
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--lg) 45%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--lg-deep) 45%, transparent), transparent 65%),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
+    var(--surface-1);
+  border-bottom: var(--border-hairline) solid color-mix(in srgb, var(--lg) 40%, transparent);
+}
+/* Contact shadow — grounds the sprite against the stage. */
+.hero-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 46%;
+  height: 9px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--lg-deep) 70%, transparent), transparent 72%);
+  pointer-events: none;
+}
+.hero.is-shadow .hero-stage {
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--shadow-aura) 42%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--shadow-ink) 65%, transparent), transparent 65%),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
+    var(--surface-1);
+  border-bottom-color: color-mix(in srgb, var(--shadow-aura) 45%, transparent);
+}
+
+.hero-dex,
+.hero-league {
+  position: absolute;
+  top: 8px;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+}
+.hero-dex {
+  left: 10px;
+  padding: 2px 7px;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.hero-league { right: 10px; display: grid; place-items: center; opacity: 0.9; }
+
+.hero-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hero-name {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-tight);
+  /* Long form names (Necrozma Dawn Wings) must wrap rather than clip. */
+  overflow-wrap: anywhere;
+}
+.hero-shadow-mark { color: var(--shadow-aura); margin-left: 6px; }
+.hero-shadow-tag { letter-spacing: 0.08em; font-size: 10px; }
+
+.hero-types { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* Vitals read as instrument panel figures, not body copy. */
+.hero-vitals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 2px;
+  background: var(--rule-hairline);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.hero-vital {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  background: var(--surface-2);
+}
+.hero-vital-value {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1;
+}
+.hero-vital-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.league-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  /* Tabs lift on select; the row reserves that height so nothing jumps. */
+  padding-top: 6px;
+}
+
+.league-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 10px;
+  cursor: pointer;
+  border: 0;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--lg) 14%, transparent);
+  /* Folder shape: the top-right corner is cut for the dog-ear to fold into. */
+  clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lg) 34%, transparent);
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease-out),
+    filter var(--dur-2) var(--ease-out);
+  filter: saturate(0.45);
+}
+
+.league-tab:hover:not(.is-active) {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--lg) 26%, transparent);
+  filter: saturate(0.8);
+  transform: translateY(-2px);
+}
+
+/* Selected: full league colour, lifted clear of the row, white label. */
+.league-tab.is-active {
+  color: #fff;
+  filter: none;
+  transform: translateY(-6px);
+  background: linear-gradient(160deg, var(--lg) 0%, var(--lg-deep) 100%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #fff 30%, transparent),
+    0 6px 16px color-mix(in srgb, var(--lg-deep) 60%, transparent);
+}
+
+/* The dog-ear: a folded corner filling the clipped notch. Two triangles — the
+   underside of the fold, and the lit top face — so it reads as folded paper
+   rather than a flat cut. */
+.league-tab::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 13px;
+  height: 13px;
+  background: linear-gradient(225deg, color-mix(in srgb, var(--lg) 55%, transparent) 50%, transparent 50%);
+  transition: background var(--dur-2) var(--ease-out);
+}
+.league-tab.is-active::after {
+  background: linear-gradient(225deg, var(--lg-accent) 50%, transparent 50%);
+  filter: drop-shadow(-1px 1px 1px rgb(0 0 0 / 0.35));
+}
+
+.league-tab-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+.league-tab-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.league-tab-cap {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+/* The accent underline is the league's own stripe colour, so even at a glance
+   the three are told apart by hue rather than by reading the label. */
+.league-tab.is-active .league-tab-cap { opacity: 0.95; }
+.league-tab.is-active .league-tab-name::after {
+  content: '';
+  display: block;
+  height: 2px;
+  margin-top: 2px;
+  background: var(--lg-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--lg-accent) 70%, transparent);
+}
+
+/* Emblems shrink slightly when unselected so the active league also wins on
+   size, not only colour. */
+.league-tab svg { transition: transform var(--dur-2) var(--ease-spring); }
+.league-tab:not(.is-active) svg { transform: scale(0.86); }

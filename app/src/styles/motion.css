@@ -54,6 +54,21 @@
   to { transform: translateY(100%); }
 }
 
+/* Shadow aura: a slow breath and a lateral drift, deliberately out of phase so
+   the two layers never pulse together and the corona doesn't look mechanical. */
+@keyframes aura-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes aura-drift {
+  from { opacity: 0.5; transform: translate3d(-4%, 2%, 0) rotate(-3deg); }
+  to { opacity: 0.9; transform: translate3d(4%, -3%, 0) rotate(3deg); }
+}
+@keyframes aura-sweep {
+  0% { transform: translateX(-120%); }
+  60%, 100% { transform: translateX(120%); }
+}
+
 @keyframes flicker-in {
   0% { opacity: 0; }
   40% { opacity: 0.6; }
@@ -115,6 +130,44 @@
   transform-origin: center;
   animation: pop-marker var(--dur-3) var(--ease-spring) both;
   animation-delay: calc(var(--marker-delay, 0ms) * var(--motion-scale));
+}
+
+/* ── matchup flip cards ────────────────────────────────────────────────────
+   Real 3D rotation rather than a crossfade: the card carries a lost face and
+   a won face, and physically turns between them. The metaphor is the point —
+   a matchup "flipping" is the whole concept the view is named after.
+
+   transform-style: preserve-3d needs the faces to be backface-hidden siblings
+   inside a rotating inner element; rotating the outer container directly would
+   also rotate the layout box and disturb the grid. */
+.flip-card {
+  perspective: 700px;
+  position: relative;
+}
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--dur-4) var(--ease-spring);
+}
+.flip-card.is-won .flip-card-inner { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.flip-face-back { transform: rotateY(180deg); }
+
+/* Reduced motion keeps the two states legible but skips the rotation, so the
+   card cross-fades in place instead of spinning. */
+:root[data-motion='off'] .flip-card-inner { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .flip-card-inner { transition: none; }
 }
 
 /* Numeric readouts that change value. */

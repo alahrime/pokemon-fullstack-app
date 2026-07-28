@@ -8,7 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "tokens": "node scripts/token-parity.mjs",
-    "preview": "vite preview"
+    "data": "node scripts/build-data.mjs",
+    "verify": "esbuild scripts/verify-data.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
+    "check": "tsc -b && oxlint && npm run tokens && npm run verify && npm run audit:spreads",
+    "preview": "vite preview",
+    "audit:spreads": "esbuild scripts/audit-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/audit.mjs --log-level=warning && node node_modules/.cache/audit.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -23,6 +27,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "esbuild": "^0.28.1",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"

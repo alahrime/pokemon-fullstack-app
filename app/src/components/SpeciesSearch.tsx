@@ -1,8 +1,30 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { SPECIES, SPECIES_BY_ID } from '../lib/data';
+import { BASE_ROSTER, ROSTER, displayName, type RosterEntry } from '../lib/data';
+import { Sprite } from './Sprite';
+import { TypeIcon } from './TypeBadge';
 
-const RESULT_LIMIT = 8;
-const DEBOUNCE_MS = 150;
+const RESULT_LIMIT = 40;
+const DEBOUNCE_MS = 120;
+
+/**
+ * Ranked match over the full ~1100-entry roster.
+ *
+ * A plain `includes` was fine for 139 curated names but is bad at this size:
+ * typing "mar" put "Altamarine"-style substring hits above "Marowak". So hits
+ * are scored - exact, then prefix, then word-start, then substring - and a
+ * bare number matches the Pokédex entry, which is how people search forms
+ * ("105" surfaces both Marowaks side by side).
+ */
+function score(entry: RosterEntry, q: string): number {
+  const name = entry.name.toLowerCase();
+  if (name === q) return 0;
+  if (name.startsWith(q)) return 1;
+  // word-start, e.g. "alolan" matching "Marowak (Alolan)"
+  if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(name)) return 2;
+  if (name.includes(q)) return 3;
+  if (String(entry.species.dex) === q) return 1;
+  return -1;
+}
 
 export function SpeciesSearch({
   value,
@@ -10,23 +32,27 @@ export function SpeciesSearch({
   placeholder = 'Search species…',
   id,
   style,
+  /** Include Shadow variants as their own rows (battle screen picks sides). */
+  includeShadow = false,
 }: {
   value: string;
-  onChange: (speciesId: string) => void;
+  onChange: (ref: string) => void;
   placeholder?: string;
   id: string;
   style?: CSSProperties;
+  includeShadow?: boolean;
 }) {
-  const selectedName = SPECIES_BY_ID.get(value)?.name ?? '';
+  const pool = includeShadow ? ROSTER : BASE_ROSTER;
+  const selectedName = displayName(value);
   const [text, setText] = useState(selectedName);
   const [debounced, setDebounced] = useState(selectedName);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const timerRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const listboxId = `${id}-listbox`;
 
-  // Keep the input's text in sync with the selection while the user isn't actively searching.
   useEffect(() => {
     if (!open) setText(selectedName);
   }, [selectedName, open]);
@@ -39,14 +65,26 @@ export function SpeciesSearch({
 
   const results = useMemo(() => {
     const q = debounced.trim().toLowerCase();
-    const matches = q ? SPECIES.filter((s) => s.name.toLowerCase().includes(q)) : SPECIES.slice();
-    return matches.sort((a, b) => a.name.localeCompare(b.name)).slice(0, RESULT_LIMIT);
-  }, [debounced]);
+    if (!q) return pool.slice(0, RESULT_LIMIT);
+    const scored: { e: RosterEntry; s: number }[] = [];
+    for (const e of pool) {
+      const s = score(e, q);
+      if (s >= 0) scored.push({ e, s });
+    }
+    scored.sort((a, b) => a.s - b.s || a.e.species.dex - b.e.species.dex || a.e.name.localeCompare(b.e.name));
+    return scored.slice(0, RESULT_LIMIT).map((x) => x.e);
+  }, [debounced, pool]);
 
-  const commit = (speciesId: string) => {
-    onChange(speciesId);
+  // Keep the highlighted row in view when arrowing through a long list.
+  useEffect(() => {
+    const el = listRef.current?.children[activeIndex] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const commit = (ref: string) => {
+    onChange(ref);
     setOpen(false);
-    setText(SPECIES_BY_ID.get(speciesId)?.name ?? '');
+    setText(displayName(ref));
   };
 
   return (
@@ -59,7 +97,7 @@ export function SpeciesSearch({
         aria-controls={listboxId}
         aria-autocomplete="list"
         aria-label={placeholder}
-        aria-activedescendant={open && results[activeIndex] ? `${id}-opt-${results[activeIndex].id}` : undefined}
+        aria-activedescendant={open && results[activeIndex] ? `${id}-opt-${results[activeIndex].ref}` : undefined}
         placeholder={placeholder}
         value={text}
         onFocus={() => {
@@ -82,7 +120,7 @@ export function SpeciesSearch({
             setActiveIndex((i) => Math.max(0, i - 1));
           } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (open && results[activeIndex]) commit(results[activeIndex].id);
+            if (open && results[activeIndex]) commit(results[activeIndex].ref);
           } else if (e.key === 'Escape') {
             setOpen(false);
             setText(selectedName);
@@ -95,6 +133,7 @@ export function SpeciesSearch({
       />
       {open && results.length > 0 && (
         <ul
+          ref={listRef}
           id={listboxId}
           role="listbox"
           style={{
@@ -102,37 +141,57 @@ export function SpeciesSearch({
             top: '100%',
             left: 0,
             right: 0,
+            minWidth: 260,
             zIndex: 30,
             margin: '2px 0 0',
             padding: 0,
             listStyle: 'none',
             background: 'var(--surface-1)',
             border: 'var(--border-hairline) solid var(--rule-strong)',
-            maxHeight: 240,
+            maxHeight: 300,
             overflowY: 'auto',
             boxShadow: 'var(--shadow-md)',
           }}
         >
-          {results.map((s, i) => (
+          {results.map((r, i) => (
             <li
-              key={s.id}
-              id={`${id}-opt-${s.id}`}
+              key={r.ref}
+              id={`${id}-opt-${r.ref}`}
               role="option"
               aria-selected={i === activeIndex}
               onMouseDown={(e) => {
                 e.preventDefault();
-                commit(s.id);
+                commit(r.ref);
               }}
               onMouseEnter={() => setActiveIndex(i)}
               style={{
-                padding: '7px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '5px 10px',
                 fontSize: 13,
                 cursor: 'pointer',
                 background: i === activeIndex ? 'var(--color-accent)' : 'transparent',
                 color: i === activeIndex ? 'var(--color-on-accent)' : 'var(--color-text)',
               }}
             >
-              {s.name}
+              <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} shadow={r.shadow} />
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.name}
+              </span>
+              {/* Typing is the fastest way to tell near-identical forms apart
+                  while scanning; icons carry it without stealing name width. */}
+              <span style={{ display: 'inline-flex', gap: 2, flex: 'none' }}>
+                {r.species.types.map((t) => (
+                  <TypeIcon key={t} type={t} size={14} />
+                ))}
+              </span>
+              <span
+                className="numeric"
+                style={{ fontSize: 10, opacity: i === activeIndex ? 0.75 : 0.45 }}
+              >
+                #{String(r.species.dex).padStart(3, '0')}
+              </span>
             </li>
           ))}
         </ul>

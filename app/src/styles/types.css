@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPE COLOURS
+
+   The 18 Pokémon types have canonical colours that players read faster than
+   they read the word. These sit outside the theme system deliberately: they
+   are brand constants, not design tokens, and must not shift between HUD and
+   modernist. Only their *treatment* (fill opacity, text contrast) adapts.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sourced from the icon artwork itself — each of the vendored SVGs is a
+   coloured disc with a white glyph, and these are the disc fills. Taking the
+   values from the assets rather than a generic type palette guarantees the
+   badge tint and the icon can never drift apart.
+
+   Regenerate after updating the icon set:
+     grep -h 'fill:' public/type-icons/*.svg */
+:root {
+  --type-normal: #828282;
+  --type-fire: #e4613e;
+  --type-water: #3099e1;
+  --type-electric: #dfbc28;
+  --type-grass: #439837;
+  --type-ice: #47c8c8;
+  --type-fighting: #e49021;
+  --type-poison: #9354cb;
+  --type-ground: #a4733c;
+  --type-flying: #74aad0;
+  --type-psychic: #e96c8c;
+  --type-bug: #9f9f28;
+  --type-rock: #a9a481;
+  --type-ghost: #6f4570;
+  --type-dragon: #576fbc;
+  --type-dark: #4f4747;
+  --type-steel: #74b0cb;
+  --type-fairy: #e18ce1;
+}
+
+/* ── appraisal bar ─────────────────────────────────────────────────────────
+   Modelled on the in-game IV appraisal display, so these live here with the
+   type colours rather than in the theme: they're borrowed game vocabulary and
+   should read the same on either ground. */
+:root {
+  --iv-fill: #ef6f5c;
+  --iv-fill-max: #ff4f3d;
+  --iv-track: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+/* ── badge ─────────────────────────────────────────────────────────────────
+   `--type` is set inline per badge from the type name, so one rule covers all
+   eighteen rather than eighteen near-identical blocks. */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 3px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.6;
+  border-radius: 999px;
+  color: var(--type, var(--color-text));
+  background: color-mix(in srgb, var(--type, var(--color-text)) 16%, transparent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 45%, transparent);
+}
+
+/* On the light ground these hues are too pale to read as text, so the badge
+   inverts: saturated fill, white label. The icon needs no change either way —
+   it's already a coloured disc with a white glyph. */
+:root[data-theme='modernist'] .type-badge {
+  color: #fff;
+  background: var(--type, var(--color-text));
+  border-color: color-mix(in srgb, #000 18%, var(--type, var(--color-text)));
+}
+
+/* The icons are full-colour discs, not monochrome glyphs, so they render as
+   plain images — no mask, no tint. Rounded to match, in case a future icon
+   isn't perfectly circular. */
+.type-badge img {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  display: block;
+  border-radius: 50%;
+}
+
+/* Standalone icon, where the type is the subject rather than a tag. */
+.type-icon {
+  display: block;
+  border-radius: 50%;
+}

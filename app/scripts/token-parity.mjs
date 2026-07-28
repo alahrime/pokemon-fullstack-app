@@ -40,10 +40,24 @@ for (const f of files) {
   }
 }
 
-const LOCAL = new Set(['--i','--cell-delay','--path-len','--marker-delay','--stagger-step']);
+// Set inline on elements rather than declared in a theme, so absence from
+// themes.css is expected, not a parity failure.
+const LOCAL = new Set([
+  '--i','--cell-delay','--path-len','--marker-delay','--stagger-step',
+  '--type',                       // move/species type tint, set per element
+  '--lg','--lg-deep','--lg-accent', // league identity, set per tab
+]);
+// Type colours live in types.css deliberately: they're brand constants, not
+// theme tokens, so they must NOT differ per theme. `var(--type-${t})` is also
+// built by interpolation, which the literal scan can only see as `--type-`.
+// Built by interpolation (`var(--type-${t})`, `var(--lg-${id})`), so the
+// literal scan only ever sees the prefix. Both sets live outside the themes
+// deliberately: they're game brand constants and must not differ per theme.
+const IGNORE_PREFIX = ['--type-', '--lg-'];
 const miss = { hud: [], swiss: [] };
 for (const [tok, where] of used) {
   if (LOCAL.has(tok) || other.has(tok)) continue;
+  if (IGNORE_PREFIX.some((pre) => tok.startsWith(pre))) continue;
   if (!hud.has(tok)) miss.hud.push(`${tok}  ← ${[...where].join(', ')}`);
   if (!swiss.has(tok)) miss.swiss.push(`${tok}  ← ${[...where].join(', ')}`);
 }

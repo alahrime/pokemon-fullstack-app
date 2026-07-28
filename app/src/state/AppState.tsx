@@ -9,13 +9,19 @@ export type ColorBy = 'rank' | 'break' | 'bulk';
 export interface AppStateShape {
   screen: Screen;
   league: LeagueId;
+  /** Ref, may carry a `_shadow` suffix. */
   species: string;
+  shadow: boolean;
+  /** Chosen charged moves; empty means PvPoke's recommended pair. */
+  chargeIds: string[];
   iv: IV;
   viz: Viz;
   colorBy: ColorBy;
   oppId: string;
   moveIdx: number;
+  /** Report screen shield scenario; the two sides are independent. */
   shields: number;
+  shieldsOpp: number;
   battleA: string;
   battleB: string;
   ivA: IV;
@@ -37,12 +43,15 @@ const initialState: AppStateShape = {
   screen: 'report',
   league: 'great',
   species: 'azumarill',
+  shadow: false,
+  chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',
   colorBy: 'rank',
   oppId: opponentsFor('great')[0]?.id ?? '',
   moveIdx: 0,
   shields: 1,
+  shieldsOpp: 1,
   battleA: 'azumarill',
   battleB: 'mimikyu',
   ivA: { a: 15, d: 15, s: 15 },

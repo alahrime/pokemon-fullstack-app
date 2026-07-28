@@ -22,6 +22,7 @@ import {
   selectedCharges,
   flipGrid,
   flipMatchupRows,
+  scenarioMatrix,
 } from '../src/lib/engine';
 import type { LeagueId } from '../src/lib/types';
 
@@ -211,6 +212,31 @@ console.log('\n── asymmetric shields ─────────────
 
   const rows = flipMatchupRows('azumarill', iv, 'great', 0, [oppId], undefined, 2);
   check('matchup rows accept a fixed opposing count', rows.length === 1 && rows[0].cells.length === 3);
+
+  // The scenario picker now displays an outcome per cell, so those numbers
+  // have to agree with the grid they select. A silent divergence here would be
+  // worse than no readout at all.
+  const sm = scenarioMatrix('azumarill', iv, 'great', oppId, 0);
+  check('scenario matrix is 3x3', sm.length === 3 && sm.every((r) => r.length === 3));
+
+  let agree = true;
+  const detail: string[] = [];
+  for (let m = 0; m < 3; m++) {
+    for (let t = 0; t < 3; t++) {
+      const g = flipGrid('azumarill', iv, 'great', oppId, 0, m, undefined, t);
+      const mine = g.results.find((r) => r.entry.a === iv.a && r.entry.d === iv.d)!;
+      if (mine.result.win !== sm[m][t].win || Math.abs(mine.result.margin - sm[m][t].margin) > 1e-9) {
+        agree = false;
+        detail.push(`${m}v${t}: grid ${mine.result.margin.toFixed(1)} vs picker ${sm[m][t].margin.toFixed(1)}`);
+      }
+    }
+  }
+  check('picker cells match the grid for the same spread', agree, detail.slice(0, 3).join(' | '));
+
+  // Sanity on direction: your own shields should never hurt you.
+  const monotoneMine = [0, 1, 2].every((t) => sm[0][t].margin <= sm[2][t].margin + 1e-9);
+  check('more of your own shields never hurts', monotoneMine,
+    `0sh ${sm[0].map((c) => c.margin.toFixed(0)).join('/')} vs 2sh ${sm[2].map((c) => c.margin.toFixed(0)).join('/')}`);
 }
 
 console.log('\n── opponent relevance ─────────────────────────────────');

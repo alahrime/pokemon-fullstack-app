@@ -1,6 +1,6 @@
 import { Sprite } from '../../components/Sprite';
 import { ShieldMatrix } from '../../components/ShieldMatrix';
-import type { FlipGrid, FlipMatchupRow } from '../../lib/engine';
+import type { FlipGrid, FlipMatchupRow, ScenarioCell } from '../../lib/engine';
 
 /** One face of a matchup flip card. Both faces always render; CSS turns the card. */
 function FlipFace({ win, margin, back = false }: { win: boolean; margin: number; back?: boolean }) {
@@ -36,6 +36,7 @@ export function FlipView({
   ivD,
   shieldsMine,
   shieldsTheirs,
+  scenarios,
   onShields,
   grid,
   ivS,
@@ -51,6 +52,7 @@ export function FlipView({
   ivD: number;
   shieldsMine: number;
   shieldsTheirs: number;
+  scenarios: ScenarioCell[][];
   onShields: (mine: number, theirs: number) => void;
   grid: FlipGrid;
   ivS: number;
@@ -159,7 +161,7 @@ export function FlipView({
             </div>
             <div style={{ fontSize: 13, marginTop: 8 }}>{flipNeed}</div>
           </div>
-          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} onChange={onShields} />
+          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
           <table className="table">
             <thead>
               <tr>

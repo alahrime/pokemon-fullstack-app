@@ -12,6 +12,7 @@ import {
   opponentInfo,
   rankedOpponents,
   rulersFor,
+  scenarioMatrix,
   verdictLine,
 } from '../lib/engine';
 import { Sprite } from '../components/Sprite';
@@ -69,6 +70,12 @@ export function ReportScreen() {
   const grid = useMemo(
     () => (viz === 'flip' ? flipGrid(ref, iv, league, opp.id, moveIdx, state.shields, chargeIds, state.shieldsOpp) : null),
     [viz, ref, iv, league, opp, moveIdx, state.shields, state.shieldsOpp, chargeIds],
+  );
+  // Nine outcomes for the current spread vs the selected opponent - the
+  // scenario picker doubles as a readout of the whole matchup.
+  const scenarios = useMemo(
+    () => (viz === 'flip' ? scenarioMatrix(ref, iv, league, opp.id, moveIdx, chargeIds) : []),
+    [viz, ref, iv, league, opp, moveIdx, chargeIds],
   );
   const flipRows = useMemo(
     () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, opponents.map((o) => o.id), chargeIds, state.shieldsOpp) : []),
@@ -338,6 +345,7 @@ export function ReportScreen() {
               ivD={iv.d}
               shieldsMine={state.shields}
               shieldsTheirs={state.shieldsOpp}
+              scenarios={scenarios}
               onShields={(mine, theirs) => patch({ shields: mine, shieldsOpp: theirs })}
               grid={grid}
               ivS={iv.s}

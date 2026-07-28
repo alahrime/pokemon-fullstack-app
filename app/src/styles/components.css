@@ -313,11 +313,11 @@ input[type='range'] { accent-color: var(--color-accent); }
   opacity: 0.6;
 }
 
-/* — compact 3x3 shield-scenario picker — */
+/* — shield-scenario matrix: picker and readout in one — */
 .shield-matrix {
   display: inline-grid;
-  grid-template-columns: auto repeat(3, 28px);
-  gap: 2px;
+  grid-template-columns: 16px repeat(3, 62px);
+  gap: 3px;
   align-items: center;
 }
 .shield-matrix-label {
@@ -328,32 +328,54 @@ input[type='range'] { accent-color: var(--color-accent); }
   text-align: center;
 }
 .shield-cell {
-  width: 28px;
-  height: 24px;
+  height: 46px;
   padding: 0;
   min-height: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
   border: var(--border-hairline) solid var(--rule-hairline);
-  background: transparent;
-  color: var(--text-muted);
   cursor: pointer;
-  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
+  transition: filter var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out),
     border-color var(--dur-1) var(--ease-out);
 }
-.shield-cell:hover:not(.is-active) {
-  border-color: var(--color-accent);
-  color: var(--color-text);
-}
+.shield-cell:hover:not(.is-active) { filter: brightness(1.18); }
+/* Selection is a ring, not a fill — the fill already encodes the outcome, so
+   overriding it to show "selected" would destroy the reading. */
 .shield-cell.is-active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-on-accent);
+  border-width: var(--border-strong);
+  box-shadow: var(--glow-accent);
 }
-/* The symmetric scenarios are the common case; mark the diagonal so the
-   asymmetric cells read as the deliberate choice they are. */
-.shield-cell.is-even:not(.is-active) {
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+.shield-cell-margin {
+  font-weight: 800;
+  font-size: var(--text-md);
+  line-height: 1;
+}
+.shield-cell-wl {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  line-height: 1;
+}
+.shield-axis-x {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 3px;
+}
+.shield-axis-y {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
 }
 
 /* — segmented buttons carrying an icon — */

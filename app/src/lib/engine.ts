@@ -1085,7 +1085,10 @@ export function flipGrid(
 
   const results: FlipCellResult[] = slice.map((entry) => ({
     entry,
-    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shieldsMine, shieldsTheirs),
+    // No log: the grid only ever reads win/margin, but these 256 results are
+    // cached indefinitely and a full turn log per cell is a large retained
+    // allocation for data nothing looks at.
+    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shieldsMine, shieldsTheirs, 0, 0, false),
   }));
   const winners = results.filter((o) => o.result.win);
   const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
@@ -1127,7 +1130,7 @@ export function flipMatchupRows(
     const opp = opponentInfo(oid, leagueId);
     const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
     const cells = [0, 1, 2].map((mine) => {
-      const r = battle(you, foe, mine, shieldsTheirs ?? mine);
+      const r = battle(you, foe, mine, shieldsTheirs ?? mine, 0, 0, false);
       return { win: r.win, margin: r.margin };
     });
     return {
@@ -1142,4 +1145,51 @@ export function flipMatchupRows(
 // ── Head-to-head battle simulator: full 3x3 shield-count matrix ──
 export function shieldMatrix(a: BattleMon, b: BattleMon, energyA = 0, energyB = 0): BattleResult[][] {
   return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB)));
+}
+
+/** One outcome cell: everything the scenario picker needs to render. */
+export interface ScenarioCell {
+  win: boolean;
+  margin: number;
+}
+
+const scenarioCache = new Map<string, ScenarioCell[][]>();
+
+/**
+ * All nine shield scenarios for *this exact spread* against one opponent,
+ * indexed [yourShields][theirShields].
+ *
+ * Distinct from flipGrid, which sweeps 256 spreads at one scenario; this is
+ * one spread across every scenario. Keyed on the full IV rather than just the
+ * HP slice, because unlike the grid it depends on the specific roll.
+ *
+ * Logs are skipped — nothing here reads them, and nine simulations per
+ * keystroke of the IV adjuster is worth keeping cheap.
+ */
+export function scenarioMatrix(
+  ref: string,
+  iv: IV,
+  leagueId: LeagueId,
+  oppRef: string,
+  moveIdx: number,
+  chargeIds?: string[],
+): ScenarioCell[][] {
+  const key = [ref, leagueId, oppRef, moveIdx, ivKey(iv), (chargeIds ?? []).join('+')].join('|');
+  const cached = scenarioCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
+  const { entry } = getEntry(ref, iv, leagueId);
+  const opp = opponentInfo(oppRef, leagueId);
+  const you = mkBattleMon(entry, species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)], selectedCharges(species, chargeIds));
+  const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
+
+  const out = [0, 1, 2].map((mine) =>
+    [0, 1, 2].map((theirs) => {
+      const r = battle(you, foe, mine, theirs, 0, 0, false);
+      return { win: r.win, margin: r.margin };
+    }),
+  );
+  scenarioCache.set(key, out);
+  return out;
 }

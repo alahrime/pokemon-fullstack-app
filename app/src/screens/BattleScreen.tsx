@@ -65,7 +65,7 @@ function Side({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
             {species.name}
-            {isShadow ? <span style={{ color: 'var(--color-accent)' }}> ⟡</span> : null}
+            {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '2px 0 4px' }}>
             {species.types.map((t) => (

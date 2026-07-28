@@ -168,6 +168,137 @@ input[type='range'] { accent-color: var(--color-accent); }
   color: var(--color-on-accent);
 }
 
+/* ── Shadow ────────────────────────────────────────────────────────────────
+   In game a Shadow Pokémon is wreathed in a violet aura with red eyes. The
+   eyes aren't reachable — sprites are flat images and there's no way to locate
+   features across 1123 of them — so the aura carries the whole read: a dark
+   violet corona behind the sprite, a purple rim light on it, and a slow drift
+   so it feels alive rather than pasted on. */
+.sprite-shadow {
+  position: relative;
+  isolation: isolate;
+}
+/* Corona behind the sprite. */
+.sprite-shadow::before {
+  content: '';
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--shadow-aura) 55%, transparent) 0%, transparent 62%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent) 20%, transparent 72%);
+  filter: blur(5px);
+  animation: aura-breathe 3.6s var(--ease-in-out) infinite;
+}
+/* Wispy upper highlight, offset so the aura isn't a plain symmetric blob. */
+.sprite-shadow::after {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse 60% 40% at 50% 22%, color-mix(in srgb, var(--shadow-aura) 40%, transparent), transparent 70%);
+  filter: blur(7px);
+  animation: aura-drift 5.2s var(--ease-in-out) infinite alternate;
+}
+/* Rim-light the artwork itself so the sprite reads as lit by the aura. */
+.sprite-shadow img {
+  filter:
+    drop-shadow(0 0 5px color-mix(in srgb, var(--shadow-aura) 85%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent))
+    saturate(1.08) contrast(1.06);
+}
+
+/* Compact variant for 22–30px sprites in chips and search rows, where the
+   full corona would just smear. */
+.sprite-shadow.is-small::before { inset: -8%; filter: blur(3px); animation: none; }
+.sprite-shadow.is-small::after { display: none; }
+.sprite-shadow.is-small img {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--shadow-aura) 90%, transparent));
+}
+
+/* — form toggle (Normal / Shadow) — */
+.form-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+.form-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+  position: relative;
+  overflow: hidden;
+  transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+.form-opt + .form-opt { border-left: var(--border-hairline) solid var(--rule-strong); }
+.form-opt:hover:not(.is-active):not(:disabled) { color: var(--color-text); }
+.form-opt:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.form-opt-normal.is-active {
+  background: var(--color-text);
+  color: var(--surface-1);
+}
+
+.form-opt-shadow.is-active {
+  color: #fff;
+  background:
+    radial-gradient(ellipse 120% 90% at 50% 120%, color-mix(in srgb, var(--shadow-aura) 70%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--shadow-ink), var(--shadow-aura-deep));
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--shadow-aura) 45%, transparent),
+    0 0 16px color-mix(in srgb, var(--shadow-aura) 40%, transparent);
+}
+/* Creeping wisp across the active Shadow button. */
+.form-opt-shadow.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--shadow-aura) 40%, transparent) 50%, transparent 70%);
+  animation: aura-sweep 3.2s var(--ease-in-out) infinite;
+}
+/* The two red eyes, as a pair of dots on the Shadow control. */
+.form-eyes {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+.form-eyes i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--shadow-eye);
+  box-shadow: 0 0 6px var(--shadow-eye);
+  display: block;
+}
+.form-opt:not(.is-active) .form-eyes i {
+  background: color-mix(in srgb, var(--shadow-eye) 45%, transparent);
+  box-shadow: none;
+}
+
+/* Shadow badge used beside names. */
+.tag-shadow {
+  background: color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent);
+  color: #f3e8ff;
+  border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
+}
+
 /* — opponent grid cell — */
 .opp-cell {
   display: flex;

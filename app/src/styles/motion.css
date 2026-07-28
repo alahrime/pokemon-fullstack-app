@@ -54,6 +54,21 @@
   to { transform: translateY(100%); }
 }
 
+/* Shadow aura: a slow breath and a lateral drift, deliberately out of phase so
+   the two layers never pulse together and the corona doesn't look mechanical. */
+@keyframes aura-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes aura-drift {
+  from { opacity: 0.5; transform: translate3d(-4%, 2%, 0) rotate(-3deg); }
+  to { opacity: 0.9; transform: translate3d(4%, -3%, 0) rotate(3deg); }
+}
+@keyframes aura-sweep {
+  0% { transform: translateX(-120%); }
+  60%, 100% { transform: translateX(120%); }
+}
+
 @keyframes flicker-in {
   0% { opacity: 0; }
   40% { opacity: 0.6; }

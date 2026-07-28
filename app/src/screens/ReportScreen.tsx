@@ -20,6 +20,7 @@ import { ChipButton, SegButton, SegGroup } from '../components/Seg';
 import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
 import { MovepoolPicker } from '../components/MovepoolPicker';
+import { FormToggle } from '../components/FormToggle';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
@@ -125,7 +126,7 @@ export function ReportScreen() {
               </div>
               <h2 style={{ margin: '2px 0 4px', fontSize: 28 }}>
                 {species.name}
-                {isShadow ? <span style={{ color: 'var(--color-accent)' }}> ⟡</span> : null}
+                {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
               </h2>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
                 {species.types.map((t) => (
@@ -133,7 +134,7 @@ export function ReportScreen() {
                     {t}
                   </span>
                 ))}
-                {isShadow ? <span className="tag tag-accent" style={{ letterSpacing: '0.08em', fontSize: 10 }}>SHADOW</span> : null}
+                {isShadow ? <span className="tag tag-shadow" style={{ letterSpacing: '0.08em', fontSize: 10 }}>SHADOW</span> : null}
               </div>
               <div className="text-muted numeric" style={{ fontSize: 13 }}>
                 IV {iv.a}/{iv.d}/{iv.s} · CP {entry.cp} · L{entry.lvl}
@@ -207,19 +208,12 @@ export function ReportScreen() {
             <div className="hud-label" style={{ marginBottom: 8 }}>
               <span>Form</span>
             </div>
-            <SegGroup>
-              <SegButton active={!isShadow} onClick={() => set('shadow', false)}>
-                Normal
-              </SegButton>
-              <SegButton
-                active={isShadow}
-                onClick={() => set('shadow', true)}
-                title={species.shadowEligible ? 'x1.2 attack, x5/6 defense' : `${species.name} has no Shadow form`}
-                style={species.shadowEligible ? undefined : { opacity: 0.4, cursor: 'not-allowed' }}
-              >
-                Shadow
-              </SegButton>
-            </SegGroup>
+            <FormToggle
+              shadow={isShadow}
+              eligible={species.shadowEligible}
+              onChange={(v) => set('shadow', v)}
+              speciesName={species.name}
+            />
             <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
               {species.shadowEligible
                 ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'

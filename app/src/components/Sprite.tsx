@@ -37,9 +37,13 @@ export function Sprite({
 
   const src = stage === 0 ? spriteUrl(sprite) : stage === 1 ? spriteFallbackUrl(dex) : null;
 
+  // Below ~40px the full corona just smears, so small sprites get a tighter,
+  // unanimated variant.
+  const shadowClass = shadow ? ` sprite-shadow${size < 40 ? ' is-small' : ''}` : '';
+
   return (
     <div
-      className={className}
+      className={`${className ?? ''}${shadowClass}`}
       style={{
         width: size,
         height: size,
@@ -70,20 +74,6 @@ export function Sprite({
           #{String(dex).padStart(3, '0')}
         </span>
       )}
-      {shadow ? (
-        <span
-          aria-label="Shadow"
-          title="Shadow"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background:
-              'radial-gradient(circle at 50% 55%, transparent 48%, color-mix(in srgb, var(--color-accent) 42%, transparent) 100%)',
-            mixBlendMode: 'screen',
-          }}
-        />
-      ) : null}
     </div>
   );
 }

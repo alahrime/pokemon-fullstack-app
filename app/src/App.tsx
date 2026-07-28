@@ -24,8 +24,8 @@ function Nav() {
         id="nav-species"
         value={state.species}
         onChange={(id) => patch({ species: id, moveIdx: 0 })}
-        placeholder="Search species…"
-        style={{ width: 200 }}
+        placeholder="Search 1123 species…"
+        style={{ width: 220 }}
       />
       <SegGroup>
         {SCREENS.map(([id, label]) => (

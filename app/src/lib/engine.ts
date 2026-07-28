@@ -1,5 +1,5 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
-import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor } from './data';
+import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor, parseRef } from './data';
 import type {
   BattleLogEntry,
   BattleMon,
@@ -50,24 +50,47 @@ export function dmg(atk: number, def: number, move: FastMove | ChargeMove): numb
   return Math.floor(0.5 * move.power * (atk / def) * move.stab) + 1;
 }
 
+/**
+ * Shadow multipliers, as the game applies them: ×6/5 attack, ×5/6 defense.
+ *
+ * Note 1.2 × (5/6) === 1 exactly, so a Shadow's stat product - and therefore
+ * its rank within the 4096 - is identical to its non-Shadow counterpart. CP is
+ * likewise unchanged, because CP is derived from base stats and IVs before any
+ * Shadow adjustment. So the multipliers are applied *after* sp/cp/rank are
+ * computed, touching only the battle stats that feed damage, breakpoints,
+ * bulkpoints and the simulator.
+ *
+ * The practical upshot, worth knowing when reading the report: going Shadow
+ * never moves your rank. It moves every damage threshold.
+ */
+export const SHADOW_ATK_MULT = 6 / 5;
+export const SHADOW_DEF_MULT = 5 / 6;
+
 const tableCache = new Map<string, SpeciesTable>();
 
-export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
-  const key = `${speciesId}|${leagueId}`;
+/**
+ * Tables are keyed by *ref*, not plain species id - `machamp` and
+ * `machamp_shadow` are separate tables. Parsing the suffix here rather than
+ * threading a boolean means every existing call site (opponents, flip grids,
+ * rulers, the simulator) supports Shadow without a signature change.
+ */
+export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
+  const key = `${ref}|${leagueId}`;
   const cached = tableCache.get(key);
   if (cached) return cached;
 
-  // Merged lookup (curated roster ∪ broad opponent pool): opponents scanned
-  // for breakpoint/bulkpoint relevance need their own ranked table too, not
-  // just the curated main roster.
-  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
+  const aMult = shadow ? SHADOW_ATK_MULT : 1;
+  const dMult = shadow ? SHADOW_DEF_MULT : 1;
   const all: RankedEntry[] = [];
   for (let a = 0; a < 16; a++) {
     for (let d = 0; d < 16; d++) {
       for (let s = 0; s < 16; s++) {
         const r = bestAt(species, { a, d, s }, league);
-        all.push({ a, d, s, ...r, rank: 0 });
+        // sp / cp / lvl stay on the unadjusted stats; only the battle stats scale.
+        all.push({ a, d, s, ...r, atk: r.atk * aMult, def: r.def * dMult, rank: 0 });
       }
     }
   }
@@ -89,8 +112,8 @@ export function getTable(speciesId: string, leagueId: LeagueId): SpeciesTable {
   return out;
 }
 
-export function getEntry(speciesId: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
-  const table = getTable(speciesId, leagueId);
+export function getEntry(ref: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
+  const table = getTable(ref, leagueId);
   return { entry: table.map.get(ivKey(iv))!, table };
 }
 
@@ -116,9 +139,13 @@ export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league
 // attack and understates their bulk. Using each species' own table.best
 // keeps the comparison "relative to itself."
 export interface OpponentInfo {
+  /** The ref, Shadow suffix included - round-trips with state and selection. */
   id: string;
   dex: number;
   name: string;
+  /** Sprite slug of the underlying form (Shadows reuse the base artwork). */
+  sprite: string;
+  shadow: boolean;
   types: string[];
   atk: number;
   def: number;
@@ -135,13 +162,17 @@ export function chargesOf(chargeMove: ChargeMove, chargeMove2: ChargeMove | null
   return chargeMove2 ? [chargeMove, chargeMove2] : [chargeMove];
 }
 
-export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
-  const species = OPPONENT_POOL_BY_ID.get(speciesId)!;
-  const best = getTable(speciesId, leagueId).best;
+export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
+  // best.atk/def already carry the Shadow multipliers when ref is a Shadow.
+  const best = getTable(ref, leagueId).best;
   return {
-    id: species.id,
+    id: ref,
     dex: species.dex,
-    name: species.name,
+    name: shadow ? `${species.name} (Shadow)` : species.name,
+    sprite: species.sprite,
+    shadow,
     types: species.types,
     atk: best.atk,
     def: best.def,
@@ -202,7 +233,7 @@ export function relevantOpponents(
   const cached = relevantCache.get(key);
   if (cached) return cached;
 
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(speciesId, leagueId);
   const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== speciesId);
@@ -243,7 +274,7 @@ export function bpRowsFor(
   opp: OpponentInfo,
 ): ThresholdRow[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const rows: Omit<ThresholdRow, 'met' | 'near'>[] = [];
 
   species.fastMoves.forEach((mv) => {
@@ -324,7 +355,7 @@ export interface RulerData {
 
 export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: OpponentInfo): RulerData[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const atks = table.all.map((x) => x.atk);
   const aMin = Math.min(...atks);
   const aMax = Math.max(...atks);
@@ -443,7 +474,7 @@ export function buildHeatCells(
   moveIdx: number,
   colorBy: 'rank' | 'break' | 'bulk',
 ): HeatCell[] {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
 
@@ -710,7 +741,7 @@ export function flipGrid(
   const cached = flipCache.get(key);
   if (cached) return cached;
 
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const opp = opponentInfo(oppSpeciesId, leagueId);
   const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
@@ -747,7 +778,7 @@ export function flipMatchupRows(
   moveIdx: number,
   opponentIds: string[],
 ): FlipMatchupRow[] {
-  const species = SPECIES_BY_ID.get(speciesId)!;
+  const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const you = mkBattleMon(entry, myFast, chargesOf(species.chargeMove, species.chargeMove2));

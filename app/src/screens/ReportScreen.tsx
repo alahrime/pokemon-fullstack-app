@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAppState, type Viz } from '../state/AppState';
-import { SPECIES_BY_ID } from '../lib/data';
+import { SPECIES_BY_ID, makeRef } from '../lib/data';
 import {
   bestLeagueFor,
   bpRowsFor,
@@ -31,14 +31,18 @@ const VIZ_ITEMS: [Viz, string][] = [
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
-  const { league, species: speciesId, iv, viz, colorBy, oppId, moveIdx } = state;
+  const { league, species: speciesId, shadow, iv, viz, colorBy, oppId, moveIdx } = state;
 
   const species = SPECIES_BY_ID.get(speciesId)!;
-  const { entry, table } = getEntry(speciesId, iv, league);
+  // Everything downstream keys off the *ref*, which encodes Shadow. The engine
+  // parses the suffix, so no other call signature changes.
+  const isShadow = shadow && species.shadowEligible;
+  const ref = makeRef(speciesId, isShadow);
+  const { entry, table } = getEntry(ref, iv, league);
   const relevanceKind = viz === 'heat' && colorBy !== 'rank' ? colorBy : 'either';
   const opponents = useMemo(
-    () => relevantOpponents(speciesId, league, moveIdx, relevanceKind, 16),
-    [speciesId, league, moveIdx, relevanceKind],
+    () => relevantOpponents(ref, league, moveIdx, relevanceKind, 16),
+    [ref, league, moveIdx, relevanceKind],
   );
   const effectiveOppId = opponents.some((o) => o.id === oppId) ? oppId : (opponents[0]?.id ?? oppId);
   useEffect(() => {
@@ -48,21 +52,21 @@ export function ReportScreen() {
   const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
 
   const spPct = entry.sp / table.best.sp;
-  const bestLeague = bestLeagueFor(speciesId, iv);
-  const bpRows = useMemo(() => bpRowsFor(speciesId, iv, league, opp), [speciesId, iv, league, opp]);
+  const bestLeague = bestLeagueFor(ref, iv);
+  const bpRows = useMemo(() => bpRowsFor(ref, iv, league, opp), [ref, iv, league, opp]);
 
   const heatCells = useMemo(
-    () => (viz === 'heat' ? buildHeatCells(speciesId, iv, league, opp, moveIdx, colorBy) : []),
-    [viz, speciesId, iv, league, opp, moveIdx, colorBy],
+    () => (viz === 'heat' ? buildHeatCells(ref, iv, league, opp, moveIdx, colorBy) : []),
+    [viz, ref, iv, league, opp, moveIdx, colorBy],
   );
-  const rulers = useMemo(() => (viz === 'ruler' ? rulersFor(speciesId, iv, league, opp) : []), [viz, speciesId, iv, league, opp]);
+  const rulers = useMemo(() => (viz === 'ruler' ? rulersFor(ref, iv, league, opp) : []), [viz, ref, iv, league, opp]);
   const grid = useMemo(
-    () => (viz === 'flip' ? flipGrid(speciesId, iv, league, opp.id, moveIdx, state.shields) : null),
-    [viz, speciesId, iv, league, opp, moveIdx, state.shields],
+    () => (viz === 'flip' ? flipGrid(ref, iv, league, opp.id, moveIdx, state.shields) : null),
+    [viz, ref, iv, league, opp, moveIdx, state.shields],
   );
   const flipRows = useMemo(
-    () => (viz === 'flip' ? flipMatchupRows(speciesId, iv, league, moveIdx, opponents.map((o) => o.id)) : []),
-    [viz, speciesId, iv, league, moveIdx, opponents],
+    () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, opponents.map((o) => o.id)) : []),
+    [viz, ref, iv, league, moveIdx, opponents],
   );
 
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
@@ -92,19 +96,23 @@ export function ReportScreen() {
                 placeItems: 'center',
               }}
             >
-              <Sprite dex={species.dex} size={80} className="sprite-holo" />
+              <Sprite sprite={species.sprite} dex={species.dex} size={80} shadow={isShadow} className="sprite-holo" />
             </HudFrame>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>
                 #{String(species.dex).padStart(3, '0')}
               </div>
-              <h2 style={{ margin: '2px 0 4px', fontSize: 28 }}>{species.name}</h2>
+              <h2 style={{ margin: '2px 0 4px', fontSize: 28 }}>
+                {species.name}
+                {isShadow ? <span style={{ color: 'var(--color-accent)' }}> ⟡</span> : null}
+              </h2>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
                 {species.types.map((t) => (
                   <span key={t} className="tag tag-neutral" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>
                     {t}
                   </span>
                 ))}
+                {isShadow ? <span className="tag tag-accent" style={{ letterSpacing: '0.08em', fontSize: 10 }}>SHADOW</span> : null}
               </div>
               <div className="text-muted numeric" style={{ fontSize: 13 }}>
                 IV {iv.a}/{iv.d}/{iv.s} · CP {entry.cp} · L{entry.lvl}
@@ -173,6 +181,30 @@ export function ReportScreen() {
             </div>
             <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>
+
+          <div>
+            <div className="hud-label" style={{ marginBottom: 8 }}>
+              <span>Form</span>
+            </div>
+            <SegGroup>
+              <SegButton active={!isShadow} onClick={() => set('shadow', false)}>
+                Normal
+              </SegButton>
+              <SegButton
+                active={isShadow}
+                onClick={() => set('shadow', true)}
+                title={species.shadowEligible ? 'x1.2 attack, x5/6 defense' : `${species.name} has no Shadow form`}
+                style={species.shadowEligible ? undefined : { opacity: 0.4, cursor: 'not-allowed' }}
+              >
+                Shadow
+              </SegButton>
+            </SegGroup>
+            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
+              {species.shadowEligible
+                ? 'Shadow multiplies attack by 1.2 and defense by 5/6. Those cancel exactly, so your rank never moves — but every breakpoint and bulkpoint does.'
+                : 'No Shadow form exists for this Pokémon.'}
+            </div>
+          </div>
         </div>
 
         {/* Right column */}
@@ -199,7 +231,7 @@ export function ReportScreen() {
             </span>
             {opponents.map((o) => (
               <ChipButton key={o.id} active={effectiveOppId === o.id} onClick={() => set('oppId', o.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Sprite dex={o.dex} size={22} />
+                <Sprite sprite={o.sprite} dex={o.dex} size={22} shadow={o.shadow} />
                 {o.name}
               </ChipButton>
             ))}

@@ -9,7 +9,9 @@ export type ColorBy = 'rank' | 'break' | 'bulk';
 export interface AppStateShape {
   screen: Screen;
   league: LeagueId;
+  /** Ref, may carry a `_shadow` suffix. */
   species: string;
+  shadow: boolean;
   iv: IV;
   viz: Viz;
   colorBy: ColorBy;
@@ -37,6 +39,7 @@ const initialState: AppStateShape = {
   screen: 'report',
   league: 'great',
   species: 'azumarill',
+  shadow: false,
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',
   colorBy: 'rank',

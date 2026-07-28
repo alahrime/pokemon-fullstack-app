@@ -162,7 +162,7 @@ export function FlipView({
                 >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Sprite dex={r.species.dex} size={26} />
+                      <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
                       <span style={{ fontSize: 13 }}>{r.species.name}</span>
                     </div>
                   </td>

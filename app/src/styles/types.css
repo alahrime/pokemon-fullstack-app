@@ -35,6 +35,16 @@
   --type-fairy: #e18ce1;
 }
 
+/* ── appraisal bar ─────────────────────────────────────────────────────────
+   Modelled on the in-game IV appraisal display, so these live here with the
+   type colours rather than in the theme: they're borrowed game vocabulary and
+   should read the same on either ground. */
+:root {
+  --iv-fill: #ef6f5c;
+  --iv-fill-max: #ff4f3d;
+  --iv-track: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
 /* ── badge ─────────────────────────────────────────────────────────────────
    `--type` is set inline per badge from the type name, so one rule covers all
    eighteen rather than eighteen near-identical blocks. */

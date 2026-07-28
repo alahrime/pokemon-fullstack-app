@@ -280,6 +280,83 @@ input[type='range'] { accent-color: var(--color-accent); }
   border: var(--border-hairline) solid color-mix(in srgb, var(--shadow-aura) 60%, transparent);
 }
 
+/* — IV appraisal rows — */
+.iv-adjuster {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.iv-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 22px auto;
+  align-items: center;
+  gap: 8px;
+}
+.iv-label {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--iv-fill);
+}
+.iv-row.is-perfect .iv-label { color: var(--iv-fill-max); }
+
+/* Segmented track: 15 ticks, wider gaps every fourth, as the game groups them. */
+.iv-track {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 1px;
+  height: 14px;
+  padding: 2px;
+  background: var(--iv-track);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.iv-track:focus-visible {
+  outline: var(--ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.iv-tick {
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.iv-tick:hover { background: color-mix(in srgb, var(--iv-fill) 35%, transparent); }
+.iv-tick.is-on { background: var(--iv-fill); }
+.iv-row.is-perfect .iv-tick.is-on {
+  background: var(--iv-fill-max);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--iv-fill-max) 55%, transparent);
+}
+.iv-tick.is-group-end { margin-right: 2px; }
+
+.iv-value {
+  font-weight: 800;
+  font-size: var(--text-md);
+  text-align: right;
+  transition: color var(--dur-2) var(--ease-out);
+}
+.iv-value.is-changing { color: var(--iv-fill-max); }
+.iv-buttons { display: flex; gap: 3px; }
+.iv-step {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--color-text);
+  background: transparent;
+  border: var(--border-hairline) solid var(--rule-strong);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.iv-step:hover:not(:disabled) { border-color: var(--iv-fill); color: var(--iv-fill); }
+.iv-step:disabled { opacity: 0.3; cursor: not-allowed; }
+
 /* — moves panel: fast and charged tiles side by side — */
 .moves-panel {
   display: grid;
@@ -301,32 +378,78 @@ input[type='range'] { accent-color: var(--color-accent); }
   gap: 6px;
 }
 
-/* Tinted by `--type`, set per tile from the move's own typing. */
+/* Tinted by `--type`, set per tile from the move's own typing.
+
+   Chamfered top-right corner and bracket marks give these a readout feel
+   rather than a form-control one. The cut is a clip-path, which kills the
+   border along that edge, so the "border" is drawn as an inset box-shadow
+   ring that follows the clip instead. */
 .move-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
   min-width: 0;
-  padding: 7px 9px 8px;
+  padding: 8px 10px 9px;
   text-align: left;
   cursor: pointer;
   font-family: var(--font-body);
   color: var(--color-text);
-  background: color-mix(in srgb, var(--type, var(--color-text)) 7%, transparent);
-  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 28%, transparent);
-  border-left: 3px solid var(--type, var(--rule-strong));
-  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 16%, transparent), transparent 62%),
+    color-mix(in srgb, var(--type, var(--color-text)) 6%, transparent);
+  border: 0;
+  border-left: 3px solid color-mix(in srgb, var(--type, var(--rule-strong)) 55%, transparent);
+  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type, var(--color-text)) 26%, transparent);
+  transition: background-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+/* Fills the chamfer so the cut corner reads as deliberate rather than clipped. */
+.move-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(225deg, color-mix(in srgb, var(--type, var(--color-text)) 55%, transparent) 50%, transparent 50%);
+  pointer-events: none;
 }
 .move-tile:hover:not(.is-active) {
-  background: color-mix(in srgb, var(--type, var(--color-text)) 14%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 26%, transparent), transparent 62%),
+    color-mix(in srgb, var(--type, var(--color-text)) 12%, transparent);
+  transform: translateY(-1px);
 }
-/* Selection is a ring plus a stronger wash — the type tint has to survive it,
-   since that's how you identify the move at a glance. */
+
+/* Selected has to be unmistakable, so it stacks four cues: a 2px ring in the
+   move's own colour, an outer glow, a brighter wash, and a corner flash. The
+   type tint has to survive all of it — that's how you identify the move. */
 .move-tile.is-active {
-  background: color-mix(in srgb, var(--type, var(--color-text)) 22%, transparent);
-  border-color: var(--type, var(--color-accent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type, var(--color-accent)) 45%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--type, var(--color-text)) 42%, transparent), transparent 68%),
+    color-mix(in srgb, var(--type, var(--color-text)) 20%, transparent);
+  border-left-color: var(--type, var(--color-accent));
+  box-shadow:
+    inset 0 0 0 2px var(--type, var(--color-accent)),
+    0 0 14px color-mix(in srgb, var(--type, var(--color-accent)) 45%, transparent);
+}
+.move-tile.is-active::before {
+  background: linear-gradient(225deg, var(--type, var(--color-accent)) 50%, transparent 50%);
+}
+/* Scan sheen, active only — motion tokens collapse it when motion is off. */
+.move-tile.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--type, var(--color-accent)) 22%, transparent) 50%, transparent 65%);
+  animation: aura-sweep 4.5s var(--ease-in-out) infinite;
+}
+:root[data-motion='off'] .move-tile.is-active::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .move-tile.is-active::after { display: none; }
 }
 
 .move-head {

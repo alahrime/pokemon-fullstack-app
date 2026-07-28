@@ -7,6 +7,7 @@ import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton } from '../components/Seg';
+import { BattleTimeline } from '../components/BattleTimeline';
 
 const SHIELD_LABELS = ['0 shields', '1 shield', '2 shields'];
 
@@ -306,9 +307,24 @@ export function BattleScreen() {
 
       <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20 }}>
         <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
+          HP &amp; energy progression — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
+        </div>
+        <BattleTimeline
+          log={current.log}
+          maxHpA={Math.round(current.maxHpA)}
+          maxHpB={Math.round(current.maxHpB)}
+          startEnergyA={energyA}
+          startEnergyB={energyB}
+          nameA={speciesA.name}
+          nameB={speciesB.name}
+        />
+      </div>
+
+      <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20 }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
           Charge move log — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
-        {current.log.length === 0 ? (
+        {current.log.filter((e) => e.kind === 'charge').length === 0 ? (
           <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
             Neither side reaches a charge move before the fight ends at this energy/shield setting.
           </p>
@@ -325,7 +341,9 @@ export function BattleScreen() {
               </tr>
             </thead>
             <tbody>
-              {current.log.map((e, i) => {
+              {current.log
+                .filter((e) => e.kind === 'charge')
+                .map((e, i) => {
                 const actorName = e.actor === 'A' ? speciesA.name : speciesB.name;
                 return (
                   <tr key={i}>

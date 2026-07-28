@@ -84,12 +84,15 @@ export interface BattleMon {
 export interface BattleLogEntry {
   turn: number;
   actor: 'A' | 'B';
+  kind: 'fast' | 'charge';
   moveName: string;
   bait: boolean;
   shielded: boolean;
   damage: number;
   hpA: number;
   hpB: number;
+  energyA: number;
+  energyB: number;
 }
 
 export interface BattleResult {

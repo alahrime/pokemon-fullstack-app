@@ -550,7 +550,19 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sB--;
           hpB -= damage;
           tA = a.fast.turns;
-          log.push({ turn, actor: 'A', moveName: moveA.name, bait: shielded && moveA === rolesA.bait, shielded, damage, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB) });
+          log.push({
+            turn,
+            actor: 'A',
+            kind: 'charge',
+            moveName: moveA.name,
+            bait: shielded && moveA === rolesA.bait,
+            shielded,
+            damage,
+            hpA: Math.max(0, hpA),
+            hpB: Math.max(0, hpB),
+            energyA: eA,
+            energyB: eB,
+          });
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
@@ -559,7 +571,19 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sA--;
           hpA -= damage;
           tB = b.fast.turns;
-          log.push({ turn, actor: 'B', moveName: moveB.name, bait: shielded && moveB === rolesB.bait, shielded, damage, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB) });
+          log.push({
+            turn,
+            actor: 'B',
+            kind: 'charge',
+            moveName: moveB.name,
+            bait: shielded && moveB === rolesB.bait,
+            shielded,
+            damage,
+            hpA: Math.max(0, hpA),
+            hpB: Math.max(0, hpB),
+            energyA: eA,
+            energyB: eB,
+          });
         }
       }
       continue;
@@ -568,11 +592,37 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
       hpB -= fA;
       eA = Math.min(100, eA + a.fast.energyGain);
       tA = a.fast.turns;
+      log.push({
+        turn,
+        actor: 'A',
+        kind: 'fast',
+        moveName: a.fast.name,
+        bait: false,
+        shielded: false,
+        damage: fA,
+        hpA: Math.max(0, hpA),
+        hpB: Math.max(0, hpB),
+        energyA: eA,
+        energyB: eB,
+      });
     }
     if (--tB <= 0) {
       hpA -= fB;
       eB = Math.min(100, eB + b.fast.energyGain);
       tB = b.fast.turns;
+      log.push({
+        turn,
+        actor: 'B',
+        kind: 'fast',
+        moveName: b.fast.name,
+        bait: false,
+        shielded: false,
+        damage: fB,
+        hpA: Math.max(0, hpA),
+        hpB: Math.max(0, hpB),
+        energyA: eA,
+        energyB: eB,
+      });
     }
   }
   const finalHpA = Math.max(0, hpA);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useAppState, type Viz } from '../state/AppState';
+import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, makeRef } from '../lib/data';
 import {
   bestLeagueFor,
@@ -17,23 +17,16 @@ import {
 } from '../lib/engine';
 import { Sprite } from '../components/Sprite';
 import { IVAdjuster } from '../components/IVAdjuster';
-import { SegButton, SegGroup } from '../components/Seg';
 import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
 import { MovesPanel } from '../components/MovesPanel';
+import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
 import { TypeBadge } from '../components/TypeBadge';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
-
-const VIZ_ITEMS: [Viz, string][] = [
-  ['heat', '4096 heatmap'],
-  ['ruler', 'Damage ruler'],
-  ['table', 'Threshold table'],
-  ['flip', 'Matchup flips'],
-];
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
@@ -84,8 +77,6 @@ export function ReportScreen() {
 
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const colorByLabel = colorBy === 'rank' ? 'stat product rank' : colorBy === 'break' ? `${mv.name} damage dealt` : `${opp.fastMove.name} damage taken`;
-
-  const bpBlurb = `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.name}, and where incoming ${opp.fastMove.name} steps down.`;
 
   const footnote =
     'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1. Click any heatmap cell to load that spread.';
@@ -293,21 +284,7 @@ export function ReportScreen() {
 
         {/* Right column */}
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            <div>
-              <h4 style={{ margin: 0 }}>Breakpoints &amp; bulkpoints across the 4096</h4>
-              <div className="text-muted" style={{ fontSize: 12, maxWidth: '58ch' }}>
-                {bpBlurb}
-              </div>
-            </div>
-            <SegGroup>
-              {VIZ_ITEMS.map(([id, label]) => (
-                <SegButton key={id} active={viz === id} onClick={() => set('viz', id)}>
-                  {label}
-                </SegButton>
-              ))}
-            </SegGroup>
-          </div>
+          <VizTabs value={viz} onChange={(v) => set('viz', v)} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div className="hud-label">

@@ -52,6 +52,47 @@ export function SwordIcon({ size = 14, style }: IconProps) {
   );
 }
 
+/** 4096 heatmap — the attack x defense grid. */
+export function GridIcon({ size = 14, style }: IconProps) {
+  return (
+    <svg {...svgProps(size)} style={{ display: 'block', flex: 'none', ...style }}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="1.5" />
+      <path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" />
+    </svg>
+  );
+}
+
+/** Damage ruler — banded scale with tick marks. */
+export function RulerIcon({ size = 14, style }: IconProps) {
+  return (
+    <svg {...svgProps(size)} style={{ display: 'block', flex: 'none', ...style }}>
+      <rect x="2.5" y="8" width="19" height="8" rx="1.5" />
+      <path d="M7 8v3M11 8v4M15 8v3M19 8v4" />
+    </svg>
+  );
+}
+
+/** Threshold table — rows of values. */
+export function TableIcon({ size = 14, style }: IconProps) {
+  return (
+    <svg {...svgProps(size)} style={{ display: 'block', flex: 'none', ...style }}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M3.5 9.5h17M3.5 14.5h17M10 9.5v10" />
+    </svg>
+  );
+}
+
+/** Matchup flips — a result turning over. */
+export function FlipIcon({ size = 14, style }: IconProps) {
+  return (
+    <svg {...svgProps(size)} style={{ display: 'block', flex: 'none', ...style }}>
+      <path d="M4 8h11a4 4 0 0 1 0 8H9" />
+      <path d="m7 5-3 3 3 3" />
+      <path d="m11.5 13-2.5 3 2.5 3" />
+    </svg>
+  );
+}
+
 /** Bulkpoint — damage you take. */
 export function ShieldIcon({ size = 14, style }: IconProps) {
   return (

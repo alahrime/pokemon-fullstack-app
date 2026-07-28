@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   HUD CHROME — tactical overlay furniture.
+
+   Everything here multiplies by --chrome-opacity, which the modernist theme
+   sets to 0. That means HUD components can stay mounted across a theme swap
+   and simply become invisible — no conditional rendering, no layout shift.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* — page ground: faint survey grid + vignette — */
+.hud-ground {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--chrome-opacity);
+  transition: opacity var(--dur-3) var(--ease-out);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 20%, transparent 78%);
+}
+
+/* — scanline wash — */
+.hud-scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: calc(var(--chrome-opacity) * 0.5);
+  transition: opacity var(--dur-3) var(--ease-out);
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, #7fb2d4 5%, transparent) 0px,
+    color-mix(in srgb, #7fb2d4 5%, transparent) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* — slow sweep bar — */
+.hud-sweep {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 42vh;
+  pointer-events: none;
+  z-index: 1;
+  opacity: calc(var(--chrome-opacity) * 0.55);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--color-accent-2) 7%, transparent),
+    transparent
+  );
+  animation: scan-sweep 7s var(--ease-linear) infinite;
+}
+:root[data-motion='off'] .hud-sweep,
+:root[data-theme='modernist'] .hud-sweep { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hud-sweep { display: none; }
+}
+
+/* — bracket corners — the signature HUD frame — */
+.hud-frame { position: relative; }
+.hud-frame::before,
+.hud-frame::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  opacity: var(--chrome-opacity);
+  transition: opacity var(--dur-3) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+  border-color: var(--color-accent);
+  border-style: solid;
+}
+.hud-frame::before {
+  top: -1px; left: -1px;
+  border-width: var(--border-strong) 0 0 var(--border-strong);
+}
+.hud-frame::after {
+  bottom: -1px; right: -1px;
+  border-width: 0 var(--border-strong) var(--border-strong) 0;
+}
+.hud-frame.is-signal::before,
+.hud-frame.is-signal::after { border-color: var(--color-accent-2); }
+
+/* — readout label: the small caps telemetry header — */
+.hud-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-accent-2-700);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hud-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--rule-hairline), transparent);
+}
+
+/* — live status dot — */
+.hud-live {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-accent-2);
+  box-shadow: var(--glow-signal);
+  animation: fade-in var(--dur-2) var(--ease-out) both, pulse-ring 2s var(--ease-out) infinite;
+}
+
+/* — big display numerals — */
+.hud-readout {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+:root[data-theme='hud'] .hud-readout {
+  text-shadow: 0 0 22px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+/* — axis ticks for the battle timeline — */
+.hud-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+/* — the sticky nav gets a glass treatment in HUD, flat in modernist — */
+:root[data-theme='hud'] .nav {
+  background: color-mix(in srgb, var(--surface-1) 78%, transparent);
+  backdrop-filter: blur(10px) saturate(1.3);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  border-bottom-color: color-mix(in srgb, var(--color-accent-2) 24%, transparent);
+}
+
+/* — panels pick up an inner sheen in HUD only — */
+:root[data-theme='hud'] .panel {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-2) 70%, transparent),
+    color-mix(in srgb, var(--surface-1) 55%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--color-divider) 70%, transparent);
+}
+
+/* Content sits above the fixed chrome layers. */
+.hud-content { position: relative; z-index: 2; }
+
+/* Sprites read as holograms on the dark ground, untouched on light. */
+:root[data-theme='hud'] .sprite-holo {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-accent-2) 40%, transparent));
+}

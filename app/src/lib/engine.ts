@@ -638,13 +638,13 @@ export function mkBattleMon(entry: { atk: number; def: number; hp: number }, fas
 }
 
 // ── Verdict copy ──
-export function verdictLine(rank: number, beginner: boolean): string {
-  if (rank === 1) return beginner ? 'Perfect for this league. Never transfer this one.' : 'Rank 1 · maximum stat product at cap';
-  if (rank <= 10) return beginner ? 'Elite roll — build it, this is as good as it gets.' : 'Top 10 · elite spread, worth full investment';
-  if (rank <= 100) return beginner ? 'Excellent. Worth your dust and candy.' : 'Top 100 · strong spread, safe investment';
-  if (rank <= 500) return beginner ? 'Good enough to use if you have nothing better.' : 'Top 500 · playable, expect small SP losses';
-  if (rank <= 1500) return beginner ? 'Usable but you can do better. Keep hunting.' : 'Mid pack · replace when a better spread appears';
-  return beginner ? 'Weak for this league — trade or transfer it.' : 'Bottom half · not competitive at this cap';
+export function verdictLine(rank: number): string {
+  if (rank === 1) return 'Rank 1 · maximum stat product at cap';
+  if (rank <= 10) return 'Top 10 · elite spread, worth full investment';
+  if (rank <= 100) return 'Top 100 · strong spread, safe investment';
+  if (rank <= 500) return 'Top 500 · playable, expect small SP losses';
+  if (rank <= 1500) return 'Mid pack · replace when a better spread appears';
+  return 'Bottom half · not competitive at this cap';
 }
 
 export function verdictTagClass(rank: number): string {

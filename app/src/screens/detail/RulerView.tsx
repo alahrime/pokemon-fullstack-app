@@ -2,9 +2,9 @@ import type { RulerData } from '../../lib/engine';
 
 export function RulerView({ rulers }: { rulers: RulerData[] }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '8px 0 0' }}>
+    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '8px 0 0' }}>
       {rulers.map((r, i) => (
-        <div key={i}>
+        <div key={i} style={{ ['--i' as string]: i }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, marginBottom: 26 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 16 }}>{r.title}</div>
@@ -20,14 +20,15 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
             style={{
               position: 'relative',
               height: 74,
-              borderLeft: '2px solid var(--color-divider)',
-              borderRight: '2px solid var(--color-divider)',
+              borderLeft: 'var(--border-strong) solid var(--rule-strong)',
+              borderRight: 'var(--border-strong) solid var(--rule-strong)',
             }}
           >
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 34, height: 2, background: 'var(--color-divider)' }} />
+            <div style={{ position: 'absolute', left: 0, right: 0, top: 34, height: 2, background: 'var(--rule-strong)' }} />
             {r.bands.map((b, bi) => (
               <div
                 key={bi}
+                className="ruler-band"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -35,7 +36,8 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
                   left: `${b.start}%`,
                   width: `${b.width}%`,
                   background: b.active ? 'var(--color-accent)' : `color-mix(in srgb, var(--color-text) ${6 + bi * 5}%, transparent)`,
-                  color: b.active ? 'var(--color-bg)' : 'var(--color-text)',
+                  color: b.active ? 'var(--color-on-accent)' : 'var(--color-text)',
+                  boxShadow: b.active ? 'var(--glow-accent)' : undefined,
                   fontSize: 10,
                   letterSpacing: '0.06em',
                   display: 'flex',
@@ -43,7 +45,8 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
                   paddingLeft: 5,
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
-                  borderRight: '2px solid var(--color-bg)',
+                  borderRight: 'var(--border-strong) solid var(--surface-1)',
+                  ['--i' as string]: bi,
                 }}
               >
                 {b.label}
@@ -82,8 +85,9 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
                   fontSize: 10,
                   letterSpacing: '0.08em',
                   background: 'var(--color-accent)',
-                  color: 'var(--color-bg)',
+                  color: 'var(--color-on-accent)',
                   padding: '1px 5px',
+                  boxShadow: 'var(--glow-accent)',
                 }}
               >
                 YOU {r.youLabel}

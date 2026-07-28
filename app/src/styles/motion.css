@@ -1,0 +1,122 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION — keyframes and reveal utilities.
+
+   Everything here is driven by the duration tokens in tokens.css, so the
+   reduced-motion / motion-off switch collapses all of it at once. No
+   JavaScript animation loop: transitions and keyframes only, which keeps the
+   4096-cell heatmap off the main thread.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.62); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes draw-path {
+  from { stroke-dashoffset: var(--path-len, 1000); }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes pop-marker {
+  0% { opacity: 0; transform: scale(0); }
+  70% { opacity: 1; transform: scale(1.35); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent); }
+}
+
+@keyframes scan-sweep {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes flicker-in {
+  0% { opacity: 0; }
+  40% { opacity: 0.6; }
+  45% { opacity: 0.2; }
+  60% { opacity: 0.9; }
+  70% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* ── utilities ─────────────────────────────────────────────────────────── */
+
+.anim-fade { animation: fade-in var(--dur-3) var(--ease-out) both; }
+.anim-rise { animation: rise-in var(--dur-4) var(--ease-out) both; }
+.anim-slide { animation: slide-in-right var(--dur-3) var(--ease-out) both; }
+
+/* Screen transition. Keyed on the screen name in App.tsx so React remounts
+   and replays it. */
+.screen-enter { animation: rise-in var(--dur-4) var(--ease-out) both; }
+
+/* Staggered children — set --i on each child. Capped so a long list doesn't
+   take a full second to finish arriving. */
+.stagger > * {
+  animation: rise-in var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0) * 22ms, 400ms) * var(--motion-scale));
+}
+
+/* Heatmap sweep. The delay is computed per cell from its own grid position
+   (see Heatmap.tsx) so the reveal reads as a diagonal wipe rather than a
+   uniform fade. */
+.heat-cell {
+  animation: cell-in var(--dur-3) var(--ease-spring) both;
+  animation-delay: calc(var(--cell-delay, 0) * var(--stagger-step));
+  transition: outline-color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out),
+    filter var(--dur-1) var(--ease-out);
+}
+.heat-cell:hover {
+  transform: scale(1.28);
+  z-index: 3;
+  filter: brightness(1.25);
+  box-shadow: var(--glow-accent);
+}
+.heat-cell.is-you { animation: cell-in var(--dur-3) var(--ease-spring) both, pulse-ring 2.4s var(--ease-out) infinite; }
+
+/* Ruler bands grow from their leading edge. */
+.ruler-band {
+  transform-origin: left center;
+  animation: grow-x var(--dur-4) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms * var(--motion-scale));
+}
+
+/* SVG line draw-on. --path-len is set inline from getTotalLength(). */
+.draw-path {
+  stroke-dasharray: var(--path-len, 1000);
+  animation: draw-path var(--dur-5) var(--ease-in-out) both;
+}
+.pop-marker {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop-marker var(--dur-3) var(--ease-spring) both;
+  animation-delay: calc(var(--marker-delay, 0ms) * var(--motion-scale));
+}
+
+/* Numeric readouts that change value. */
+.tick-value { transition: color var(--dur-2) var(--ease-out); }
+.tick-value.is-changing { color: var(--color-accent); }

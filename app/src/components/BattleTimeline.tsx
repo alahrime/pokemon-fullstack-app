@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import type { BattleLogEntry } from '../lib/types';
 
 const WIDTH = 640;
@@ -20,6 +22,27 @@ function buildPoints(log: BattleLogEntry[], maxHpA: number, maxHpB: number, star
     points.push({ turn: e.turn, hpA: e.hpA, hpB: e.hpB, energyA: e.energyA, energyB: e.energyB });
   }
   return points;
+}
+
+/**
+ * Sets --path-len from the path's own measured length so the draw-on keyframe
+ * in motion.css has a correct dash offset. Measuring beats guessing: a short
+ * fight and a 60-turn slugfest need very different dash arrays.
+ */
+function useDrawLength<T extends SVGPathElement>(deps: unknown[]) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const len = el.getTotalLength();
+    el.style.setProperty('--path-len', String(Math.ceil(len)));
+    // Restart the animation when the underlying data changes.
+    el.style.animation = 'none';
+    void el.getBoundingClientRect();
+    el.style.animation = '';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return ref;
 }
 
 function pathFor(points: Point[], totalTurns: number, height: number, get: (p: Point) => number, max: number): string {
@@ -59,6 +82,10 @@ export function BattleTimeline({
   const chargeEvents = log.filter((e) => e.kind === 'charge');
   const seconds = (turn: number) => (turn * 0.5).toFixed(1);
 
+  // Only the HP paths draw on; the energy paths fade, so they need no measuring.
+  const hpARef = useDrawLength<SVGPathElement>([hpAPath]);
+  const hpBRef = useDrawLength<SVGPathElement>([hpBPath]);
+
   const markerFor = (e: BattleLogEntry, side: 'A' | 'B') => {
     const x = (e.turn / Math.max(1, totalTurns)) * WIDTH;
     const hp = side === 'A' ? e.hpA : e.hpB;
@@ -74,12 +101,15 @@ export function BattleTimeline({
     return (
       <circle
         key={`${e.turn}-${e.actor}-${e.moveName}`}
+        className="pop-marker"
         cx={x}
         cy={y}
         r={e.shielded ? 4 : 5.5}
-        fill={e.shielded ? 'var(--color-bg)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
+        fill={e.shielded ? 'var(--surface-1)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
         stroke={side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
         strokeWidth={1.5}
+        // Markers land in step with the line as it draws past them.
+        style={{ ['--marker-delay' as string]: `${300 + (e.turn / Math.max(1, totalTurns)) * 700}ms` } as CSSProperties}
       >
         <title>{`t=${seconds(e.turn)}s · ${side === 'A' ? nameA : nameB} · ${label}`}</title>
       </circle>
@@ -100,10 +130,18 @@ export function BattleTimeline({
         <span className="text-muted">● filled = real hit &nbsp; ○ hollow = shielded (bait or not)</span>
       </div>
       <svg viewBox={`0 0 ${WIDTH} ${TOTAL_HEIGHT}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        <defs>
+          {/* Telemetry grid, drawn from the theme's grid token. */}
+          <pattern id="bt-grid" width={WIDTH / 12} height={26} patternUnits="userSpaceOnUse">
+            <path d={`M ${WIDTH / 12} 0 L 0 0 0 26`} fill="none" stroke="var(--grid-line)" strokeWidth={1} />
+          </pattern>
+        </defs>
+
         {/* HP chart */}
-        <rect x={0} y={0} width={WIDTH} height={HP_HEIGHT} fill="var(--color-surface)" />
-        <path d={hpBPath} fill="none" stroke="var(--color-neutral-700)" strokeWidth={2} />
-        <path d={hpAPath} fill="none" stroke="var(--color-accent)" strokeWidth={2} />
+        <rect x={0} y={0} width={WIDTH} height={HP_HEIGHT} fill="var(--surface-2)" />
+        <rect x={0} y={0} width={WIDTH} height={HP_HEIGHT} fill="url(#bt-grid)" />
+        <path ref={hpBRef} className="draw-path" d={hpBPath} fill="none" stroke="var(--color-neutral-700)" strokeWidth={2} />
+        <path ref={hpARef} className="draw-path" d={hpAPath} fill="none" stroke="var(--color-accent)" strokeWidth={2} />
         {chargeEvents.map((e) => markerFor(e, 'A'))}
         {chargeEvents.map((e) => markerFor(e, 'B'))}
         <text x={4} y={12} fontSize={9} fill="var(--color-text)" opacity={0.55}>
@@ -111,17 +149,21 @@ export function BattleTimeline({
         </text>
 
         {/* energy chart */}
-        <rect x={0} y={HP_HEIGHT + GAP} width={WIDTH} height={ENERGY_HEIGHT} fill="var(--color-surface)" />
+        <rect x={0} y={HP_HEIGHT + GAP} width={WIDTH} height={ENERGY_HEIGHT} fill="var(--surface-2)" />
         <g transform={`translate(0, ${HP_HEIGHT + GAP})`}>
-          <path d={enBPath} fill="none" stroke="var(--color-neutral-700)" strokeWidth={1.5} strokeDasharray="3,2" />
-          <path d={enAPath} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="3,2" />
+          <rect x={0} y={0} width={WIDTH} height={ENERGY_HEIGHT} fill="url(#bt-grid)" />
+          {/* Fade, not draw-on: .draw-path drives stroke-dasharray, which would
+              overwrite the 3,2 dash that distinguishes energy from HP. */}
+          <path className="anim-fade" d={enBPath} fill="none" stroke="var(--color-neutral-700)" strokeWidth={1.5} strokeDasharray="3,2" />
+          <path className="anim-fade" d={enAPath} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="3,2" />
           <text x={4} y={12} fontSize={9} fill="var(--color-text)" opacity={0.55}>
             Energy
           </text>
         </g>
       </svg>
-      <div className="text-muted" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginTop: 4 }}>
+      <div className="hud-ticks" style={{ marginTop: 4 }}>
         <span>0.0s</span>
+        <span>{seconds(totalTurns / 2)}s</span>
         <span>{seconds(totalTurns)}s</span>
       </div>
     </div>

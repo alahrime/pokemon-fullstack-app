@@ -1,18 +1,23 @@
-@import './styles/modernist.css';
+/* Entry point for the design system.
 
-body {
-  margin: 0;
-  background: var(--color-bg);
-}
-a {
-  color: var(--color-accent);
-}
-a:hover {
-  color: var(--color-accent-700);
-}
-input[type='range'] {
-  accent-color: var(--color-accent);
-}
+   Load order matters — later layers consume tokens defined by earlier ones:
+     tokens     → primitives (no colour)
+     themes     → colour ramps + semantic aliases, per [data-theme]
+     components → classes built from semantic tokens
+     motion     → keyframes + reveal utilities
+     hud        → chrome that only renders under [data-theme='hud']
+
+   Retune the look in themes.css. Retune the feel in tokens.css (--motion-scale,
+   duration and easing tokens). Component classes should rarely need editing. */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@import './styles/tokens.css';
+@import './styles/themes.css';
+@import './styles/components.css';
+@import './styles/motion.css';
+@import './styles/hud.css';
+
 #root {
   min-height: 100vh;
 }

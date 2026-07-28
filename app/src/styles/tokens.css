@@ -1,0 +1,107 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKENS — theme-independent primitives.
+
+   Nothing in this file references a colour. Colours live in themes.css, keyed
+   by [data-theme]. That split is what lets a theme swap be a single attribute
+   change on <html> instead of a rebuild.
+
+   Layers:
+     tokens.css      → primitives (space, type, motion, geometry)   ← you are here
+     themes.css      → colour ramps + semantic aliases, per theme
+     components.css  → classes built from semantic tokens only
+     motion.css      → keyframes + reveal utilities
+     hud.css         → chrome that only exists in the HUD theme
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* — spacing — 4px base, geometric-ish ramp — */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* — type scale — */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+
+  --size-h1: 42px;
+  --size-h2: 32px;
+  --size-h3: 25px;
+  --size-h4: 20px;
+  --size-h5: 16px;
+  --size-h6: 13px;
+  --size-display: 52px;
+
+  --tracking-tight: -0.03em;
+  --tracking-flat: 0em;
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.12em;
+  --tracking-widest: 0.16em;
+
+  /* — motion — durations and easings are tokens so the whole app can be
+       retuned (or flattened) from one place. --motion-scale is the master
+       dial: reduced-motion sets it to 0 and every duration collapses. — */
+  --motion-scale: 1;
+  --dur-1: calc(90ms * var(--motion-scale));
+  --dur-2: calc(160ms * var(--motion-scale));
+  --dur-3: calc(280ms * var(--motion-scale));
+  --dur-4: calc(460ms * var(--motion-scale));
+  --dur-5: calc(720ms * var(--motion-scale));
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-linear: linear;
+
+  /* Per-cell stagger for the 4096-cell heatmap reveal. Kept tiny — with 256
+     visible cells even 2ms compounds to a half-second sweep. */
+  --stagger-step: calc(2ms * var(--motion-scale));
+
+  /* — geometry — */
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --ring-width: 2px;
+
+  /* — layout — */
+  --shell-max: 1440px;
+  --nav-height: 60px;
+}
+
+/* Reduced motion: collapse every duration to zero at the source rather than
+   overriding each animation individually. Transitions still "complete", they
+   just do so instantly, so no state logic depends on transitionend timing. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-scale: 0;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual override — the in-app motion toggle sets this on <html>. */
+:root[data-motion='off'] {
+  --motion-scale: 0;
+}
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}

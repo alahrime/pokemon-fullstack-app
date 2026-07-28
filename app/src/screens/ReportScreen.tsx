@@ -16,6 +16,7 @@ import {
 import { Sprite } from '../components/Sprite';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton, SegButton, SegGroup } from '../components/Seg';
+import { HudFrame, HudReadout } from '../components/Hud';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
@@ -29,7 +30,7 @@ const VIZ_ITEMS: [Viz, string][] = [
 ];
 
 export function ReportScreen() {
-  const { state, set, patch, bumpIv, beginner } = useAppState();
+  const { state, set, patch, bumpIv } = useAppState();
   const { league, species: speciesId, iv, viz, colorBy, oppId, moveIdx } = state;
 
   const species = SPECIES_BY_ID.get(speciesId)!;
@@ -67,35 +68,32 @@ export function ReportScreen() {
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const colorByLabel = colorBy === 'rank' ? 'stat product rank' : colorBy === 'break' ? `${mv.name} damage dealt` : `${opp.fastMove.name} damage taken`;
 
-  const bpBlurb = beginner
-    ? 'Every square is one of the 4096 possible catches. A breakpoint is the attack value where your fast move starts doing one more damage — cross it and every hit for the rest of the fight is stronger.'
-    : `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.name}, and where incoming ${opp.fastMove.name} steps down.`;
+  const bpBlurb = `${table.league.name} · ${table.best.a}/${table.best.d}/${table.best.s} is rank 1 at ${(table.best.sp / 1000).toFixed(2)}k. Thresholds where floor(0.5·P·Atk/Def·STAB) steps by 1 for ${mv.name} into ${opp.name}, and where incoming ${opp.fastMove.name} steps down.`;
 
-  const footnote = beginner
-    ? 'Rank compares your Pokémon against every one of the 4096 possible IV rolls at this CP cap. #1 is the best possible. Click any heatmap cell to load that spread.'
-    : 'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1. Click any heatmap cell to load that spread.';
+  const footnote =
+    'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1. Click any heatmap cell to load that spread.';
 
   const rankBarW = (100 - ((entry.rank - 1) / 4095) * 100).toFixed(2) + '%';
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,340px) minmax(0,1fr)', gap: 0, border: '2px solid var(--color-divider)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,340px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
         {/* Left column */}
-        <div style={{ borderRight: '2px solid var(--color-divider)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ borderRight: 'var(--border-strong) solid var(--rule-strong)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <div
+            <HudFrame
               style={{
                 flex: 'none',
                 width: 88,
                 height: 88,
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-divider)',
+                background: 'var(--surface-2)',
+                border: 'var(--border-hairline) solid var(--rule-strong)',
                 display: 'grid',
                 placeItems: 'center',
               }}
             >
-              <Sprite dex={species.dex} size={80} />
-            </div>
+              <Sprite dex={species.dex} size={80} className="sprite-holo" />
+            </HudFrame>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>
                 #{String(species.dex).padStart(3, '0')}
@@ -108,69 +106,70 @@ export function ReportScreen() {
                   </span>
                 ))}
               </div>
-              <div className="text-muted" style={{ fontSize: 13 }}>
+              <div className="text-muted numeric" style={{ fontSize: 13 }}>
                 IV {iv.a}/{iv.d}/{iv.s} · CP {entry.cp} · L{entry.lvl}
               </div>
             </div>
           </div>
 
-          <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', padding: '16px 18px' }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.6 }}>Stat product rank</div>
+          <HudFrame
+            signal
+            style={{ background: 'var(--surface-inverse)', color: 'var(--text-inverse)', padding: '16px 18px' }}
+          >
+            <div style={{ fontSize: 10, letterSpacing: 'var(--tracking-widest)', textTransform: 'uppercase', opacity: 0.6 }}>
+              Stat product rank
+            </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 52, lineHeight: 1, letterSpacing: '-0.04em' }}>
-                #{entry.rank}
-              </span>
-              <span style={{ fontSize: 15, opacity: 0.55 }}>/ 4096</span>
+              <HudReadout value={`#${entry.rank}`} />
+              <span className="numeric" style={{ fontSize: 15, opacity: 0.55 }}>/ 4096</span>
             </div>
-            <div style={{ height: 2, background: 'rgba(255,255,255,0.25)', margin: '12px 0 8px' }}>
-              <div style={{ height: 2, background: 'var(--color-accent)', width: rankBarW }} />
+            {/* Track tints from the current text colour, so it works on either
+                ground — the old hardcoded rgba(255,255,255,.25) vanished on light. */}
+            <div style={{ height: 2, background: 'color-mix(in srgb, currentColor 25%, transparent)', margin: '12px 0 8px' }}>
+              <div
+                className="ruler-band"
+                style={{ height: 2, background: 'var(--color-accent)', width: rankBarW, boxShadow: 'var(--glow-accent)' }}
+              />
             </div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>{verdictLine(entry.rank, beginner)}</div>
-          </div>
+            <div style={{ fontSize: 12, opacity: 0.75 }}>{verdictLine(entry.rank)}</div>
+          </HudFrame>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: '1px solid var(--color-divider)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', border: 'var(--border-hairline) solid var(--rule-strong)' }}>
             {[
               ['Attack', entry.atk.toFixed(1)],
               ['Defense', entry.def.toFixed(1)],
               ['HP', String(entry.hp)],
             ].map(([label, value], i) => (
-              <div key={label} style={{ padding: '10px 12px', borderRight: i < 2 ? '1px solid var(--color-divider)' : undefined }}>
+              <div key={label} style={{ padding: '10px 12px', borderRight: i < 2 ? 'var(--border-hairline) solid var(--rule-strong)' : undefined }}>
                 <div className="text-muted" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   {label}
                 </div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>{value}</div>
+                <div className="numeric" style={{ fontWeight: 800, fontSize: 20 }}>{value}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span className="text-muted">Stat product</span>
-              <span>{(entry.sp / 1000).toFixed(2)}k</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span className="text-muted">% of rank 1</span>
-              <span>{(spPct * 100).toFixed(2)}%</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span className="text-muted">Rank 1 spread</span>
-              <span>
-                {table.best.a}/{table.best.d}/{table.best.s} ({(table.best.sp / 1000).toFixed(2)}k)
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span className="text-muted">Best league here</span>
-              <span>
-                {bestLeague.league.name} · #{bestLeague.rank}
-              </span>
-            </div>
+          <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {(
+              [
+                ['Stat product', `${(entry.sp / 1000).toFixed(2)}k`],
+                ['% of rank 1', `${(spPct * 100).toFixed(2)}%`],
+                ['Rank 1 spread', `${table.best.a}/${table.best.d}/${table.best.s} (${(table.best.sp / 1000).toFixed(2)}k)`],
+                ['Best league here', `${bestLeague.league.name} · #${bestLeague.rank}`],
+              ] as [string, string][]
+            ).map(([label, value], i) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, ['--i' as string]: i }}>
+                <span className="text-muted">{label}</span>
+                <span className="numeric">{value}</span>
+              </div>
+            ))}
           </div>
 
           <hr className="hr" style={{ margin: '2px 0' }} />
 
           <div>
-            <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Adjust roll
+            <div className="hud-label" style={{ marginBottom: 8 }}>
+              <span>Adjust roll</span>
             </div>
             <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>
@@ -204,7 +203,7 @@ export function ReportScreen() {
                 {o.name}
               </ChipButton>
             ))}
-            <span style={{ width: 2, height: 20, background: 'var(--color-divider)' }} />
+            <span style={{ width: 2, height: 20, background: 'var(--rule-strong)' }} />
             {species.fastMoves.map((m, i) => (
               <ChipButton key={m.id} active={moveIdx === i} onClick={() => set('moveIdx', i)}>
                 {m.name}
@@ -242,7 +241,6 @@ export function ReportScreen() {
               onSelectOpponent={(idx) => set('oppId', opponents[idx].id)}
               now={grid.results.find((o) => o.entry.a === iv.a && o.entry.d === iv.d)?.result ?? { win: false, margin: 0 }}
               cmpWin={entry.atk >= grid.opponentMon.atk}
-              beginner={beginner}
             />
           )}
         </div>

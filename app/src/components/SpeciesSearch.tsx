@@ -106,8 +106,8 @@ export function SpeciesSearch({
             margin: '2px 0 0',
             padding: 0,
             listStyle: 'none',
-            background: 'var(--color-bg)',
-            border: '1px solid var(--color-divider)',
+            background: 'var(--surface-1)',
+            border: 'var(--border-hairline) solid var(--rule-strong)',
             maxHeight: 240,
             overflowY: 'auto',
             boxShadow: 'var(--shadow-md)',
@@ -129,7 +129,7 @@ export function SpeciesSearch({
                 fontSize: 13,
                 cursor: 'pointer',
                 background: i === activeIndex ? 'var(--color-accent)' : 'transparent',
-                color: i === activeIndex ? 'var(--color-bg)' : 'var(--color-text)',
+                color: i === activeIndex ? 'var(--color-on-accent)' : 'var(--color-text)',
               }}
             >
               {s.name}

@@ -3,14 +3,12 @@ import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor } from '../lib/data';
 
 export type Screen = 'report' | 'battle';
-export type Mode = 'beginner' | 'expert';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
 export interface AppStateShape {
   screen: Screen;
   league: LeagueId;
-  mode: Mode;
   species: string;
   iv: IV;
   viz: Viz;
@@ -38,7 +36,6 @@ export interface AppStateShape {
 const initialState: AppStateShape = {
   screen: 'report',
   league: 'great',
-  mode: 'expert',
   species: 'azumarill',
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',
@@ -65,7 +62,6 @@ interface AppStateContextValue {
   set: <K extends keyof AppStateShape>(key: K, value: AppStateShape[K]) => void;
   patch: (partial: Partial<AppStateShape>) => void;
   bumpIv: (key: keyof IV, delta: number) => void;
-  beginner: boolean;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -79,7 +75,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const patch = (partial: Partial<AppStateShape>) => setState((s) => ({ ...s, ...partial }));
     const bumpIv = (key: keyof IV, delta: number) =>
       setState((s) => ({ ...s, iv: { ...s.iv, [key]: Math.max(0, Math.min(15, s.iv[key] + delta)) } }));
-    return { state, set, patch, bumpIv, beginner: state.mode === 'beginner' };
+    return { state, set, patch, bumpIv };
   }, [state]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

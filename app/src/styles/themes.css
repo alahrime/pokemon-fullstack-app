@@ -1,0 +1,185 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEMES — colour ramps and semantic aliases, keyed by [data-theme].
+
+   THE RAMP CONTRACT (important — read before adding a theme)
+
+   Every ramp runs 100 → 900 in order of *increasing contrast against the
+   page*, not increasing lightness. On a light ground 100 is the palest and
+   900 the darkest; on a dark ground that inverts — 100 is the deepest and
+   900 the brightest.
+
+   This is what makes the rest of the app theme-agnostic for free. A pairing
+   like `.tag-accent { background: accent-100; color: accent-800 }` reads as
+   "quiet fill, loud text" and stays legible in both themes without a single
+   override. The same holds for the heatmap ramp computed in lib/engine.ts:
+   tierColor() walks neutral-200 → accent-700, which is always low → high
+   intensity regardless of ground.
+
+   Add a theme by defining the full set below. Don't add per-theme overrides
+   to components.css; if a component needs one, the ramp is wrong.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ───────────────────────────────────────────────────────────────────────────
+   HUD — dark tactical readout. Default theme.
+   Deep blue-black ground, brand red as the primary signal, cyan as telemetry.
+   ─────────────────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme='hud'] {
+  color-scheme: dark;
+
+  --color-bg: #06090d;
+  --color-surface: #0e151d;
+  --color-text: #d6e4ee;
+  --color-accent: #ff4a2b;
+  --color-accent-2: #35d7f5;
+  --color-divider: color-mix(in srgb, #6f8ba3 42%, transparent);
+
+  --color-neutral-100: #0e151d;
+  --color-neutral-200: #16202b;
+  --color-neutral-300: #1f2c3a;
+  --color-neutral-400: #2c3d4f;
+  --color-neutral-500: #435769;
+  --color-neutral-600: #5d7488;
+  --color-neutral-700: #8098ac;
+  --color-neutral-800: #a9bccc;
+  --color-neutral-900: #dbe7f0;
+
+  --color-accent-100: #24090b;
+  --color-accent-200: #3d1010;
+  --color-accent-300: #5e1913;
+  --color-accent-400: #8a2416;
+  --color-accent-500: #bd3419;
+  --color-accent-600: #e5451f;
+  --color-accent-700: #ff6a3d;
+  --color-accent-800: #ff9b78;
+  --color-accent-900: #ffcdb8;
+
+  --color-accent-2-100: #04212a;
+  --color-accent-2-200: #063341;
+  --color-accent-2-300: #084c60;
+  --color-accent-2-400: #0a6a86;
+  --color-accent-2-500: #0e8dae;
+  --color-accent-2-600: #17b0d6;
+  --color-accent-2-700: #35d7f5;
+  --color-accent-2-800: #83e8fb;
+  --color-accent-2-900: #c2f4fd;
+
+  /* — semantic aliases — components reference these, never the raw ramp — */
+  --surface-1: var(--color-bg);
+  --surface-2: var(--color-surface);
+  --surface-3: #16202b;
+  --surface-inverse: var(--color-neutral-900);
+  --text-inverse: var(--color-bg);
+  --text-muted: color-mix(in srgb, var(--color-text) 58%, transparent);
+  --text-faint: color-mix(in srgb, var(--color-text) 38%, transparent);
+  --color-on-accent: #0b0407;
+
+  --rule-hairline: color-mix(in srgb, var(--color-divider) 55%, transparent);
+  --rule-strong: var(--color-divider);
+  --focus-ring: var(--color-accent-2-700);
+  --grid-line: color-mix(in srgb, #4e7fa0 16%, transparent);
+
+  /* Dark grounds read depth from light, not shadow: a hairline top edge plus
+     ambient darkness below, with an accent bloom for active elements. */
+  --shadow-sm: 0 1px 0 color-mix(in srgb, #9fc4dd 8%, transparent) inset,
+    0 1px 3px rgb(0 0 0 / 0.55);
+  --shadow-md: 0 1px 0 color-mix(in srgb, #9fc4dd 10%, transparent) inset,
+    0 6px 18px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 1px 0 color-mix(in srgb, #9fc4dd 12%, transparent) inset,
+    0 20px 50px rgb(0 0 0 / 0.7);
+  --glow-accent: 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+    0 0 18px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --glow-signal: 0 0 14px color-mix(in srgb, var(--color-accent-2) 40%, transparent);
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 800;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* HUD puts every number in mono — readouts should tick, not reflow. */
+  --font-numeric: var(--font-mono);
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+
+  --chrome-opacity: 1;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   MODERNIST — the original light Swiss design. Preserved verbatim in value;
+   only reorganised to satisfy the ramp contract and the semantic aliases.
+   ─────────────────────────────────────────────────────────────────────── */
+:root[data-theme='modernist'] {
+  color-scheme: light;
+
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201e1d;
+  --color-accent: #ec3013;
+  --color-accent-2: #e15b47;
+  --color-divider: color-mix(in srgb, #201e1d 40%, transparent);
+
+  --color-neutral-100: #f8f4f4;
+  --color-neutral-200: #eae7e7;
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-400: #bab6b6;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+  --color-neutral-900: #2d2b2b;
+
+  --color-accent-100: #fff2ef;
+  --color-accent-200: #ffe0d9;
+  --color-accent-300: #ffc4b8;
+  --color-accent-400: #ff9783;
+  --color-accent-500: #ff563c;
+  --color-accent-600: #dd2b0f;
+  --color-accent-700: #ae1800;
+  --color-accent-800: #7c1405;
+  --color-accent-900: #4d170e;
+
+  --color-accent-2-100: #fff2ef;
+  --color-accent-2-200: #ffe0da;
+  --color-accent-2-300: #ffc4b9;
+  --color-accent-2-400: #ff9784;
+  --color-accent-2-500: #ef6853;
+  --color-accent-2-600: #c94b39;
+  --color-accent-2-700: #9e3526;
+  --color-accent-2-800: #71261b;
+  --color-accent-2-900: #471d16;
+
+  --surface-1: var(--color-bg);
+  --surface-2: var(--color-surface);
+  --surface-3: #e0dedd;
+  --surface-inverse: var(--color-text);
+  --text-inverse: var(--color-bg);
+  --text-muted: color-mix(in srgb, var(--color-text) 55%, transparent);
+  --text-faint: color-mix(in srgb, var(--color-text) 40%, transparent);
+  --color-on-accent: var(--color-bg);
+
+  --rule-hairline: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --rule-strong: var(--color-divider);
+  --focus-ring: var(--color-accent);
+  --grid-line: color-mix(in srgb, var(--color-text) 7%, transparent);
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+  --glow-accent: 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  --glow-signal: none;
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 800;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Modernist keeps figures in the heading face — Swiss numerals, not telemetry. */
+  --font-numeric: var(--font-heading);
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+
+  /* Suppresses scanlines/brackets without unmounting the components. */
+  --chrome-opacity: 0;
+}

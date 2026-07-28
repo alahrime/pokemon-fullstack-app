@@ -1,6 +1,9 @@
 import { AppStateProvider, useAppState, type Screen } from './state/AppState';
+import { ThemeProvider } from './state/ThemeContext';
 import { SegButton, SegGroup } from './components/Seg';
 import { SpeciesSearch } from './components/SpeciesSearch';
+import { ThemeSwitch } from './components/ThemeSwitch';
+import { HudGround } from './components/Hud';
 import { LEAGUES, opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
@@ -13,11 +16,8 @@ const SCREENS: [Screen, string][] = [
 function Nav() {
   const { state, set, patch } = useAppState();
   return (
-    <div
-      className="nav"
-      style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-bg)', flexWrap: 'wrap', rowGap: 8 }}
-    >
-      <span className="nav-brand" style={{ letterSpacing: '-0.03em' }}>
+    <div className="nav" style={{ position: 'sticky', top: 0, zIndex: 20, flexWrap: 'wrap', rowGap: 'var(--space-2)' }}>
+      <span className="nav-brand">
         PARAGON<span style={{ color: 'var(--color-accent)' }}>/</span>IV
       </span>
       <SpeciesSearch
@@ -45,33 +45,37 @@ function Nav() {
           </SegButton>
         ))}
       </SegGroup>
-      <SegGroup>
-        {(['beginner', 'expert'] as const).map((id) => (
-          <SegButton key={id} active={state.mode === id} onClick={() => set('mode', id)}>
-            {id === 'beginner' ? 'Beginner' : 'Expert'}
-          </SegButton>
-        ))}
-      </SegGroup>
+      <ThemeSwitch />
     </div>
   );
 }
 
 function Screens() {
   const { state } = useAppState();
+  // Keyed on the screen id so React remounts the subtree and the enter
+  // animation replays on every switch.
   switch (state.screen) {
     case 'report':
-      return <ReportScreen />;
+      return <ReportScreen key="report" />;
     case 'battle':
-      return <BattleScreen />;
+      return <BattleScreen key="battle" />;
   }
 }
 
 function Shell() {
+  const { state } = useAppState();
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
-      <Nav />
-      <div style={{ padding: '24px 24px 64px', maxWidth: 1440, width: '100%', margin: '0 auto' }}>
-        <Screens />
+      <HudGround />
+      <div className="hud-content" style={{ display: 'contents' }}>
+        <Nav />
+        <div
+          key={state.screen}
+          className="screen-enter"
+          style={{ padding: '24px 24px 64px', maxWidth: 'var(--shell-max)', width: '100%', margin: '0 auto', position: 'relative', zIndex: 2 }}
+        >
+          <Screens />
+        </div>
       </div>
     </div>
   );
@@ -79,8 +83,10 @@ function Shell() {
 
 export default function App() {
   return (
-    <AppStateProvider>
-      <Shell />
-    </AppStateProvider>
+    <ThemeProvider>
+      <AppStateProvider>
+        <Shell />
+      </AppStateProvider>
+    </ThemeProvider>
   );
 }

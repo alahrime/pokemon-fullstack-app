@@ -22,7 +22,6 @@ export function FlipView({
   onSelectOpponent,
   now,
   cmpWin,
-  beginner,
 }: {
   ivA: number;
   ivD: number;
@@ -37,7 +36,6 @@ export function FlipView({
   onSelectOpponent: (idx: number) => void;
   now: { win: boolean; margin: number };
   cmpWin: boolean;
-  beginner: boolean;
 }) {
   const cheapest = grid.cheapest;
   const minAtkWin = grid.minAtkWin;
@@ -54,9 +52,8 @@ export function FlipView({
     ? `You win CMP ties: your attack is higher. Simultaneous charge moves land yours first.`
     : `You lose CMP ties: their attack is higher. Their charge move resolves first if thrown together.`;
 
-  const flipNote = beginner
-    ? 'Green squares are IV spreads that beat this opponent in this shield scenario. The edge between green and grey is the breakpoint that actually matters — everything else is noise.'
-    : 'Simulated at 500ms turns, throw-as-soon-as-charged, neutral typing, both sides on their default fast + charge move. Shield counts change which side of the boundary you need to be on; CMP is decided by raw attack.';
+  const flipNote =
+    'Simulated at 500ms turns, throw-as-soon-as-charged, neutral typing, both sides on their default fast + charge move. Shield counts change which side of the boundary you need to be on; CMP is decided by raw attack.';
 
   return (
     <>
@@ -77,7 +74,7 @@ export function FlipView({
               display: 'grid',
               gridTemplateColumns: 'repeat(16,minmax(0,1fr))',
               gap: 2,
-              border: '1px solid var(--color-divider)',
+              border: 'var(--border-hairline) solid var(--rule-strong)',
               padding: 3,
             }}
           >
@@ -96,7 +93,7 @@ export function FlipView({
                     placeItems: 'center',
                     fontSize: 8,
                     cursor: 'pointer',
-                    color: o.result.win ? 'var(--color-bg)' : 'var(--color-neutral-600)',
+                    color: o.result.win ? 'var(--color-on-accent)' : 'var(--color-neutral-600)',
                     outline: isYou ? '2px solid var(--color-text)' : undefined,
                     zIndex: isYou ? 2 : undefined,
                   }}
@@ -121,7 +118,7 @@ export function FlipView({
               fontSize: 12,
               padding: '10px 12px',
               borderLeft: `3px solid ${cmpWin ? 'var(--color-accent)' : 'var(--color-neutral-500)'}`,
-              background: 'var(--color-surface)',
+              background: 'var(--surface-2)',
               marginTop: 14,
             }}
           >
@@ -129,7 +126,7 @@ export function FlipView({
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ border: '2px solid var(--color-divider)', padding: 14 }}>
+          <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', padding: 14 }}>
             <div
               style={{
                 fontFamily: 'var(--font-heading)',

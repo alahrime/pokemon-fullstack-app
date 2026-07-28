@@ -8,6 +8,7 @@ import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton } from '../components/Seg';
 import { BattleTimeline } from '../components/BattleTimeline';
+import { HudLabel } from '../components/Hud';
 
 const SHIELD_LABELS = ['0 shields', '1 shield', '2 shields'];
 
@@ -48,11 +49,11 @@ function Side({
 
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>{label}</div>
+      <HudLabel>{label}</HudLabel>
       <SpeciesSearch id={`battle-${label}`} value={speciesId} onChange={onSpecies} placeholder="Search species…" />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <Sprite dex={species.dex} size={64} />
+        <Sprite dex={species.dex} size={64} className="sprite-holo" />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>{species.name}</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '2px 0 4px' }}>
@@ -62,7 +63,7 @@ function Side({
               </span>
             ))}
           </div>
-          <div className="text-muted" style={{ fontSize: 12 }}>
+          <div className="text-muted numeric" style={{ fontSize: 12 }}>
             CP {entry.cp} · L{entry.lvl} · #{entry.rank}/4096
           </div>
         </div>
@@ -125,19 +126,26 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
         <span className="text-muted">{label}</span>
-        <span>
+        <span className="numeric">
           {Math.round(hp)} / {maxHp} HP ({pct.toFixed(0)}%)
         </span>
       </div>
       <div style={{ height: 8, background: 'var(--color-neutral-300)', marginTop: 3 }}>
-        <div style={{ height: 8, background: color, width: `${pct}%` }} />
+        <div
+          style={{
+            height: 8,
+            background: color,
+            width: `${pct}%`,
+            transition: 'width var(--dur-4) var(--ease-out)',
+          }}
+        />
       </div>
     </div>
   );
 }
 
 export function BattleScreen() {
-  const { state, patch, beginner } = useAppState();
+  const { state, patch } = useAppState();
   const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB } = state;
 
   const speciesA = SPECIES_BY_ID.get(battleA)!;
@@ -177,14 +185,13 @@ export function BattleScreen() {
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ margin: 0 }}>Battle simulator</h3>
         <div className="text-muted" style={{ fontSize: 12 }}>
-          {beginner
-            ? 'Pick two Pokémon, their moves, and how many shields each side uses — see who wins and by how much.'
-            : 'Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective baiting when a mon carries two charge moves of different costs.'}
+          Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective
+          baiting when a mon carries two charge moves of different costs.
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, border: '2px solid var(--color-divider)' }}>
-        <div style={{ borderRight: '2px solid var(--color-divider)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
+        <div style={{ borderRight: 'var(--border-strong) solid var(--rule-strong)' }}>
           <Side
             label="Pokémon 1"
             speciesId={battleA}
@@ -220,15 +227,18 @@ export function BattleScreen() {
         />
       </div>
 
-      <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
         <div style={{ flex: 'none', minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
+            <HudLabel live>Outcome</HudLabel>
             <div
+              className="anim-rise"
               style={{
                 fontFamily: 'var(--font-heading)',
                 fontWeight: 800,
                 fontSize: 22,
                 color: 'var(--color-accent-700)',
+                marginTop: 4,
               }}
             >
               {winner.name} beats {loser.name}
@@ -242,12 +252,12 @@ export function BattleScreen() {
           <HpBar label={speciesB.name} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
           <div style={{ fontSize: 12 }}>{winner.name} wins {winCount} of 9 shield-count combinations.</div>
           <div className="text-muted" style={{ fontSize: 11, maxWidth: '42ch' }}>
-            {verdictLine(entryA.rank, beginner)} · {verdictLine(entryB.rank, beginner)}
+            {verdictLine(entryA.rank)} · {verdictLine(entryB.rank)}
           </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 280 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
+          <div className="panel-title">
             Every shield combination
           </div>
           <table className="table" style={{ width: 'auto' }}>
@@ -305,8 +315,8 @@ export function BattleScreen() {
         </div>
       </div>
 
-      <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20 }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
+      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20 }}>
+        <div className="panel-title">
           HP &amp; energy progression — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
         <BattleTimeline
@@ -320,8 +330,8 @@ export function BattleScreen() {
         />
       </div>
 
-      <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20 }}>
-        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
+      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20 }}>
+        <div className="panel-title">
           Charge move log — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
         {current.log.filter((e) => e.kind === 'charge').length === 0 ? (

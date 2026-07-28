@@ -24,6 +24,22 @@ function TypeMark({ type }: { type: string }) {
   return <img className="move-type" src={typeIconUrl(type)} alt="" aria-hidden loading="lazy" />;
 }
 
+/**
+ * Explicit pick indicator.
+ *
+ * Tint alone wasn't carrying selection: every tile is already coloured by its
+ * own type, so "selected" read as just a slightly stronger version of the same
+ * hue. A dedicated control mark says it outright. Round for fast moves, which
+ * are single-choice; square for charged, which are a pick-two.
+ */
+function PickMark({ on, shape }: { on: boolean; shape: 'radio' | 'check' }) {
+  return (
+    <span className={`move-pick move-pick-${shape}${on ? ' is-on' : ''}`} aria-hidden>
+      {on ? (shape === 'check' ? '✓' : '') : ''}
+    </span>
+  );
+}
+
 function Stat({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="move-stat">
@@ -44,6 +60,7 @@ function FastTile({ move, active, onClick }: { move: FastMove; active: boolean; 
       onClick={onClick}
     >
       <div className="move-head">
+        <PickMark on={active} shape="radio" />
         <TypeMark type={move.type} />
         <span className="move-name">{move.name}</span>
         {move.stab > 1 && <span className="move-flag">STAB</span>}
@@ -84,6 +101,7 @@ function ChargeTile({
       onClick={onClick}
     >
       <div className="move-head">
+        <PickMark on={active} shape="check" />
         <TypeMark type={move.type} />
         <span className="move-name">{move.name}</span>
         {move.stab > 1 && <span className="move-flag">STAB</span>}

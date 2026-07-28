@@ -2,6 +2,35 @@ import { ChipButton } from '../../components/Seg';
 import { Sprite } from '../../components/Sprite';
 import type { FlipGrid, FlipMatchupRow } from '../../lib/engine';
 
+/** One face of a matchup flip card. Both faces always render; CSS turns the card. */
+function FlipFace({ win, margin, back = false }: { win: boolean; margin: number; back?: boolean }) {
+  return (
+    <div
+      className={`flip-face${back ? ' flip-face-back' : ''}`}
+      style={{
+        background: win ? 'color-mix(in srgb, var(--color-accent) 16%, transparent)' : 'var(--surface-2)',
+      }}
+    >
+      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 800,
+            fontSize: 13,
+            color: win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
+          }}
+        >
+          {win ? 'W' : 'L'}
+        </div>
+        <div className="text-muted numeric" style={{ fontSize: 10 }}>
+          {margin >= 0 ? '+' : ''}
+          {margin.toFixed(0)}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const SHIELD_ITEMS: [number, string][] = [
   [0, '0 shields'],
   [1, '1 shield each'],
@@ -168,19 +197,13 @@ export function FlipView({
                   </td>
                   {r.cells.map((c, ci) => (
                     <td key={ci}>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          fontWeight: 800,
-                          fontSize: 13,
-                          color: c.win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
-                        }}
-                      >
-                        {c.win ? 'W' : 'L'}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 10 }}>
-                        {c.margin >= 0 ? '+' : ''}
-                        {c.margin.toFixed(0)}%
+                      {/* The card turns over when the matchup does — the flip
+                          is the concept this whole view is named for. */}
+                      <div className={`flip-card${c.win ? ' is-won' : ''}`} style={{ height: 38, width: 54 }}>
+                        <div className="flip-card-inner">
+                          <FlipFace win={false} margin={c.margin} />
+                          <FlipFace win margin={c.margin} back />
+                        </div>
                       </div>
                     </td>
                   ))}

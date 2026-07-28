@@ -168,6 +168,60 @@ input[type='range'] { accent-color: var(--color-accent); }
   color: var(--color-on-accent);
 }
 
+/* — opponent grid cell — */
+.opp-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 400;
+  font-family: var(--font-body);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-radius: var(--radius-sm);
+}
+.opp-cell:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.opp-cell.is-active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  box-shadow: var(--glow-accent);
+}
+.opp-name {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-base);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opp-reason {
+  display: block;
+  font-size: var(--text-2xs);
+  line-height: 1.25;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A matchup the IV roll actually decides is the headline case — mark it. */
+.opp-reason.is-flip { color: var(--color-accent-700); }
+.opp-flag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
 /* — forms — */
 .field > label {
   display: block;

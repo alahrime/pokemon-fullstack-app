@@ -162,6 +162,21 @@ export function chargesOf(chargeMove: ChargeMove, chargeMove2: ChargeMove | null
   return chargeMove2 ? [chargeMove, chargeMove2] : [chargeMove];
 }
 
+/**
+ * Resolve a chosen charged-move set against a species' full movepool.
+ *
+ * An empty or unresolvable selection falls back to PvPoke's recommended pair,
+ * so state that predates movepool selection - or a selection carried over from
+ * a different species - still produces a valid mon rather than an empty one.
+ */
+export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] {
+  if (!ids || ids.length === 0) return chargesOf(species.chargeMove, species.chargeMove2);
+  const picked = ids
+    .map((id) => species.chargeMoves.find((m) => m.id === id))
+    .filter((m): m is ChargeMove => !!m);
+  return picked.length ? picked : chargesOf(species.chargeMove, species.chargeMove2);
+}
+
 export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
@@ -209,6 +224,271 @@ export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: F
 }
 
 export type RelevanceKind = 'break' | 'bulk' | 'either';
+
+// ══════════════════════════════════════════════════════════════════════════
+// Nuanced opponent selection
+//
+// The old filter asked "does any damage number change across the 4096?" That
+// over-selects (about half of all matchups have *some* bulkpoint) and, worse,
+// it under-selects: it threw away matchups with no threshold at all that are
+// nonetheless decided by IVs. Two real cases it missed —
+//
+//   1. CMP. Simultaneous charge moves resolve by raw attack (see battle()'s
+//      `a.atk >= b.atk`). So the threshold is *exactly* the opponent's attack
+//      stat. If your 4096 attack range straddles it, some spreads throw first
+//      and some don't, which can flip a shielded scenario outright. Sableye
+//      into Feraligatr is the canonical one.
+//   2. HP. Surviving one extra fast hit is a function of total HP, not of
+//      damage-per-hit, so a matchup can flip with no breakpoint or bulkpoint
+//      anywhere in it.
+//
+// So instead of asking about thresholds, we ask the question the player
+// actually has: *does my IV roll change who wins?* That means simulating.
+//
+// Cost control: simulating all 4096 spreads against ~200 candidates across 3
+// shield scenarios is millions of battles. Outcomes are near-monotonic in the
+// underlying stats, so we probe the extremes of the space plus the two
+// spreads straddling the CMP threshold — the points where a flip can occur —
+// and check whether the verdict differs between them.
+// ══════════════════════════════════════════════════════════════════════════
+
+/** Why a matchup is worth a player's attention, strongest signal first. */
+export interface OpponentRelevance {
+  info: OpponentInfo;
+  score: number;
+  /** Shield counts (0/1/2, symmetric) where the IV roll changes who wins. */
+  flipShields: number[];
+  /** Opponent's attack sits inside our reachable attack range, so IVs decide CMP. */
+  cmpContested: boolean;
+  /** Rank of the best spread that wins charge-move priority, null if unaffordable. */
+  cmpCost: number | null;
+  hasBreak: boolean;
+  hasBulk: boolean;
+  /** Tightest absolute HP margin seen across probes, in percent. */
+  closest: number;
+  /** Short human-readable justification for the chip. */
+  reason: string;
+}
+
+/**
+ * Where probe spreads come from.
+ *
+ * Two failure modes had to be avoided, and they pull in opposite directions:
+ *
+ *   Too wide. Probing the true corners (15/0/0 against 0/15/15) flips almost
+ *   every matchup — an early run had every candidate reporting "flips at 0, 1
+ *   and 2 shields", which is technically true and completely useless.
+ *
+ *   Too narrow. Restricting to the top 5% by stat product silently discards
+ *   the high-attack rolls, because attack costs stat product. That threw away
+ *   the single most interesting case: Sableye's cheapest spread that wins CMP
+ *   against Feraligatr is rank 247 — clearly keepable — but its attack sits
+ *   above everything in the top 5%, so the matchup vanished entirely.
+ *
+ * So the bulk/attack extremes are drawn from a competitive band, while the CMP
+ * straddle is found over the *whole* table and admitted only if the spread
+ * that wins it is one you'd actually keep. That also yields the rank you'd
+ * have to accept, which is the real decision.
+ */
+const PROBE_BAND = 0.25;
+/** Matches verdictLine's "usable" cutoff — beyond this, it isn't a real option. */
+const KEEPABLE_RANK = 1500;
+
+type ProbeLabel = 'rank1' | 'atk' | 'def' | 'hp' | 'cmp+' | 'cmp-';
+
+interface Probe {
+  label: ProbeLabel;
+  entry: RankedEntry;
+}
+
+interface ProbeSet {
+  probes: Probe[];
+  /** Rank of the best spread that wins charge-move priority, if affordable. */
+  cmpCost: number | null;
+}
+
+function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
+  const band = table.all.slice(0, Math.max(8, Math.round(table.all.length * PROBE_BAND)));
+
+  let maxAtk = band[0];
+  let maxDef = band[0];
+  let maxHp = band[0];
+  for (const e of band) {
+    if (e.atk > maxAtk.atk) maxAtk = e;
+    if (e.def > maxDef.def) maxDef = e;
+    if (e.hp > maxHp.hp) maxHp = e;
+  }
+
+  // Best-ranked spread on each side of the priority threshold, over the full
+  // space — table.all is already sorted by stat product, so first match wins.
+  let cmpWinner: RankedEntry | null = null;
+  let cmpLoser: RankedEntry | null = null;
+  for (const e of table.all) {
+    if (!cmpWinner && e.atk >= oppAtk) cmpWinner = e;
+    else if (!cmpLoser && e.atk < oppAtk) cmpLoser = e;
+    if (cmpWinner && cmpLoser) break;
+  }
+
+  const out: Probe[] = [
+    { label: 'rank1', entry: table.best },
+    { label: 'atk', entry: maxAtk },
+    { label: 'def', entry: maxDef },
+    { label: 'hp', entry: maxHp },
+  ];
+
+  const affordable = cmpWinner && cmpWinner.rank <= KEEPABLE_RANK;
+  if (affordable && cmpWinner && cmpLoser) {
+    out.push({ label: 'cmp+', entry: cmpWinner });
+    out.push({ label: 'cmp-', entry: cmpLoser });
+  }
+
+  const seen = new Set<number>();
+  const probes = out.filter((p) => {
+    const k = ivKey(p.entry);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  return { probes, cmpCost: affordable && cmpLoser ? cmpWinner!.rank : null };
+}
+
+const SHIELD_SCENARIOS = [0, 1, 2];
+
+const relevanceCache = new Map<string, OpponentRelevance[]>();
+
+/**
+ * Scores every candidate in the league by how much the IV roll matters, and
+ * returns the most decision-relevant first.
+ */
+export function rankedOpponents(
+  ref: string,
+  leagueId: LeagueId,
+  moveIdx: number,
+  kind: RelevanceKind = 'either',
+  limit = 16,
+  chargeIds?: string[],
+): OpponentRelevance[] {
+  const key = `rel|${ref}|${leagueId}|${moveIdx}|${kind}|${limit}|${(chargeIds ?? []).join('+')}`;
+  const cached = relevanceCache.get(key);
+  if (cached) return cached;
+
+  const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
+  const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const table = getTable(ref, leagueId);
+  const myCharges = selectedCharges(species, chargeIds);
+  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== parseRef(ref).id);
+
+  const atkLo = Math.min(...table.all.map((e) => e.atk));
+  const atkHi = Math.max(...table.all.map((e) => e.atk));
+
+  const scored: OpponentRelevance[] = [];
+
+  for (const c of candidates) {
+    const info = opponentInfo(c.id, leagueId);
+    const hasBreak = hasBreakpoint(table, move, info.def);
+    const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
+    // Contested only if a spread you'd keep wins priority and one loses it —
+    // a CMP win that costs rank 3800 is not a decision anyone makes.
+    const cmpContested = info.atk > atkLo && info.atk <= atkHi;
+
+    const foe = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    const { probes, cmpCost } = probeSpreads(table, info.atk);
+
+    const flipShields: number[] = [];
+    let closest = Infinity;
+    // Which lever turns the matchup: attack, bulk, or charge-move priority.
+    let atkDecides = false;
+    let bulkDecides = false;
+    let cmpDecides = false;
+
+    for (const shields of SHIELD_SCENARIOS) {
+      const wins = new Map<ProbeLabel, boolean>();
+      for (const p of probes) {
+        const r = battle(mkBattleMon(p.entry, move, myCharges), foe, shields, shields, 0, 0, false);
+        wins.set(p.label, r.win);
+        const m = Math.abs(r.margin);
+        if (m < closest) closest = m;
+      }
+      const vals = [...wins.values()];
+      if (vals.some(Boolean) && !vals.every(Boolean)) {
+        flipShields.push(shields);
+        // Attribution: the attack-heavy roll wins where the bulky one doesn't
+        // (or vice versa), and the CMP straddle isolates priority specifically.
+        if (wins.get('atk') && wins.get('def') === false) atkDecides = true;
+        if (wins.get('def') && wins.get('atk') === false) bulkDecides = true;
+        if (wins.has('cmp+') && wins.has('cmp-') && wins.get('cmp+') !== wins.get('cmp-')) cmpDecides = true;
+      }
+    }
+
+    // Kind filter: when the user is specifically reading breakpoints, don't
+    // pad the list with matchups that are only bulk-relevant, and vice versa.
+    if (kind === 'break' && !hasBreak && flipShields.length === 0) continue;
+    if (kind === 'bulk' && !hasBulk && flipShields.length === 0) continue;
+
+    const rank = c.leagueRank[leagueId] ?? 9999;
+    const razor = closest < 3;
+
+    // A knife-edge — decided in some shield scenarios but not all — is more
+    // informative than one that swings everywhere, so weight it higher.
+    const knifeEdge = flipShields.length > 0 && flipShields.length < SHIELD_SCENARIOS.length;
+    const score =
+      (flipShields.length > 0 ? 600 : 0) +
+      (knifeEdge ? 400 : 0) +
+      (cmpDecides ? 500 : 0) +
+      // A cheap CMP win is a better tip than an expensive one.
+      (cmpCost != null && cmpCost <= 300 ? 120 : 0) +
+      (atkDecides || bulkDecides ? 200 : 0) +
+      (cmpContested ? 80 : 0) +
+      (hasBreak ? 60 : 0) +
+      (hasBulk ? 40 : 0) +
+      (razor ? 60 : 0) -
+      rank * 0.1;
+
+    // Nothing decidable and not even close: not worth a slot.
+    if (flipShields.length === 0 && !cmpContested && !hasBreak && !hasBulk && !razor) continue;
+
+    const bits: string[] = [];
+    if (cmpDecides) bits.push(cmpCost != null ? `CMP decides it (rank ${cmpCost})` : 'CMP decides it');
+    else if (atkDecides && !bulkDecides) bits.push('Needs attack');
+    else if (bulkDecides && !atkDecides) bits.push('Needs bulk');
+    else if (flipShields.length) bits.push('Spread-decided');
+
+    // Surface the priority tradeoff whenever it's purchasable, even if it
+    // wasn't the deciding lever — "you can win CMP for rank 247" is the kind
+    // of thing worth knowing before you transfer a spread.
+    if (cmpCost != null && !cmpDecides) bits.push(`CMP at rank ${cmpCost}`);
+
+    if (flipShields.length) {
+      bits.push(`flips at ${flipShields.map((s) => (s === 1 ? '1 shield' : `${s}sh`)).join('/')}`);
+    } else if (razor) {
+      bits.push(`within ${closest.toFixed(1)}%`);
+    } else if (cmpContested) {
+      bits.push('CMP contested');
+    } else if (hasBreak) {
+      bits.push('breakpoint');
+    } else {
+      bits.push('bulkpoint');
+    }
+
+    scored.push({
+      info,
+      score,
+      cmpCost,
+      flipShields,
+      cmpContested,
+      hasBreak,
+      hasBulk,
+      closest: closest === Infinity ? 100 : closest,
+      reason: bits.join(' · '),
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.info.name.localeCompare(b.info.name));
+  const out = scored.slice(0, limit);
+  relevanceCache.set(key, out);
+  return out;
+}
 
 const relevantCache = new Map<string, OpponentInfo[]>();
 
@@ -551,7 +831,21 @@ function pickCharge(roles: ChargeRoles, energy: number, oppShields: number): Cha
   return null;
 }
 
-export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number, energyA = 0, energyB = 0): BattleResult {
+/**
+ * `collectLog: false` skips building the per-turn log. The relevance scorer
+ * runs thousands of sims and only reads win/margin; allocating a log object
+ * per turn dominated that sweep. Same simulation either way - one branch, no
+ * parallel implementation to drift.
+ */
+export function battle(
+  a: BattleMon,
+  b: BattleMon,
+  shieldsA: number,
+  shieldsB: number,
+  energyA = 0,
+  energyB = 0,
+  collectLog = true,
+): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
   let eA = energyA;
@@ -581,7 +875,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sB--;
           hpB -= damage;
           tA = a.fast.turns;
-          log.push({
+          if (collectLog) log.push({
             turn,
             actor: 'A',
             kind: 'charge',
@@ -602,7 +896,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
           if (shielded) sA--;
           hpA -= damage;
           tB = b.fast.turns;
-          log.push({
+          if (collectLog) log.push({
             turn,
             actor: 'B',
             kind: 'charge',
@@ -623,7 +917,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
       hpB -= fA;
       eA = Math.min(100, eA + a.fast.energyGain);
       tA = a.fast.turns;
-      log.push({
+      if (collectLog) log.push({
         turn,
         actor: 'A',
         kind: 'fast',
@@ -641,7 +935,7 @@ export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: n
       hpA -= fB;
       eB = Math.min(100, eB + b.fast.energyGain);
       tB = b.fast.turns;
-      log.push({
+      if (collectLog) log.push({
         turn,
         actor: 'B',
         kind: 'fast',
@@ -736,8 +1030,9 @@ export function flipGrid(
   oppSpeciesId: string,
   moveIdx: number,
   shields: number,
+  chargeIds?: string[],
 ): FlipGrid {
-  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shields, iv.s].join('|');
+  const key = [speciesId, leagueId, oppSpeciesId, moveIdx, shields, iv.s, (chargeIds ?? []).join('+')].join('|');
   const cached = flipCache.get(key);
   if (cached) return cached;
 
@@ -746,7 +1041,7 @@ export function flipGrid(
   const opp = opponentInfo(oppSpeciesId, leagueId);
   const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const myCharges = chargesOf(species.chargeMove, species.chargeMove2);
+  const myCharges = selectedCharges(species, chargeIds);
 
   const slice: RankedEntry[] = [];
   for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
@@ -777,11 +1072,12 @@ export function flipMatchupRows(
   leagueId: LeagueId,
   moveIdx: number,
   opponentIds: string[],
+  chargeIds?: string[],
 ): FlipMatchupRow[] {
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const you = mkBattleMon(entry, myFast, chargesOf(species.chargeMove, species.chargeMove2));
+  const you = mkBattleMon(entry, myFast, selectedCharges(species, chargeIds));
 
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);

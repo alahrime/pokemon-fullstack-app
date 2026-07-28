@@ -7,6 +7,7 @@ import { HudGround } from './components/Hud';
 import { LEAGUES, opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
+import { SpriteAudit } from './screens/SpriteAudit';
 
 const SCREENS: [Screen, string][] = [
   ['report', 'Report'],
@@ -50,8 +51,12 @@ function Nav() {
   );
 }
 
+/** Diagnostics reachable by query string, kept out of the nav. */
+const AUDIT = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('audit');
+
 function Screens() {
   const { state } = useAppState();
+  if (AUDIT === 'sprites') return <SpriteAudit />;
   // Keyed on the screen id so React remounts the subtree and the enter
   // animation replays on every switch.
   switch (state.screen) {

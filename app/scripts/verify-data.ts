@@ -18,7 +18,8 @@ import {
   getTable,
   mkBattleMon,
   opponentInfo,
-  relevantOpponents,
+  rankedOpponents,
+  selectedCharges,
 } from '../src/lib/engine';
 import type { LeagueId } from '../src/lib/types';
 
@@ -119,14 +120,57 @@ console.log('\n── engine smoke ───────────────
   for (let i = 0; i < SPECIES.length; i += stride) {
     const s = SPECIES[i];
     try {
-      relevantOpponents(s.id, 'great', 0, 'either', 4);
+      rankedOpponents(s.id, 'great', 0, 'either', 4);
     } catch (err) {
       ok = false;
       detail = `${s.id}: ${(err as Error).message}`;
       break;
     }
   }
-  check('relevantOpponents runs across a roster sample', ok, detail);
+  check('relevance scan runs across a roster sample', ok, detail);
+}
+
+console.log('\n── movepool selection ─────────────────────────────────');
+{
+  const s = SPECIES_BY_ID.get('azumarill')!;
+  check('species expose a full charged movepool', s.chargeMoves.length >= 2, `${s.chargeMoves.length} moves`);
+  check('empty selection falls back to recommended', selectedCharges(s, []).length === chargesOf(s.chargeMove, s.chargeMove2).length);
+  check('unknown ids fall back rather than emptying the moveset', selectedCharges(s, ['NOT_A_MOVE']).length > 0);
+  const pick = [s.chargeMoves[s.chargeMoves.length - 1].id];
+  check('explicit selection is honoured', selectedCharges(s, pick)[0].id === pick[0]);
+  const multi = SPECIES.filter((x) => x.chargeMoves.length > 2).length;
+  check('movepool selection is meaningful across the roster', multi > 300, `${multi} species have >2 charged moves`);
+}
+
+console.log('\n── opponent relevance ─────────────────────────────────');
+{
+  const t0 = Date.now();
+  const r = rankedOpponents('azumarill', 'great', 0, 'either', 16);
+  const cold = Date.now() - t0;
+  check('returns a full slate', r.length === 16, `${r.length} opponents`);
+  check('scored descending', r.every((x, i) => i === 0 || r[i - 1].score >= x.score));
+  check('every entry carries a reason', r.every((x) => x.reason.length > 0));
+  check('completes fast enough to be interactive', cold < 2000, `${cold}ms cold`);
+
+  // Signal quality: an earlier probe design reported "flips at 0/1/2 shields"
+  // for nearly everything, which made the ranking meaningless.
+  const allThree = r.filter((x) => x.flipShields.length === 3).length;
+  check('flip signal is not saturated', allThree < r.length * 0.5, `${allThree}/${r.length} flip in all three scenarios`);
+  // Reasons legitimately repeat (several matchups really are "needs bulk,
+  // flips at 1 shield"); what matters is that they aren't all the same string.
+  const distinct = new Set(r.map((x) => x.reason)).size;
+  check('reasons are differentiated', distinct >= 5, `${distinct} distinct reasons across ${r.length}`);
+
+  // The case that drove this feature: Sableye can buy charge-move priority
+  // against Feraligatr with a keepable spread, flipping a shielded scenario.
+  // Restricting probes to the top 5% by stat product hid this entirely.
+  const sab = rankedOpponents('sableye', 'great', 0, 'either', 60);
+  const fer = sab.find((x) => x.info.id === 'feraligatr');
+  check('Sableye surfaces Feraligatr as decidable', !!fer, fer ? fer.reason : 'not selected');
+  check('and prices the CMP tradeoff', !!fer && fer.cmpCost != null && fer.cmpCost <= 1500, fer?.cmpCost != null ? `rank ${fer.cmpCost}` : 'no cost');
+
+  const cmpCases = sab.filter((x) => x.cmpCost != null).length;
+  check('CMP-purchasable matchups are found', cmpCases > 0, `${cmpCases} of ${sab.length}`);
 }
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}\n`);

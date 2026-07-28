@@ -12,6 +12,8 @@ export interface AppStateShape {
   /** Ref, may carry a `_shadow` suffix. */
   species: string;
   shadow: boolean;
+  /** Chosen charged moves; empty means PvPoke's recommended pair. */
+  chargeIds: string[];
   iv: IV;
   viz: Viz;
   colorBy: ColorBy;
@@ -40,6 +42,7 @@ const initialState: AppStateShape = {
   league: 'great',
   species: 'azumarill',
   shadow: false,
+  chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',
   colorBy: 'rank',

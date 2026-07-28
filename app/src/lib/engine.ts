@@ -1,6 +1,7 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
 import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor } from './data';
 import type {
+  BattleLogEntry,
   BattleMon,
   BattleResult,
   ChargeMove,
@@ -124,6 +125,14 @@ export interface OpponentInfo {
   hp: number;
   fastMove: FastMove;
   chargeMove: ChargeMove;
+  chargeMove2: ChargeMove | null;
+}
+
+// Every charge move a mon actually has equipped, for the battle simulator's
+// bait-vs-nuke decision. A single move is returned as-is (no bait choice to
+// make).
+export function chargesOf(chargeMove: ChargeMove, chargeMove2: ChargeMove | null): ChargeMove[] {
+  return chargeMove2 ? [chargeMove, chargeMove2] : [chargeMove];
 }
 
 export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInfo {
@@ -139,6 +148,7 @@ export function opponentInfo(speciesId: string, leagueId: LeagueId): OpponentInf
     hp: best.hp,
     fastMove: species.fastMoves[0],
     chargeMove: species.chargeMove,
+    chargeMove2: species.chargeMove2,
   };
 }
 
@@ -474,17 +484,43 @@ export function buildHeatCells(
   });
 }
 
-// ── Turn-based shield/CMP battle simulator ──
-// 1 turn = 500ms; throw-as-soon-as-charged; shields absorb a charge move down to
-// 1 damage; simultaneous charge moves (CMP) resolve by higher attack stat first.
-export function battle(
-  a: BattleMon,
-  b: BattleMon,
-  shieldsA: number,
-  shieldsB: number,
-  energyA = 0,
-  energyB = 0,
-): BattleResult {
+// ── Turn-based shield/CMP battle simulator with selective baiting ──
+// 1 turn = 500ms; throw-as-soon-as-charged (for the mon's *chosen* move, see
+// below); shields absorb a charge move down to 1 damage; simultaneous charge
+// moves (CMP) resolve by higher attack stat first.
+//
+// Baiting: a shielded charge move deals exactly 1 damage no matter which move
+// is thrown, so a rational attacker never wants to spend its best (usually
+// pricier, higher-DPE) move into a shield - it should spend a cheaper move
+// instead, saving the harder-hitting move for when it will land for real.
+// This means the mon's real "main" move is whichever charge move has the
+// best damage-per-energy, and a *bait* role is only assigned to another move
+// if that move is strictly cheaper than main (there's no point baiting with
+// a move that costs more energy than the move you're saving up for anyway).
+// While the opponent has shields, throw bait as soon as it's ready; once
+// shields are gone (or there's no bait role at all), hold every point of
+// energy for main and only throw once main's own threshold is met - never
+// fire early just because a weaker move happens to be ready first.
+interface ChargeRoles {
+  main: ChargeMove;
+  bait: ChargeMove | null;
+}
+
+function classifyCharges(atk: number, oppDef: number, charges: ChargeMove[]): ChargeRoles {
+  if (charges.length === 1) return { main: charges[0], bait: null };
+  const byDpe = charges.slice().sort((x, y) => dmg(atk, oppDef, y) / y.energy - dmg(atk, oppDef, x) / x.energy);
+  const main = byDpe[0];
+  const cheaperAlternative = byDpe.slice(1).find((c) => c.energy < main.energy) ?? null;
+  return { main, bait: cheaperAlternative };
+}
+
+function pickCharge(roles: ChargeRoles, energy: number, oppShields: number): ChargeMove | null {
+  if (roles.bait && oppShields > 0 && energy >= roles.bait.energy) return roles.bait;
+  if (energy >= roles.main.energy) return roles.main;
+  return null;
+}
+
+export function battle(a: BattleMon, b: BattleMon, shieldsA: number, shieldsB: number, energyA = 0, energyB = 0): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
   let eA = energyA;
@@ -494,33 +530,36 @@ export function battle(
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
-  const cA = dmg(a.atk, b.def, a.charge);
-  const cB = dmg(b.atk, a.def, b.charge);
   const fA = dmg(a.atk, b.def, a.fast);
   const fB = dmg(b.atk, a.def, b.fast);
+  const rolesA = classifyCharges(a.atk, b.def, a.charges);
+  const rolesB = classifyCharges(b.atk, a.def, b.charges);
+  const log: BattleLogEntry[] = [];
 
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
-    const goA = eA >= a.charge.energy;
-    const goB = eB >= b.charge.energy;
-    if (goA || goB) {
-      const order: ('A' | 'B')[] = goA && goB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : goA ? ['A'] : ['B'];
-      if (goA && goB) cmpDecided = true;
+    const moveA = pickCharge(rolesA, eA, sB);
+    const moveB = pickCharge(rolesB, eB, sA);
+    if (moveA || moveB) {
+      const order: ('A' | 'B')[] = moveA && moveB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
+      if (moveA && moveB) cmpDecided = true;
       for (const who of order) {
-        if (who === 'A' && hpA > 0) {
-          eA -= a.charge.energy;
-          if (sB > 0) {
-            sB--;
-            hpB -= 1;
-          } else hpB -= cA;
+        if (who === 'A' && hpA > 0 && moveA) {
+          eA -= moveA.energy;
+          const shielded = sB > 0;
+          const damage = shielded ? 1 : dmg(a.atk, b.def, moveA);
+          if (shielded) sB--;
+          hpB -= damage;
           tA = a.fast.turns;
+          log.push({ turn, actor: 'A', moveName: moveA.name, bait: shielded && moveA === rolesA.bait, shielded, damage, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB) });
         }
-        if (who === 'B' && hpB > 0) {
-          eB -= b.charge.energy;
-          if (sA > 0) {
-            sA--;
-            hpA -= 1;
-          } else hpA -= cB;
+        if (who === 'B' && hpB > 0 && moveB) {
+          eB -= moveB.energy;
+          const shielded = sA > 0;
+          const damage = shielded ? 1 : dmg(b.atk, a.def, moveB);
+          if (shielded) sA--;
+          hpA -= damage;
           tB = b.fast.turns;
+          log.push({ turn, actor: 'B', moveName: moveB.name, bait: shielded && moveB === rolesB.bait, shielded, damage, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB) });
         }
       }
       continue;
@@ -536,14 +575,16 @@ export function battle(
       tB = b.fast.turns;
     }
   }
-  const mine = Math.max(0, hpA) / a.hp;
-  const theirs = Math.max(0, hpB) / b.hp;
+  const finalHpA = Math.max(0, hpA);
+  const finalHpB = Math.max(0, hpB);
+  const mine = finalHpA / a.hp;
+  const theirs = finalHpB / b.hp;
   const win = hpA <= 0 && hpB <= 0 ? a.atk >= b.atk : mine > theirs;
-  return { win, mine, theirs, cmpDecided, margin: (mine - theirs) * 100 };
+  return { win, mine, theirs, hpA: finalHpA, hpB: finalHpB, maxHpA: a.hp, maxHpB: b.hp, cmpDecided, margin: (mine - theirs) * 100, log };
 }
 
-export function mkBattleMon(entry: { atk: number; def: number; hp: number }, fast: FastMove, charge: ChargeMove): BattleMon {
-  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charge };
+export function mkBattleMon(entry: { atk: number; def: number; hp: number }, fast: FastMove, charges: ChargeMove[]): BattleMon {
+  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charges };
 }
 
 // ── Verdict copy ──
@@ -622,15 +663,16 @@ export function flipGrid(
   const species = SPECIES_BY_ID.get(speciesId)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const opp = opponentInfo(oppSpeciesId, leagueId);
-  const opponentMon = mkBattleMon(opp, opp.fastMove, opp.chargeMove);
+  const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const myCharges = chargesOf(species.chargeMove, species.chargeMove2);
 
   const slice: RankedEntry[] = [];
   for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
 
   const results: FlipCellResult[] = slice.map((entry) => ({
     entry,
-    result: battle(mkBattleMon(entry, myFast, species.chargeMove), opponentMon, shields, shields),
+    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shields, shields),
   }));
   const winners = results.filter((o) => o.result.win);
   const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
@@ -658,11 +700,11 @@ export function flipMatchupRows(
   const species = SPECIES_BY_ID.get(speciesId)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const you = mkBattleMon(entry, myFast, species.chargeMove);
+  const you = mkBattleMon(entry, myFast, chargesOf(species.chargeMove, species.chargeMove2));
 
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);
-    const foe = mkBattleMon(opp, opp.fastMove, opp.chargeMove);
+    const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
     const cells = [0, 1, 2].map((sh) => {
       const r = battle(you, foe, sh, sh);
       return { win: r.win, margin: r.margin };

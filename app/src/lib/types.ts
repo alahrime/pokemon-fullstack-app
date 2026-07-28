@@ -75,13 +75,32 @@ export interface BattleMon {
   def: number;
   hp: number;
   fast: FastMove;
-  charge: ChargeMove;
+  // Every charge move this mon has equipped, cheapest energy cost first.
+  // charges[0] is the "bait" candidate when 2+ are present and there's a
+  // more expensive, harder-hitting option to save for once shields are gone.
+  charges: ChargeMove[];
+}
+
+export interface BattleLogEntry {
+  turn: number;
+  actor: 'A' | 'B';
+  moveName: string;
+  bait: boolean;
+  shielded: boolean;
+  damage: number;
+  hpA: number;
+  hpB: number;
 }
 
 export interface BattleResult {
   win: boolean;
   mine: number;
   theirs: number;
+  hpA: number;
+  hpB: number;
+  maxHpA: number;
+  maxHpB: number;
   cmpDecided: boolean;
   margin: number;
+  log: BattleLogEntry[];
 }

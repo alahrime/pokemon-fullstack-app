@@ -1,18 +1,14 @@
 import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID } from '../lib/data';
-import { getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
-import type { ChargeMove, IV, LeagueId } from '../lib/types';
+import { chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
+import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { ChipButton } from '../components/Seg';
 
 const SHIELD_LABELS = ['0 shields', '1 shield', '2 shields'];
-
-function chargeOptionsFor(chargeMove: ChargeMove, chargeMove2: ChargeMove | null): ChargeMove[] {
-  return chargeMove2 ? [chargeMove, chargeMove2] : [chargeMove];
-}
 
 function Side({
   label,
@@ -22,8 +18,8 @@ function Side({
   onBump,
   fastIdx,
   onFast,
-  chargeIdx,
-  onCharge,
+  disabledCharges,
+  onToggleCharge,
   shields,
   onShields,
   energy,
@@ -37,8 +33,8 @@ function Side({
   onBump: (key: keyof IV, delta: number) => void;
   fastIdx: number;
   onFast: (i: number) => void;
-  chargeIdx: number;
-  onCharge: (i: number) => void;
+  disabledCharges: string[];
+  onToggleCharge: (moveId: string) => void;
   shields: number;
   onShields: (n: number) => void;
   energy: number;
@@ -47,7 +43,7 @@ function Side({
 }) {
   const species = SPECIES_BY_ID.get(speciesId)!;
   const { entry } = getEntry(speciesId, iv, league);
-  const chargeOptions = chargeOptionsFor(species.chargeMove, species.chargeMove2);
+  const chargeOptions = chargesOf(species.chargeMove, species.chargeMove2);
 
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -88,11 +84,11 @@ function Side({
 
       <div>
         <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-          Charge move
+          Charge moves {chargeOptions.length > 1 ? '(both equipped — untoggle to test a single move)' : ''}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {chargeOptions.map((m, i) => (
-            <ChipButton key={m.id} active={chargeIdx === i} onClick={() => onCharge(i)}>
+          {chargeOptions.map((m) => (
+            <ChipButton key={m.id} active={!disabledCharges.includes(m.id)} onClick={() => onToggleCharge(m.id)}>
               {m.name}
             </ChipButton>
           ))}
@@ -122,9 +118,26 @@ function Side({
   );
 }
 
+function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: number; color: string }) {
+  const pct = (hp / maxHp) * 100;
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        <span className="text-muted">{label}</span>
+        <span>
+          {Math.round(hp)} / {maxHp} HP ({pct.toFixed(0)}%)
+        </span>
+      </div>
+      <div style={{ height: 8, background: 'var(--color-neutral-300)', marginTop: 3 }}>
+        <div style={{ height: 8, background: color, width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function BattleScreen() {
   const { state, patch, beginner } = useAppState();
-  const { league, battleA, battleB, ivA, ivB, fastA, fastB, chargeA, chargeB, shieldsA, shieldsB, energyA, energyB } = state;
+  const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB } = state;
 
   const speciesA = SPECIES_BY_ID.get(battleA)!;
   const speciesB = SPECIES_BY_ID.get(battleB)!;
@@ -133,15 +146,15 @@ export function BattleScreen() {
 
   const monA = useMemo(() => {
     const fast = speciesA.fastMoves[Math.min(fastA, speciesA.fastMoves.length - 1)];
-    const opts = chargeOptionsFor(speciesA.chargeMove, speciesA.chargeMove2);
-    return mkBattleMon(entryA, fast, opts[Math.min(chargeA, opts.length - 1)]);
-  }, [speciesA, entryA, fastA, chargeA]);
+    const charges = chargesOf(speciesA.chargeMove, speciesA.chargeMove2).filter((c) => !disabledChargesA.includes(c.id));
+    return mkBattleMon(entryA, fast, charges.length ? charges : [speciesA.chargeMove]);
+  }, [speciesA, entryA, fastA, disabledChargesA]);
 
   const monB = useMemo(() => {
     const fast = speciesB.fastMoves[Math.min(fastB, speciesB.fastMoves.length - 1)];
-    const opts = chargeOptionsFor(speciesB.chargeMove, speciesB.chargeMove2);
-    return mkBattleMon(entryB, fast, opts[Math.min(chargeB, opts.length - 1)]);
-  }, [speciesB, entryB, fastB, chargeB]);
+    const charges = chargesOf(speciesB.chargeMove, speciesB.chargeMove2).filter((c) => !disabledChargesB.includes(c.id));
+    return mkBattleMon(entryB, fast, charges.length ? charges : [speciesB.chargeMove]);
+  }, [speciesB, entryB, fastB, disabledChargesB]);
 
   const matrix = useMemo(() => shieldMatrix(monA, monB, energyA, energyB), [monA, monB, energyA, energyB]);
   const current = matrix[shieldsA][shieldsB];
@@ -149,6 +162,10 @@ export function BattleScreen() {
 
   const bumpA = (key: keyof IV, delta: number) => patch({ ivA: { ...ivA, [key]: Math.max(0, Math.min(15, ivA[key] + delta)) } });
   const bumpB = (key: keyof IV, delta: number) => patch({ ivB: { ...ivB, [key]: Math.max(0, Math.min(15, ivB[key] + delta)) } });
+  const toggleChargeA = (moveId: string) =>
+    patch({ disabledChargesA: disabledChargesA.includes(moveId) ? disabledChargesA.filter((id) => id !== moveId) : [...disabledChargesA, moveId] });
+  const toggleChargeB = (moveId: string) =>
+    patch({ disabledChargesB: disabledChargesB.includes(moveId) ? disabledChargesB.filter((id) => id !== moveId) : [...disabledChargesB, moveId] });
 
   const winner = current.win ? speciesA : speciesB;
   const loser = current.win ? speciesB : speciesA;
@@ -161,7 +178,7 @@ export function BattleScreen() {
         <div className="text-muted" style={{ fontSize: 12 }}>
           {beginner
             ? 'Pick two Pokémon, their moves, and how many shields each side uses — see who wins and by how much.'
-            : 'Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, all nine shield combinations at a glance.'}
+            : 'Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective baiting when a mon carries two charge moves of different costs.'}
         </div>
       </div>
 
@@ -170,13 +187,13 @@ export function BattleScreen() {
           <Side
             label="Pokémon 1"
             speciesId={battleA}
-            onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeA: 0 })}
+            onSpecies={(id) => patch({ battleA: id, fastA: 0, disabledChargesA: [] })}
             iv={ivA}
             onBump={bumpA}
             fastIdx={fastA}
             onFast={(i) => patch({ fastA: i })}
-            chargeIdx={chargeA}
-            onCharge={(i) => patch({ chargeA: i })}
+            disabledCharges={disabledChargesA}
+            onToggleCharge={toggleChargeA}
             shields={shieldsA}
             onShields={(n) => patch({ shieldsA: n })}
             energy={energyA}
@@ -187,13 +204,13 @@ export function BattleScreen() {
         <Side
           label="Pokémon 2"
           speciesId={battleB}
-          onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeB: 0 })}
+          onSpecies={(id) => patch({ battleB: id, fastB: 0, disabledChargesB: [] })}
           iv={ivB}
           onBump={bumpB}
           fastIdx={fastB}
           onFast={(i) => patch({ fastB: i })}
-          chargeIdx={chargeB}
-          onCharge={(i) => patch({ chargeB: i })}
+          disabledCharges={disabledChargesB}
+          onToggleCharge={toggleChargeB}
           shields={shieldsB}
           onShields={(n) => patch({ shieldsB: n })}
           energy={energyB}
@@ -203,23 +220,27 @@ export function BattleScreen() {
       </div>
 
       <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-        <div style={{ flex: 'none', minWidth: 260 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: 22,
-              color: 'var(--color-accent-700)',
-            }}
-          >
-            {winner.name} beats {loser.name}
+        <div style={{ flex: 'none', minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 800,
+                fontSize: 22,
+                color: 'var(--color-accent-700)',
+              }}
+            >
+              {winner.name} beats {loser.name}
+            </div>
+            <div className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>
+              {margin.toFixed(0)}% HP margin at {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
+              {current.cmpDecided ? ' · decided by CMP (simultaneous charge move, higher attack throws first)' : ''}
+            </div>
           </div>
-          <div className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>
-            {margin.toFixed(0)}% HP margin at {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
-            {current.cmpDecided ? ' · decided by CMP (simultaneous charge move, higher attack throws first)' : ''}
-          </div>
-          <div style={{ fontSize: 12, marginTop: 8 }}>{winner.name} wins {winCount} of 9 shield-count combinations.</div>
-          <div className="text-muted" style={{ fontSize: 11, marginTop: 10, maxWidth: '42ch' }}>
+          <HpBar label={speciesA.name} hp={current.hpA} maxHp={Math.round(current.maxHpA)} color="var(--color-accent)" />
+          <HpBar label={speciesB.name} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
+          <div style={{ fontSize: 12 }}>{winner.name} wins {winCount} of 9 shield-count combinations.</div>
+          <div className="text-muted" style={{ fontSize: 11, maxWidth: '42ch' }}>
             {verdictLine(entryA.rank, beginner)} · {verdictLine(entryB.rank, beginner)}
           </div>
         </div>
@@ -234,7 +255,7 @@ export function BattleScreen() {
                 <th></th>
                 {SHIELD_LABELS.map((l) => (
                   <th key={l} style={{ textAlign: 'center' }}>
-                    {loser === speciesB ? `P2 ${l}` : `P2 ${l}`}
+                    P2 {l}
                   </th>
                 ))}
               </tr>
@@ -278,10 +299,60 @@ export function BattleScreen() {
             </tbody>
           </table>
           <p className="text-muted" style={{ fontSize: 11, margin: '10px 0 0' }}>
-            Click any cell to load that shield scenario above. Rows are Pokémon 1's shields, columns are Pokémon 2's — matching
-            pvpoke's battle matrix, asymmetric counts included (e.g. P1 at 0 shields vs P2 at 2).
+            Click any cell to load that shield scenario. Rows are Pokémon 1's shields, columns are Pokémon 2's.
           </p>
         </div>
+      </div>
+
+      <div style={{ border: '2px solid var(--color-divider)', borderTop: 0, padding: 20 }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 8 }}>
+          Charge move log — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
+        </div>
+        {current.log.length === 0 ? (
+          <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+            Neither side reaches a charge move before the fight ends at this energy/shield setting.
+          </p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Pokémon</th>
+                <th>Move</th>
+                <th>Outcome</th>
+                <th>{speciesA.name} HP</th>
+                <th>{speciesB.name} HP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {current.log.map((e, i) => {
+                const actorName = e.actor === 'A' ? speciesA.name : speciesB.name;
+                return (
+                  <tr key={i}>
+                    <td className="text-muted">{(e.turn * 0.5).toFixed(1)}s</td>
+                    <td style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>{actorName}</td>
+                    <td>{e.moveName}</td>
+                    <td>
+                      {e.bait && <span className="tag tag-neutral" style={{ marginRight: 6 }}>bait</span>}
+                      {e.shielded ? (
+                        <span style={{ fontSize: 12 }}>shielded — 1 dmg</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{e.damage} dmg</span>
+                      )}
+                    </td>
+                    <td>{Math.round(e.hpA)}</td>
+                    <td>{Math.round(e.hpB)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+        <p className="text-muted" style={{ fontSize: 11, margin: '10px 0 0' }}>
+          A shielded charge move always deals 1 damage regardless of which move is thrown, so a mon with two charge moves of
+          different energy costs spends the cheaper one into a shield ("bait") and saves the pricier, harder-hitting move for
+          when the opponent is out of shields.
+        </p>
       </div>
     </>
   );

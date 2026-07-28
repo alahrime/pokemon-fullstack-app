@@ -24,8 +24,11 @@ export interface AppStateShape {
   ivB: IV;
   fastA: number;
   fastB: number;
-  chargeA: number;
-  chargeB: number;
+  // Charge moves disabled by the user, by move id - defaults to none (both
+  // available charge moves are used, letting the battle sim bait/nuke as
+  // real play would).
+  disabledChargesA: string[];
+  disabledChargesB: string[];
   shieldsA: number;
   shieldsB: number;
   energyA: number;
@@ -49,8 +52,8 @@ const initialState: AppStateShape = {
   ivB: { a: 15, d: 15, s: 15 },
   fastA: 0,
   fastB: 0,
-  chargeA: 0,
-  chargeB: 0,
+  disabledChargesA: [],
+  disabledChargesB: [],
   shieldsA: 1,
   shieldsB: 1,
   energyA: 0,

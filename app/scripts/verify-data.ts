@@ -10,6 +10,7 @@
  */
 
 import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, parseRef, makeRef } from '../src/lib/data';
+import exclusions from '../../data-src/pool-exclusions.json';
 import {
   SHADOW_ATK_MULT,
   SHADOW_DEF_MULT,
@@ -62,6 +63,9 @@ console.log('\n── league membership (ranked) ──────────�
   // Membership is presence in the league ranking. Neither a rank cutoff nor a
   // maxCP floor works: the cutoff hid niche matchups, and the floor dropped
   // ranked-and-played forms whose CP ceiling sits below it.
+  const MASTER_EXEMPT = new Set(['lapras', 'kingdra']);
+  const dropped = (lg: string) =>
+    new Set([...(exclusions.all ?? []), ...((exclusions as Record<string, string[]>)[lg] ?? [])]);
   for (const lg of LEAGUES) {
     const base = SPECIES.filter((s) => s.leagues.includes(lg));
     const shadow = SPECIES.filter((s) => s.shadowLeagues.includes(lg));
@@ -72,8 +76,10 @@ console.log('\n── league membership (ranked) ──────────�
       base.filter((s) => s.leagueRank[lg] === undefined).slice(0, 3).map((s) => s.id).join(', '),
     );
     // Master additionally requires a 3000 maxCP ceiling - uncapped, so a low
-    // ceiling is pure forfeited power rather than a matchup question.
-    const eligible = (s: (typeof SPECIES)[number]) => lg !== 'master' || s.maxCP >= 3000;
+    // ceiling is pure forfeited power rather than a matchup question - less
+    // the two forms named as exempt for landing within 15 CP of it.
+    const eligible = (s: (typeof SPECIES)[number]) =>
+      (lg !== 'master' || s.maxCP >= 3000 || MASTER_EXEMPT.has(s.id)) && !dropped(lg).has(s.id);
     check(
       `${lg}: every ranked, eligible form is in the pool`,
       SPECIES.every((s) => !eligible(s) || ((s.leagueRank[lg] === undefined || s.leagues.includes(lg))
@@ -82,9 +88,9 @@ console.log('\n── league membership (ranked) ──────────�
     );
     if (lg === 'master') {
       check(
-        'master: every member reaches 3000 CP',
-        base.every((s) => s.maxCP >= 3000) && shadow.every((s) => s.maxCP >= 3000),
-        base.filter((s) => s.maxCP < 3000).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
+        'master: every member reaches 3000 CP or is named exempt',
+        [...base, ...shadow].every((s) => s.maxCP >= 3000 || MASTER_EXEMPT.has(s.id)),
+        [...base, ...shadow].filter((s) => s.maxCP < 3000 && !MASTER_EXEMPT.has(s.id)).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
       );
     }
   }
@@ -95,17 +101,22 @@ console.log('\n── league membership (ranked) ──────────�
     check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
   }
   {
+    // Manually excluded from Ultra, though the ranking still rates it.
     const s = SPECIES_BY_ID.get('aegislash_shield');
-    check(`aegislash_shield is an ultra opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('ultra'));
+    check('aegislash_shield is excluded from Ultra', !s?.leagues.includes('ultra') && !!s?.leagueRank.ultra);
   }
-  // The mirror case: in uncapped Master a low ceiling is forfeited power, so
-  // the same shape of species is dropped rather than kept.
-  for (const id of ['umbreon', 'registeel', 'lapras']) {
+  // In uncapped Master a low ceiling is forfeited power, so these are dropped.
+  for (const id of ['umbreon', 'registeel']) {
     const s = SPECIES_BY_ID.get(id);
     check(
       `${id} is cut from Master by the 3000 floor (maxCP ${s?.maxCP})`,
       !s?.leagues.includes('master') && !s?.shadowLeagues.includes('master'),
     );
+  }
+  // ...but the two named exemptions survive it.
+  for (const id of ['lapras', 'kingdra']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} is exempt and stays in Master (maxCP ${s?.maxCP})`, !!s?.leagues.includes('master'));
   }
   // And the high-maxCP staples that underlevel into Great.
   for (const id of ['registeel', 'swampert']) {

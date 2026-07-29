@@ -339,17 +339,29 @@ function bestSpreadFor(ref: string, leagueId: LeagueId) {
   const league = LEAGUE_BY_ID.get(leagueId)!;
   let best: (StatLine & { a: number; d: number; s: number }) | null = null;
 
-  for (let a = 0; a < 16; a++) {
-    for (let d = 0; d < 16; d++) {
-      for (let s = 0; s < 16; s++) {
-        const r = bestAt(species, { a, d, s }, league);
-        if (
-          !best ||
-          r.sp > best.sp ||
-          // Same tie-break as getTable: prefer the strictly better roll.
-          (r.sp === best.sp && a + d + s > best.a + best.d + best.s)
-        ) {
-          best = { ...r, a, d, s };
+  // The generator records which roll wins (scripts/build-best-spreads.ts), so
+  // the usual path is one bestAt rather than 4096. The search below still runs
+  // when the key is absent — a species outside every league, or data generated
+  // before the index existed.
+  const key4096 = species.bestIv?.[leagueId];
+  if (key4096 !== undefined) {
+    const a = (key4096 >> 8) & 15;
+    const d = (key4096 >> 4) & 15;
+    const s = key4096 & 15;
+    best = { ...bestAt(species, { a, d, s }, league), a, d, s };
+  } else {
+    for (let a = 0; a < 16; a++) {
+      for (let d = 0; d < 16; d++) {
+        for (let s = 0; s < 16; s++) {
+          const r = bestAt(species, { a, d, s }, league);
+          if (
+            !best ||
+            r.sp > best.sp ||
+            // Same tie-break as getTable: prefer the strictly better roll.
+            (r.sp === best.sp && a + d + s > best.a + best.d + best.s)
+          ) {
+            best = { ...r, a, d, s };
+          }
         }
       }
     }
@@ -579,6 +591,26 @@ const SHIELD_SCENARIOS = [0, 1, 2];
 const relevanceCache = new Map<string, OpponentRelevance[]>();
 
 /**
+ * The opponent's battle-side, which depends only on the opponent.
+ *
+ * Rebuilt for every opponent on every scan, including the charge-move array,
+ * though nothing about it varies with who you are or how the scan is filtered.
+ * battle() treats its mons as read-only, so one instance is shared.
+ */
+const foeMonCache = new Map<string, BattleMon>();
+function foeMonFor(ref: string, leagueId: LeagueId, info: OpponentInfo): BattleMon {
+  // Keyed by league as well as ref: the same species is a different set of
+  // battle stats under each cap.
+  const key = `${ref}|${leagueId}`;
+  let m = foeMonCache.get(key);
+  if (!m) {
+    m = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    foeMonCache.set(key, m);
+  }
+  return m;
+}
+
+/**
  * Scores every candidate in the league by how much the IV roll matters, and
  * returns the most decision-relevant first.
  */
@@ -631,7 +663,7 @@ export function rankedOpponents(
     // a CMP win that costs rank 3800 is not a decision anyone makes.
     const cmpContested = info.atk > atkLo && info.atk <= atkHi;
 
-    const foe = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    const foe = foeMonFor(c, leagueId, info);
     const { probes, cmpCost } = probeSpreads(table, info.atk, band);
 
     const flipShields: number[] = [];
@@ -642,21 +674,34 @@ export function rankedOpponents(
     let cmpDecides = false;
 
     for (const shields of SHIELD_SCENARIOS) {
-      const wins = new Map<ProbeLabel, boolean>();
+      // Scalars rather than a Map plus a spread of its values: this ran three
+      // times per opponent and the allocation, not the battles, was the cost.
+      // A label stays undefined when its probe deduped away against an earlier
+      // one, which the attribution below relies on.
+      let nWin = 0;
+      let nLoss = 0;
+      let wAtk: boolean | undefined;
+      let wDef: boolean | undefined;
+      let wCmpUp: boolean | undefined;
+      let wCmpDown: boolean | undefined;
       for (const p of probes) {
         const r = battle(myMonFor(p.entry), foe, shields, shields, 0, 0, false);
-        wins.set(p.label, r.win);
+        if (r.win) nWin++;
+        else nLoss++;
+        if (p.label === 'atk') wAtk = r.win;
+        else if (p.label === 'def') wDef = r.win;
+        else if (p.label === 'cmp+') wCmpUp = r.win;
+        else if (p.label === 'cmp-') wCmpDown = r.win;
         const m = Math.abs(r.margin);
         if (m < closest) closest = m;
       }
-      const vals = [...wins.values()];
-      if (vals.some(Boolean) && !vals.every(Boolean)) {
+      if (nWin > 0 && nLoss > 0) {
         flipShields.push(shields);
         // Attribution: the attack-heavy roll wins where the bulky one doesn't
         // (or vice versa), and the CMP straddle isolates priority specifically.
-        if (wins.get('atk') && wins.get('def') === false) atkDecides = true;
-        if (wins.get('def') && wins.get('atk') === false) bulkDecides = true;
-        if (wins.has('cmp+') && wins.has('cmp-') && wins.get('cmp+') !== wins.get('cmp-')) cmpDecides = true;
+        if (wAtk && wDef === false) atkDecides = true;
+        if (wDef && wAtk === false) bulkDecides = true;
+        if (wCmpUp !== undefined && wCmpDown !== undefined && wCmpUp !== wCmpDown) cmpDecides = true;
       }
     }
 

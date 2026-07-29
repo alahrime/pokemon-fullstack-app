@@ -51,6 +51,13 @@ export interface Species {
   leagueRank: Partial<Record<LeagueId, number>>;
   /** Ranks of this form's Shadow variant, where it's ranked. */
   shadowLeagueRank: Partial<Record<LeagueId, number>>;
+  /**
+   * ivKey of the rank-1 roll per league, precomputed by the generator so the
+   * engine need not search all 4096 to price an opponent. Absent for species
+   * that are in no league. The Shadow shares the key — Shadow rescales attack
+   * and defense but does not change which roll wins.
+   */
+  bestIv?: Partial<Record<LeagueId, number>>;
 }
 
 /**

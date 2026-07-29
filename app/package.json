@@ -8,11 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "tokens": "node scripts/token-parity.mjs",
-    "data": "node scripts/build-data.mjs",
+    "data": "node scripts/build-data.mjs && npm run best-spreads",
     "verify": "esbuild scripts/verify-data.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
     "check": "tsc -b && oxlint && npm run tokens && npm run verify && npm run audit:spreads",
     "preview": "vite preview",
-    "audit:spreads": "esbuild scripts/audit-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/audit.mjs --log-level=warning && node node_modules/.cache/audit.mjs"
+    "audit:spreads": "esbuild scripts/audit-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/audit.mjs --log-level=warning && node node_modules/.cache/audit.mjs",
+    "best-spreads": "esbuild scripts/build-best-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/best.mjs --log-level=warning && node node_modules/.cache/best.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

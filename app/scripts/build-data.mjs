@@ -71,6 +71,15 @@ const LEAGUES = [
  * relevance scan.
  */
 const MASTER_MIN_MAX_CP = 3000;
+/**
+ * Kept in Master despite sitting under the floor.
+ *
+ * Both miss by under 15 CP and are rated far above the forms the floor is
+ * aimed at — Lapras is Master rank 191 at 2985, Kingdra 217 at 2986, where the
+ * next species down the CP list run to ranks 363-395. Lowering the floor to
+ * admit them by CP alone would drag those in too, so they are named instead.
+ */
+const MASTER_FLOOR_EXEMPT = new Set(['lapras', 'kingdra']);
 /** How many per league become the default opponent chips. */
 const CURATED_PER_LEAGUE = 24;
 
@@ -253,7 +262,8 @@ for (const p of bases) {
     // form in this league" — plus Master's raw-power floor. Shadow shares the
     // floor because Shadow does not change CP.
     const dropped = excludedFor(lg.id);
-    const meetsFloor = lg.id !== 'master' || cap >= MASTER_MIN_MAX_CP;
+    const meetsFloor =
+      lg.id !== 'master' || cap >= MASTER_MIN_MAX_CP || MASTER_FLOOR_EXEMPT.has(p.speciesId);
     if (hit && meetsFloor && !dropped.has(p.speciesId)) {
       leagues.push(lg.id);
     }

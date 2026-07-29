@@ -1299,3 +1299,35 @@ textarea.input { min-height: 90px; resize: vertical; }
 @media (max-width: 640px) {
   .search-help { grid-template-columns: 1fr; }
 }
+
+/* "+N more" control under a trimmed movepool. Reads as a continuation of the
+   grid rather than a separate action, so it sits flush and full width. */
+.moves-more {
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: transparent;
+  border: var(--border-hairline) dashed var(--rule-strong);
+}
+.moves-more:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  border-style: solid;
+}
+
+/* Jump-to-rank-1 control sits in the Adjust roll header. */
+.iv-max-btn {
+  min-height: 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  padding: 0 7px;
+}
+.iv-max-btn:disabled { opacity: 0.5; cursor: default; }

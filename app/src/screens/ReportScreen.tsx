@@ -99,6 +99,7 @@ export function ReportScreen() {
 
   const spPct = entry.sp / table.best.sp;
   const bestLeague = bestLeagueFor(ref, iv);
+  const isRank1 = entry.rank === 1;
   const bpRows = useMemo(() => bpRowsFor(ref, iv, league, opp), [ref, iv, league, opp]);
 
   const heatCells = useMemo(
@@ -198,8 +199,26 @@ export function ReportScreen() {
           </div>
 
           <div className="side-block">
-            <div className="hud-label" style={{ marginBottom: 7 }}>
-              <span>Adjust roll</span>
+            <div className="hud-label" style={{ marginBottom: 7, display: 'flex', alignItems: 'center' }}>
+              <span style={{ flex: 1 }}>Adjust roll</span>
+              {/* Rank 1 is a specific spread, not 15/15/15 — under a cap a low
+                  attack IV usually buys enough extra level to win on stat
+                  product. Stepping to it by hand means knowing which of the
+                  4096 it is, so this jumps straight there. Disabled once you
+                  are on it, which doubles as the "already optimal" readout. */}
+              <button
+                type="button"
+                className="btn chip-btn iv-max-btn"
+                disabled={isRank1}
+                onClick={() => patch({ iv: { a: table.best.a, d: table.best.d, s: table.best.s } })}
+                title={
+                  isRank1
+                    ? 'Already the rank-1 spread for this league'
+                    : `Jump to rank 1 — ${table.best.a}/${table.best.d}/${table.best.s}`
+                }
+              >
+                {isRank1 ? '✓ rank 1' : `max → ${table.best.a}/${table.best.d}/${table.best.s}`}
+              </button>
             </div>
             <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>

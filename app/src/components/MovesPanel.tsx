@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { chargeMoveStats, fastMoveCounts, fastMoveStats } from '../lib/engine';
 import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
 import type { ChargeMove, FastMove, Species } from '../lib/types';
@@ -131,6 +132,18 @@ function ChargeTile({
   );
 }
 
+/**
+ * Above this many tiles a movepool stops being scannable and starts being a
+ * wall. Median is 2 fast and 4 charged, so these thresholds leave the vast
+ * majority untouched and catch only the genuinely overloaded: Mew at 14/25,
+ * and Smeargle, which learns 82 fast and 152 charged moves.
+ *
+ * Selected moves are always shown regardless — collapsing your own pick out of
+ * sight would be worse than the wall.
+ */
+const COLLAPSE_FAST = 6;
+const COLLAPSE_CHARGE = 8;
+
 export function MovesPanel({
   species,
   moveIdx,
@@ -148,6 +161,27 @@ export function MovesPanel({
   const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
   const active = chargeIds.length ? chargeIds : recommended;
   const isDefault = chargeIds.length === 0;
+  const [showAllFast, setShowAllFast] = useState(false);
+  const [showAllCharge, setShowAllCharge] = useState(false);
+
+  // A new species resets both, so picking Smeargle after Mew does not inherit
+  // an expanded list of 152 tiles.
+  useEffect(() => {
+    setShowAllFast(false);
+    setShowAllCharge(false);
+  }, [species.id]);
+
+  /** Trim to a limit, but never hide something currently selected. */
+  const trim = <T extends { id: string }>(all: T[], limit: number, keep: (m: T) => boolean, expanded: boolean) => {
+    if (expanded || all.length <= limit) return { shown: all, hidden: 0 };
+    const picked = all.filter(keep);
+    const rest = all.filter((m) => !keep(m)).slice(0, Math.max(0, limit - picked.length));
+    const shown = all.filter((m) => picked.includes(m) || rest.includes(m));
+    return { shown, hidden: all.length - shown.length };
+  };
+
+  const fastView = trim(species.fastMoves, COLLAPSE_FAST, (m) => m.id === fast.id, showAllFast);
+  const chargeView = trim(species.chargeMoves, COLLAPSE_CHARGE, (m) => active.includes(m.id), showAllCharge);
 
   const toggle = (id: string) => {
     if (active.includes(id)) {
@@ -169,10 +203,16 @@ export function MovesPanel({
           </span>
         </div>
         <div className="moves-grid">
-          {species.fastMoves.map((m, i) => (
-            <FastTile key={m.id} move={m} active={moveIdx === i} onClick={() => onMoveIdx(i)} />
-          ))}
+          {fastView.shown.map((m) => {
+            const i = species.fastMoves.indexOf(m);
+            return <FastTile key={m.id} move={m} active={moveIdx === i} onClick={() => onMoveIdx(i)} />;
+          })}
         </div>
+        {(fastView.hidden > 0 || showAllFast) && (
+          <button type="button" className="moves-more" onClick={() => setShowAllFast((v) => !v)}>
+            {showAllFast ? `Show fewer — ${species.fastMoves.length} fast moves` : `+${fastView.hidden} more fast moves`}
+          </button>
+        )}
       </section>
 
       <section className="moves-col">
@@ -187,10 +227,17 @@ export function MovesPanel({
           )}
         </div>
         <div className="moves-grid">
-          {species.chargeMoves.map((m) => (
+          {chargeView.shown.map((m) => (
             <ChargeTile key={m.id} move={m} fast={fast} active={active.includes(m.id)} onClick={() => toggle(m.id)} />
           ))}
         </div>
+        {(chargeView.hidden > 0 || showAllCharge) && (
+          <button type="button" className="moves-more" onClick={() => setShowAllCharge((v) => !v)}>
+            {showAllCharge
+              ? `Show fewer — ${species.chargeMoves.length} charged moves`
+              : `+${chargeView.hidden} more charged moves`}
+          </button>
+        )}
       </section>
     </div>
   );

@@ -878,6 +878,18 @@ input[type='range'] { accent-color: var(--color-accent); }
   box-shadow: var(--glow-accent);
 }
 
+/* Past the dot threshold: a slider plus a numeric readout, so hundreds of
+   pages stay reachable without a wall of indicators. */
+.opp-page-range { flex: 1; min-width: 90px; max-width: 220px; }
+.opp-page-num {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: center;
+}
+
 /* — opponent grid cell — */
 .opp-cell {
   display: flex;

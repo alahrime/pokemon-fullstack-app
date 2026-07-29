@@ -25,6 +25,14 @@ cd ../app && npm run data && npm run verify
 
 ## Notes
 
+- **League membership is CP feasibility, not rank.** The old rule capped each
+  league's opponent pool at PvPoke's top 300, which hid exactly the niche
+  matchups where breakpoints live. Membership is now a *max CP floor* —
+  great 1100, ultra 2200, master 2500 — giving pools of 958 / 609 / 519.
+  It is a floor and never a ceiling: Registeel (maxCP 2766) and Swampert
+  (3362) underlevel into Great and are top-tier there, so a ceiling would drop
+  the wrong species. `pool-exclusions.json` is the manual override for anything
+  the rule still gets wrong.
 - **Move objects are interned.** `species.json` ships a `moves` table and each
   species references keys into it. The same move appeared in every species that
   learns it — 7730 embedded objects for 567 distinct ones, 62% of the file.

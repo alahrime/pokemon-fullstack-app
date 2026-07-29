@@ -43,12 +43,54 @@ const LEAGUES = [
   { id: 'master', cp: 10000, file: 'rankings-10000.json' },
 ];
 
-/** Rank cutoff for counting as "present" in a league (drives opponent scans). */
-const LEAGUE_MEMBER_CUTOFF = 300;
+/**
+ * League membership by CP feasibility, not by rank.
+ *
+ * Rank was the wrong axis. It capped the opponent pool at each league's top
+ * 300, which silently excluded anything niche - and "niche" is exactly where
+ * breakpoints hide. It also can't express the cases that matter: Farfetch'd
+ * tops out at 1397 and never reaches 1500, but is still a legitimate Great
+ * League opponent; so are Chansey (1418) and Wobbuffet (1160).
+ *
+ * The floor is a *max* CP, never a ceiling. A ceiling would be wrong in the
+ * other direction: Registeel maxes at 2766 and Swampert at 3362, and both
+ * underlevel into Great as top-tier picks (GL ranks 70 and 64).
+ *
+ * Anything this gets wrong is handled by data-src/pool-exclusions.json.
+ */
+const LEAGUE_MIN_MAX_CP = { great: 1100, ultra: 2200, master: 2500 };
 /** How many per league become the default opponent chips. */
 const CURATED_PER_LEAGUE = 24;
 
 const read = (f) => JSON.parse(fs.readFileSync(path.join(SRC, f), 'utf8'));
+
+// ── CP multipliers ─────────────────────────────────────────────────────────
+// Lifted from src/lib/cpm.ts rather than duplicated, so the generator and the
+// engine can't disagree about what level 50 means.
+const CPM = (() => {
+  const src = fs.readFileSync(path.resolve(HERE, '../src/lib/cpm.ts'), 'utf8');
+  // Anchored on the assignment, not the first bracket — `number[]` in the type
+  // annotation comes first and yields an empty match.
+  const m = src.match(/CPM\s*:\s*number\[\]\s*=\s*\[([\s\S]*?)\]/);
+  if (!m) throw new Error('could not locate the CPM array in src/lib/cpm.ts');
+  const nums = m[1].match(/[\d.]+/g).map(Number);
+  if (nums.length < 90) throw new Error(`cpm.ts parse produced only ${nums.length} multipliers`);
+  return nums;
+})();
+const MAX_CPM = CPM[CPM.length - 1];
+
+/** CP at max level with perfect IVs — the ceiling a species can ever reach. */
+function maxCP(base) {
+  const a = (base.atk + 15) * MAX_CPM;
+  const d = (base.def + 15) * MAX_CPM;
+  const h = (base.hp + 15) * MAX_CPM;
+  return Math.max(10, Math.floor((a * Math.sqrt(d) * Math.sqrt(h)) / 10));
+}
+
+// ── manual pool exclusions ─────────────────────────────────────────────────
+const exclusions = read('pool-exclusions.json');
+const excludedFor = (league) =>
+  new Set([...(exclusions.all ?? []), ...(exclusions[league] ?? [])]);
 
 // ── sprite slugs ───────────────────────────────────────────────────────────
 // PvPoke species ids are almost exactly pokemondb slugs with underscores, so
@@ -176,6 +218,7 @@ for (const p of bases) {
   const leagueRank = {};
   const shadowRank = {};
   const leagues = [];
+  const cap = maxCP(p.baseStats);
   let recommended = null;
 
   for (const lg of LEAGUES) {
@@ -183,8 +226,11 @@ for (const p of bases) {
     const hit = table.get(p.speciesId);
     if (hit) {
       leagueRank[lg.id] = hit.rank;
-      if (hit.rank <= LEAGUE_MEMBER_CUTOFF) leagues.push(lg.id);
       if (!recommended && hit.moveset) recommended = hit.moveset;
+    }
+    // Membership is CP-feasibility, independent of whether PvPoke ranks it.
+    if (cap >= LEAGUE_MIN_MAX_CP[lg.id] && !excludedFor(lg.id).has(p.speciesId)) {
+      leagues.push(lg.id);
     }
     const sHit = table.get(`${p.speciesId}_shadow`);
     if (sHit) shadowRank[lg.id] = sHit.rank;
@@ -215,6 +261,7 @@ for (const p of bases) {
     atk: p.baseStats.atk,
     def: p.baseStats.def,
     hp: p.baseStats.hp,
+    maxCP: cap,
     tags: (p.tags ?? []).filter((t) => ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter'].includes(t)),
     shadowEligible: (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`),
     fastMoves: orderedFasts.map(intern),
@@ -252,7 +299,16 @@ const embedded = species.reduce((n, s) => n + s.fastMoves.length + s.chargeMoves
 console.log(`species.json    ${species.length} entries (${formCount} alternate forms, ${shadowCount} shadow-eligible)`);
 console.log(`  moves         ${Object.keys(moveTable).length} interned, ${embedded} references`);
 for (const lg of LEAGUES) {
-  console.log(`  ${lg.id.padEnd(7)} ${species.filter((s) => s.leagues.includes(lg.id)).length} in-league, ${opponents[lg.id].length} curated`);
+  const n = species.filter((s) => s.leagues.includes(lg.id)).length;
+  console.log(`  ${lg.id.padEnd(7)} ${String(n).padStart(4)} opponents (maxCP >= ${LEAGUE_MIN_MAX_CP[lg.id]}), ${opponents[lg.id].length} curated`);
+}
+{
+  const ids = new Set(species.map((s) => s.id));
+  const listed = [...new Set([...(exclusions.all ?? []), ...LEAGUES.flatMap((l) => exclusions[l.id] ?? [])])];
+  const dropped = listed.filter((id) => ids.has(id));
+  const unknown = listed.filter((id) => !ids.has(id));
+  if (dropped.length) console.log(`manual exclusions: ${dropped.length} applied`);
+  if (unknown.length) console.log(`WARNING exclusions matching no species: ${unknown.join(', ')}`);
 }
 if (skipped.length) console.log(`skipped ${skipped.length} with no usable moveset: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? ' …' : ''}`);
 if (missingMoves.size) console.log(`WARNING unresolved move ids: ${[...missingMoves].join(', ')}`);

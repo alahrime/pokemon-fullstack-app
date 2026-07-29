@@ -270,11 +270,56 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
   return out;
 }
 
+/**
+ * The rank-1 spread only, without building the full 4096 table.
+ *
+ * Opponents need exactly three numbers — the attack, defense and HP of their
+ * best roll — but getTable allocates 4096 entry objects, sorts them and builds
+ * a lookup Map. That was fine for a 211-species pool; the CP-based pool is 958
+ * in Great, where the full tables cost well over a second on first scan.
+ *
+ * Same search, same tie-break as getTable, no retained structures.
+ */
+const bestCache = new Map<string, StatLine & { a: number; d: number; s: number }>();
+
+function bestSpreadFor(ref: string, leagueId: LeagueId) {
+  const key = `${ref}|${leagueId}`;
+  const hit = bestCache.get(key);
+  if (hit) return hit;
+
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
+  const league = LEAGUE_BY_ID.get(leagueId)!;
+  let best: (StatLine & { a: number; d: number; s: number }) | null = null;
+
+  for (let a = 0; a < 16; a++) {
+    for (let d = 0; d < 16; d++) {
+      for (let s = 0; s < 16; s++) {
+        const r = bestAt(species, { a, d, s }, league);
+        if (
+          !best ||
+          r.sp > best.sp ||
+          // Same tie-break as getTable: prefer the strictly better roll.
+          (r.sp === best.sp && a + d + s > best.a + best.d + best.s)
+        ) {
+          best = { ...r, a, d, s };
+        }
+      }
+    }
+  }
+
+  const out = shadow
+    ? { ...best!, atk: best!.atk * SHADOW_ATK_MULT, def: best!.def * SHADOW_DEF_MULT }
+    : best!;
+  bestCache.set(key, out);
+  return out;
+}
+
 export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
-  // best.atk/def already carry the Shadow multipliers when ref is a Shadow.
-  const best = getTable(ref, leagueId).best;
+  // Carries the Shadow multipliers already when ref is a Shadow.
+  const best = bestSpreadFor(ref, leagueId);
   return {
     id: ref,
     dex: species.dex,

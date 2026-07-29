@@ -57,6 +57,39 @@ for (const lg of LEAGUES) {
   check(`${lg}: curated ids all resolve`, ids.every((id) => SPECIES_BY_ID.has(parseRef(id).id)), `${ids.length} ids`);
 }
 
+console.log('\n── league membership (CP feasibility) ─────────────────');
+{
+  // Membership is a max-CP floor, never a ceiling. A ceiling would exclude
+  // Registeel (2766) and Swampert (3362), both of which underlevel into Great
+  // as top-tier picks - the exact failure the rank cutoff used to cause.
+  const FLOORS: Record<LeagueId, number> = { great: 1100, ultra: 2200, master: 2500 };
+  for (const lg of LEAGUES) {
+    const inLeague = SPECIES.filter((s) => s.leagues.includes(lg));
+    check(`${lg}: pool is substantial`, inLeague.length > 400, `${inLeague.length} opponents`);
+    check(
+      `${lg}: every member clears the maxCP floor`,
+      inLeague.every((s) => s.maxCP >= FLOORS[lg]),
+      inLeague.filter((s) => s.maxCP < FLOORS[lg]).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
+    );
+  }
+
+  // The cases that drove the rule change - all must be Great League opponents.
+  for (const id of ['farfetchd', 'magby', 'smoochum', 'chansey', 'wobbuffet']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
+  }
+  // And the high-maxCP staples a ceiling would have wrongly dropped.
+  for (const id of ['registeel', 'swampert']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} survives in Great (maxCP ${s?.maxCP}, no ceiling)`, !!s?.leagues.includes('great'));
+  }
+
+  const megas = SPECIES.filter((s) => s.id.includes('mega'));
+  check('megas are included as opponents', megas.some((s) => s.leagues.length > 0), `${megas.length} megas`);
+
+  check('every species carries a maxCP', SPECIES.every((s) => Number.isFinite(s.maxCP) && s.maxCP > 0));
+}
+
 console.log('\n── shadow ─────────────────────────────────────────────');
 const shadowEligible = SPECIES.filter((s) => s.shadowEligible);
 check('shadow-eligible population', shadowEligible.length > 400, `${shadowEligible.length} species`);

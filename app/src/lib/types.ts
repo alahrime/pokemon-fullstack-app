@@ -34,6 +34,8 @@ export interface Species {
   hp: number;
   /** Subset of PvPoke tags worth surfacing: legendary, mythical, mega, etc. */
   tags: string[];
+  /** CP at level 50 with perfect IVs — the ceiling this form can reach. */
+  maxCP: number;
   /** Whether a Shadow variant of this form exists in the game. */
   shadowEligible: boolean;
   fastMoves: FastMove[];

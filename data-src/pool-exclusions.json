@@ -1,0 +1,25 @@
+{
+  "_readme": [
+    "Species to keep OUT of the opponent pool, beyond what the CP rules already filter.",
+    "",
+    "The generator decides league membership by max CP (level 50, 15/15/15):",
+    "  great   maxCP >= 1100",
+    "  ultra   maxCP >= 2200",
+    "  master  maxCP >= 2500",
+    "",
+    "No CP rule gets every judgement right, so this file is the override. Add a",
+    "species id to a league array to drop it as an opponent in that league only,",
+    "or to \"all\" to drop it everywhere. Ids are PvPoke speciesIds, the same ones",
+    "used in species.json (e.g. \"marowak_alolan\", \"gyarados_mega\").",
+    "",
+    "Exclusions only affect who appears as an OPPONENT. Every species stays",
+    "selectable as your own Pokemon regardless.",
+    "",
+    "Re-run `npm run data` after editing. The generator reports how many were",
+    "dropped and warns about ids that match nothing, so typos surface."
+  ],
+  "all": [],
+  "great": [],
+  "ultra": [],
+  "master": []
+}

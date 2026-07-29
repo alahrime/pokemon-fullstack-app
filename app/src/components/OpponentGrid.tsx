@@ -15,6 +15,9 @@ import { Sprite } from './Sprite';
  * these are numbers people read carefully.
  */
 
+/** Beyond this many pages, dots stop being a usable control. */
+const MAX_DOTS = 12;
+
 export function OpponentGrid({
   items,
   page,
@@ -100,20 +103,39 @@ export function OpponentGrid({
             ‹
           </button>
 
-          {/* Dots rather than numbers: the pages have no meaning of their own,
-              they're just windows onto one ordered list. */}
-          <span className="opp-dots">
-            {Array.from({ length: pageCount }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`opp-dot${i === page ? ' is-on' : ''}`}
-                onClick={() => onPage(i)}
-                aria-label={`Page ${i + 1}`}
-                aria-current={i === page}
+          {/* Dots only while they stay countable. The CP-based pool runs to
+              several hundred matchups — 50-odd dots is a smear, not a control —
+              so past the threshold it becomes a numeric readout with a slider. */}
+          {pageCount <= MAX_DOTS ? (
+            <span className="opp-dots">
+              {Array.from({ length: pageCount }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`opp-dot${i === page ? ' is-on' : ''}`}
+                  onClick={() => onPage(i)}
+                  aria-label={`Page ${i + 1}`}
+                  aria-current={i === page}
+                />
+              ))}
+            </span>
+          ) : (
+            <>
+              <input
+                className="opp-page-range"
+                type="range"
+                min={0}
+                max={pageCount - 1}
+                step={1}
+                value={page}
+                onChange={(e) => onPage(Number(e.target.value))}
+                aria-label="Page"
               />
-            ))}
-          </span>
+              <span className="opp-page-num numeric">
+                {page + 1} / {pageCount}
+              </span>
+            </>
+          )}
 
           <button
             type="button"
@@ -130,6 +152,7 @@ export function OpponentGrid({
           </span>
         </div>
       )}
+
     </div>
   );
 }

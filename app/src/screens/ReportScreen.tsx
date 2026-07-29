@@ -30,9 +30,13 @@ import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
 
-/** How many opponent cells are on screen, and how deep the scan goes. */
+/**
+ * Cells per page. The scan itself is uncapped — every league-legal opponent
+ * whose damage thresholds this species can actually cross is included, which
+ * runs to several hundred, so the board pages through them rather than
+ * truncating at an arbitrary depth.
+ */
 const OPPONENT_WINDOW = 16;
-const OPPONENT_POOL = 48;
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
@@ -48,7 +52,7 @@ export function ReportScreen() {
   // The scan finds far more decidable matchups than fit on screen. Keep the
   // full slate for selection validity and show a rotating window of it.
   const relevance = useMemo(
-    () => rankedOpponents(ref, league, moveIdx, relevanceKind, OPPONENT_POOL, chargeIds),
+    () => rankedOpponents(ref, league, moveIdx, relevanceKind, Infinity, chargeIds),
     [ref, league, moveIdx, relevanceKind, chargeIds],
   );
   const opponents = useMemo(() => relevance.map((r) => r.info), [relevance]);

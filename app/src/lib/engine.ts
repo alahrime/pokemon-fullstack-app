@@ -1232,6 +1232,7 @@ export function battle(
   energyA = 0,
   energyB = 0,
   collectLog = true,
+  optimizeTiming = false,
 ): BattleResult {
   let hpA = a.hp;
   let hpB = b.hp;
@@ -1248,17 +1249,61 @@ export function battle(
   const rolesB = classifyCharges(b.atk, a.def, b.charges, a.types);
   const log: BattleLogEntry[] = [];
 
+  // Turns held with a charged move available but deliberately not thrown,
+  // waiting for the timing window. Bounded so an unreachable window (aligned
+  // fast moves) cannot stall the fight forever.
+  let holdA = 0;
+  let holdB = 0;
+
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
-    const moveA = pickCharge(rolesA, eA, sB);
-    const moveB = pickCharge(rolesB, eB, sA);
+    // A move registers on the last turn of its animation.
+    const registersA = tA <= 1;
+    const registersB = tB <= 1;
+    // You can only start a charged move between fast moves, not mid-animation.
+    const freeA = tA >= a.fast.turns;
+    const freeB = tB >= b.fast.turns;
+
+    const readyA = freeA ? pickCharge(rolesA, eA, sB) : null;
+    const readyB = freeB ? pickCharge(rolesB, eB, sA) : null;
+
+    // Default is PvPoke's rule — throw the moment the move is available. It is
+    // deliberately not optimal play (their docs say as much), but it is the
+    // behaviour every published rating is computed against, so it is what a
+    // number here has to be comparable to.
+    //
+    // With optimizeTiming on, hold instead until the release lands on the turn
+    // the opponent's fast move registers: zero free turns granted, and the hit
+    // denied. Throw early anyway when the move kills, when holding would waste
+    // energy at the cap, or when the window is unreachable because the two fast
+    // moves are aligned — a 2-turn against a 4-turn never coincides, so waiting
+    // for it would stall forever.
+    const wantA =
+      !!readyA &&
+      (!optimizeTiming ||
+        (sB === 0 && dmg(a.atk, b.def, readyA, b.types) >= hpB) ||
+        registersB ||
+        eA + a.fast.energyGain > 100 ||
+        holdA >= b.fast.turns);
+    const wantB =
+      !!readyB &&
+      (!optimizeTiming ||
+        (sA === 0 && dmg(b.atk, a.def, readyB, a.types) >= hpA) ||
+        registersA ||
+        eB + b.fast.energyGain > 100 ||
+        holdB >= a.fast.turns);
+
+    holdA = readyA && !wantA ? holdA + 1 : 0;
+    holdB = readyB && !wantB ? holdB + 1 : 0;
+
+    const moveA = wantA ? readyA : null;
+    const moveB = wantB ? readyB : null;
+
     // A fast move that lands this turn and kills resolves first, ahead of any
     // charged move either side has banked. The charged move costs a turn to
     // throw, so a fast hit that is already registering gets there first and
     // snipes — the kill happens before the charge is ever released. Only a
     // move registering *this* turn qualifies; one still mid-animation does not.
-    const fastLandsA = tA - 1 <= 0;
-    const fastLandsB = tB - 1 <= 0;
-    const snipe = (fastLandsA && fA >= hpB) || (fastLandsB && fB >= hpA);
+    const snipe = (registersA && fA >= hpB) || (registersB && fB >= hpA);
     if ((moveA || moveB) && !snipe) {
       const order: ('A' | 'B')[] = moveA && moveB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
       if (moveA && moveB) cmpDecided = true;
@@ -1269,10 +1314,11 @@ export function battle(
           const damage = shielded ? 1 : dmg(a.atk, b.def, moveA, b.types);
           if (shielded) sB--;
           hpB -= damage;
-          // The Charged Move sequence resets *both* animations, not just the
-          // thrower's — which is what grants the defender "free" turns.
+          // The sequence resets both animations — that reset is what grants
+          // the defender "free" turns when thrown at the wrong moment.
           tA = a.fast.turns;
           tB = b.fast.turns;
+          holdA = 0;
           if (collectLog) log.push({
             turn,
             actor: 'A',
@@ -1295,6 +1341,7 @@ export function battle(
           hpA -= damage;
           tA = a.fast.turns;
           tB = b.fast.turns;
+          holdB = 0;
           if (collectLog) log.push({
             turn,
             actor: 'B',
@@ -1309,6 +1356,23 @@ export function battle(
             energyB: eB,
           });
         }
+      }
+      // Sneak: a fast move whose animation completes on this same turn still
+      // lands, after the charged damage, provided its owner is still alive.
+      // This is why a mirror match cannot be timed — your throw always falls
+      // on turn 2n+1 and their registrations are on even turns, so the two
+      // never coincide and the sneak is unavoidable. A KO denies it.
+      if (registersA && hpA > 0 && !moveA && hpB > 0) {
+        hpB -= fA;
+        eA = Math.min(100, eA + a.fast.energyGain);
+        if (collectLog) log.push({ turn, actor: 'A', kind: 'fast', moveName: a.fast.name, bait: false,
+          shielded: false, damage: fA, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB });
+      }
+      if (registersB && hpB > 0 && !moveB && hpA > 0) {
+        hpA -= fB;
+        eB = Math.min(100, eB + b.fast.energyGain);
+        if (collectLog) log.push({ turn, actor: 'B', kind: 'fast', moveName: b.fast.name, bait: false,
+          shielded: false, damage: fB, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB });
       }
       continue;
     }

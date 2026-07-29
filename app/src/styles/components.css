@@ -456,11 +456,17 @@ input[type='range'] { accent-color: var(--color-accent); }
   align-items: center;
   gap: var(--space-2);
   margin-bottom: 6px;
+  /* Fixed so the two grids start at the same y. The charged header grows a
+     "reset" button only once a custom set is picked, which otherwise pushed
+     that column down the moment you changed a move. */
+  min-height: 22px;
 }
 .moves-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 6px;
+  /* Every row the same height, so a tall tile does not stagger its neighbours. */
+  grid-auto-rows: minmax(var(--move-tile-h), auto);
 }
 
 /* Tinted by `--type`, set per tile from the move's own typing.
@@ -469,11 +475,19 @@ input[type='range'] { accent-color: var(--color-accent); }
    rather than a form-control one. The cut is a clip-path, which kills the
    border along that edge, so the "border" is drawn as an inset box-shadow
    ring that follows the clip instead. */
+/* Fast and charged tiles carry different content — two stat rows against one
+   plus a charge-count strip — so left to themselves the two columns sat at
+   different heights and nothing lined up across the panel. A shared height
+   makes the rows level regardless of which side they are on, and content
+   distributes within it rather than setting it. */
+:root { --move-tile-h: 92px; }
 .move-tile {
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 5px;
+  min-height: var(--move-tile-h);
   min-width: 0;
   padding: 8px 10px 9px;
   text-align: left;
@@ -499,6 +513,16 @@ input[type='range'] { accent-color: var(--color-accent); }
     opacity var(--dur-1) var(--ease-out), filter var(--dur-1) var(--ease-out);
 }
 /* Fills the chamfer so the cut corner reads as deliberate rather than clipped. */
+/* The archetype chip is the one thing that can wrap the header onto a second
+   line and break the shared height, so it truncates instead. */
+.move-arch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-head { flex-wrap: nowrap; }
+
 .move-tile::before {
   content: '';
   position: absolute;

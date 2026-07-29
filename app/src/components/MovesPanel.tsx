@@ -257,7 +257,11 @@ export function MovesPanel({
 }) {
   const fast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
-  const active = chargeIds.length ? chargeIds : recommended;
+  // Ignore ids the species cannot learn, then fall back to the recommendation
+  // if nothing survives. Belt and braces against stale selections: the panel
+  // should never be able to render zero moves for a species that has some.
+  const known = chargeIds.filter((id) => species.chargeMoves.some((m) => m.id === id));
+  const active = known.length ? known : recommended;
   const isDefault = chargeIds.length === 0;
   // Over the threshold only the equipped moves get tiles; the rest live in the
   // picker. Panel height then depends on how many you have equipped, not on

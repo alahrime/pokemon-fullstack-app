@@ -28,7 +28,14 @@ function Nav() {
       <SpeciesSearch
         id="nav-species"
         value={state.species}
-        onChange={(id) => patch({ species: id, moveIdx: 0 })}
+        onChange={(id) =>
+          // chargeIds must clear with the species. Held across a change they
+          // name moves the new species does not learn, and the moves panel —
+          // which shows only the selected moves once a pool needs a picker —
+          // then matches nothing and renders empty. Switching from Azumarill
+          // to Mew was showing no charged moves at all.
+          patch({ species: id, moveIdx: 0, chargeIds: [] })
+        }
         placeholder="Name, type, gen1, @counter, water&!legendary…"
         className="nav-search"
       />

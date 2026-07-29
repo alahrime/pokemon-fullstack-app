@@ -537,10 +537,20 @@ input[type='range'] { accent-color: var(--color-accent); }
 .move-tile { --move-footer-h: 39px; }
 .move-head { min-height: 18px; align-items: center; }
 .move-stats { min-height: 24px; align-items: center; }
+/* Both footers occupy the same fixed height and centre their content in it,
+   so the two tile types read level even though one carries value-over-label
+   pairs and the other a caption above count boxes. */
 .move-stats-ratio,
+.move-counts { min-height: var(--move-footer-h); }
+/* Ratio row is a flex ROW, so align-items centres it vertically. */
+.move-stats-ratio { align-items: center; }
+/* Counts is a flex COLUMN, where the vertical axis is justify-content —
+   align-items there only centres horizontally, which is why the earlier
+   attempt was silently a no-op and this content sat flush to the bottom. */
 .move-counts {
-  min-height: var(--move-footer-h);
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .move-tile::before {
@@ -693,11 +703,16 @@ input[type='range'] { accent-color: var(--color-accent); }
 }
 
 .move-counts {
+  /* Same box model as .move-stats-ratio — identical border and padding — so
+     the two footers offer their content the same box to centre in. Dropping
+     this padding to "lift" the charged tile was the wrong fix: it made the
+     boxes differ by exactly these 4px and moved the content the other way. */
   padding-top: 4px;
   border-top: var(--border-hairline) solid var(--rule-hairline);
 }
 .move-counts-label {
   display: block;
+  flex: none;
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.05em;

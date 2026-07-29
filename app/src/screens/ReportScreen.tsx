@@ -72,8 +72,8 @@ export function ReportScreen() {
   const sorted = useMemo(() => {
     const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
     const key = (r: (typeof relevance)[number]) => {
-      if (colorBy === 'break') return dmg(entry.atk, r.info.def, myFast);
-      if (colorBy === 'bulk') return dmg(r.info.atk, entry.def, r.info.fastMove);
+      if (colorBy === 'break') return dmg(entry.atk, r.info.def, myFast, r.info.types);
+      if (colorBy === 'bulk') return dmg(r.info.atk, entry.def, r.info.fastMove, species.types);
       // Rank: lower is better, so negate to keep "descending = strongest first".
       return -(SPECIES_BY_ID.get(parseRef(r.info.id).id)?.leagueRank[league] ?? 9999);
     };
@@ -145,10 +145,10 @@ export function ReportScreen() {
     const n = getEntry(speciesId, iv, league).entry;
     const sh = getEntry(makeRef(speciesId, true), iv, league).entry;
     return {
-      dealtN: dmg(n.atk, opp.def, mv),
-      dealtS: dmg(sh.atk, opp.def, mv),
-      takenN: dmg(opp.atk, n.def, opp.fastMove),
-      takenS: dmg(opp.atk, sh.def, opp.fastMove),
+      dealtN: dmg(n.atk, opp.def, mv, opp.types),
+      dealtS: dmg(sh.atk, opp.def, mv, opp.types),
+      takenN: dmg(opp.atk, n.def, opp.fastMove, species.types),
+      takenS: dmg(opp.atk, sh.def, opp.fastMove, species.types),
       rankN: species.leagueRank[league],
       rankS: species.shadowLeagueRank[league],
     };

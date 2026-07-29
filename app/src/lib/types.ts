@@ -129,6 +129,8 @@ export interface BattleMon {
   atk: number;
   def: number;
   hp: number;
+  /** Defender typing, for the effectiveness term in dmg(). */
+  types: readonly string[];
   fast: FastMove;
   // Every charge move this mon has equipped, cheapest energy cost first.
   // charges[0] is the "bait" candidate when 2+ are present and there's a

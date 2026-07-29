@@ -1,4 +1,5 @@
 import { BB_MAX_LEVEL_IDX, CPM, LVL, MAX_LEVEL_IDX } from './cpm';
+import { typeEffectiveness } from './typeChart';
 import {
   LEAGUE_BY_ID,
   OPPONENT_POOL_BY_ID,
@@ -107,8 +108,24 @@ function levelCapIdx(species: Species, league: League, bestBuddy: boolean): numb
   return bestBuddy && bestBuddyEligible(species, league) ? BB_MAX_LEVEL_IDX : MAX_LEVEL_IDX;
 }
 
-export function dmg(atk: number, def: number, move: FastMove | ChargeMove): number {
-  return Math.floor(0.5 * move.power * (atk / def) * move.stab) + 1;
+/**
+ * Damage for one hit.
+ *
+ * floor(0.5 * power * atk/def * STAB * effectiveness) + 1. The effectiveness
+ * term was missing entirely, which made every off-type move hit for neutral:
+ * Lickitung's Lick is a Ghost move and Normal is immune to Ghost, so it was
+ * dealing roughly double what it should while also being wrongly granted STAB.
+ * Defender typing is required rather than optional so a call site cannot
+ * silently fall back to neutral again.
+ */
+export function dmg(
+  atk: number,
+  def: number,
+  move: FastMove | ChargeMove,
+  defTypes: readonly string[],
+): number {
+  const eff = typeEffectiveness(move.type, defTypes);
+  return Math.floor(0.5 * move.power * (atk / def) * move.stab * eff) + 1;
 }
 
 /**
@@ -492,13 +509,13 @@ export function opponentList(leagueId: LeagueId): Species[] {
  * other extreme" — two dmg() calls rather than a scan with a Set, which these
  * did once per opponent per scan and which dominated the relevance profile.
  */
-export function hasBreakpoint(table: SpeciesTable, move: FastMove, oppDef: number): boolean {
-  return dmg(table.atkLo, oppDef, move) !== dmg(table.atkHi, oppDef, move);
+export function hasBreakpoint(table: SpeciesTable, move: FastMove, oppDef: number, oppTypes: readonly string[]): boolean {
+  return dmg(table.atkLo, oppDef, move, oppTypes) !== dmg(table.atkHi, oppDef, move, oppTypes);
 }
 
-export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: FastMove): boolean {
+export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: FastMove, myTypes: readonly string[]): boolean {
   // Higher defense means less damage taken, so the extremes are swapped.
-  return dmg(oppAtk, table.defHi, oppFastMove) !== dmg(oppAtk, table.defLo, oppFastMove);
+  return dmg(oppAtk, table.defHi, oppFastMove, myTypes) !== dmg(oppAtk, table.defLo, oppFastMove, myTypes);
 }
 
 export type RelevanceKind = 'break' | 'bulk' | 'either';
@@ -685,7 +702,7 @@ function foeMonFor(ref: string, leagueId: LeagueId, info: OpponentInfo): BattleM
   const key = `${ref}|${leagueId}`;
   let m = foeMonCache.get(key);
   if (!m) {
-    m = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    m = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2), info.types);
     foeMonCache.set(key, m);
   }
   return m;
@@ -731,7 +748,7 @@ export function rankedOpponents(
     const k = ivKey(entry);
     let m = myMons.get(k);
     if (!m) {
-      m = mkBattleMon(entry, move, myCharges);
+      m = mkBattleMon(entry, move, myCharges, species.types);
       myMons.set(k, m);
     }
     return m;
@@ -739,8 +756,8 @@ export function rankedOpponents(
 
   for (const c of candidates) {
     const info = opponentInfo(c, leagueId);
-    const hasBreak = hasBreakpoint(table, move, info.def);
-    const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
+    const hasBreak = hasBreakpoint(table, move, info.def, info.types);
+    const hasBulk = hasBulkpoint(table, info.atk, info.fastMove, species.types);
     // Contested only if a spread you'd keep wins priority and one loses it —
     // a CMP win that costs rank 3800 is not a decision anyone makes.
     const cmpContested = info.atk > atkLo && info.atk <= atkHi;
@@ -887,8 +904,8 @@ export function relevantOpponents(
   const scored = candidates
     .map((c) => {
       const info = opponentInfo(c, leagueId);
-      const hb = kind !== 'bulk' && hasBreakpoint(table, move, info.def);
-      const hk = kind !== 'break' && hasBulkpoint(table, info.atk, info.fastMove);
+      const hb = kind !== 'bulk' && hasBreakpoint(table, move, info.def, info.types);
+      const hk = kind !== 'break' && hasBulkpoint(table, info.atk, info.fastMove, species.types);
       return { info, relevant: hb || hk, rank: rankOfRef(c, leagueId) };
     })
     .filter((x) => x.relevant)
@@ -921,11 +938,12 @@ export function bpRowsFor(
 ): ThresholdRow[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
+  const myTypes = species.types;
   const rows: Omit<ThresholdRow, 'met' | 'near'>[] = [];
 
   species.fastMoves.forEach((mv) => {
     const vals = table.all
-      .map((x) => ({ atk: x.atk, d: dmg(x.atk, opp.def, mv), e: x }))
+      .map((x) => ({ atk: x.atk, d: dmg(x.atk, opp.def, mv, opp.types), e: x }))
       .sort((x, y) => x.atk - y.atk);
     const seen = new Map<number, (typeof vals)[number]>();
     vals.forEach((v) => {
@@ -947,7 +965,7 @@ export function bpRowsFor(
   });
 
   const dvals = table.all
-    .map((x) => ({ def: x.def, d: dmg(opp.atk, x.def, opp.fastMove), e: x }))
+    .map((x) => ({ def: x.def, d: dmg(opp.atk, x.def, opp.fastMove, myTypes), e: x }))
     .sort((x, y) => x.def - y.def);
   const seenB = new Map<number, (typeof dvals)[number]>();
   dvals.forEach((v) => {
@@ -1002,6 +1020,7 @@ export interface RulerData {
 export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: OpponentInfo): RulerData[] {
   const { entry, table } = getEntry(speciesId, iv, leagueId);
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
+  const myTypes = species.types;
   const atks = table.all.map((x) => x.atk);
   const aMin = Math.min(...atks);
   const aMax = Math.max(...atks);
@@ -1057,7 +1076,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
       .slice()
       .sort((x, y) => x.atk - y.atk)
       .forEach((x) => {
-        const d = dmg(x.atk, opp.def, mv);
+        const d = dmg(x.atk, opp.def, mv, opp.types);
         if (!seen.has(d)) seen.set(d, x.atk);
       });
     const th = [...seen.keys()].sort((x, y) => x - y).map((d) => ({ at: seen.get(d)!, label: `${d} dmg` }));
@@ -1081,7 +1100,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
     .slice()
     .sort((x, y) => x.def - y.def)
     .forEach((x) => {
-      const d = dmg(opp.atk, x.def, opp.fastMove);
+      const d = dmg(opp.atk, x.def, opp.fastMove, myTypes);
       if (!seenB.has(d)) seenB.set(d, x.def);
     });
   const thB = [...seenB.keys()].sort((x, y) => y - x).map((d) => ({ at: seenB.get(d)!, label: `takes ${d}` }));
@@ -1125,14 +1144,15 @@ export function buildHeatCells(
   const { table } = getEntry(speciesId, iv, leagueId);
   const mv = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
 
+  const myTypes = table.species.types;
   const slice: RankedEntry[] = [];
   for (let d = 15; d >= 0; d--) for (let a = 0; a < 16; a++) slice.push(table.map.get(a * 256 + d * 16 + iv.s)!);
 
   const spMax = table.best.sp;
   const spMin = Math.min(...slice.map((e) => e.sp));
   let tiers: number[] = [];
-  if (colorBy === 'break') tiers = [...new Set(slice.map((e) => dmg(e.atk, opp.def, mv)))].sort((x, y) => x - y);
-  if (colorBy === 'bulk') tiers = [...new Set(slice.map((e) => dmg(opp.atk, e.def, opp.fastMove)))].sort((x, y) => y - x);
+  if (colorBy === 'break') tiers = [...new Set(slice.map((e) => dmg(e.atk, opp.def, mv, opp.types)))].sort((x, y) => x - y);
+  if (colorBy === 'bulk') tiers = [...new Set(slice.map((e) => dmg(opp.atk, e.def, opp.fastMove, myTypes)))].sort((x, y) => y - x);
 
   return slice.map((entry) => {
     const isYou = entry.a === iv.a && entry.d === iv.d;
@@ -1142,11 +1162,11 @@ export function buildHeatCells(
       bg = cellColorMix((entry.sp - spMin) / Math.max(1e-9, spMax - spMin), pal);
       label = `#${entry.rank}`;
     } else if (colorBy === 'break') {
-      const dv = dmg(entry.atk, opp.def, mv);
+      const dv = dmg(entry.atk, opp.def, mv, opp.types);
       bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `${dv} dmg / ${mv.turns}t`;
     } else {
-      const dv = dmg(opp.atk, entry.def, opp.fastMove);
+      const dv = dmg(opp.atk, entry.def, opp.fastMove, myTypes);
       bg = tierColor(tiers.indexOf(dv), tiers.length, pal);
       label = `takes ${dv}`;
     }
@@ -1184,9 +1204,9 @@ interface ChargeRoles {
   bait: ChargeMove | null;
 }
 
-function classifyCharges(atk: number, oppDef: number, charges: ChargeMove[]): ChargeRoles {
+function classifyCharges(atk: number, oppDef: number, charges: ChargeMove[], oppTypes: readonly string[]): ChargeRoles {
   if (charges.length === 1) return { main: charges[0], bait: null };
-  const byDpe = charges.slice().sort((x, y) => dmg(atk, oppDef, y) / y.energy - dmg(atk, oppDef, x) / x.energy);
+  const byDpe = charges.slice().sort((x, y) => dmg(atk, oppDef, y, oppTypes) / y.energy - dmg(atk, oppDef, x, oppTypes) / x.energy);
   const main = byDpe[0];
   const cheaperAlternative = byDpe.slice(1).find((c) => c.energy < main.energy) ?? null;
   return { main, bait: cheaperAlternative };
@@ -1222,10 +1242,10 @@ export function battle(
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
-  const fA = dmg(a.atk, b.def, a.fast);
-  const fB = dmg(b.atk, a.def, b.fast);
-  const rolesA = classifyCharges(a.atk, b.def, a.charges);
-  const rolesB = classifyCharges(b.atk, a.def, b.charges);
+  const fA = dmg(a.atk, b.def, a.fast, b.types);
+  const fB = dmg(b.atk, a.def, b.fast, a.types);
+  const rolesA = classifyCharges(a.atk, b.def, a.charges, b.types);
+  const rolesB = classifyCharges(b.atk, a.def, b.charges, a.types);
   const log: BattleLogEntry[] = [];
 
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
@@ -1238,10 +1258,13 @@ export function battle(
         if (who === 'A' && hpA > 0 && moveA) {
           eA -= moveA.energy;
           const shielded = sB > 0;
-          const damage = shielded ? 1 : dmg(a.atk, b.def, moveA);
+          const damage = shielded ? 1 : dmg(a.atk, b.def, moveA, b.types);
           if (shielded) sB--;
           hpB -= damage;
+          // The Charged Move sequence resets *both* animations, not just the
+          // thrower's — which is what grants the defender "free" turns.
           tA = a.fast.turns;
+          tB = b.fast.turns;
           if (collectLog) log.push({
             turn,
             actor: 'A',
@@ -1259,9 +1282,10 @@ export function battle(
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
           const shielded = sA > 0;
-          const damage = shielded ? 1 : dmg(b.atk, a.def, moveB);
+          const damage = shielded ? 1 : dmg(b.atk, a.def, moveB, a.types);
           if (shielded) sA--;
           hpA -= damage;
+          tA = a.fast.turns;
           tB = b.fast.turns;
           if (collectLog) log.push({
             turn,
@@ -1325,8 +1349,13 @@ export function battle(
   return { win, mine, theirs, hpA: finalHpA, hpB: finalHpB, maxHpA: a.hp, maxHpB: b.hp, cmpDecided, margin: (mine - theirs) * 100, log };
 }
 
-export function mkBattleMon(entry: { atk: number; def: number; hp: number }, fast: FastMove, charges: ChargeMove[]): BattleMon {
-  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charges };
+export function mkBattleMon(
+  entry: { atk: number; def: number; hp: number },
+  fast: FastMove,
+  charges: ChargeMove[],
+  types: readonly string[],
+): BattleMon {
+  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charges, types };
 }
 
 // ── Verdict copy ──
@@ -1444,7 +1473,7 @@ export function flipGrid(
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { table } = getEntry(speciesId, iv, leagueId);
   const opp = opponentInfo(oppSpeciesId, leagueId);
-  const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
+  const opponentMon = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2), opp.types);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const myCharges = selectedCharges(species, chargeIds);
 
@@ -1456,7 +1485,7 @@ export function flipGrid(
     // No log: the grid only ever reads win/margin, but these 256 results are
     // cached indefinitely and a full turn log per cell is a large retained
     // allocation for data nothing looks at.
-    result: battle(mkBattleMon(entry, myFast, myCharges), opponentMon, shieldsMine, shieldsTheirs, 0, 0, false),
+    result: battle(mkBattleMon(entry, myFast, myCharges, species.types), opponentMon, shieldsMine, shieldsTheirs, 0, 0, false),
   }));
   const winners = results.filter((o) => o.result.win);
   const cheapest = winners.length ? winners.slice().sort((p, q) => p.entry.rank - q.entry.rank)[0] : null;
@@ -1492,11 +1521,11 @@ export function flipMatchupRows(
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const { entry } = getEntry(speciesId, iv, leagueId);
   const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const you = mkBattleMon(entry, myFast, selectedCharges(species, chargeIds));
+  const you = mkBattleMon(entry, myFast, selectedCharges(species, chargeIds), species.types);
 
   return opponentIds.map((oid) => {
     const opp = opponentInfo(oid, leagueId);
-    const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
+    const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2), opp.types);
     const cells = [0, 1, 2].map((mine) => {
       const r = battle(you, foe, mine, shieldsTheirs ?? mine, 0, 0, false);
       return { win: r.win, margin: r.margin };
@@ -1549,8 +1578,8 @@ export function scenarioMatrix(
   const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
   const { entry } = getEntry(ref, iv, leagueId);
   const opp = opponentInfo(oppRef, leagueId);
-  const you = mkBattleMon(entry, species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)], selectedCharges(species, chargeIds));
-  const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2));
+  const you = mkBattleMon(entry, species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)], selectedCharges(species, chargeIds), species.types);
+  const foe = mkBattleMon(opp, opp.fastMove, chargesOf(opp.chargeMove, opp.chargeMove2), opp.types);
 
   const out = [0, 1, 2].map((mine) =>
     [0, 1, 2].map((theirs) => {

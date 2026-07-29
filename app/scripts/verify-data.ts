@@ -185,13 +185,13 @@ console.log('\n── engine smoke ───────────────
   const league: LeagueId = 'great';
   const iv = { a: 0, d: 15, s: 15 };
   const foe = opponentInfo(OPPONENTS[league][0], league);
-  const foeMon = mkBattleMon(foe, foe.fastMove, chargesOf(foe.chargeMove, foe.chargeMove2));
+  const foeMon = mkBattleMon(foe, foe.fastMove, chargesOf(foe.chargeMove, foe.chargeMove2), foe.types);
   const sp = SPECIES_BY_ID.get(id)!;
 
   const mk = (shadow: boolean) => {
     const t = getTable(makeRef(id, shadow), league);
     const e = t.map.get(iv.a * 256 + iv.d * 16 + iv.s)!;
-    return mkBattleMon(e, sp.fastMoves[0], chargesOf(sp.chargeMove, sp.chargeMove2));
+    return mkBattleMon(e, sp.fastMoves[0], chargesOf(sp.chargeMove, sp.chargeMove2), sp.types);
   };
   const n = mk(false);
   const s = mk(true);
@@ -281,12 +281,22 @@ console.log('\n── asymmetric shields ─────────────
   // playing a different game from that point on. Assert the two sides are
   // genuinely independent rather than silently collapsing to the diagonal.
   const iv = { a: 0, d: 15, s: 15 };
+  // Search the curated list rather than assuming index 0 is a live matchup.
+  // Pinning one opponent made this assert nothing the moment that matchup went
+  // one-sided — which is exactly what happened once type effectiveness landed
+  // and Azumarill stopped winning any scenario against it. The claim is that
+  // the two sides are independent *somewhere*, so look for that.
   const oppId = OPPONENTS.great[0];
-  const sym = flipGrid('azumarill', iv, 'great', oppId, 0, 1);
-  const asym = flipGrid('azumarill', iv, 'great', oppId, 0, 1, undefined, 2);
-  check('symmetric and asymmetric grids differ', sym.winners.length !== asym.winners.length ||
-    sym.results.some((r, i) => r.result.win !== asym.results[i].result.win),
-    `${sym.winners.length} winners at 1v1, ${asym.winners.length} at 1v2`);
+  let found: string | null = null;
+  for (const cand of OPPONENTS.great) {
+    const a = flipGrid('azumarill', iv, 'great', cand, 0, 1);
+    const b = flipGrid('azumarill', iv, 'great', cand, 0, 1, undefined, 2);
+    if (a.winners.length !== b.winners.length || a.results.some((r, i) => r.result.win !== b.results[i].result.win)) {
+      found = cand;
+      break;
+    }
+  }
+  check('shield counts are independent for some curated matchup', found !== null, found ?? 'no matchup differed');
 
   // Giving the opponent more shields should never help you.
   const s0 = flipGrid('azumarill', iv, 'great', oppId, 0, 1, undefined, 0).winners.length;

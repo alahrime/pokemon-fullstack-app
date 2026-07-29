@@ -171,13 +171,13 @@ export function BattleScreen() {
   const monA = useMemo(() => {
     const fast = speciesA.fastMoves[Math.min(fastA, speciesA.fastMoves.length - 1)];
     const charges = chargesOf(speciesA.chargeMove, speciesA.chargeMove2).filter((c) => !disabledChargesA.includes(c.id));
-    return mkBattleMon(entryA, fast, charges.length ? charges : [speciesA.chargeMove]);
+    return mkBattleMon(entryA, fast, charges.length ? charges : [speciesA.chargeMove], speciesA.types);
   }, [speciesA, entryA, fastA, disabledChargesA]);
 
   const monB = useMemo(() => {
     const fast = speciesB.fastMoves[Math.min(fastB, speciesB.fastMoves.length - 1)];
     const charges = chargesOf(speciesB.chargeMove, speciesB.chargeMove2).filter((c) => !disabledChargesB.includes(c.id));
-    return mkBattleMon(entryB, fast, charges.length ? charges : [speciesB.chargeMove]);
+    return mkBattleMon(entryB, fast, charges.length ? charges : [speciesB.chargeMove], speciesB.types);
   }, [speciesB, entryB, fastB, disabledChargesB]);
 
   const matrix = useMemo(() => shieldMatrix(monA, monB, energyA, energyB), [monA, monB, energyA, energyB]);

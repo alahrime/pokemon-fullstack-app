@@ -1300,12 +1300,16 @@ textarea.input { min-height: 90px; resize: vertical; }
   .search-help { grid-template-columns: 1fr; }
 }
 
-/* "+N more" control under a trimmed movepool. Reads as a continuation of the
-   grid rather than a separate action, so it sits flush and full width. */
-.moves-more {
+/* Move picker: overlays the panel instead of growing it, so browsing 152
+   Smeargle moves never moves the content underneath. */
+.move-picker { position: relative; margin-top: 4px; }
+.move-picker-btn {
   width: 100%;
-  margin-top: 4px;
-  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1313,13 +1317,53 @@ textarea.input { min-height: 90px; resize: vertical; }
   text-transform: uppercase;
   color: var(--text-faint);
   background: transparent;
-  border: var(--border-hairline) dashed var(--rule-strong);
+  border: var(--border-hairline) solid var(--rule-strong);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
 }
-.moves-more:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-  border-style: solid;
+.move-picker-btn:hover,
+.move-picker-btn[aria-expanded='true'] { color: var(--color-accent); border-color: var(--color-accent); }
+
+.move-picker-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 220px;
+  padding: 7px;
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--color-accent);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
 }
+.move-picker-input { width: 100%; height: 28px; font-size: var(--text-xs); }
+.move-picker-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.move-picker-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+}
+.move-picker-row:hover { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.move-picker-row.is-active {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+.move-picker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move-picker-stat { font-size: 10px; color: var(--text-faint); flex: none; }
+.move-picker-empty { padding: 8px 6px; font-size: var(--text-xs); color: var(--text-faint); }
 
 /* Jump-to-rank-1 control sits in the Adjust roll header. */
 .iv-max-btn {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { chargeMoveStats, fastMoveCounts, fastMoveStats } from '../lib/engine';
 import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
 import type { ChargeMove, FastMove, Species } from '../lib/types';
@@ -133,16 +133,95 @@ function ChargeTile({
 }
 
 /**
- * Above this many tiles a movepool stops being scannable and starts being a
- * wall. Median is 2 fast and 4 charged, so these thresholds leave the vast
- * majority untouched and catch only the genuinely overloaded: Mew at 14/25,
- * and Smeargle, which learns 82 fast and 152 charged moves.
+ * Past this many options the grid stops being a grid and becomes a wall —
+ * Smeargle learns 82 fast and 152 charged moves, Mew 14 and 25.
  *
- * Selected moves are always shown regardless — collapsing your own pick out of
- * sight would be worse than the wall.
+ * Expanding those inline was the first attempt and it was worse: everything
+ * below the panel jumped by hundreds of pixels, so the act of looking for a
+ * move destroyed the layout you were reading. A picker overlays instead. The
+ * equipped moves stay on show as tiles either way, so the panel is always the
+ * same height and always answers "what am I running" without a click.
  */
-const COLLAPSE_FAST = 6;
-const COLLAPSE_CHARGE = 8;
+const PICKER_THRESHOLD = 4;
+
+/**
+ * Searchable move list, rendered over the panel rather than inside it.
+ *
+ * Filters on name and type, so "fire" finds every Fire move and "punch" every
+ * punching one.
+ */
+function MovePicker({
+  count,
+  moves,
+  isActive,
+  onPick,
+}: {
+  count: number;
+  moves: (FastMove | ChargeMove)[];
+  isActive: (m: FastMove | ChargeMove) => boolean;
+  onPick: (m: FastMove | ChargeMove) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onDown = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const t = window.setTimeout(() => document.addEventListener('mousedown', onDown), 0);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+      window.clearTimeout(t);
+    };
+  }, [open]);
+
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? moves.filter((m) => m.name.toLowerCase().includes(needle) || m.type?.toLowerCase().includes(needle))
+    : moves;
+
+  return (
+    <div className="move-picker" ref={box}>
+      <button type="button" className="move-picker-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span>{open ? 'Close' : `Browse all ${count}`}</span>
+        <span aria-hidden>{open ? '▴' : '▾'}</span>
+      </button>
+
+      {open && (
+        <div className="move-picker-panel" role="dialog" aria-label="Choose a move">
+          <input
+            className="input move-picker-input"
+            autoFocus
+            value={q}
+            placeholder="Filter by name or type…"
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <ul className="move-picker-list">
+            {shown.map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  className={`move-picker-row${isActive(m) ? ' is-active' : ''}`}
+                  onClick={() => onPick(m)}
+                >
+                  {isPokemonType(m.type) && <img src={typeIconUrl(m.type)} alt="" width={13} height={13} />}
+                  <span className="move-picker-name">{m.name}</span>
+                  <span className="numeric move-picker-stat">{m.power}</span>
+                </button>
+              </li>
+            ))}
+            {!shown.length && <li className="move-picker-empty">No move matches “{q}”.</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function MovesPanel({
   species,
@@ -161,27 +240,13 @@ export function MovesPanel({
   const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
   const active = chargeIds.length ? chargeIds : recommended;
   const isDefault = chargeIds.length === 0;
-  const [showAllFast, setShowAllFast] = useState(false);
-  const [showAllCharge, setShowAllCharge] = useState(false);
-
-  // A new species resets both, so picking Smeargle after Mew does not inherit
-  // an expanded list of 152 tiles.
-  useEffect(() => {
-    setShowAllFast(false);
-    setShowAllCharge(false);
-  }, [species.id]);
-
-  /** Trim to a limit, but never hide something currently selected. */
-  const trim = <T extends { id: string }>(all: T[], limit: number, keep: (m: T) => boolean, expanded: boolean) => {
-    if (expanded || all.length <= limit) return { shown: all, hidden: 0 };
-    const picked = all.filter(keep);
-    const rest = all.filter((m) => !keep(m)).slice(0, Math.max(0, limit - picked.length));
-    const shown = all.filter((m) => picked.includes(m) || rest.includes(m));
-    return { shown, hidden: all.length - shown.length };
-  };
-
-  const fastView = trim(species.fastMoves, COLLAPSE_FAST, (m) => m.id === fast.id, showAllFast);
-  const chargeView = trim(species.chargeMoves, COLLAPSE_CHARGE, (m) => active.includes(m.id), showAllCharge);
+  // Over the threshold only the equipped moves get tiles; the rest live in the
+  // picker. Panel height then depends on how many you have equipped, not on
+  // how many the species happens to learn.
+  const fastMany = species.fastMoves.length > PICKER_THRESHOLD;
+  const chargeMany = species.chargeMoves.length > PICKER_THRESHOLD;
+  const fastTiles = fastMany ? species.fastMoves.filter((m) => m.id === fast.id) : species.fastMoves;
+  const chargeTiles = chargeMany ? species.chargeMoves.filter((m) => active.includes(m.id)) : species.chargeMoves;
 
   const toggle = (id: string) => {
     if (active.includes(id)) {
@@ -203,15 +268,18 @@ export function MovesPanel({
           </span>
         </div>
         <div className="moves-grid">
-          {fastView.shown.map((m) => {
+          {fastTiles.map((m) => {
             const i = species.fastMoves.indexOf(m);
             return <FastTile key={m.id} move={m} active={moveIdx === i} onClick={() => onMoveIdx(i)} />;
           })}
         </div>
-        {(fastView.hidden > 0 || showAllFast) && (
-          <button type="button" className="moves-more" onClick={() => setShowAllFast((v) => !v)}>
-            {showAllFast ? `Show fewer — ${species.fastMoves.length} fast moves` : `+${fastView.hidden} more fast moves`}
-          </button>
+        {fastMany && (
+          <MovePicker
+            count={species.fastMoves.length}
+            moves={species.fastMoves}
+            isActive={(m) => m.id === fast.id}
+            onPick={(m) => onMoveIdx(species.fastMoves.findIndex((x) => x.id === m.id))}
+          />
         )}
       </section>
 
@@ -227,16 +295,17 @@ export function MovesPanel({
           )}
         </div>
         <div className="moves-grid">
-          {chargeView.shown.map((m) => (
+          {chargeTiles.map((m) => (
             <ChargeTile key={m.id} move={m} fast={fast} active={active.includes(m.id)} onClick={() => toggle(m.id)} />
           ))}
         </div>
-        {(chargeView.hidden > 0 || showAllCharge) && (
-          <button type="button" className="moves-more" onClick={() => setShowAllCharge((v) => !v)}>
-            {showAllCharge
-              ? `Show fewer — ${species.chargeMoves.length} charged moves`
-              : `+${chargeView.hidden} more charged moves`}
-          </button>
+        {chargeMany && (
+          <MovePicker
+            count={species.chargeMoves.length}
+            moves={species.chargeMoves}
+            isActive={(m) => active.includes(m.id)}
+            onPick={(m) => toggle(m.id)}
+          />
         )}
       </section>
     </div>

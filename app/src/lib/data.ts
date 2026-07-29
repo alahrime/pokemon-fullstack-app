@@ -116,8 +116,23 @@ export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
  * Shadows deliberately reuse the base sprite; in-game they differ only by an
  * aura, which the UI conveys with a badge instead.
  */
+/**
+ * Forms that exist only in Pokemon GO, which the primary source has no artwork
+ * for at all.
+ *
+ * Armored Mewtwo is the case that matters: pokemondb 404s on the slug, so it
+ * fell through to the dex-numbered fallback and rendered as *ordinary* Mewtwo,
+ * upscaled and pixelated. It read as a dated sprite; it was the wrong species.
+ * These come from the mined game assets, so they are the same renders the game
+ * itself uses.
+ */
+const GO_ONLY_SPRITES: Record<string, string> = {
+  'mewtwo-armored':
+    'https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png',
+};
+
 export function spriteUrl(sprite: string): string {
-  return `https://img.pokemondb.net/sprites/home/normal/${sprite}.png`;
+  return GO_ONLY_SPRITES[sprite] ?? `https://img.pokemondb.net/sprites/home/normal/${sprite}.png`;
 }
 
 /** Fallback when a slug has no artwork - the pre-existing dex-numbered source. */

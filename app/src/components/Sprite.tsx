@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { spriteFallbackUrl, spriteUrl } from '../lib/data';
+import { BestBuddyRibbon } from './BestBuddyRibbon';
 
 /**
  * Form-aware sprite.
@@ -21,6 +22,7 @@ export function Sprite({
   style,
   className,
   shadow = false,
+  bestBuddy = false,
 }: {
   sprite: string;
   dex: number;
@@ -29,6 +31,8 @@ export function Sprite({
   className?: string;
   /** Draws the Shadow aura badge; artwork itself is shared with the base form. */
   shadow?: boolean;
+  /** Corner ribbon marking a spread that only a Best Buddy boost can reach. */
+  bestBuddy?: boolean;
 }) {
   const [stage, setStage] = useState<0 | 1 | 2>(0);
 
@@ -72,6 +76,24 @@ export function Sprite({
       ) : (
         <span className="text-faint numeric" style={{ fontSize: Math.max(9, size * 0.22) }}>
           #{String(dex).padStart(3, '0')}
+        </span>
+      )}
+
+      {/* Bottom-right corner, scaled to the sprite so it stays legible on a
+          30px opponent cell without swamping it. Overflows the box slightly,
+          which reads as a pinned badge rather than part of the artwork. */}
+      {bestBuddy && (
+        <span
+          style={{
+            position: 'absolute',
+            right: -size * 0.08,
+            bottom: -size * 0.08,
+            lineHeight: 0,
+            pointerEvents: 'none',
+            filter: 'drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45))',
+          }}
+        >
+          <BestBuddyRibbon size={Math.max(11, Math.round(size * 0.42))} />
         </span>
       )}
     </div>

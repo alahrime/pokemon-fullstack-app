@@ -142,14 +142,20 @@ function ChargeTile({
  * equipped moves stay on show as tiles either way, so the panel is always the
  * same height and always answers "what am I running" without a click.
  *
- * 4 is deliberately low. Anything past a handful of options is better browsed
- * than scanned, and the tiles are not the place to enumerate a movepool — they
- * are the place to show your loadout. So Poliwrath's 7 charged moves and Mew's
- * 25 get the same treatment: the recommended pair as tiles, everything else a
- * click away. 313 charged pools and 39 fast ones sit behind a picker, and the
- * panel is the same height for all of them.
+ * Deliberately low. Anything past a handful of options is better browsed than
+ * scanned, and the tiles are not the place to enumerate a movepool — they are
+ * the place to show your loadout. So Poliwrath's 7 charged moves and Mew's 25
+ * get the same treatment: the recommended pair as tiles, everything else a
+ * click away.
+ *
+ * Fast trips one option sooner than charged because you equip one fast move
+ * against two charged. Matching the numbers left the two halves lopsided —
+ * Poliwrath has exactly 4 fast, so at a shared threshold of 4 it showed four
+ * fast tiles beside two charged ones and a dropdown. Scaling each limit to how
+ * many moves that slot actually holds keeps the columns balanced.
  */
-const PICKER_THRESHOLD = 4;
+const PICKER_THRESHOLD_FAST = 3;
+const PICKER_THRESHOLD_CHARGE = 4;
 
 /**
  * Searchable move list, rendered over the panel rather than inside it.
@@ -250,8 +256,8 @@ export function MovesPanel({
   // Over the threshold only the equipped moves get tiles; the rest live in the
   // picker. Panel height then depends on how many you have equipped, not on
   // how many the species happens to learn.
-  const fastMany = species.fastMoves.length > PICKER_THRESHOLD;
-  const chargeMany = species.chargeMoves.length > PICKER_THRESHOLD;
+  const fastMany = species.fastMoves.length > PICKER_THRESHOLD_FAST;
+  const chargeMany = species.chargeMoves.length > PICKER_THRESHOLD_CHARGE;
   const fastTiles = fastMany ? species.fastMoves.filter((m) => m.id === fast.id) : species.fastMoves;
   const chargeTiles = chargeMany ? species.chargeMoves.filter((m) => active.includes(m.id)) : species.chargeMoves;
 

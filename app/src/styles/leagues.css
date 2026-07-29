@@ -234,3 +234,68 @@
    size, not only colour. */
 .league-tab svg { transition: transform var(--dur-2) var(--ease-spring); }
 .league-tab:not(.is-active) svg { transform: scale(0.86); }
+
+/* Stat meters under the vitals.
+   Read as instrument gauges: a hairline track, a league-tinted fill, and the
+   figure kept in mono beside it. The percentage is of the league's strongest
+   in that stat, which is why the fill is comparable between species. */
+.hero-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+}
+.hero-meter {
+  display: grid;
+  grid-template-columns: 26px 1fr 46px 32px;
+  align-items: center;
+  gap: 7px;
+}
+.hero-meter-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+.hero-meter-track {
+  position: relative;
+  height: 7px;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  overflow: hidden;
+}
+/* Faint ticks so a fill can be read against a scale, not just a length. */
+.hero-meter-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(25% - 1px),
+    color-mix(in srgb, var(--color-text) 16%, transparent) calc(25% - 1px) 25%
+  );
+}
+.hero-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--lg-accent) 45%, transparent),
+    var(--lg-accent));
+  box-shadow: 0 0 9px color-mix(in srgb, var(--lg-accent) 55%, transparent);
+  transition: width var(--dur-3) var(--ease-out);
+}
+.hero-meter.is-atk .hero-meter-fill { --lg-accent: var(--color-accent); }
+.hero-meter-value {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: right;
+  line-height: 1;
+}
+.hero-meter-pct {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+.hero-vital.is-lead .hero-vital-value { color: var(--lg-accent); }

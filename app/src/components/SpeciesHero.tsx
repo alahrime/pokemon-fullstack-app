@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { leagueStatRange } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
 import { LeagueEmblem } from './LeagueEmblem';
@@ -29,6 +31,8 @@ export function SpeciesHero({
   /** Rank-1 spread only reachable with a Best Buddy boost. */
   bestBuddy?: boolean;
 }) {
+  const range = useMemo(() => leagueStatRange(league, bestBuddy), [league, bestBuddy]);
+
   return (
     <div
       className={`hero${shadow ? ' is-shadow' : ''}`}
@@ -62,7 +66,7 @@ export function SpeciesHero({
         </div>
 
         <div className="hero-vitals">
-          <span className="hero-vital">
+          <span className="hero-vital is-lead">
             <span className="hero-vital-value numeric">{entry.cp}</span>
             <span className="hero-vital-label">CP</span>
           </span>
@@ -71,9 +75,38 @@ export function SpeciesHero({
             <span className="hero-vital-label">Level</span>
           </span>
           <span className="hero-vital">
-            <span className="hero-vital-value numeric">{entry.hp}</span>
-            <span className="hero-vital-label">HP</span>
+            <span className="hero-vital-value numeric">{entry.rank}</span>
+            <span className="hero-vital-label">Rank</span>
           </span>
+        </div>
+
+        {/* Attack, defence and HP as meters against the strongest in the
+            league, so the bar answers "how does this compare" rather than
+            just restating the number beside it. */}
+        <div className="hero-meters">
+          {(
+            [
+              ['ATK', entry.atk, range.atk, 'atk'],
+              ['DEF', entry.def, range.def, 'def'],
+              ['HP', entry.hp, range.hp, 'hp'],
+            ] as const
+          ).map(([label, value, max, kind]) => {
+            const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+            return (
+              <div className={`hero-meter is-${kind}`} key={label}>
+                <span className="hero-meter-label">{label}</span>
+                <span className="hero-meter-track">
+                  <span className="hero-meter-fill" style={{ width: `${pct}%` }} />
+                </span>
+                <span className="hero-meter-value numeric">
+                  {kind === 'hp' ? value : value.toFixed(1)}
+                </span>
+                <span className="hero-meter-pct numeric" title={`${pct.toFixed(0)}% of the league best`}>
+                  {pct.toFixed(0)}%
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

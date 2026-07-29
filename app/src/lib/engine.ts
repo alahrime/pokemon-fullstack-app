@@ -436,6 +436,36 @@ export function opponentInfo(ref: string, leagueId: LeagueId, bestBuddy = false)
   };
 }
 
+/**
+ * Strongest attack, defence and HP anywhere in a league's pool.
+ *
+ * Gives the hero bars a reference that means something. Scaling each stat
+ * against the other two would only show a shape; scaling against the league
+ * says where this Pokemon actually sits — a full attack bar is the hardest
+ * hitter in the format, not merely a mon whose attack beats its own defence.
+ *
+ * Cheap: opponentInfo is already memoised per (ref, league), so the first call
+ * walks a list that is almost entirely cache hits.
+ */
+const leagueRangeCache = new Map<string, { atk: number; def: number; hp: number }>();
+export function leagueStatRange(leagueId: LeagueId, bestBuddy = false) {
+  const key = `${leagueId}|${bestBuddy ? 'bb' : ''}`;
+  const hit = leagueRangeCache.get(key);
+  if (hit) return hit;
+  let atk = 0;
+  let def = 0;
+  let hp = 0;
+  for (const ref of opponentCandidatesFor(leagueId)) {
+    const i = opponentInfo(ref, leagueId, bestBuddy);
+    if (i.atk > atk) atk = i.atk;
+    if (i.def > def) def = i.def;
+    if (i.hp > hp) hp = i.hp;
+  }
+  const out = { atk, def, hp };
+  leagueRangeCache.set(key, out);
+  return out;
+}
+
 export function opponentList(leagueId: LeagueId): Species[] {
   return opponentsFor(leagueId);
 }

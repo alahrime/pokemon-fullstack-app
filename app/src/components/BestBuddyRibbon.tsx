@@ -9,12 +9,22 @@
  * Inline SVG rather than an image so it inherits currentColor sizing, stays
  * crisp at the ~14px it renders at on an opponent cell, and costs no request.
  */
-export function BestBuddyRibbon({ size = 16, title = 'Best Buddy required' }: { size?: number; title?: string }) {
+export function BestBuddyRibbon({
+  size = 16,
+  title = 'Best Buddy required',
+  detail,
+}: {
+  size?: number;
+  title?: string;
+  /** Force the full rosette below the auto threshold — for controls, where the
+   *  badge is the label and should match the one pinned to the sprite. */
+  detail?: boolean;
+}) {
   // Below ~18px the rosette points collapse into an orange smudge and swallow
   // the heart, which is the only part carrying meaning. Small renders drop the
   // points and keep the medal, scaled up to fill the same footprint — the same
   // trade the Shadow aura makes at small sizes.
-  const detailed = size >= 18;
+  const detailed = detail ?? size >= 18;
   const r = detailed ? 12.5 : 22;
 
   return (

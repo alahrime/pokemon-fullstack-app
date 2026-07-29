@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, makeRef } from '../lib/data';
 import {
@@ -18,7 +18,7 @@ import {
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { HudFrame, HudReadout } from '../components/Hud';
-import { OpponentGrid } from '../components/OpponentGrid';
+import { OpponentGrid, ROTATE_MS } from '../components/OpponentGrid';
 import { MovesPanel } from '../components/MovesPanel';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
@@ -27,6 +27,10 @@ import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
+
+/** How many opponent cells are on screen, and how deep the scan goes. */
+const OPPONENT_WINDOW = 16;
+const OPPONENT_POOL = 48;
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
@@ -39,16 +43,35 @@ export function ReportScreen() {
   const ref = makeRef(speciesId, isShadow);
   const { entry, table } = getEntry(ref, iv, league);
   const relevanceKind = viz === 'heat' && colorBy !== 'rank' ? colorBy : 'either';
+  // The scan finds far more decidable matchups than fit on screen. Keep the
+  // full slate for selection validity and show a rotating window of it.
   const relevance = useMemo(
-    () => rankedOpponents(ref, league, moveIdx, relevanceKind, 16, chargeIds),
+    () => rankedOpponents(ref, league, moveIdx, relevanceKind, OPPONENT_POOL, chargeIds),
     [ref, league, moveIdx, relevanceKind, chargeIds],
   );
   const opponents = useMemo(() => relevance.map((r) => r.info), [relevance]);
+
+  const [rotating, setRotating] = useState(false);
+  const [rotOffset, setRotOffset] = useState(0);
+  // Reset the window whenever the underlying slate changes, or the board would
+  // resume mid-way through a list that no longer exists.
+  useEffect(() => setRotOffset(0), [ref, league, moveIdx, relevanceKind, chargeIds]);
+  useEffect(() => {
+    if (!rotating || relevance.length <= OPPONENT_WINDOW) return;
+    const t = setInterval(() => setRotOffset((o) => (o + 1) % relevance.length), ROTATE_MS);
+    return () => clearInterval(t);
+  }, [rotating, relevance.length]);
+
+  const visible = useMemo(() => {
+    if (relevance.length <= OPPONENT_WINDOW) return relevance;
+    // Wrap so the board cycles endlessly rather than running off the end.
+    return Array.from({ length: OPPONENT_WINDOW }, (_, i) => relevance[(rotOffset + i) % relevance.length]);
+  }, [relevance, rotOffset]);
   const effectiveOppId = opponents.some((o) => o.id === oppId) ? oppId : (opponents[0]?.id ?? oppId);
   useEffect(() => {
     if (effectiveOppId !== oppId) set('oppId', effectiveOppId);
   }, [effectiveOppId, oppId, set]);
-  const activeOppIdx = Math.max(0, opponents.findIndex((o) => o.id === effectiveOppId));
+  const activeOppIdx = Math.max(0, visible.findIndex((r) => r.info.id === effectiveOppId));
   const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
 
   const spPct = entry.sp / table.best.sp;
@@ -71,8 +94,8 @@ export function ReportScreen() {
     [viz, ref, iv, league, opp, moveIdx, chargeIds],
   );
   const flipRows = useMemo(
-    () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, opponents.map((o) => o.id), chargeIds, state.shieldsOpp) : []),
-    [viz, ref, iv, league, moveIdx, opponents, chargeIds, state.shieldsOpp],
+    () => (viz === 'flip' ? flipMatchupRows(ref, iv, league, moveIdx, visible.map((r) => r.info.id), chargeIds, state.shieldsOpp) : []),
+    [viz, ref, iv, league, moveIdx, visible, chargeIds, state.shieldsOpp],
   );
 
   // One palette for the whole report, derived from this species' typing.
@@ -257,19 +280,23 @@ export function ReportScreen() {
 
         {/* Right column */}
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="hud-label">
-              <span>Matchups where your roll decides it</span>
-            </div>
-            <OpponentGrid items={relevance} activeId={effectiveOppId} onSelect={(id) => set('oppId', id)} />
-          </div>
-
+          {/* Loadout first: the moves decide every matchup listed below it. */}
           <MovesPanel
             species={species}
             moveIdx={moveIdx}
             onMoveIdx={(i) => set('moveIdx', i)}
             chargeIds={chargeIds}
             onChargeIds={(ids) => set('chargeIds', ids)}
+          />
+
+          <OpponentGrid
+            items={visible}
+            windowSize={OPPONENT_WINDOW}
+            total={relevance.length}
+            activeId={effectiveOppId}
+            rotating={rotating}
+            onToggleRotate={setRotating}
+            onSelect={(id) => set('oppId', id)}
           />
 
           {/* Sits directly above the view it switches. At the top of the column
@@ -307,7 +334,7 @@ export function ReportScreen() {
               onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
               rows={flipRows}
               activeOppIdx={activeOppIdx}
-              onSelectOpponent={(idx) => set('oppId', opponents[idx].id)}
+              onSelectOpponent={(idx) => set('oppId', visible[idx].info.id)}
               now={grid.results.find((o) => o.entry.a === iv.a && o.entry.d === iv.d)?.result ?? { win: false, margin: 0 }}
               cmpWin={entry.atk >= grid.opponentMon.atk}
             />

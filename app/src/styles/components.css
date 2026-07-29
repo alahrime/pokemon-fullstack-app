@@ -817,6 +817,70 @@ input[type='range'] { accent-color: var(--color-accent); }
 .seg-btn svg { opacity: 0.85; }
 .seg-btn.is-active svg { opacity: 1; }
 
+/* — opponent board — */
+.opp-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+.opp-count {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.opp-rotate {
+  min-height: 26px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  gap: 5px;
+  padding: 0 8px;
+}
+.opp-rotate-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
+}
+.opp-rotate-dot.is-live {
+  background: var(--color-accent-2);
+  box-shadow: var(--glow-signal);
+  animation: pulse-ring 2s var(--ease-out) infinite;
+}
+
+/* Time until the next row advances. Doubles as the pause indicator: the fill
+   halts rather than the board stopping silently. */
+.opp-progress {
+  height: 2px;
+  background: var(--rule-hairline);
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.opp-progress-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--color-accent-2);
+  animation-name: grow-x;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+:root[data-motion='off'] .opp-progress-fill { animation: none; opacity: 0.4; }
+
+.opp-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px;
+}
+/* Arrivals slide in from the trailing edge like a departures board row, and
+   only genuinely new rows carry the class — see OpponentGrid. */
+.opp-cell.is-arriving {
+  animation: slide-in-right var(--dur-4) var(--ease-out) both;
+}
+
 /* — opponent grid cell — */
 .opp-cell {
   display: flex;

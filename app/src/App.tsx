@@ -22,12 +22,15 @@ function Nav() {
       <span className="nav-brand">
         PARAGON<span style={{ color: 'var(--color-accent)' }}>/</span>IV
       </span>
+      {/* The primary control on the page, and it was a 220px box adrift in
+          empty header. Given room to grow it fills the gap between the brand
+          and the screen tabs, so the thing you reach for first looks like it. */}
       <SpeciesSearch
         id="nav-species"
         value={state.species}
         onChange={(id) => patch({ species: id, moveIdx: 0 })}
-        placeholder="Search 1123 species…"
-        style={{ width: 220 }}
+        placeholder="Name, type, gen1, @counter, water&!legendary…"
+        className="nav-search"
       />
       <SegGroup>
         {SCREENS.map(([id, label]) => (

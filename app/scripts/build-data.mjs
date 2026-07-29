@@ -316,7 +316,13 @@ for (const p of bases) {
     def: p.baseStats.def,
     hp: p.baseStats.hp,
     maxCP: cap,
-    tags: (p.tags ?? []).filter((t) => ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter'].includes(t)),
+    // Widened for search: the regional-form tags and shadoweligible are how
+    // people actually filter, and they cost a few bytes each.
+    tags: (p.tags ?? []).filter((t) =>
+      ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter',
+       'alolan', 'galarian', 'hisuian', 'paldean', 'shadoweligible'].includes(t)),
+    /** Evolution family id, so a search can pull a whole line together. */
+    family: p.family?.id ?? null,
     shadowEligible: isShadowEligible,
     fastMoves: orderedFasts.map(intern),
     chargeMoves: charges.map(intern),

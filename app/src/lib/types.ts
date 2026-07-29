@@ -34,6 +34,8 @@ export interface Species {
   hp: number;
   /** Subset of PvPoke tags worth surfacing: legendary, mythical, mega, etc. */
   tags: string[];
+  /** PvPoke evolution-family id (FAMILY_POLIWAG), null for standalone forms. */
+  family: string | null;
   /** CP at level 50 with perfect IVs — the ceiling this form can reach. */
   maxCP: number;
   /** Whether a Shadow variant of this form exists in the game. */

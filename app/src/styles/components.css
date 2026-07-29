@@ -1205,3 +1205,34 @@ textarea.input { min-height: 90px; resize: vertical; }
   background: transparent;
   font-size: var(--text-2xs);
 }
+
+/* Primary search: the first control anyone reaches for, so it takes the space
+   the header was wasting rather than sitting at a fixed 220px. */
+.nav-search {
+  flex: 1 1 380px;
+  min-width: 200px;
+  max-width: 620px;
+}
+.nav-search .input {
+  width: 100%;
+  height: 40px;
+  font-size: var(--text-md);
+  padding-left: 32px;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+.nav-search .input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+/* Glyph sits inside the field; purely decorative, so it is aria-hidden. */
+.nav-search-glyph {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.nav-search:focus-within .nav-search-glyph { color: var(--color-accent); }

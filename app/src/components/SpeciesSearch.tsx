@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BASE_ROSTER, ROSTER, displayName, type RosterEntry } from '../lib/data';
+import { BASE_ROSTER, ROSTER, SPECIES, displayName, type RosterEntry } from '../lib/data';
+import { compileQuery } from '../lib/query';
 import { HeldOutNote } from './HeldOutNote';
 import { Sprite } from './Sprite';
 import { TypeIcon } from './TypeBadge';
@@ -22,6 +23,13 @@ const DEBOUNCE_MS = 120;
  * bare number matches the Pokédex entry, which is how people search forms
  * ("105" surfaces both Marowaks side by side).
  */
+/** Best rank this species holds in any league; unranked sorts last. */
+function bestRankOf(e: RosterEntry): number {
+  const r = e.species.leagueRank;
+  const ranks = [r.great, r.ultra, r.master].filter((n): n is number => n !== undefined);
+  return ranks.length ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
+}
+
 function score(entry: RosterEntry, q: string): number {
   const name = entry.name.toLowerCase();
   if (name === q) return 0;
@@ -37,6 +45,7 @@ export function SpeciesSearch({
   value,
   onChange,
   placeholder = 'Search species…',
+  className,
   id,
   style,
   /** Include Shadow variants as their own rows (battle screen picks sides). */
@@ -47,6 +56,7 @@ export function SpeciesSearch({
   placeholder?: string;
   id: string;
   style?: CSSProperties;
+  className?: string;
   includeShadow?: boolean;
 }) {
   const pool = includeShadow ? ROSTER : BASE_ROSTER;
@@ -82,26 +92,30 @@ export function SpeciesSearch({
    * module scope rather than per keystroke.
    */
   const defaults = useMemo(() => {
-    const bestRank = (e: RosterEntry) => {
-      const r = e.species.leagueRank;
-      const ranks = [r.great, r.ultra, r.master].filter((n): n is number => n !== undefined);
-      return ranks.length ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
-    };
     return pool
       .slice()
-      .sort((x, y) => bestRank(x) - bestRank(y) || x.species.dex - y.species.dex || x.name.localeCompare(y.name))
+      .sort((x, y) => bestRankOf(x) - bestRankOf(y) || x.species.dex - y.species.dex || x.name.localeCompare(y.name))
       .slice(0, RESULT_LIMIT);
   }, [pool]);
 
   const results = useMemo(() => {
     const q = debounced.trim().toLowerCase();
     if (!q) return defaults;
-    const scored: { e: RosterEntry; s: number }[] = [];
+    const term = compileQuery(q, SPECIES);
+    if (!term) return defaults;
+
+    // Filter by the query, then order by name relevance where the query reads
+    // as a name and by league rank otherwise. A structural query ("water",
+    // "@counter") has no meaningful name score, so ranking it by how well the
+    // text matched would be noise — what you want there is the best matches
+    // first.
+    const scored: { e: RosterEntry; s: number; r: number }[] = [];
     for (const e of pool) {
-      const s = score(e, q);
-      if (s >= 0) scored.push({ e, s });
+      if (!term(e.species)) continue;
+      const nameScore = score(e, q);
+      scored.push({ e, s: nameScore >= 0 ? nameScore : 9, r: bestRankOf(e) });
     }
-    scored.sort((a, b) => a.s - b.s || a.e.species.dex - b.e.species.dex || a.e.name.localeCompare(b.e.name));
+    scored.sort((a, b) => a.s - b.s || a.r - b.r || a.e.species.dex - b.e.species.dex || a.e.name.localeCompare(b.e.name));
     return scored.slice(0, RESULT_LIMIT).map((x) => x.e);
   }, [debounced, pool, defaults]);
 
@@ -118,7 +132,10 @@ export function SpeciesSearch({
   };
 
   return (
-    <div style={{ position: 'relative', ...style }}>
+    <div className={className} style={{ position: 'relative', ...style }}>
+      <span className="nav-search-glyph" aria-hidden>
+        ⌕
+      </span>
       <input
         ref={inputRef}
         className="input"

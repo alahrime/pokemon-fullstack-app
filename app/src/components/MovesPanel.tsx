@@ -113,21 +113,27 @@ function ChargeTile({
         <Stat label="energy" value={`${s.energy}`} />
         <Stat label="dmg/nrg" value={s.dpe.toFixed(2)} strong />
       </div>
-      {counts.length > 0 && (
-        <div
-          className="move-counts"
-          title={`Fast moves needed for each successive ${move.name}. Later throws start with leftover energy, so the count drifts down.`}
-        >
-          <span className="move-counts-label">{fast.name} to charge</span>
-          <span className="move-counts-seq numeric">
-            {counts.map((n, i) => (
-              <span key={i} className="move-count">
-                {n}
-              </span>
-            ))}
-          </span>
-        </div>
-      )}
+      {/* Always rendered, even when the fast move generates no energy and there
+          is nothing to count. Both tile types then have the same three-row
+          skeleton — head, stats, footer — so their heights match because their
+          structure matches, rather than because a fixed height forces it. */}
+      <div
+        className="move-counts"
+        title={
+          counts.length
+            ? `Fast moves needed for each successive ${move.name}. Later throws start with leftover energy, so the count drifts down.`
+            : `${fast.name} generates no energy, so it cannot charge this move.`
+        }
+      >
+        <span className="move-counts-label">{counts.length ? `${fast.name} to charge` : 'no energy gain'}</span>
+        <span className="move-counts-seq numeric">
+          {counts.map((n, i) => (
+            <span key={i} className="move-count">
+              {n}
+            </span>
+          ))}
+        </span>
+      </div>
     </button>
   );
 }

@@ -465,8 +465,8 @@ input[type='range'] { accent-color: var(--color-accent); }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 6px;
-  /* Every row the same height, so a tall tile does not stagger its neighbours. */
-  grid-auto-rows: minmax(var(--move-tile-h), auto);
+  /* Uniform rows, so one tall tile cannot stagger the rest of its column. */
+  grid-auto-rows: 1fr;
 }
 
 /* Tinted by `--type`, set per tile from the move's own typing.
@@ -475,19 +475,20 @@ input[type='range'] { accent-color: var(--color-accent); }
    rather than a form-control one. The cut is a clip-path, which kills the
    border along that edge, so the "border" is drawn as an inset box-shadow
    ring that follows the clip instead. */
-/* Fast and charged tiles carry different content — two stat rows against one
-   plus a charge-count strip — so left to themselves the two columns sat at
-   different heights and nothing lined up across the panel. A shared height
-   makes the rows level regardless of which side they are on, and content
-   distributes within it rather than setting it. */
-:root { --move-tile-h: 92px; }
+/* Fast and charged tiles now share a three-row skeleton — head, stats, footer
+   — so they are the same height because they are the same shape, not because a
+   fixed height forces them to be. The row min-heights below are what hold that
+   parity: the footers carry different content (per-turn ratios against charge
+   counts) and would otherwise measure differently.
+
+   This replaces a hardcoded tile height, which worked until any tile's content
+   grew past it and then silently drifted. */
 .move-tile {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 5px;
-  min-height: var(--move-tile-h);
   min-width: 0;
   padding: 8px 10px 9px;
   text-align: left;
@@ -522,6 +523,14 @@ input[type='range'] { accent-color: var(--color-accent); }
   white-space: nowrap;
 }
 .move-head { flex-wrap: nowrap; }
+
+/* The three rows that give both tile types the same skeleton. Heights are
+   matched per row rather than on the tile as a whole, so the parity holds even
+   if one row's content changes. */
+.move-head { min-height: 18px; align-items: center; }
+.move-stats { min-height: 24px; align-items: center; }
+.move-stats-ratio,
+.move-counts { min-height: 22px; align-items: center; }
 
 .move-tile::before {
   content: '';

@@ -4,7 +4,13 @@ import { HeldOutNote } from './HeldOutNote';
 import { Sprite } from './Sprite';
 import { TypeIcon } from './TypeBadge';
 
-const RESULT_LIMIT = 40;
+/**
+ * Plain <li> rows, no virtualisation, inside a scroll box — 250 is comfortably
+ * within what the DOM handles and deep enough that scrolling replaces
+ * re-typing. The old 40 truncated common searches: "shadow" alone matches
+ * hundreds.
+ */
+const RESULT_LIMIT = 250;
 const DEBOUNCE_MS = 120;
 
 /**
@@ -64,9 +70,32 @@ export function SpeciesSearch({
     return () => window.clearTimeout(timerRef.current);
   }, [text]);
 
+  /**
+   * What to show before anything is typed.
+   *
+   * Was pool.slice(0, 40) — the roster is dex-ordered, so opening the box
+   * offered Bulbasaur through Wigglytuff and nothing else. Dex number says
+   * nothing about whether a species is worth picking.
+   *
+   * Ordered by best league rank instead, so the list opens on Pokemon that are
+   * actually played, best first, with unranked forms after them. Sorted once at
+   * module scope rather than per keystroke.
+   */
+  const defaults = useMemo(() => {
+    const bestRank = (e: RosterEntry) => {
+      const r = e.species.leagueRank;
+      const ranks = [r.great, r.ultra, r.master].filter((n): n is number => n !== undefined);
+      return ranks.length ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
+    };
+    return pool
+      .slice()
+      .sort((x, y) => bestRank(x) - bestRank(y) || x.species.dex - y.species.dex || x.name.localeCompare(y.name))
+      .slice(0, RESULT_LIMIT);
+  }, [pool]);
+
   const results = useMemo(() => {
     const q = debounced.trim().toLowerCase();
-    if (!q) return pool.slice(0, RESULT_LIMIT);
+    if (!q) return defaults;
     const scored: { e: RosterEntry; s: number }[] = [];
     for (const e of pool) {
       const s = score(e, q);
@@ -74,7 +103,7 @@ export function SpeciesSearch({
     }
     scored.sort((a, b) => a.s - b.s || a.e.species.dex - b.e.species.dex || a.e.name.localeCompare(b.e.name));
     return scored.slice(0, RESULT_LIMIT).map((x) => x.e);
-  }, [debounced, pool]);
+  }, [debounced, pool, defaults]);
 
   // Keep the highlighted row in view when arrowing through a long list.
   useEffect(() => {
@@ -149,7 +178,7 @@ export function SpeciesSearch({
             listStyle: 'none',
             background: 'var(--surface-1)',
             border: 'var(--border-hairline) solid var(--rule-strong)',
-            maxHeight: 300,
+            maxHeight: 420,
             overflowY: 'auto',
             boxShadow: 'var(--shadow-md)',
           }}

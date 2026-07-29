@@ -59,6 +59,18 @@ const LEAGUES = [
  * The ranking already encodes both judgements, so it is the membership test.
  * Anything it gets wrong is handled by data-src/pool-exclusions.json.
  */
+/**
+ * Master alone keeps a CP floor, and it is a floor on *raw power*.
+ *
+ * Great and Ultra are capped, so a low ceiling is no handicap - you underlevel
+ * into the cap either way, and Aegislash (Shield) at 1746 is a real Ultra
+ * threat. Master has no cap, so every point of CP a species cannot reach is a
+ * point it simply gives away: a 2766 Registeel is outclassed by definition,
+ * not by matchup. PvPoke still rates these (they occupy Master ranks 191+),
+ * but they are not opponents anyone plans around, and each one costs a full
+ * relevance scan.
+ */
+const MASTER_MIN_MAX_CP = 3000;
 /** How many per league become the default opponent chips. */
 const CURATED_PER_LEAGUE = 24;
 
@@ -238,9 +250,11 @@ for (const p of bases) {
       if (!recommended && hit.moveset) recommended = hit.moveset;
     }
     // Membership is the ranking itself — `hit` is exactly "PvPoke rates this
-    // form in this league".
+    // form in this league" — plus Master's raw-power floor. Shadow shares the
+    // floor because Shadow does not change CP.
     const dropped = excludedFor(lg.id);
-    if (hit && !dropped.has(p.speciesId)) {
+    const meetsFloor = lg.id !== 'master' || cap >= MASTER_MIN_MAX_CP;
+    if (hit && meetsFloor && !dropped.has(p.speciesId)) {
       leagues.push(lg.id);
     }
     const sHit = table.get(`${p.speciesId}_shadow`);
@@ -249,7 +263,7 @@ for (const p of bases) {
     // breakpoints and bulkpoints away from the base form's, so it earns its own
     // membership rather than riding along on `leagues`, and its own exclusion
     // ref. Shadow Palkia is Great-ranked where plain Palkia is not.
-    if (sHit && isShadowEligible && !dropped.has(`${p.speciesId}_shadow`)) {
+    if (sHit && isShadowEligible && meetsFloor && !dropped.has(`${p.speciesId}_shadow`)) {
       shadowLeagues.push(lg.id);
     }
   }

@@ -65,18 +65,28 @@ console.log('\n── league membership (ranked) ──────────�
   for (const lg of LEAGUES) {
     const base = SPECIES.filter((s) => s.leagues.includes(lg));
     const shadow = SPECIES.filter((s) => s.shadowLeagues.includes(lg));
-    check(`${lg}: pool is substantial`, base.length + shadow.length > 400, `${base.length} base + ${shadow.length} shadow`);
+    check(`${lg}: pool is substantial`, base.length + shadow.length > 300, `${base.length} base + ${shadow.length} shadow`);
     check(
       `${lg}: every member is ranked in that league`,
       base.every((s) => s.leagueRank[lg] !== undefined) && shadow.every((s) => s.shadowLeagueRank[lg] !== undefined),
       base.filter((s) => s.leagueRank[lg] === undefined).slice(0, 3).map((s) => s.id).join(', '),
     );
+    // Master additionally requires a 3000 maxCP ceiling - uncapped, so a low
+    // ceiling is pure forfeited power rather than a matchup question.
+    const eligible = (s: (typeof SPECIES)[number]) => lg !== 'master' || s.maxCP >= 3000;
     check(
-      `${lg}: every ranked form is in the pool`,
-      SPECIES.every((s) => (s.leagueRank[lg] === undefined || s.leagues.includes(lg))
-        && (s.shadowLeagueRank[lg] === undefined || s.shadowLeagues.includes(lg))),
-      SPECIES.filter((s) => s.leagueRank[lg] !== undefined && !s.leagues.includes(lg)).slice(0, 3).map((s) => s.id).join(', '),
+      `${lg}: every ranked, eligible form is in the pool`,
+      SPECIES.every((s) => !eligible(s) || ((s.leagueRank[lg] === undefined || s.leagues.includes(lg))
+        && (s.shadowLeagueRank[lg] === undefined || s.shadowLeagues.includes(lg)))),
+      SPECIES.filter((s) => eligible(s) && s.leagueRank[lg] !== undefined && !s.leagues.includes(lg)).slice(0, 3).map((s) => s.id).join(', '),
     );
+    if (lg === 'master') {
+      check(
+        'master: every member reaches 3000 CP',
+        base.every((s) => s.maxCP >= 3000) && shadow.every((s) => s.maxCP >= 3000),
+        base.filter((s) => s.maxCP < 3000).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
+      );
+    }
   }
 
   // Low-maxCP staples: a CP ceiling would drop these, and the old floor did.
@@ -84,9 +94,18 @@ console.log('\n── league membership (ranked) ──────────�
     const s = SPECIES_BY_ID.get(id);
     check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
   }
-  for (const [id, lg] of [['aegislash_shield', 'ultra'], ['umbreon', 'master']] as const) {
+  {
+    const s = SPECIES_BY_ID.get('aegislash_shield');
+    check(`aegislash_shield is an ultra opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('ultra'));
+  }
+  // The mirror case: in uncapped Master a low ceiling is forfeited power, so
+  // the same shape of species is dropped rather than kept.
+  for (const id of ['umbreon', 'registeel', 'lapras']) {
     const s = SPECIES_BY_ID.get(id);
-    check(`${id} is an ${lg} opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes(lg));
+    check(
+      `${id} is cut from Master by the 3000 floor (maxCP ${s?.maxCP})`,
+      !s?.leagues.includes('master') && !s?.shadowLeagues.includes('master'),
+    );
   }
   // And the high-maxCP staples that underlevel into Great.
   for (const id of ['registeel', 'swampert']) {

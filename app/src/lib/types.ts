@@ -107,6 +107,15 @@ export interface SpeciesTable {
   worst: RankedEntry;
   league: League;
   species: Species;
+  /**
+   * Battle-stat extremes across the whole 4096. Damage is monotonic in attack
+   * and in defense, so these turn "does any threshold exist in this matchup?"
+   * into two dmg() calls instead of a scan of every spread.
+   */
+  atkLo: number;
+  atkHi: number;
+  defLo: number;
+  defHi: number;
 }
 
 export interface BattleMon {

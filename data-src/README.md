@@ -25,9 +25,13 @@ cd ../app && npm run data && npm run verify
 
 ## Notes
 
-- **League membership is the ranking.** A form is an opponent in a league iff
-  it appears in that league's `rankings-*.json`, giving pools of 1143 / 841 /
-  405 — those files exactly. Two earlier rules were wrong in opposite
+- **League membership is the ranking**, plus a raw-power floor in Master. A
+  form is an opponent in a league iff it appears in that league's
+  `rankings-*.json`, giving pools of 1143 / 841 / 361. Master additionally
+  requires maxCP ≥ 3000: it is the one uncapped league, so a ceiling below
+  3000 is power forfeited outright rather than a matchup question — Registeel
+  (2766) and Umbreon (2416) are rated there but outclassed by definition. The
+  capped leagues take no such floor. Two earlier rules were wrong in opposite
   directions. Capping at each league's top 300 hid the niche matchups where
   breakpoints live. Replacing it with a max-CP floor (great 1100, ultra 2200,
   master 2500) over-corrected: a CP ceiling is a maximum, not a minimum, so

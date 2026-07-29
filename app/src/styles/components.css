@@ -1434,3 +1434,13 @@ textarea.input { min-height: 90px; resize: vertical; }
   padding: 0 7px;
 }
 .iv-max-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Equal trailing rules on the two movepool headings.
+   .hud-label's rule is flex:1, so it consumes whatever the caption leaves —
+   "Fast" is 30px of text and "Charged · pick 2" is 122px, giving rules of 359px
+   and 267px side by side. Every box, glyph and metric in the two headers
+   measures identical; that 92px difference in rule length was the whole of the
+   remaining visual asymmetry. Fixing the length makes the pair read as a set.
+   Scoped here rather than on .hud-label globally, where a full-width rule is
+   doing useful work as a section divider. */
+.moves-head .hud-label::after { flex: 0 0 56px; }

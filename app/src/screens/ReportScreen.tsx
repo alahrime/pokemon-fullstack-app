@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
-import { SPECIES_BY_ID, makeRef } from '../lib/data';
+import { SPECIES_BY_ID, makeRef, parseRef } from '../lib/data';
 import {
   bestLeagueFor,
   dmg,
@@ -18,7 +18,9 @@ import {
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { HudFrame, HudReadout } from '../components/Hud';
-import { OpponentGrid, ROTATE_MS } from '../components/OpponentGrid';
+import { OpponentGrid } from '../components/OpponentGrid';
+import { MetricTabs } from '../components/MetricTabs';
+import { metricSortLabel } from '../lib/metrics';
 import { MovesPanel } from '../components/MovesPanel';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
@@ -51,22 +53,32 @@ export function ReportScreen() {
   );
   const opponents = useMemo(() => relevance.map((r) => r.info), [relevance]);
 
-  const [rotating, setRotating] = useState(false);
-  const [rotOffset, setRotOffset] = useState(0);
-  // Reset the window whenever the underlying slate changes, or the board would
-  // resume mid-way through a list that no longer exists.
-  useEffect(() => setRotOffset(0), [ref, league, moveIdx, relevanceKind, chargeIds]);
-  useEffect(() => {
-    if (!rotating || relevance.length <= OPPONENT_WINDOW) return;
-    const t = setInterval(() => setRotOffset((o) => (o + 1) % relevance.length), ROTATE_MS);
-    return () => clearInterval(t);
-  }, [rotating, relevance.length]);
+  // Sorted by whichever metric is selected, then paged. The scan finds ~48
+  // decidable matchups against 16 cells; paging shows the surplus without the
+  // movement an auto-rotating board introduced.
+  const [sortDesc, setSortDesc] = useState(true);
+  const [page, setPage] = useState(0);
 
-  const visible = useMemo(() => {
-    if (relevance.length <= OPPONENT_WINDOW) return relevance;
-    // Wrap so the board cycles endlessly rather than running off the end.
-    return Array.from({ length: OPPONENT_WINDOW }, (_, i) => relevance[(rotOffset + i) % relevance.length]);
-  }, [relevance, rotOffset]);
+  const sorted = useMemo(() => {
+    const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+    const key = (r: (typeof relevance)[number]) => {
+      if (colorBy === 'break') return dmg(entry.atk, r.info.def, myFast);
+      if (colorBy === 'bulk') return dmg(r.info.atk, entry.def, r.info.fastMove);
+      // Rank: lower is better, so negate to keep "descending = strongest first".
+      return -(SPECIES_BY_ID.get(parseRef(r.info.id).id)?.leagueRank[league] ?? 9999);
+    };
+    return [...relevance].sort((a, b) => (sortDesc ? key(b) - key(a) : key(a) - key(b)));
+  }, [relevance, colorBy, sortDesc, entry.atk, entry.def, species, moveIdx, league]);
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / OPPONENT_WINDOW));
+  // Reset to the first page whenever the ordering or the slate changes, or the
+  // board can land on a page that no longer exists.
+  useEffect(() => setPage(0), [ref, league, moveIdx, relevanceKind, chargeIds, colorBy, sortDesc]);
+  const visible = useMemo(
+    () => sorted.slice(page * OPPONENT_WINDOW, page * OPPONENT_WINDOW + OPPONENT_WINDOW),
+    [sorted, page],
+  );
+
   const effectiveOppId = opponents.some((o) => o.id === oppId) ? oppId : (opponents[0]?.id ?? oppId);
   useEffect(() => {
     if (effectiveOppId !== oppId) set('oppId', effectiveOppId);
@@ -289,13 +301,20 @@ export function ReportScreen() {
             onChargeIds={(ids) => set('chargeIds', ids)}
           />
 
+          {/* Governs the heatmap ramp, which opponents the scan surfaces, and
+              the sort below — so it sits above all three. */}
+          <MetricTabs value={colorBy} onChange={(c) => set('colorBy', c)} />
+
           <OpponentGrid
             items={visible}
-            windowSize={OPPONENT_WINDOW}
-            total={relevance.length}
+            page={page}
+            pageCount={pageCount}
+            total={sorted.length}
             activeId={effectiveOppId}
-            rotating={rotating}
-            onToggleRotate={setRotating}
+            sortLabel={metricSortLabel(colorBy)}
+            sortDesc={sortDesc}
+            onSort={setSortDesc}
+            onPage={setPage}
             onSelect={(id) => set('oppId', id)}
           />
 
@@ -309,7 +328,6 @@ export function ReportScreen() {
               cells={heatCells}
               colorBy={colorBy}
               colorByLabel={colorByLabel}
-              onColorBy={(c) => set('colorBy', c)}
               onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
               ivS={iv.s}
               onIvS={(v) => patch({ iv: { ...iv, s: v } })}

@@ -31,7 +31,7 @@ export function SpeciesHero({
   /** Rank-1 spread only reachable with a Best Buddy boost. */
   bestBuddy?: boolean;
 }) {
-  const range = useMemo(() => leagueStatRange(league, bestBuddy), [league, bestBuddy]);
+  const range = useMemo(() => leagueStatRange(league), [league]);
 
   return (
     <div

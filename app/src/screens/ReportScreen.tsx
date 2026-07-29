@@ -94,7 +94,7 @@ export function ReportScreen() {
     if (effectiveOppId !== oppId) set('oppId', effectiveOppId);
   }, [effectiveOppId, oppId, set]);
   const activeOppIdx = Math.max(0, visible.findIndex((r) => r.info.id === effectiveOppId));
-  const opp = useMemo(() => opponentInfo(effectiveOppId, league, bestBuddy), [effectiveOppId, league, bestBuddy]);
+  const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
 
   const spPct = entry.sp / table.best.sp;
   const bestLeague = bestLeagueFor(ref, iv);
@@ -191,8 +191,8 @@ export function ReportScreen() {
             />
             <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
               {bbEligible
-                ? 'Adds levels 50.5 and 51 to both sides. Opponents that cannot reach past 50 are unaffected, not excluded.'
-                : `${species.name} tops out below level 50 in this league, so a Best Buddy boost changes nothing here.`}
+                ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
+                : `${species.name} tops out below level 50 in this league, so a Best Buddy boost changes nothing for it. Opponents are still priced at theirs.`}
             </div>
           </div>
 

@@ -412,13 +412,23 @@ function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
   return out;
 }
 
-export function opponentInfo(ref: string, leagueId: LeagueId, bestBuddy = false): OpponentInfo {
+/**
+ * An opponent, always priced at the strongest roll it could actually field.
+ *
+ * Best Buddy is not optional here, and deliberately not tied to the toggle.
+ * The board answers "does my roll decide this matchup", and that has to hold
+ * against the bulkiest version of the opponent you might meet — someone
+ * walking their Registeel is a thing that happens. Pricing opponents at 50
+ * while they can field 51 would quietly overstate your breakpoints.
+ *
+ * The toggle governs *your* spread only. Opponents that cannot exceed 50 are
+ * built at 50, so this is a ceiling, not a blanket boost.
+ */
+export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
-  // Carries the Shadow multipliers already when ref is a Shadow. Best Buddy
-  // applies to the opponent too, but only where it is eligible — an opponent
-  // that cannot reach past 50 is simply built at 50, not excluded.
-  const best = bestSpreadFor(ref, leagueId, bestBuddy);
+  // Carries the Shadow multipliers already when ref is a Shadow.
+  const best = bestSpreadFor(ref, leagueId, true);
   return {
     id: ref,
     lvl: best.lvl,
@@ -448,15 +458,15 @@ export function opponentInfo(ref: string, leagueId: LeagueId, bestBuddy = false)
  * walks a list that is almost entirely cache hits.
  */
 const leagueRangeCache = new Map<string, { atk: number; def: number; hp: number }>();
-export function leagueStatRange(leagueId: LeagueId, bestBuddy = false) {
-  const key = `${leagueId}|${bestBuddy ? 'bb' : ''}`;
+export function leagueStatRange(leagueId: LeagueId) {
+  const key = leagueId;
   const hit = leagueRangeCache.get(key);
   if (hit) return hit;
   let atk = 0;
   let def = 0;
   let hp = 0;
   for (const ref of opponentCandidatesFor(leagueId)) {
-    const i = opponentInfo(ref, leagueId, bestBuddy);
+    const i = opponentInfo(ref, leagueId);
     if (i.atk > atk) atk = i.atk;
     if (i.def > def) def = i.def;
     if (i.hp > hp) hp = i.hp;
@@ -728,14 +738,14 @@ export function rankedOpponents(
   };
 
   for (const c of candidates) {
-    const info = opponentInfo(c, leagueId, bestBuddy);
+    const info = opponentInfo(c, leagueId);
     const hasBreak = hasBreakpoint(table, move, info.def);
     const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
     // Contested only if a spread you'd keep wins priority and one loses it —
     // a CMP win that costs rank 3800 is not a decision anyone makes.
     const cmpContested = info.atk > atkLo && info.atk <= atkHi;
 
-    const foe = foeMonFor(`${c}|${bestBuddy ? 'bb' : ''}`, leagueId, info);
+    const foe = foeMonFor(c, leagueId, info);
     const { probes, cmpCost } = probeSpreads(table, info.atk, band);
 
     const flipShields: number[] = [];

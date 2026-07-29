@@ -79,21 +79,24 @@ export function Sprite({
         </span>
       )}
 
-      {/* Bottom-right corner, scaled to the sprite so it stays legible on a
-          30px opponent cell without swamping it. Overflows the box slightly,
-          which reads as a pinned badge rather than part of the artwork. */}
+      {/* Pinned off the bottom-right corner. Sat mostly *on* the artwork at a
+          smaller offset; hanging it further out keeps the sprite readable and
+          reads as a tag attached to the frame rather than part of the render.
+          Always the full rosette, at every size and in every control, so the
+          mark is recognisably one thing wherever it appears — a lone gold disc
+          reads as a different badge entirely. */}
       {bestBuddy && (
         <span
           style={{
             position: 'absolute',
-            right: -size * 0.08,
-            bottom: -size * 0.08,
+            right: -size * 0.2,
+            bottom: -size * 0.14,
             lineHeight: 0,
             pointerEvents: 'none',
             filter: 'drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45))',
           }}
         >
-          <BestBuddyRibbon size={Math.max(11, Math.round(size * 0.42))} />
+          <BestBuddyRibbon size={Math.max(15, Math.round(size * 0.4))} detail />
         </span>
       )}
     </div>

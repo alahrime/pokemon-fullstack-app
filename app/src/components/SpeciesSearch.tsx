@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BASE_ROSTER, ROSTER, SPECIES, displayName, type RosterEntry } from '../lib/data';
 import { compileQuery } from '../lib/query';
+import { SearchHelp } from './SearchHelp';
 import { HeldOutNote } from './HeldOutNote';
 import { Sprite } from './Sprite';
 import { TypeIcon } from './TypeBadge';
@@ -65,6 +66,7 @@ export function SpeciesSearch({
   const [debounced, setDebounced] = useState(selectedName);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
   const timerRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -243,6 +245,20 @@ export function SpeciesSearch({
           ))}
         </ul>
       )}
+      <button
+        type="button"
+        className="search-help-btn"
+        aria-label="Search syntax"
+        aria-expanded={helpOpen}
+        title="Search syntax"
+        onClick={() => {
+          setHelpOpen((v) => !v);
+          setOpen(false);
+        }}
+      >
+        ?
+      </button>
+      <SearchHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       {open && <HeldOutNote compact />}
     </div>
   );

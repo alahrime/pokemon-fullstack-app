@@ -27,6 +27,7 @@ import {
   chargeMoveStats,
   fastMoveCounts,
 } from '../src/lib/engine';
+import { QUERY_FORMS, compileQuery } from '../src/lib/query';
 import type { LeagueId } from '../src/lib/types';
 
 let failures = 0;
@@ -148,6 +149,33 @@ console.log('\n── league membership (ranked) ──────────�
   check('shadowLeagues is never a superset of nothing', SPECIES.every((s) => s.shadowLeagues.length === 0 || s.shadowEligible));
 
   check('every species carries a maxCP', SPECIES.every((s) => Number.isFinite(s.maxCP) && s.maxCP > 0));
+}
+
+console.log('\n── search language ────────────────────────────────────');
+{
+  // Every form the in-app legend advertises must actually parse and match
+  // something. A syntax guide that documents a form the parser lost is worse
+  // than no guide, and this is the only thing keeping the two honest.
+  for (const group of QUERY_FORMS) {
+    for (const f of group.forms) {
+      // Legend entries list alternatives as "gen1 · kanto"; test each.
+      for (const syntax of f.syntax.split('·').map((x) => x.trim())) {
+        const term = compileQuery(syntax, SPECIES);
+        const hits = term ? SPECIES.filter(term).length : 0;
+        check(`${syntax} matches something`, hits > 0, `${hits} hits`);
+      }
+    }
+  }
+  // Operators must actually narrow and widen, not silently no-op.
+  const count = (q: string) => {
+    const t = compileQuery(q, SPECIES);
+    return t ? SPECIES.filter(t).length : 0;
+  };
+  const water = count('water');
+  check('& narrows', count('water&legendary') < water && count('water&legendary') > 0);
+  check(', widens', count('water,fighting') > water);
+  check('! inverts', count('water') + count('!water') === SPECIES.length);
+  check('&& chains', count('gen1&water&!starter') < count('gen1&water'));
 }
 
 console.log('\n── shadow ─────────────────────────────────────────────');

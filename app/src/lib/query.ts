@@ -33,6 +33,52 @@ import type { Species } from './types';
 
 export type Term = (s: Species) => boolean;
 
+/**
+ * The language, as data, so the in-app legend is generated from the same
+ * source the parser uses. A help panel maintained separately drifts the first
+ * time a form is added, and a stale syntax guide is worse than none.
+ */
+export const QUERY_FORMS: { group: string; forms: { syntax: string; label: string }[] }[] = [
+  {
+    group: 'Identity',
+    forms: [
+      { syntax: 'azumarill', label: 'name' },
+      { syntax: '184', label: 'Pokédex number' },
+      { syntax: '+politoed', label: 'whole evolution family' },
+    ],
+  },
+  {
+    group: 'Traits',
+    forms: [
+      { syntax: 'water', label: 'type' },
+      { syntax: 'gen1 · kanto', label: 'generation or region' },
+      { syntax: 'legendary', label: 'tag — also mythical, ultrabeast, regional, starter' },
+      { syntax: 'alolan', label: 'regional form — also galarian, hisuian, paldean' },
+      { syntax: 'shadow', label: 'has a Shadow variant' },
+      { syntax: 'xl', label: 'needs XL candy to reach a cap' },
+    ],
+  },
+  {
+    group: 'Moves',
+    forms: [
+      { syntax: '@counter', label: 'move by name' },
+      { syntax: '@fighting', label: 'move by type' },
+      { syntax: '@1fighting', label: 'fast moves only' },
+      { syntax: '@2mud', label: 'charged moves only' },
+      { syntax: '@spam', label: 'archetype — also nuke, boost, debuff' },
+    ],
+  },
+  {
+    group: 'Combining',
+    forms: [
+      { syntax: 'water&@fighting', label: 'and — both must hold' },
+      { syntax: 'water,fighting', label: 'or — either will do' },
+      { syntax: '!water', label: 'not' },
+      { syntax: 'gen1&water&!starter', label: 'chains freely' },
+    ],
+  },
+];
+
 /** Region names alongside genN, since people reach for either. */
 const GENERATIONS: Record<string, [number, number]> = {
   gen1: [1, 151], kanto: [1, 151],

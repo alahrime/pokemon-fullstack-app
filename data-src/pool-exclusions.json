@@ -20,17 +20,24 @@
     "Exclusions only affect who appears as an OPPONENT. Every species stays",
     "selectable as your own Pokemon regardless, Shadow toggle included.",
     "",
-    "These arrays are empty on purpose: the ranking does the filtering, and this",
-    "file is the manual override for cases it still gets wrong. Prefer leaving it",
-    "empty over pre-emptively listing things.",
+    "Mimikyu, Morpeko and Aegislash are excluded outright. Each carries a mechanic",
+    "the simulator does not model - Mimikyu's built-in shield, Morpeko's form",
+    "change, Aegislash's stance change - and each behaves so unlike every other",
+    "species that it needs its own code path rather than a stat adjustment.",
+    "Listing them beats simulating them wrongly and reporting the result as fact.",
+    "",
+    "Otherwise prefer leaving these arrays empty: the ranking does the filtering,",
+    "and this file is the manual override for cases it still gets wrong.",
     "",
     "Re-run `npm run data` after editing. The generator reports how many were",
     "dropped and warns about refs that match nothing, so typos surface."
   ],
-  "all": [],
-  "great": [],
-  "ultra": [
+  "all": [
+    "mimikyu",
+    "morpeko_full_belly",
     "aegislash_shield"
   ],
+  "great": [],
+  "ultra": [],
   "master": []
 }

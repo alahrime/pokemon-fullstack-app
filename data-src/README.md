@@ -17,6 +17,21 @@ curl -O $B/rankings/all/overall/rankings-1500.json \
 cd ../app && npm run data && npm run verify
 ```
 
+`npm run data` is two passes. `build-data.mjs` runs on plain node and writes
+`species.json`; `build-best-spreads.ts` then reads it back and records each
+species' rank-1 IV roll per league, so the engine doesn't search all 4096 at
+runtime. The second pass is bundled through esbuild — deliberately, so it uses
+the real `bestAt` instead of a copy that could drift — which makes **esbuild a
+build dependency of the data, not just of `verify`**.
+
+Practical consequence: esbuild ships a platform-specific binary. A
+`node_modules` copied or restored from a different OS or architecture fails
+with `cannot execute binary file`, and takes `npm run data` down with it. A
+fresh `npm install` on the machine you're building on fixes it.
+
+The output is deterministic — same inputs give a byte-identical `species.json`,
+so a dirty diff after regenerating means the upstream data actually changed.
+
 | File | Provides |
 |---|---|
 | `pokemon.json` | Every species, alternate form and Shadow entry: base stats, typing, movepool, tags, release state |

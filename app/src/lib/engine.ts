@@ -1251,7 +1251,15 @@ export function battle(
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
     const moveA = pickCharge(rolesA, eA, sB);
     const moveB = pickCharge(rolesB, eB, sA);
-    if (moveA || moveB) {
+    // A fast move that lands this turn and kills resolves first, ahead of any
+    // charged move either side has banked. The charged move costs a turn to
+    // throw, so a fast hit that is already registering gets there first and
+    // snipes — the kill happens before the charge is ever released. Only a
+    // move registering *this* turn qualifies; one still mid-animation does not.
+    const fastLandsA = tA - 1 <= 0;
+    const fastLandsB = tB - 1 <= 0;
+    const snipe = (fastLandsA && fA >= hpB) || (fastLandsB && fB >= hpA);
+    if ((moveA || moveB) && !snipe) {
       const order: ('A' | 'B')[] = moveA && moveB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
       if (moveA && moveB) cmpDecided = true;
       for (const who of order) {

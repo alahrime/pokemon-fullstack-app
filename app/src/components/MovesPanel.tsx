@@ -148,20 +148,19 @@ function ChargeTile({
  * equipped moves stay on show as tiles either way, so the panel is always the
  * same height and always answers "what am I running" without a click.
  *
- * Deliberately low. Anything past a handful of options is better browsed than
- * scanned, and the tiles are not the place to enumerate a movepool — they are
- * the place to show your loadout. So Poliwrath's 7 charged moves and Mew's 25
- * get the same treatment: the recommended pair as tiles, everything else a
- * click away.
+ * The threshold is the number of moves the slot holds — one fast, two charged.
  *
- * Fast trips one option sooner than charged because you equip one fast move
- * against two charged. Matching the numbers left the two halves lopsided —
- * Poliwrath has exactly 4 fast, so at a shared threshold of 4 it showed four
- * fast tiles beside two charged ones and a dropdown. Scaling each limit to how
- * many moves that slot actually holds keeps the columns balanced.
+ * Any higher and the panel resizes with the species: tiles wrap to a second row
+ * at three per column, so a species with three charged moves stood ~115px
+ * taller than one with two, and the whole page below shifted when you switched
+ * between them. Sizing the grid to the loadout instead of the pool makes it a
+ * constant: one row per slot, every species, whatever it learns.
+ *
+ * The pool is not lost — it is one click away, and everything past what you
+ * have equipped was always going to need browsing rather than scanning.
  */
-const PICKER_THRESHOLD_FAST = 3;
-const PICKER_THRESHOLD_CHARGE = 4;
+const PICKER_THRESHOLD_FAST = 1;
+const PICKER_THRESHOLD_CHARGE = MAX_CHARGES;
 
 /**
  * Searchable move list, rendered over the panel rather than inside it.

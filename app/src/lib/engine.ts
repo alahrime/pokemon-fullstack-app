@@ -1201,20 +1201,65 @@ export function buildHeatCells(
 // fire early just because a weaker move happens to be ready first.
 interface ChargeRoles {
   main: ChargeMove;
-  bait: ChargeMove | null;
+  secondary: ChargeMove | null;
 }
 
-function classifyCharges(atk: number, oppDef: number, charges: ChargeMove[], oppTypes: readonly string[]): ChargeRoles {
-  if (charges.length === 1) return { main: charges[0], bait: null };
-  const byDpe = charges.slice().sort((x, y) => dmg(atk, oppDef, y, oppTypes) / y.energy - dmg(atk, oppDef, x, oppTypes) / x.energy);
+/**
+ * Main is the best damage per energy — the most efficient move in this
+ * matchup. Secondary is the best damage per energy *squared* among the rest,
+ * which weights the cost a second time and so favours a fast-charging move
+ * over an efficient-but-slow one. That is deliberate: the secondary exists to
+ * be thrown early — into a shield, or to squeeze damage out before fainting —
+ * and a move you cannot reach in time is worthless in that role. Picking the
+ * cheapest alternative instead, as this used to, ignores how much damage the
+ * cheap move actually does.
+ */
+function classifyCharges(
+  atk: number,
+  oppDef: number,
+  charges: ChargeMove[],
+  oppTypes: readonly string[],
+): ChargeRoles {
+  if (charges.length === 1) return { main: charges[0], secondary: null };
+  const dpe = (c: ChargeMove) => dmg(atk, oppDef, c, oppTypes) / c.energy;
+  const dpe2 = (c: ChargeMove) => dmg(atk, oppDef, c, oppTypes) / (c.energy * c.energy);
+  const byDpe = charges.slice().sort((x, y) => dpe(y) - dpe(x));
   const main = byDpe[0];
-  const cheaperAlternative = byDpe.slice(1).find((c) => c.energy < main.energy) ?? null;
-  return { main, bait: cheaperAlternative };
+  const rest = byDpe.slice(1);
+  const secondary = rest.length ? rest.reduce((best, c) => (dpe2(c) > dpe2(best) ? c : best)) : null;
+  return { main, secondary };
 }
 
-function pickCharge(roles: ChargeRoles, energy: number, oppShields: number): ChargeMove | null {
-  if (roles.bait && oppShields > 0 && energy >= roles.bait.energy) return roles.bait;
+/** What the secondary move needs to know beyond energy. */
+interface ThrowContext {
+  /** Damage the secondary would deal, for the "would this KO" test. */
+  oppHp: number;
+  /** True when the opponent's next action would knock us out. */
+  incomingKO: boolean;
+  atk: number;
+  oppDef: number;
+  oppTypes: readonly string[];
+}
+
+/**
+ * Main move first whenever it is affordable; that is the whole of PvPoke's
+ * rule 1. The secondary only comes out when main is still out of reach and one
+ * of three things is true: it kills, the opponent is holding a shield worth
+ * burning, or we are about to be knocked out and this is the last damage we
+ * will ever deal.
+ */
+function pickCharge(
+  roles: ChargeRoles,
+  energy: number,
+  oppShields: number,
+  ctx: ThrowContext,
+): ChargeMove | null {
   if (energy >= roles.main.energy) return roles.main;
+  const second = roles.secondary;
+  if (second && energy >= second.energy) {
+    const kills = oppShields === 0 && dmg(ctx.atk, ctx.oppDef, second, ctx.oppTypes) >= ctx.oppHp;
+    if (kills || oppShields > 0 || ctx.incomingKO) return second;
+  }
   return null;
 }
 
@@ -1263,8 +1308,22 @@ export function battle(
     const freeA = tA >= a.fast.turns;
     const freeB = tB >= b.fast.turns;
 
-    const readyA = freeA ? pickCharge(rolesA, eA, sB) : null;
-    const readyB = freeB ? pickCharge(rolesB, eB, sA) : null;
+    // "Would the opponent's next action knock us out?" — their fast move if it
+    // registers this turn, or a charged move they can already afford and would
+    // land unshielded. Drives the secondary move's last-gasp condition.
+    const incomingKOa =
+      (registersB && fB >= hpA) ||
+      (sA === 0 && b.charges.some((c) => eB >= c.energy && dmg(b.atk, a.def, c, a.types) >= hpA));
+    const incomingKOb =
+      (registersA && fA >= hpB) ||
+      (sB === 0 && a.charges.some((c) => eA >= c.energy && dmg(a.atk, b.def, c, b.types) >= hpB));
+
+    const readyA = freeA
+      ? pickCharge(rolesA, eA, sB, { oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types })
+      : null;
+    const readyB = freeB
+      ? pickCharge(rolesB, eB, sA, { oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types })
+      : null;
 
     // Default is PvPoke's rule — throw the moment the move is available. It is
     // deliberately not optimal play (their docs say as much), but it is the
@@ -1324,7 +1383,7 @@ export function battle(
             actor: 'A',
             kind: 'charge',
             moveName: moveA.name,
-            bait: shielded && moveA === rolesA.bait,
+            bait: shielded && moveA === rolesA.secondary,
             shielded,
             damage,
             hpA: Math.max(0, hpA),
@@ -1347,7 +1406,7 @@ export function battle(
             actor: 'B',
             kind: 'charge',
             moveName: moveB.name,
-            bait: shielded && moveB === rolesB.bait,
+            bait: shielded && moveB === rolesB.secondary,
             shielded,
             damage,
             hpA: Math.max(0, hpA),
@@ -1612,8 +1671,14 @@ export function flipMatchupRows(
 }
 
 // ── Head-to-head battle simulator: full 3x3 shield-count matrix ──
-export function shieldMatrix(a: BattleMon, b: BattleMon, energyA = 0, energyB = 0): BattleResult[][] {
-  return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB)));
+export function shieldMatrix(
+  a: BattleMon,
+  b: BattleMon,
+  energyA = 0,
+  energyB = 0,
+  optimizeTiming = false,
+): BattleResult[][] {
+  return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB, true, optimizeTiming)));
 }
 
 /** One outcome cell: everything the scenario picker needs to render. */

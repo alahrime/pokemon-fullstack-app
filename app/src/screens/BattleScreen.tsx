@@ -180,7 +180,10 @@ export function BattleScreen() {
     return mkBattleMon(entryB, fast, charges.length ? charges : [speciesB.chargeMove], speciesB.types);
   }, [speciesB, entryB, fastB, disabledChargesB]);
 
-  const matrix = useMemo(() => shieldMatrix(monA, monB, energyA, energyB), [monA, monB, energyA, energyB]);
+  const matrix = useMemo(
+    () => shieldMatrix(monA, monB, energyA, energyB, state.optimizeTiming),
+    [monA, monB, energyA, energyB, state.optimizeTiming],
+  );
   const current = matrix[shieldsA][shieldsB];
   const winCount = matrix.flat().filter((r) => r.win).length;
 
@@ -197,11 +200,44 @@ export function BattleScreen() {
 
   return (
     <>
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>Battle simulator</h3>
-        <div className="text-muted" style={{ fontSize: 12 }}>
-          Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective
-          baiting when a mon carries two charge moves of different costs.
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 30ch', minWidth: 0 }}>
+          <h3 style={{ margin: 0 }}>Battle simulator</h3>
+          <div className="text-muted" style={{ fontSize: 12 }}>
+            Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective
+            baiting when a mon carries two charge moves of different costs.
+          </div>
+        </div>
+
+        <div style={{ flex: 'none' }}>
+          <div className="hud-label" style={{ marginBottom: 7 }}>
+            <span>Charge timing</span>
+          </div>
+          <div className="form-toggle" role="group" aria-label="Charge move timing">
+            <button
+              type="button"
+              className={`form-opt form-opt-normal${!state.optimizeTiming ? ' is-active' : ''}`}
+              aria-pressed={!state.optimizeTiming}
+              onClick={() => patch({ optimizeTiming: false })}
+              title="Throw as soon as the move is available — matches PvPoke"
+            >
+              Immediate
+            </button>
+            <button
+              type="button"
+              className={`form-opt form-opt-buddy${state.optimizeTiming ? ' is-active' : ''}`}
+              aria-pressed={state.optimizeTiming}
+              onClick={() => patch({ optimizeTiming: true })}
+              title="Hold until the release lands on the opponent's registration turn"
+            >
+              Optimised
+            </button>
+          </div>
+          <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '34ch' }}>
+            {state.optimizeTiming
+              ? 'Holds each charge for the turn the opponent’s fast move registers — fewer free turns given away, but no longer comparable to PvPoke’s numbers.'
+              : 'Throws the moment a move is charged, as PvPoke does. Not optimal play, but it is what published ratings are measured against.'}
+          </div>
         </div>
       </div>
 

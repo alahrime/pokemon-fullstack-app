@@ -20,6 +20,14 @@ export interface AppStateShape {
    * excluded, so the toggle is safe to leave on.
    */
   bestBuddy: boolean;
+  /**
+   * Hold charged moves for the turn the opponent's fast move registers.
+   *
+   * Off by default because PvPoke throws the moment a move is available, and
+   * that is what every published rating is measured against. On, the sim plays
+   * the alignment instead — better play, not comparable numbers.
+   */
+  optimizeTiming: boolean;
   /** Chosen charged moves; empty means PvPoke's recommended pair. */
   chargeIds: string[];
   iv: IV;
@@ -53,6 +61,7 @@ const initialState: AppStateShape = {
   species: 'azumarill',
   shadow: false,
   bestBuddy: false,
+  optimizeTiming: false,
   chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',

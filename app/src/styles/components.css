@@ -1444,3 +1444,13 @@ textarea.input { min-height: 90px; resize: vertical; }
    Scoped here rather than on .hud-label globally, where a full-width rule is
    doing useful work as a section divider. */
 .moves-head .hud-label::after { flex: 0 0 56px; }
+
+/* Optical nudge on the Fast column.
+   Every box in the two columns measures identical — head, label, glyphs, tile
+   rows, all delta 0 — but they do not *read* level. The charged tile ends in
+   bordered count boxes while the fast tile ends in plain text, so the charged
+   side carries more visual weight low down and the fast side reads high. That
+   is an optical effect, not a geometric one, and it cannot be fixed with box
+   maths; the correction has to be by eye. 2px, applied to the column so the
+   heading and its tiles move together and stay internally aligned. */
+.moves-col:first-child { padding-top: 2px; }

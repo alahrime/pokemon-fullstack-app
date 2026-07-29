@@ -9,7 +9,7 @@
  * would just encode the same mistake twice.
  */
 
-import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, parseRef, makeRef } from '../src/lib/data';
+import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, UNSIMULATED_IDS, isSimulated, opponentCandidatesFor, parseRef, makeRef } from '../src/lib/data';
 import exclusions from '../../data-src/pool-exclusions.json';
 import {
   SHADOW_ATK_MULT,
@@ -101,9 +101,16 @@ console.log('\n── league membership (ranked) ──────────�
     check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
   }
   {
-    // Manually excluded from Ultra, though the ranking still rates it.
+    // Held out of the simulator rather than out of a league: league membership
+    // in the data stays honest, and every picker filters on UNSIMULATED_IDS.
+    const pool = opponentCandidatesFor('ultra');
+    const inRoster = new Set(ROSTER.map((r) => r.ref));
+    for (const id of UNSIMULATED_IDS) {
+      check(`${id} is held out of every picker and pool`,
+        !pool.includes(id) && !inRoster.has(id) && !inRoster.has(makeRef(id, true)));
+    }
     const s = SPECIES_BY_ID.get('aegislash_shield');
-    check('aegislash_shield is excluded from Ultra', !s?.leagues.includes('ultra') && !!s?.leagueRank.ultra);
+    check('...while its league data stays intact for when it returns', !!s?.leagueRank.great);
   }
   // In uncapped Master a low ceiling is forfeited power, so these are dropped.
   for (const id of ['umbreon', 'registeel']) {
@@ -146,11 +153,16 @@ console.log('\n── league membership (ranked) ──────────�
 console.log('\n── shadow ─────────────────────────────────────────────');
 const shadowEligible = SPECIES.filter((s) => s.shadowEligible);
 check('shadow-eligible population', shadowEligible.length > 400, `${shadowEligible.length} species`);
-check(
-  'ROSTER adds a shadow row per eligible species',
-  ROSTER.length === SPECIES.length + shadowEligible.length,
-  `${ROSTER.length} rows`,
-);
+{
+  // Held-out species contribute no rows at all, base or Shadow.
+  const sim = SPECIES.filter((s) => isSimulated(s.id));
+  const simShadow = sim.filter((s) => s.shadowEligible);
+  check(
+    'ROSTER adds a shadow row per eligible simulated species',
+    ROSTER.length === sim.length + simShadow.length,
+    `${ROSTER.length} rows, ${SPECIES.length - sim.length} species held out`,
+  );
+}
 
 // The load-bearing claim: 1.2 x 5/6 === 1, so Shadow must not move rank or CP.
 const SAMPLE = ['azumarill', 'machamp', 'marowak_alolan', 'tyranitar', 'gengar'].filter((id) =>

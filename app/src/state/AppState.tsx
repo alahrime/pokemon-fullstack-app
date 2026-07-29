@@ -71,7 +71,8 @@ const initialState: AppStateShape = {
   shields: 1,
   shieldsOpp: 1,
   battleA: 'azumarill',
-  battleB: 'mimikyu',
+  // Not Mimikyu: it is held out of the simulator (UNSIMULATED_IDS).
+  battleB: 'lickilicky',
   ivA: { a: 15, d: 15, s: 15 },
   ivB: { a: 15, d: 15, s: 15 },
   fastA: 0,

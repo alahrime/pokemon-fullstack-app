@@ -83,6 +83,34 @@ export function displayName(ref: string): string {
 }
 
 /**
+ * Species held out of the simulator because it cannot model them correctly.
+ *
+ * Each has a mechanic with no representation in the engine: Mimikyu's built-in
+ * shield, Morpeko's form change, Aegislash's stance change. None is a stat
+ * adjustment — each needs its own code path — and until that exists any number
+ * produced for them is confidently wrong, which is worse than absent. Mimikyu
+ * in particular ranks 1st in both Great and Ultra, so it led every board.
+ *
+ * Held out rather than deleted: the data stays complete in species.json, and
+ * only selection and the opponent pool skip them. The 2026 engine rewrite is
+ * the natural point to revisit this, once the world championship has run on the
+ * current system.
+ *
+ * TO RESTORE: empty this set. Nothing else needs changing — every picker and
+ * pool derives from it.
+ */
+export const UNSIMULATED_IDS: ReadonlySet<string> = new Set([
+  'mimikyu',
+  'morpeko_full_belly',
+  'aegislash_shield',
+]);
+
+/** False for a ref whose species the engine cannot model. Shadow-aware. */
+export function isSimulated(ref: string): boolean {
+  return !UNSIMULATED_IDS.has(parseRef(ref).id);
+}
+
+/**
  * Every selectable entry, base forms plus a Shadow row for each eligible
  * form. Used by the battle screen's search, where the two sides are picked
  * independently and a Shadow is a genuinely different opponent.
@@ -97,7 +125,7 @@ export interface RosterEntry {
   name: string;
 }
 
-export const ROSTER: RosterEntry[] = SPECIES.flatMap((s) => {
+export const ROSTER: RosterEntry[] = SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => {
   const base: RosterEntry = { ref: s.id, species: s, shadow: false, name: s.name };
   return s.shadowEligible
     ? [base, { ref: makeRef(s.id, true), species: s, shadow: true, name: `${s.name} (Shadow)` }]
@@ -106,16 +134,6 @@ export const ROSTER: RosterEntry[] = SPECIES.flatMap((s) => {
 
 export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
 
-/**
- * Sprite URL. Form-aware: keyed off the generated slug, not the dex number.
- *
- * The old implementation took only `dex`, so Alolan and Kantonian Marowak
- * (both dex 105) resolved to the same image - every regional variant rendered
- * as its base form.
- *
- * Shadows deliberately reuse the base sprite; in-game they differ only by an
- * aura, which the UI conveys with a badge instead.
- */
 /**
  * Forms that exist only in Pokemon GO, which the primary source has no artwork
  * for at all.
@@ -131,6 +149,16 @@ const GO_ONLY_SPRITES: Record<string, string> = {
     'https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png',
 };
 
+/**
+ * Sprite URL. Form-aware: keyed off the generated slug, not the dex number.
+ *
+ * The old implementation took only `dex`, so Alolan and Kantonian Marowak
+ * (both dex 105) resolved to the same image - every regional variant rendered
+ * as its base form.
+ *
+ * Shadows deliberately reuse the base sprite; in-game they differ only by an
+ * aura, which the UI conveys with a badge instead.
+ */
 export function spriteUrl(sprite: string): string {
   return GO_ONLY_SPRITES[sprite] ?? `https://img.pokemondb.net/sprites/home/normal/${sprite}.png`;
 }
@@ -141,7 +169,7 @@ export function spriteFallbackUrl(dex: number): string {
 }
 
 export function opponentsFor(league: LeagueId): Species[] {
-  return OPPONENTS[league].map((id) => SPECIES_BY_ID.get(id)!).filter(Boolean);
+  return OPPONENTS[league].filter(isSimulated).map((id) => SPECIES_BY_ID.get(id)!).filter(Boolean);
 }
 
 /**
@@ -155,7 +183,7 @@ export function opponentsFor(league: LeagueId): Species[] {
  * Shadow Palkia is Great-ranked where plain Palkia is not.
  */
 export function opponentCandidatesFor(league: LeagueId): string[] {
-  return SPECIES.flatMap((s) => [
+  return SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => [
     ...(s.leagues.includes(league) ? [s.id] : []),
     ...(s.shadowLeagues.includes(league) ? [makeRef(s.id, true)] : []),
   ]);

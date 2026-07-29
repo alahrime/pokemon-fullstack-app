@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef } from '../lib/data';
 import { chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
+import { HeldOutNote } from '../components/HeldOutNote';
 import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
@@ -207,6 +208,7 @@ export function BattleScreen() {
             Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective
             baiting when a mon carries two charge moves of different costs.
           </div>
+          <HeldOutNote />
         </div>
 
         <div style={{ flex: 'none' }}>

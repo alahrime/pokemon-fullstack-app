@@ -25,6 +25,7 @@ import { metricSortLabel } from '../lib/metrics';
 import { MovesPanel } from '../components/MovesPanel';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
+import { HeldOutNote } from '../components/HeldOutNote';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { SpeciesHero } from '../components/SpeciesHero';
 import { HeatmapView } from './detail/HeatmapView';
@@ -329,6 +330,7 @@ export function ReportScreen() {
               the sort below — so it sits above all three. */}
           <MetricTabs value={colorBy} onChange={(c) => set('colorBy', c)} />
 
+          <HeldOutNote />
           <OpponentGrid
             items={visible}
             page={page}

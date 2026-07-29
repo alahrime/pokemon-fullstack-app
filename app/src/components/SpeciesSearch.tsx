@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BASE_ROSTER, ROSTER, displayName, type RosterEntry } from '../lib/data';
+import { HeldOutNote } from './HeldOutNote';
 import { Sprite } from './Sprite';
 import { TypeIcon } from './TypeBadge';
 
@@ -196,6 +197,7 @@ export function SpeciesSearch({
           ))}
         </ul>
       )}
+      {open && <HeldOutNote compact />}
     </div>
   );
 }

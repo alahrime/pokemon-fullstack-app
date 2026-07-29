@@ -1,4 +1,4 @@
-import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
+import { BB_MAX_LEVEL_IDX, CPM, LVL, MAX_LEVEL_IDX } from './cpm';
 import {
   LEAGUE_BY_ID,
   OPPONENT_POOL_BY_ID,
@@ -40,16 +40,16 @@ function cpOf(s: { atk: number; def: number; hRaw: number }): number {
   return Math.max(10, Math.floor((s.atk * Math.sqrt(s.def) * Math.sqrt(s.hRaw)) / 10));
 }
 
-export function bestAt(species: Species, iv: IV, league: League): StatLine {
-  // Uncapped (Master): level 50 always fits, so take it without searching.
-  // The walk got this in one step and a binary search would spend ~7, which
-  // measurably slowed Master's table build.
+export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LEVEL_IDX): StatLine {
+  // Uncapped (Master): the top level always fits, so take it without
+  // searching. The walk got this in one step and a binary search would spend
+  // ~7, which measurably slowed Master's table build.
   {
-    const s = statsAt(species, iv, CPM[MAX_LEVEL_IDX]);
+    const s = statsAt(species, iv, CPM[maxIdx]);
     const cp = cpOf(s);
     if (cp <= league.cap) {
       const hp = Math.max(10, s.h);
-      return { lvl: LVL(MAX_LEVEL_IDX), cp, atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+      return { lvl: LVL(maxIdx), cp, atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
     }
   }
   // CP rises monotonically with level, so the highest level under the cap is a
@@ -58,7 +58,7 @@ export function bestAt(species: Species, iv: IV, league: League): StatLine {
   // this is ~7. Same answer — the predicate is unchanged, only how we find the
   // boundary.
   let lo = 0;
-  let hi = MAX_LEVEL_IDX;
+  let hi = maxIdx;
   let found = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
@@ -77,6 +77,34 @@ export function bestAt(species: Species, iv: IV, league: League): StatLine {
   const s = statsAt(species, iv, CPM[0]);
   const hp = Math.max(10, s.h);
   return { lvl: 1, cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+}
+
+/**
+ * Can a Best Buddy boost actually reach past level 50 here?
+ *
+ * The highest level any roll attains is the one with the *lowest* CP — 0/0/0 —
+ * because level is bought until the cap stops you, so the weakest roll buys the
+ * most. If even that cannot clear 50, no roll in the 4096 can, and the boost is
+ * inert for this species in this league.
+ *
+ * This is why the toggle is not simply "add two levels": in Great, four out of
+ * five members sit so far below the ceiling (top-rank levels run down to 12.5)
+ * that Best Buddy changes nothing, and pretending otherwise would rebuild every
+ * table for no difference.
+ */
+const bbEligibleCache = new Map<string, boolean>();
+export function bestBuddyEligible(species: Species, league: League): boolean {
+  const key = `${species.id}|${league.id}`;
+  const hit = bbEligibleCache.get(key);
+  if (hit !== undefined) return hit;
+  const out = bestAt(species, { a: 0, d: 0, s: 0 }, league, BB_MAX_LEVEL_IDX).lvl > 50;
+  bbEligibleCache.set(key, out);
+  return out;
+}
+
+/** Level ceiling to build a table with, honouring both the toggle and eligibility. */
+function levelCapIdx(species: Species, league: League, bestBuddy: boolean): number {
+  return bestBuddy && bestBuddyEligible(species, league) ? BB_MAX_LEVEL_IDX : MAX_LEVEL_IDX;
 }
 
 export function dmg(atk: number, def: number, move: FastMove | ChargeMove): number {
@@ -107,21 +135,22 @@ const tableCache = new Map<string, SpeciesTable>();
  * threading a boolean means every existing call site (opponents, flip grids,
  * rulers, the simulator) supports Shadow without a signature change.
  */
-export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
-  const key = `${ref}|${leagueId}`;
+export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): SpeciesTable {
+  const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const cached = tableCache.get(key);
   if (cached) return cached;
 
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
+  const maxIdx = levelCapIdx(species, league, bestBuddy);
   const aMult = shadow ? SHADOW_ATK_MULT : 1;
   const dMult = shadow ? SHADOW_DEF_MULT : 1;
   const all: RankedEntry[] = [];
   for (let a = 0; a < 16; a++) {
     for (let d = 0; d < 16; d++) {
       for (let s = 0; s < 16; s++) {
-        const r = bestAt(species, { a, d, s }, league);
+        const r = bestAt(species, { a, d, s }, league, maxIdx);
         // sp / cp / lvl stay on the unadjusted stats; only the battle stats scale.
         all.push({ a, d, s, ...r, atk: r.atk * aMult, def: r.def * dMult, rank: 0 });
       }
@@ -174,8 +203,13 @@ export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
   return out;
 }
 
-export function getEntry(ref: string, iv: IV, leagueId: LeagueId): { entry: RankedEntry; table: SpeciesTable } {
-  const table = getTable(ref, leagueId);
+export function getEntry(
+  ref: string,
+  iv: IV,
+  leagueId: LeagueId,
+  bestBuddy = false,
+): { entry: RankedEntry; table: SpeciesTable } {
+  const table = getTable(ref, leagueId, bestBuddy);
   return { entry: table.map.get(ivKey(iv))!, table };
 }
 
@@ -203,6 +237,8 @@ export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league
 export interface OpponentInfo {
   /** The ref, Shadow suffix included - round-trips with state and selection. */
   id: string;
+  /** Level of this opponent's rank-1 roll; >50 means a Best Buddy boost. */
+  lvl: number;
   dex: number;
   name: string;
   /** Sprite slug of the underlying form (Shadows reuse the base artwork). */
@@ -329,31 +365,33 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
  */
 const bestCache = new Map<string, StatLine & { a: number; d: number; s: number }>();
 
-function bestSpreadFor(ref: string, leagueId: LeagueId) {
-  const key = `${ref}|${leagueId}`;
+function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
+  const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const hit = bestCache.get(key);
   if (hit) return hit;
 
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
+  const maxIdx = levelCapIdx(species, league, bestBuddy);
   let best: (StatLine & { a: number; d: number; s: number }) | null = null;
 
   // The generator records which roll wins (scripts/build-best-spreads.ts), so
   // the usual path is one bestAt rather than 4096. The search below still runs
   // when the key is absent — a species outside every league, or data generated
-  // before the index existed.
-  const key4096 = species.bestIv?.[leagueId];
+  // before the index existed — and whenever a Best Buddy boost is in play,
+  // which can move the winner and is not what the index recorded.
+  const key4096 = maxIdx === MAX_LEVEL_IDX ? species.bestIv?.[leagueId] : undefined;
   if (key4096 !== undefined) {
     const a = (key4096 >> 8) & 15;
     const d = (key4096 >> 4) & 15;
     const s = key4096 & 15;
-    best = { ...bestAt(species, { a, d, s }, league), a, d, s };
+    best = { ...bestAt(species, { a, d, s }, league, maxIdx), a, d, s };
   } else {
     for (let a = 0; a < 16; a++) {
       for (let d = 0; d < 16; d++) {
         for (let s = 0; s < 16; s++) {
-          const r = bestAt(species, { a, d, s }, league);
+          const r = bestAt(species, { a, d, s }, league, maxIdx);
           if (
             !best ||
             r.sp > best.sp ||
@@ -374,13 +412,16 @@ function bestSpreadFor(ref: string, leagueId: LeagueId) {
   return out;
 }
 
-export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
+export function opponentInfo(ref: string, leagueId: LeagueId, bestBuddy = false): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
-  // Carries the Shadow multipliers already when ref is a Shadow.
-  const best = bestSpreadFor(ref, leagueId);
+  // Carries the Shadow multipliers already when ref is a Shadow. Best Buddy
+  // applies to the opponent too, but only where it is eligible — an opponent
+  // that cannot reach past 50 is simply built at 50, not excluded.
+  const best = bestSpreadFor(ref, leagueId, bestBuddy);
   return {
     id: ref,
+    lvl: best.lvl,
     dex: species.dex,
     name: shadow ? `${species.name} (Shadow)` : species.name,
     sprite: species.sprite,
@@ -621,14 +662,15 @@ export function rankedOpponents(
   kind: RelevanceKind = 'either',
   limit = 16,
   chargeIds?: string[],
+  bestBuddy = false,
 ): OpponentRelevance[] {
-  const key = `rel|${ref}|${leagueId}|${moveIdx}|${kind}|${limit}|${(chargeIds ?? []).join('+')}`;
+  const key = `rel|${ref}|${leagueId}|${moveIdx}|${kind}|${limit}|${(chargeIds ?? []).join('+')}|${bestBuddy ? 'bb' : ''}`;
   const cached = relevanceCache.get(key);
   if (cached) return cached;
 
   const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const table = getTable(ref, leagueId);
+  const table = getTable(ref, leagueId, bestBuddy);
   const myCharges = selectedCharges(species, chargeIds);
   // Exact ref, not base id: if you're running Altaria, Shadow Altaria is still
   // a real opponent with different thresholds, so only the mirror drops out.
@@ -656,14 +698,14 @@ export function rankedOpponents(
   };
 
   for (const c of candidates) {
-    const info = opponentInfo(c, leagueId);
+    const info = opponentInfo(c, leagueId, bestBuddy);
     const hasBreak = hasBreakpoint(table, move, info.def);
     const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
     // Contested only if a spread you'd keep wins priority and one loses it —
     // a CMP win that costs rank 3800 is not a decision anyone makes.
     const cmpContested = info.atk > atkLo && info.atk <= atkHi;
 
-    const foe = foeMonFor(c, leagueId, info);
+    const foe = foeMonFor(`${c}|${bestBuddy ? 'bb' : ''}`, leagueId, info);
     const { probes, cmpCost } = probeSpreads(table, info.atk, band);
 
     const flipShields: number[] = [];

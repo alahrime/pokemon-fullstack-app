@@ -12,6 +12,14 @@ export interface AppStateShape {
   /** Ref, may carry a `_shadow` suffix. */
   species: string;
   shadow: boolean;
+  /**
+   * Include Best Buddy levels (50.5 / 51) when building spread tables.
+   *
+   * Applies to both sides: a Best Buddy opponent is a real opponent. Species
+   * that cannot reach past 50 under the cap ignore it rather than being
+   * excluded, so the toggle is safe to leave on.
+   */
+  bestBuddy: boolean;
   /** Chosen charged moves; empty means PvPoke's recommended pair. */
   chargeIds: string[];
   iv: IV;
@@ -44,6 +52,7 @@ const initialState: AppStateShape = {
   league: 'great',
   species: 'azumarill',
   shadow: false,
+  bestBuddy: false,
   chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
-import { SPECIES_BY_ID, makeRef, parseRef } from '../lib/data';
+import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
   bestLeagueFor,
   dmg,
+  bestBuddyEligible,
   bpRowsFor,
   buildHeatCells,
   flipGrid,
@@ -24,6 +25,7 @@ import { metricSortLabel } from '../lib/metrics';
 import { MovesPanel } from '../components/MovesPanel';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
+import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { SpeciesHero } from '../components/SpeciesHero';
 import { HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
@@ -40,20 +42,24 @@ const OPPONENT_WINDOW = 16;
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
-  const { league, species: speciesId, shadow, chargeIds, iv, viz, colorBy, oppId, moveIdx } = state;
+  const { league, species: speciesId, shadow, bestBuddy, chargeIds, iv, viz, colorBy, oppId, moveIdx } = state;
 
   const species = SPECIES_BY_ID.get(speciesId)!;
   // Everything downstream keys off the *ref*, which encodes Shadow. The engine
   // parses the suffix, so no other call signature changes.
   const isShadow = shadow && species.shadowEligible;
   const ref = makeRef(speciesId, isShadow);
-  const { entry, table } = getEntry(ref, iv, league);
+  const { entry, table } = getEntry(ref, iv, league, bestBuddy);
+  const bbEligible = useMemo(
+    () => bestBuddyEligible(species, LEAGUE_BY_ID.get(league)!),
+    [species, league],
+  );
   const relevanceKind = viz === 'heat' && colorBy !== 'rank' ? colorBy : 'either';
   // The scan finds far more decidable matchups than fit on screen. Keep the
   // full slate for selection validity and show a rotating window of it.
   const relevance = useMemo(
-    () => rankedOpponents(ref, league, moveIdx, relevanceKind, Infinity, chargeIds),
-    [ref, league, moveIdx, relevanceKind, chargeIds],
+    () => rankedOpponents(ref, league, moveIdx, relevanceKind, Infinity, chargeIds, bestBuddy),
+    [ref, league, moveIdx, relevanceKind, chargeIds, bestBuddy],
   );
   const opponents = useMemo(() => relevance.map((r) => r.info), [relevance]);
 
@@ -77,7 +83,7 @@ export function ReportScreen() {
   const pageCount = Math.max(1, Math.ceil(sorted.length / OPPONENT_WINDOW));
   // Reset to the first page whenever the ordering or the slate changes, or the
   // board can land on a page that no longer exists.
-  useEffect(() => setPage(0), [ref, league, moveIdx, relevanceKind, chargeIds, colorBy, sortDesc]);
+  useEffect(() => setPage(0), [ref, league, moveIdx, relevanceKind, chargeIds, colorBy, sortDesc, bestBuddy]);
   const visible = useMemo(
     () => sorted.slice(page * OPPONENT_WINDOW, page * OPPONENT_WINDOW + OPPONENT_WINDOW),
     [sorted, page],
@@ -88,7 +94,7 @@ export function ReportScreen() {
     if (effectiveOppId !== oppId) set('oppId', effectiveOppId);
   }, [effectiveOppId, oppId, set]);
   const activeOppIdx = Math.max(0, visible.findIndex((r) => r.info.id === effectiveOppId));
-  const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
+  const opp = useMemo(() => opponentInfo(effectiveOppId, league, bestBuddy), [effectiveOppId, league, bestBuddy]);
 
   const spPct = entry.sp / table.best.sp;
   const bestLeague = bestLeagueFor(ref, iv);
@@ -157,7 +163,7 @@ export function ReportScreen() {
         <div className="report-side">
           {/* Identity → form → roll. The three things you change sit together at
               the top; everything below is the readout they produce. */}
-          <SpeciesHero species={species} entry={entry} league={league} shadow={isShadow} />
+          <SpeciesHero species={species} entry={entry} league={league} shadow={isShadow} bestBuddy={entry.lvl > 50} />
 
           <div className="side-block">
             <div className="hud-label" style={{ marginBottom: 7 }}>
@@ -173,6 +179,20 @@ export function ReportScreen() {
               {species.shadowEligible
                 ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
                 : 'No Shadow form exists for this Pokémon.'}
+            </div>
+
+            <div className="hud-label" style={{ margin: '13px 0 7px' }}>
+              <span>Best Buddy</span>
+            </div>
+            <BestBuddyToggle
+              on={bestBuddy}
+              eligible={bbEligible}
+              onChange={(v) => set('bestBuddy', v)}
+            />
+            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
+              {bbEligible
+                ? 'Adds levels 50.5 and 51 to both sides. Opponents that cannot reach past 50 are unaffected, not excluded.'
+                : `${species.name} tops out below level 50 in this league, so a Best Buddy boost changes nothing here.`}
             </div>
           </div>
 

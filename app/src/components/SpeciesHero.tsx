@@ -20,11 +20,14 @@ export function SpeciesHero({
   entry,
   league,
   shadow,
+  bestBuddy = false,
 }: {
   species: Species;
   entry: RankedEntry;
   league: LeagueId;
   shadow: boolean;
+  /** Rank-1 spread only reachable with a Best Buddy boost. */
+  bestBuddy?: boolean;
 }) {
   return (
     <div
@@ -42,7 +45,7 @@ export function SpeciesHero({
         <span className="hero-league" title={`${league} league`}>
           <LeagueEmblem league={league} size={22} />
         </span>
-        <Sprite sprite={species.sprite} dex={species.dex} size={150} shadow={shadow} className="sprite-holo" />
+        <Sprite sprite={species.sprite} dex={species.dex} size={150} shadow={shadow} bestBuddy={bestBuddy} className="sprite-holo" />
       </div>
 
       <div className="hero-body">

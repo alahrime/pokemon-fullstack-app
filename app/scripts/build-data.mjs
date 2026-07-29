@@ -98,7 +98,19 @@ const CPM = (() => {
   if (nums.length < 90) throw new Error(`cpm.ts parse produced only ${nums.length} multipliers`);
   return nums;
 })();
-const MAX_CPM = CPM[CPM.length - 1];
+/**
+ * Level 50, not the end of the table.
+ *
+ * The table carries two Best Buddy entries past 50. maxCP has to stay the
+ * ceiling a species reaches *unaided* — it decides Master's 3000 floor, and
+ * silently reading level 51 here would lift every maxCP by ~1.5% and quietly
+ * change who qualifies.
+ */
+const LEVEL_50_IDX = 98;
+const MAX_CPM = CPM[LEVEL_50_IDX];
+if (Math.abs(MAX_CPM - 0.84029999) > 1e-6) {
+  throw new Error(`CPM[${LEVEL_50_IDX}] is ${MAX_CPM}, expected the level-50 multiplier`);
+}
 
 /**
  * CP at max level with perfect IVs — the ceiling a species can ever reach.

@@ -13,8 +13,25 @@ export const CPM: number[] = [
   0.79530001, 0.797800015, 0.80030001, 0.802799995, 0.80530001, 0.807799995, 0.81030001, 0.812799985,
   0.81530001, 0.81780001, 0.82030001, 0.82280001, 0.82530001, 0.82780001, 0.83030001, 0.83280001,
   0.83530001, 0.83780001, 0.84029999,
+  // Best Buddy only. A Best Buddy is +1 level (two power-ups) while it is your
+  // active buddy, which is the only way to exceed 50.
+  0.84280002, 0.84529999,
 ];
 
 export const LVL = (i: number): number => 1 + i * 0.5;
 
-export const MAX_LEVEL_IDX = CPM.length - 1;
+/**
+ * Highest level reachable without a Best Buddy boost — level 50.
+ *
+ * Deliberately not `CPM.length - 1`: the table now runs two entries past it,
+ * and everything that means "the normal ceiling" (rankings, maxCP, the default
+ * table build) must keep landing on 50.
+ */
+export const MAX_LEVEL_IDX = 98;
+
+/** Highest level with a Best Buddy boost — level 51. */
+export const BB_MAX_LEVEL_IDX = CPM.length - 1;
+
+if (LVL(MAX_LEVEL_IDX) !== 50 || LVL(BB_MAX_LEVEL_IDX) !== 51) {
+  throw new Error(`CPM table misaligned: ${LVL(MAX_LEVEL_IDX)} / ${LVL(BB_MAX_LEVEL_IDX)}`);
+}

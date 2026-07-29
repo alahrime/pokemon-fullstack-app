@@ -79,15 +79,15 @@ export function Sprite({
         </span>
       )}
 
-      {/* Bottom-right corner, scaled to the sprite so it stays legible on a
-          30px opponent cell without swamping it. Overflows the box slightly,
-          which reads as a pinned badge rather than part of the artwork. */}
+      {/* Top-left corner, scaled to the sprite so it stays legible on a 30px
+          opponent cell without swamping it. Overflows the box slightly, which
+          reads as a pinned badge rather than part of the artwork. */}
       {bestBuddy && (
         <span
           style={{
             position: 'absolute',
-            right: -size * 0.08,
-            bottom: -size * 0.08,
+            left: -size * 0.08,
+            top: -size * 0.08,
             lineHeight: 0,
             pointerEvents: 'none',
             filter: 'drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45))',

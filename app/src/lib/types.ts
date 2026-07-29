@@ -45,6 +45,9 @@ export interface Species {
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
   leagues: string[];
+  /** Leagues this form's Shadow qualifies for — tracked apart from `leagues`
+   *  because a Shadow's shifted stats make it a distinct opponent. */
+  shadowLeagues: string[];
   leagueRank: Partial<Record<LeagueId, number>>;
   /** Ranks of this form's Shadow variant, where it's ranked. */
   shadowLeagueRank: Partial<Record<LeagueId, number>>;

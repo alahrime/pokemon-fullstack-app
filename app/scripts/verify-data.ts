@@ -57,35 +57,58 @@ for (const lg of LEAGUES) {
   check(`${lg}: curated ids all resolve`, ids.every((id) => SPECIES_BY_ID.has(parseRef(id).id)), `${ids.length} ids`);
 }
 
-console.log('\n── league membership (CP feasibility) ─────────────────');
+console.log('\n── league membership (ranked) ─────────────────────────');
 {
-  // Membership is a max-CP floor, never a ceiling. A ceiling would exclude
-  // Registeel (2766) and Swampert (3362), both of which underlevel into Great
-  // as top-tier picks - the exact failure the rank cutoff used to cause.
-  const FLOORS: Record<LeagueId, number> = { great: 1100, ultra: 2200, master: 2500 };
+  // Membership is presence in the league ranking. Neither a rank cutoff nor a
+  // maxCP floor works: the cutoff hid niche matchups, and the floor dropped
+  // ranked-and-played forms whose CP ceiling sits below it.
   for (const lg of LEAGUES) {
-    const inLeague = SPECIES.filter((s) => s.leagues.includes(lg));
-    check(`${lg}: pool is substantial`, inLeague.length > 400, `${inLeague.length} opponents`);
+    const base = SPECIES.filter((s) => s.leagues.includes(lg));
+    const shadow = SPECIES.filter((s) => s.shadowLeagues.includes(lg));
+    check(`${lg}: pool is substantial`, base.length + shadow.length > 400, `${base.length} base + ${shadow.length} shadow`);
     check(
-      `${lg}: every member clears the maxCP floor`,
-      inLeague.every((s) => s.maxCP >= FLOORS[lg]),
-      inLeague.filter((s) => s.maxCP < FLOORS[lg]).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
+      `${lg}: every member is ranked in that league`,
+      base.every((s) => s.leagueRank[lg] !== undefined) && shadow.every((s) => s.shadowLeagueRank[lg] !== undefined),
+      base.filter((s) => s.leagueRank[lg] === undefined).slice(0, 3).map((s) => s.id).join(', '),
+    );
+    check(
+      `${lg}: every ranked form is in the pool`,
+      SPECIES.every((s) => (s.leagueRank[lg] === undefined || s.leagues.includes(lg))
+        && (s.shadowLeagueRank[lg] === undefined || s.shadowLeagues.includes(lg))),
+      SPECIES.filter((s) => s.leagueRank[lg] !== undefined && !s.leagues.includes(lg)).slice(0, 3).map((s) => s.id).join(', '),
     );
   }
 
-  // The cases that drove the rule change - all must be Great League opponents.
-  for (const id of ['farfetchd', 'magby', 'smoochum', 'chansey', 'wobbuffet']) {
+  // Low-maxCP staples: a CP ceiling would drop these, and the old floor did.
+  for (const id of ['farfetchd', 'chansey', 'wobbuffet']) {
     const s = SPECIES_BY_ID.get(id);
     check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
   }
-  // And the high-maxCP staples a ceiling would have wrongly dropped.
+  for (const [id, lg] of [['aegislash_shield', 'ultra'], ['umbreon', 'master']] as const) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} is an ${lg} opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes(lg));
+  }
+  // And the high-maxCP staples that underlevel into Great.
   for (const id of ['registeel', 'swampert']) {
     const s = SPECIES_BY_ID.get(id);
     check(`${id} survives in Great (maxCP ${s?.maxCP}, no ceiling)`, !!s?.leagues.includes('great'));
   }
 
-  const megas = SPECIES.filter((s) => s.id.includes('mega'));
-  check('megas are included as opponents', megas.some((s) => s.leagues.length > 0), `${megas.length} megas`);
+  // Megas are never opponents: PvPoke does not rank them in any league.
+  const megas = SPECIES.filter((s) => /_mega|_primal/.test(s.id));
+  check(
+    'megas and primals are excluded as opponents',
+    megas.every((s) => s.leagues.length === 0 && s.shadowLeagues.length === 0),
+    `${megas.length} checked`,
+  );
+
+  // A Shadow is its own opponent, and a league can rate one form and not the other.
+  const palkia = SPECIES_BY_ID.get('palkia');
+  check(
+    'Shadow Palkia is a Great opponent where plain Palkia is not',
+    !!palkia?.shadowLeagues.includes('great') && !palkia?.leagues.includes('great'),
+  );
+  check('shadowLeagues is never a superset of nothing', SPECIES.every((s) => s.shadowLeagues.length === 0 || s.shadowEligible));
 
   check('every species carries a maxCP', SPECIES.every((s) => Number.isFinite(s.maxCP) && s.maxCP > 0));
 }

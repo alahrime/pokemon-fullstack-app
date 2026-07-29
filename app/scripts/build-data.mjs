@@ -44,21 +44,21 @@ const LEAGUES = [
 ];
 
 /**
- * League membership by CP feasibility, not by rank.
+ * League membership is presence in that league's PvPoke ranking.
  *
- * Rank was the wrong axis. It capped the opponent pool at each league's top
- * 300, which silently excluded anything niche - and "niche" is exactly where
- * breakpoints hide. It also can't express the cases that matter: Farfetch'd
- * tops out at 1397 and never reaches 1500, but is still a legitimate Great
- * League opponent; so are Chansey (1418) and Wobbuffet (1160).
+ * Two earlier rules were both wrong, in opposite directions. Capping at each
+ * league's top 300 hid anything niche, and niche is exactly where breakpoints
+ * live. Replacing it with a max-CP floor (great 1100 / ultra 2200 / master
+ * 2500) over-corrected: a CP ceiling is a maximum, not a minimum, so the floor
+ * threw out species that are ranked and played. Aegislash (Shield) tops out at
+ * 1746 and is Ultra rank 478; Umbreon maxes at 2416 and is Master rank 393;
+ * Morpeko, Wigglytuff and Marowak all sit just under the Ultra floor. In the
+ * other direction the floor admitted every Mega and Primal, none of which is
+ * ever an opponent.
  *
- * The floor is a *max* CP, never a ceiling. A ceiling would be wrong in the
- * other direction: Registeel maxes at 2766 and Swampert at 3362, and both
- * underlevel into Great as top-tier picks (GL ranks 70 and 64).
- *
- * Anything this gets wrong is handled by data-src/pool-exclusions.json.
+ * The ranking already encodes both judgements, so it is the membership test.
+ * Anything it gets wrong is handled by data-src/pool-exclusions.json.
  */
-const LEAGUE_MIN_MAX_CP = { great: 1100, ultra: 2200, master: 2500 };
 /** How many per league become the default opponent chips. */
 const CURATED_PER_LEAGUE = 24;
 
@@ -79,7 +79,14 @@ const CPM = (() => {
 })();
 const MAX_CPM = CPM[CPM.length - 1];
 
-/** CP at max level with perfect IVs — the ceiling a species can ever reach. */
+/**
+ * CP at max level with perfect IVs — the ceiling a species can ever reach.
+ *
+ * Shadow status does not enter this: the ×6/5 attack and ×5/6 defense are
+ * combat multipliers, applied in the battle engine, not to the CP formula. A
+ * Shadow and its base form share a CP at the same level and IVs, so both are
+ * measured against the league floor with the same number.
+ */
 function maxCP(base) {
   const a = (base.atk + 15) * MAX_CPM;
   const d = (base.def + 15) * MAX_CPM;
@@ -218,7 +225,9 @@ for (const p of bases) {
   const leagueRank = {};
   const shadowRank = {};
   const leagues = [];
+  const shadowLeagues = [];
   const cap = maxCP(p.baseStats);
+  const isShadowEligible = (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`);
   let recommended = null;
 
   for (const lg of LEAGUES) {
@@ -228,12 +237,21 @@ for (const p of bases) {
       leagueRank[lg.id] = hit.rank;
       if (!recommended && hit.moveset) recommended = hit.moveset;
     }
-    // Membership is CP-feasibility, independent of whether PvPoke ranks it.
-    if (cap >= LEAGUE_MIN_MAX_CP[lg.id] && !excludedFor(lg.id).has(p.speciesId)) {
+    // Membership is the ranking itself — `hit` is exactly "PvPoke rates this
+    // form in this league".
+    const dropped = excludedFor(lg.id);
+    if (hit && !dropped.has(p.speciesId)) {
       leagues.push(lg.id);
     }
     const sHit = table.get(`${p.speciesId}_shadow`);
     if (sHit) shadowRank[lg.id] = sHit.rank;
+    // A Shadow is a distinct opponent — ×6/5 attack and ×5/6 defense move its
+    // breakpoints and bulkpoints away from the base form's, so it earns its own
+    // membership rather than riding along on `leagues`, and its own exclusion
+    // ref. Shadow Palkia is Great-ranked where plain Palkia is not.
+    if (sHit && isShadowEligible && !dropped.has(`${p.speciesId}_shadow`)) {
+      shadowLeagues.push(lg.id);
+    }
   }
 
   // Default loadout: PvPoke's recommended moveset where we have one (it's the
@@ -263,13 +281,14 @@ for (const p of bases) {
     hp: p.baseStats.hp,
     maxCP: cap,
     tags: (p.tags ?? []).filter((t) => ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter'].includes(t)),
-    shadowEligible: (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`),
+    shadowEligible: isShadowEligible,
     fastMoves: orderedFasts.map(intern),
     chargeMoves: charges.map(intern),
     // Kept for the existing engine/UI shape: the recommended pair.
     chargeMove: intern(defCharges[0]),
     chargeMove2: intern(defCharges[1] ?? null),
     leagues,
+    shadowLeagues,
     leagueRank,
     shadowLeagueRank: shadowRank,
   });
@@ -300,13 +319,19 @@ console.log(`species.json    ${species.length} entries (${formCount} alternate f
 console.log(`  moves         ${Object.keys(moveTable).length} interned, ${embedded} references`);
 for (const lg of LEAGUES) {
   const n = species.filter((s) => s.leagues.includes(lg.id)).length;
-  console.log(`  ${lg.id.padEnd(7)} ${String(n).padStart(4)} opponents (maxCP >= ${LEAGUE_MIN_MAX_CP[lg.id]}), ${opponents[lg.id].length} curated`);
+  const sn = species.filter((s) => s.shadowLeagues.includes(lg.id)).length;
+  console.log(`  ${lg.id.padEnd(7)} ${String(n + sn).padStart(4)} opponents (${n} base + ${sn} shadow), ${opponents[lg.id].length} curated`);
 }
 {
+  // Exclusion ids are refs: `palkia` drops the base form, `palkia_shadow` the
+  // Shadow. Resolve through the suffix before checking an id is real, or every
+  // Shadow ref reads as a typo.
   const ids = new Set(species.map((s) => s.id));
+  const known = (ref) =>
+    ids.has(ref) || (ref.endsWith('_shadow') && ids.has(ref.slice(0, -'_shadow'.length)));
   const listed = [...new Set([...(exclusions.all ?? []), ...LEAGUES.flatMap((l) => exclusions[l.id] ?? [])])];
-  const dropped = listed.filter((id) => ids.has(id));
-  const unknown = listed.filter((id) => !ids.has(id));
+  const dropped = listed.filter(known);
+  const unknown = listed.filter((ref) => !known(ref));
   if (dropped.length) console.log(`manual exclusions: ${dropped.length} applied`);
   if (unknown.length) console.log(`WARNING exclusions matching no species: ${unknown.join(', ')}`);
 }

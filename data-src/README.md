@@ -25,14 +25,21 @@ cd ../app && npm run data && npm run verify
 
 ## Notes
 
-- **League membership is CP feasibility, not rank.** The old rule capped each
-  league's opponent pool at PvPoke's top 300, which hid exactly the niche
-  matchups where breakpoints live. Membership is now a *max CP floor* —
-  great 1100, ultra 2200, master 2500 — giving pools of 958 / 609 / 519.
-  It is a floor and never a ceiling: Registeel (maxCP 2766) and Swampert
-  (3362) underlevel into Great and are top-tier there, so a ceiling would drop
-  the wrong species. `pool-exclusions.json` is the manual override for anything
-  the rule still gets wrong.
+- **League membership is the ranking.** A form is an opponent in a league iff
+  it appears in that league's `rankings-*.json`, giving pools of 1143 / 841 /
+  405 — those files exactly. Two earlier rules were wrong in opposite
+  directions. Capping at each league's top 300 hid the niche matchups where
+  breakpoints live. Replacing it with a max-CP floor (great 1100, ultra 2200,
+  master 2500) over-corrected: a CP ceiling is a maximum, not a minimum, so
+  the floor dropped 76 ranked-and-played forms — Aegislash (Shield) tops out
+  at 1746 and is Ultra rank 478, Umbreon maxes at 2416 and is Master rank 393
+  — while admitting every Mega and Primal, none of which is ever an opponent.
+  `pool-exclusions.json` is the manual override for anything still wrong.
+- **Base and Shadow have separate membership.** `leagues` and `shadowLeagues`
+  are tracked apart, because a league can rate one form and not the other —
+  Shadow Palkia is Great-ranked where plain Palkia is not — and a Shadow's
+  shifted stats give it different breakpoints, so it earns its own cell on the
+  matchup board.
 - **Move objects are interned.** `species.json` ships a `moves` table and each
   species references keys into it. The same move appeared in every species that
   learns it — 7730 embedded objects for 567 distinct ones, 62% of the file.

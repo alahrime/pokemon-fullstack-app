@@ -130,9 +130,26 @@ export function opponentsFor(league: LeagueId): Species[] {
 }
 
 /**
- * Species worth scanning for breakpoint/bulkpoint relevance in a league -
- * anything ranked inside the cutoff baked in by the generator.
+ * Refs worth scanning for breakpoint/bulkpoint relevance in a league - the
+ * membership baked in by the generator.
+ *
+ * Returns *refs*, not Species, because Shadows belong in the scan: ×6/5 attack
+ * and ×5/6 defense move a Shadow's thresholds off its base form's, so "does my
+ * roll beat Altaria" and "does it beat Shadow Altaria" are different questions
+ * and both deserve a cell. A league can rate one form and not the other -
+ * Shadow Palkia is Great-ranked where plain Palkia is not.
  */
-export function opponentCandidatesFor(league: LeagueId): Species[] {
-  return SPECIES.filter((s) => s.leagues.includes(league));
+export function opponentCandidatesFor(league: LeagueId): string[] {
+  return SPECIES.flatMap((s) => [
+    ...(s.leagues.includes(league) ? [s.id] : []),
+    ...(s.shadowLeagues.includes(league) ? [makeRef(s.id, true)] : []),
+  ]);
+}
+
+/** Ranking of a ref within a league, Shadow-aware. Absent → sorts last. */
+export function rankOfRef(ref: string, league: LeagueId): number {
+  const { id, shadow } = parseRef(ref);
+  const s = SPECIES_BY_ID.get(id);
+  const rank = shadow ? s?.shadowLeagueRank[league] : s?.leagueRank[league];
+  return rank ?? Number.MAX_SAFE_INTEGER;
 }

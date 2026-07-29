@@ -1,5 +1,13 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
-import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor, parseRef } from './data';
+import {
+  LEAGUE_BY_ID,
+  OPPONENT_POOL_BY_ID,
+  SPECIES_BY_ID,
+  opponentCandidatesFor,
+  opponentsFor,
+  parseRef,
+  rankOfRef,
+} from './data';
 import type {
   BattleLogEntry,
   BattleMon,
@@ -531,7 +539,9 @@ export function rankedOpponents(
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(ref, leagueId);
   const myCharges = selectedCharges(species, chargeIds);
-  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== parseRef(ref).id);
+  // Exact ref, not base id: if you're running Altaria, Shadow Altaria is still
+  // a real opponent with different thresholds, so only the mirror drops out.
+  const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== ref);
 
   const atkLo = Math.min(...table.all.map((e) => e.atk));
   const atkHi = Math.max(...table.all.map((e) => e.atk));
@@ -539,7 +549,7 @@ export function rankedOpponents(
   const scored: OpponentRelevance[] = [];
 
   for (const c of candidates) {
-    const info = opponentInfo(c.id, leagueId);
+    const info = opponentInfo(c, leagueId);
     const hasBreak = hasBreakpoint(table, move, info.def);
     const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
     // Contested only if a spread you'd keep wins priority and one loses it —
@@ -580,7 +590,7 @@ export function rankedOpponents(
     if (kind === 'break' && !hasBreak && flipShields.length === 0) continue;
     if (kind === 'bulk' && !hasBulk && flipShields.length === 0) continue;
 
-    const rank = c.leagueRank[leagueId] ?? 9999;
+    const rank = Math.min(rankOfRef(c, leagueId), 9999);
     const razor = closest < 3;
 
     // A knife-edge — decided in some shield scenarios but not all — is more
@@ -670,14 +680,14 @@ export function relevantOpponents(
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(speciesId, leagueId);
-  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== speciesId);
+  const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== speciesId);
 
   const scored = candidates
     .map((c) => {
-      const info = opponentInfo(c.id, leagueId);
+      const info = opponentInfo(c, leagueId);
       const hb = kind !== 'bulk' && hasBreakpoint(table, move, info.def);
       const hk = kind !== 'break' && hasBulkpoint(table, info.atk, info.fastMove);
-      return { info, relevant: hb || hk, rank: c.leagueRank[leagueId] ?? Number.MAX_SAFE_INTEGER };
+      return { info, relevant: hb || hk, rank: rankOfRef(c, leagueId) };
     })
     .filter((x) => x.relevant)
     .sort((a, b) => a.rank - b.rank || a.info.name.localeCompare(b.info.name));

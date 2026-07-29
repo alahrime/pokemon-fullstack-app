@@ -141,8 +141,14 @@ function ChargeTile({
  * move destroyed the layout you were reading. A picker overlays instead. The
  * equipped moves stay on show as tiles either way, so the panel is always the
  * same height and always answers "what am I running" without a click.
+ *
+ * 7, not the median of 4. At 4 a picker swallowed 313 charged pools including
+ * ordinary ones — Poliwrath learns 7 and would have shown 2 tiles and a button
+ * where all 7 fit comfortably. 7 keeps every pool that fits on screen on
+ * screen, and puts a picker only where the grid genuinely breaks down: 24
+ * charged pools and 39 fast ones, Smeargle and Mew among them.
  */
-const PICKER_THRESHOLD = 4;
+const PICKER_THRESHOLD = 7;
 
 /**
  * Searchable move list, rendered over the panel rather than inside it.

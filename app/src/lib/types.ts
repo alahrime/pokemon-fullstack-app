@@ -34,6 +34,8 @@ export interface Species {
   hp: number;
   /** Subset of PvPoke tags worth surfacing: legendary, mythical, mega, etc. */
   tags: string[];
+  /** CP at level 50 with perfect IVs — the ceiling this form can reach. */
+  maxCP: number;
   /** Whether a Shadow variant of this form exists in the game. */
   shadowEligible: boolean;
   fastMoves: FastMove[];
@@ -43,9 +45,19 @@ export interface Species {
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
   leagues: string[];
+  /** Leagues this form's Shadow qualifies for — tracked apart from `leagues`
+   *  because a Shadow's shifted stats make it a distinct opponent. */
+  shadowLeagues: string[];
   leagueRank: Partial<Record<LeagueId, number>>;
   /** Ranks of this form's Shadow variant, where it's ranked. */
   shadowLeagueRank: Partial<Record<LeagueId, number>>;
+  /**
+   * ivKey of the rank-1 roll per league, precomputed by the generator so the
+   * engine need not search all 4096 to price an opponent. Absent for species
+   * that are in no league. The Shadow shares the key — Shadow rescales attack
+   * and defense but does not change which roll wins.
+   */
+  bestIv?: Partial<Record<LeagueId, number>>;
 }
 
 /**
@@ -102,6 +114,15 @@ export interface SpeciesTable {
   worst: RankedEntry;
   league: League;
   species: Species;
+  /**
+   * Battle-stat extremes across the whole 4096. Damage is monotonic in attack
+   * and in defense, so these turn "does any threshold exist in this matchup?"
+   * into two dmg() calls instead of a scan of every spread.
+   */
+  atkLo: number;
+  atkHi: number;
+  defLo: number;
+  defHi: number;
 }
 
 export interface BattleMon {

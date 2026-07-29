@@ -43,12 +43,82 @@ const LEAGUES = [
   { id: 'master', cp: 10000, file: 'rankings-10000.json' },
 ];
 
-/** Rank cutoff for counting as "present" in a league (drives opponent scans). */
-const LEAGUE_MEMBER_CUTOFF = 300;
+/**
+ * League membership is presence in that league's PvPoke ranking.
+ *
+ * Two earlier rules were both wrong, in opposite directions. Capping at each
+ * league's top 300 hid anything niche, and niche is exactly where breakpoints
+ * live. Replacing it with a max-CP floor (great 1100 / ultra 2200 / master
+ * 2500) over-corrected: a CP ceiling is a maximum, not a minimum, so the floor
+ * threw out species that are ranked and played. Aegislash (Shield) tops out at
+ * 1746 and is Ultra rank 478; Umbreon maxes at 2416 and is Master rank 393;
+ * Morpeko, Wigglytuff and Marowak all sit just under the Ultra floor. In the
+ * other direction the floor admitted every Mega and Primal, none of which is
+ * ever an opponent.
+ *
+ * The ranking already encodes both judgements, so it is the membership test.
+ * Anything it gets wrong is handled by data-src/pool-exclusions.json.
+ */
+/**
+ * Master alone keeps a CP floor, and it is a floor on *raw power*.
+ *
+ * Great and Ultra are capped, so a low ceiling is no handicap - you underlevel
+ * into the cap either way, and Aegislash (Shield) at 1746 is a real Ultra
+ * threat. Master has no cap, so every point of CP a species cannot reach is a
+ * point it simply gives away: a 2766 Registeel is outclassed by definition,
+ * not by matchup. PvPoke still rates these (they occupy Master ranks 191+),
+ * but they are not opponents anyone plans around, and each one costs a full
+ * relevance scan.
+ */
+const MASTER_MIN_MAX_CP = 3000;
+/**
+ * Kept in Master despite sitting under the floor.
+ *
+ * Both miss by under 15 CP and are rated far above the forms the floor is
+ * aimed at — Lapras is Master rank 191 at 2985, Kingdra 217 at 2986, where the
+ * next species down the CP list run to ranks 363-395. Lowering the floor to
+ * admit them by CP alone would drag those in too, so they are named instead.
+ */
+const MASTER_FLOOR_EXEMPT = new Set(['lapras', 'kingdra']);
 /** How many per league become the default opponent chips. */
 const CURATED_PER_LEAGUE = 24;
 
 const read = (f) => JSON.parse(fs.readFileSync(path.join(SRC, f), 'utf8'));
+
+// ── CP multipliers ─────────────────────────────────────────────────────────
+// Lifted from src/lib/cpm.ts rather than duplicated, so the generator and the
+// engine can't disagree about what level 50 means.
+const CPM = (() => {
+  const src = fs.readFileSync(path.resolve(HERE, '../src/lib/cpm.ts'), 'utf8');
+  // Anchored on the assignment, not the first bracket — `number[]` in the type
+  // annotation comes first and yields an empty match.
+  const m = src.match(/CPM\s*:\s*number\[\]\s*=\s*\[([\s\S]*?)\]/);
+  if (!m) throw new Error('could not locate the CPM array in src/lib/cpm.ts');
+  const nums = m[1].match(/[\d.]+/g).map(Number);
+  if (nums.length < 90) throw new Error(`cpm.ts parse produced only ${nums.length} multipliers`);
+  return nums;
+})();
+const MAX_CPM = CPM[CPM.length - 1];
+
+/**
+ * CP at max level with perfect IVs — the ceiling a species can ever reach.
+ *
+ * Shadow status does not enter this: the ×6/5 attack and ×5/6 defense are
+ * combat multipliers, applied in the battle engine, not to the CP formula. A
+ * Shadow and its base form share a CP at the same level and IVs, so both are
+ * measured against the league floor with the same number.
+ */
+function maxCP(base) {
+  const a = (base.atk + 15) * MAX_CPM;
+  const d = (base.def + 15) * MAX_CPM;
+  const h = (base.hp + 15) * MAX_CPM;
+  return Math.max(10, Math.floor((a * Math.sqrt(d) * Math.sqrt(h)) / 10));
+}
+
+// ── manual pool exclusions ─────────────────────────────────────────────────
+const exclusions = read('pool-exclusions.json');
+const excludedFor = (league) =>
+  new Set([...(exclusions.all ?? []), ...(exclusions[league] ?? [])]);
 
 // ── sprite slugs ───────────────────────────────────────────────────────────
 // PvPoke species ids are almost exactly pokemondb slugs with underscores, so
@@ -176,6 +246,9 @@ for (const p of bases) {
   const leagueRank = {};
   const shadowRank = {};
   const leagues = [];
+  const shadowLeagues = [];
+  const cap = maxCP(p.baseStats);
+  const isShadowEligible = (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`);
   let recommended = null;
 
   for (const lg of LEAGUES) {
@@ -183,11 +256,26 @@ for (const p of bases) {
     const hit = table.get(p.speciesId);
     if (hit) {
       leagueRank[lg.id] = hit.rank;
-      if (hit.rank <= LEAGUE_MEMBER_CUTOFF) leagues.push(lg.id);
       if (!recommended && hit.moveset) recommended = hit.moveset;
+    }
+    // Membership is the ranking itself — `hit` is exactly "PvPoke rates this
+    // form in this league" — plus Master's raw-power floor. Shadow shares the
+    // floor because Shadow does not change CP.
+    const dropped = excludedFor(lg.id);
+    const meetsFloor =
+      lg.id !== 'master' || cap >= MASTER_MIN_MAX_CP || MASTER_FLOOR_EXEMPT.has(p.speciesId);
+    if (hit && meetsFloor && !dropped.has(p.speciesId)) {
+      leagues.push(lg.id);
     }
     const sHit = table.get(`${p.speciesId}_shadow`);
     if (sHit) shadowRank[lg.id] = sHit.rank;
+    // A Shadow is a distinct opponent — ×6/5 attack and ×5/6 defense move its
+    // breakpoints and bulkpoints away from the base form's, so it earns its own
+    // membership rather than riding along on `leagues`, and its own exclusion
+    // ref. Shadow Palkia is Great-ranked where plain Palkia is not.
+    if (sHit && isShadowEligible && meetsFloor && !dropped.has(`${p.speciesId}_shadow`)) {
+      shadowLeagues.push(lg.id);
+    }
   }
 
   // Default loadout: PvPoke's recommended moveset where we have one (it's the
@@ -215,14 +303,16 @@ for (const p of bases) {
     atk: p.baseStats.atk,
     def: p.baseStats.def,
     hp: p.baseStats.hp,
+    maxCP: cap,
     tags: (p.tags ?? []).filter((t) => ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter'].includes(t)),
-    shadowEligible: (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`),
+    shadowEligible: isShadowEligible,
     fastMoves: orderedFasts.map(intern),
     chargeMoves: charges.map(intern),
     // Kept for the existing engine/UI shape: the recommended pair.
     chargeMove: intern(defCharges[0]),
     chargeMove2: intern(defCharges[1] ?? null),
     leagues,
+    shadowLeagues,
     leagueRank,
     shadowLeagueRank: shadowRank,
   });
@@ -252,7 +342,22 @@ const embedded = species.reduce((n, s) => n + s.fastMoves.length + s.chargeMoves
 console.log(`species.json    ${species.length} entries (${formCount} alternate forms, ${shadowCount} shadow-eligible)`);
 console.log(`  moves         ${Object.keys(moveTable).length} interned, ${embedded} references`);
 for (const lg of LEAGUES) {
-  console.log(`  ${lg.id.padEnd(7)} ${species.filter((s) => s.leagues.includes(lg.id)).length} in-league, ${opponents[lg.id].length} curated`);
+  const n = species.filter((s) => s.leagues.includes(lg.id)).length;
+  const sn = species.filter((s) => s.shadowLeagues.includes(lg.id)).length;
+  console.log(`  ${lg.id.padEnd(7)} ${String(n + sn).padStart(4)} opponents (${n} base + ${sn} shadow), ${opponents[lg.id].length} curated`);
+}
+{
+  // Exclusion ids are refs: `palkia` drops the base form, `palkia_shadow` the
+  // Shadow. Resolve through the suffix before checking an id is real, or every
+  // Shadow ref reads as a typo.
+  const ids = new Set(species.map((s) => s.id));
+  const known = (ref) =>
+    ids.has(ref) || (ref.endsWith('_shadow') && ids.has(ref.slice(0, -'_shadow'.length)));
+  const listed = [...new Set([...(exclusions.all ?? []), ...LEAGUES.flatMap((l) => exclusions[l.id] ?? [])])];
+  const dropped = listed.filter(known);
+  const unknown = listed.filter((ref) => !known(ref));
+  if (dropped.length) console.log(`manual exclusions: ${dropped.length} applied`);
+  if (unknown.length) console.log(`WARNING exclusions matching no species: ${unknown.join(', ')}`);
 }
 if (skipped.length) console.log(`skipped ${skipped.length} with no usable moveset: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? ' …' : ''}`);
 if (missingMoves.size) console.log(`WARNING unresolved move ids: ${[...missingMoves].join(', ')}`);

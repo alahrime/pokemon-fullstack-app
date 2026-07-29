@@ -1,5 +1,13 @@
 import { CPM, LVL, MAX_LEVEL_IDX } from './cpm';
-import { LEAGUE_BY_ID, OPPONENT_POOL_BY_ID, SPECIES_BY_ID, opponentCandidatesFor, opponentsFor, parseRef } from './data';
+import {
+  LEAGUE_BY_ID,
+  OPPONENT_POOL_BY_ID,
+  SPECIES_BY_ID,
+  opponentCandidatesFor,
+  opponentsFor,
+  parseRef,
+  rankOfRef,
+} from './data';
 import type {
   BattleLogEntry,
   BattleMon,
@@ -33,13 +41,38 @@ function cpOf(s: { atk: number; def: number; hRaw: number }): number {
 }
 
 export function bestAt(species: Species, iv: IV, league: League): StatLine {
-  for (let i = MAX_LEVEL_IDX; i >= 0; i--) {
-    const s = statsAt(species, iv, CPM[i]);
+  // Uncapped (Master): level 50 always fits, so take it without searching.
+  // The walk got this in one step and a binary search would spend ~7, which
+  // measurably slowed Master's table build.
+  {
+    const s = statsAt(species, iv, CPM[MAX_LEVEL_IDX]);
     const cp = cpOf(s);
     if (cp <= league.cap) {
       const hp = Math.max(10, s.h);
-      return { lvl: LVL(i), cp, atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+      return { lvl: LVL(MAX_LEVEL_IDX), cp, atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
     }
+  }
+  // CP rises monotonically with level, so the highest level under the cap is a
+  // binary search, not a walk down from 50. The walk cost up to 79 statsAt/cpOf
+  // pairs (two sqrt each) for every one of the 4096 spreads in every table;
+  // this is ~7. Same answer — the predicate is unchanged, only how we find the
+  // boundary.
+  let lo = 0;
+  let hi = MAX_LEVEL_IDX;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (cpOf(statsAt(species, iv, CPM[mid])) <= league.cap) {
+      found = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (found >= 0) {
+    const s = statsAt(species, iv, CPM[found]);
+    const hp = Math.max(10, s.h);
+    return { lvl: LVL(found), cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
   }
   const s = statsAt(species, iv, CPM[0]);
   const hp = Math.max(10, s.h);
@@ -114,7 +147,17 @@ export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
     e.rank = i + 1;
   });
   const map = new Map<number, RankedEntry>();
-  sorted.forEach((e) => map.set(ivKey(e), e));
+  let atkLo = Infinity;
+  let atkHi = -Infinity;
+  let defLo = Infinity;
+  let defHi = -Infinity;
+  sorted.forEach((e) => {
+    map.set(ivKey(e), e);
+    if (e.atk < atkLo) atkLo = e.atk;
+    if (e.atk > atkHi) atkHi = e.atk;
+    if (e.def < defLo) defLo = e.def;
+    if (e.def > defHi) defHi = e.def;
+  });
   const out: SpeciesTable = {
     all: sorted,
     map,
@@ -122,6 +165,10 @@ export function getTable(ref: string, leagueId: LeagueId): SpeciesTable {
     worst: sorted[sorted.length - 1],
     league,
     species,
+    atkLo,
+    atkHi,
+    defLo,
+    defHi,
   };
   tableCache.set(key, out);
   return out;
@@ -270,11 +317,68 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
   return out;
 }
 
+/**
+ * The rank-1 spread only, without building the full 4096 table.
+ *
+ * Opponents need exactly three numbers — the attack, defense and HP of their
+ * best roll — but getTable allocates 4096 entry objects, sorts them and builds
+ * a lookup Map. That was fine for a 211-species pool; the CP-based pool is 958
+ * in Great, where the full tables cost well over a second on first scan.
+ *
+ * Same search, same tie-break as getTable, no retained structures.
+ */
+const bestCache = new Map<string, StatLine & { a: number; d: number; s: number }>();
+
+function bestSpreadFor(ref: string, leagueId: LeagueId) {
+  const key = `${ref}|${leagueId}`;
+  const hit = bestCache.get(key);
+  if (hit) return hit;
+
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
+  const league = LEAGUE_BY_ID.get(leagueId)!;
+  let best: (StatLine & { a: number; d: number; s: number }) | null = null;
+
+  // The generator records which roll wins (scripts/build-best-spreads.ts), so
+  // the usual path is one bestAt rather than 4096. The search below still runs
+  // when the key is absent — a species outside every league, or data generated
+  // before the index existed.
+  const key4096 = species.bestIv?.[leagueId];
+  if (key4096 !== undefined) {
+    const a = (key4096 >> 8) & 15;
+    const d = (key4096 >> 4) & 15;
+    const s = key4096 & 15;
+    best = { ...bestAt(species, { a, d, s }, league), a, d, s };
+  } else {
+    for (let a = 0; a < 16; a++) {
+      for (let d = 0; d < 16; d++) {
+        for (let s = 0; s < 16; s++) {
+          const r = bestAt(species, { a, d, s }, league);
+          if (
+            !best ||
+            r.sp > best.sp ||
+            // Same tie-break as getTable: prefer the strictly better roll.
+            (r.sp === best.sp && a + d + s > best.a + best.d + best.s)
+          ) {
+            best = { ...r, a, d, s };
+          }
+        }
+      }
+    }
+  }
+
+  const out = shadow
+    ? { ...best!, atk: best!.atk * SHADOW_ATK_MULT, def: best!.def * SHADOW_DEF_MULT }
+    : best!;
+  bestCache.set(key, out);
+  return out;
+}
+
 export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
-  // best.atk/def already carry the Shadow multipliers when ref is a Shadow.
-  const best = getTable(ref, leagueId).best;
+  // Carries the Shadow multipliers already when ref is a Shadow.
+  const best = bestSpreadFor(ref, leagueId);
   return {
     id: ref,
     dex: species.dex,
@@ -298,22 +402,22 @@ export function opponentList(leagueId: LeagueId): Species[] {
 // ── Does a real breakpoint/bulkpoint exist for this pairing, across every
 // reachable stat in the 4096 spread? A flat pairing (same rounded damage no
 // matter the IV roll) isn't a relevant matchup to surface. ──
+/**
+ * Does any spread in the table deal different damage than any other?
+ *
+ * dmg() is floor(k * atk / def) + 1 with k positive, so it is monotonic in
+ * attack and in defense. "More than one distinct value across the 4096" is
+ * therefore exactly "the value at the extreme differs from the value at the
+ * other extreme" — two dmg() calls rather than a scan with a Set, which these
+ * did once per opponent per scan and which dominated the relevance profile.
+ */
 export function hasBreakpoint(table: SpeciesTable, move: FastMove, oppDef: number): boolean {
-  const seen = new Set<number>();
-  for (const e of table.all) {
-    seen.add(dmg(e.atk, oppDef, move));
-    if (seen.size > 1) return true;
-  }
-  return false;
+  return dmg(table.atkLo, oppDef, move) !== dmg(table.atkHi, oppDef, move);
 }
 
 export function hasBulkpoint(table: SpeciesTable, oppAtk: number, oppFastMove: FastMove): boolean {
-  const seen = new Set<number>();
-  for (const e of table.all) {
-    seen.add(dmg(oppAtk, e.def, oppFastMove));
-    if (seen.size > 1) return true;
-  }
-  return false;
+  // Higher defense means less damage taken, so the extremes are swapped.
+  return dmg(oppAtk, table.defHi, oppFastMove) !== dmg(oppAtk, table.defLo, oppFastMove);
 }
 
 export type RelevanceKind = 'break' | 'bulk' | 'either';
@@ -412,7 +516,22 @@ interface ProbeSet {
   cmpCost: number | null;
 }
 
-function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
+/**
+ * The band extremes, which depend only on the table.
+ *
+ * Split out of probeSpreads because only the CMP straddle varies with the
+ * opponent — recomputing the band per candidate meant scanning (and
+ * re-slicing) the same few hundred spreads once for every opponent in the
+ * league, several hundred times per scan.
+ */
+interface ProbeBand {
+  rank1: RankedEntry;
+  maxAtk: RankedEntry;
+  maxDef: RankedEntry;
+  maxHp: RankedEntry;
+}
+
+function probeBandFor(table: SpeciesTable): ProbeBand {
   // Uncapped: only near-perfect rolls are real options, so the band is an IV
   // floor rather than a slice of the stat-product ranking.
   const band = table.league.uncapped
@@ -427,6 +546,11 @@ function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
     if (e.def > maxDef.def) maxDef = e;
     if (e.hp > maxHp.hp) maxHp = e;
   }
+  return { rank1: table.best, maxAtk, maxDef, maxHp };
+}
+
+function probeSpreads(table: SpeciesTable, oppAtk: number, band: ProbeBand): ProbeSet {
+  const { rank1, maxAtk, maxDef, maxHp } = band;
 
   // Best-ranked spread on each side of the priority threshold, over the full
   // space — table.all is already sorted by stat product, so first match wins.
@@ -439,7 +563,7 @@ function probeSpreads(table: SpeciesTable, oppAtk: number): ProbeSet {
   }
 
   const out: Probe[] = [
-    { label: 'rank1', entry: table.best },
+    { label: 'rank1', entry: rank1 },
     { label: 'atk', entry: maxAtk },
     { label: 'def', entry: maxDef },
     { label: 'hp', entry: maxHp },
@@ -467,6 +591,26 @@ const SHIELD_SCENARIOS = [0, 1, 2];
 const relevanceCache = new Map<string, OpponentRelevance[]>();
 
 /**
+ * The opponent's battle-side, which depends only on the opponent.
+ *
+ * Rebuilt for every opponent on every scan, including the charge-move array,
+ * though nothing about it varies with who you are or how the scan is filtered.
+ * battle() treats its mons as read-only, so one instance is shared.
+ */
+const foeMonCache = new Map<string, BattleMon>();
+function foeMonFor(ref: string, leagueId: LeagueId, info: OpponentInfo): BattleMon {
+  // Keyed by league as well as ref: the same species is a different set of
+  // battle stats under each cap.
+  const key = `${ref}|${leagueId}`;
+  let m = foeMonCache.get(key);
+  if (!m) {
+    m = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
+    foeMonCache.set(key, m);
+  }
+  return m;
+}
+
+/**
  * Scores every candidate in the league by how much the IV roll matters, and
  * returns the most decision-relevant first.
  */
@@ -486,23 +630,41 @@ export function rankedOpponents(
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(ref, leagueId);
   const myCharges = selectedCharges(species, chargeIds);
-  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== parseRef(ref).id);
+  // Exact ref, not base id: if you're running Altaria, Shadow Altaria is still
+  // a real opponent with different thresholds, so only the mirror drops out.
+  const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== ref);
 
-  const atkLo = Math.min(...table.all.map((e) => e.atk));
-  const atkHi = Math.max(...table.all.map((e) => e.atk));
+  const { atkLo, atkHi } = table;
 
   const scored: OpponentRelevance[] = [];
 
+  // The band is opponent-independent, so it is built once for the whole scan.
+  const band = probeBandFor(table);
+  // Your side of each probe depends only on the spread, not on who you're
+  // facing or how many shields are up, but it sat in the innermost loop —
+  // rebuilt up to 18 times per opponent for at most six distinct spreads, and
+  // four of those six are the same for every opponent in the league.
+  const myMons = new Map<number, BattleMon>();
+  const myMonFor = (entry: RankedEntry): BattleMon => {
+    const k = ivKey(entry);
+    let m = myMons.get(k);
+    if (!m) {
+      m = mkBattleMon(entry, move, myCharges);
+      myMons.set(k, m);
+    }
+    return m;
+  };
+
   for (const c of candidates) {
-    const info = opponentInfo(c.id, leagueId);
+    const info = opponentInfo(c, leagueId);
     const hasBreak = hasBreakpoint(table, move, info.def);
     const hasBulk = hasBulkpoint(table, info.atk, info.fastMove);
     // Contested only if a spread you'd keep wins priority and one loses it —
     // a CMP win that costs rank 3800 is not a decision anyone makes.
     const cmpContested = info.atk > atkLo && info.atk <= atkHi;
 
-    const foe = mkBattleMon(info, info.fastMove, chargesOf(info.chargeMove, info.chargeMove2));
-    const { probes, cmpCost } = probeSpreads(table, info.atk);
+    const foe = foeMonFor(c, leagueId, info);
+    const { probes, cmpCost } = probeSpreads(table, info.atk, band);
 
     const flipShields: number[] = [];
     let closest = Infinity;
@@ -512,21 +674,34 @@ export function rankedOpponents(
     let cmpDecides = false;
 
     for (const shields of SHIELD_SCENARIOS) {
-      const wins = new Map<ProbeLabel, boolean>();
+      // Scalars rather than a Map plus a spread of its values: this ran three
+      // times per opponent and the allocation, not the battles, was the cost.
+      // A label stays undefined when its probe deduped away against an earlier
+      // one, which the attribution below relies on.
+      let nWin = 0;
+      let nLoss = 0;
+      let wAtk: boolean | undefined;
+      let wDef: boolean | undefined;
+      let wCmpUp: boolean | undefined;
+      let wCmpDown: boolean | undefined;
       for (const p of probes) {
-        const r = battle(mkBattleMon(p.entry, move, myCharges), foe, shields, shields, 0, 0, false);
-        wins.set(p.label, r.win);
+        const r = battle(myMonFor(p.entry), foe, shields, shields, 0, 0, false);
+        if (r.win) nWin++;
+        else nLoss++;
+        if (p.label === 'atk') wAtk = r.win;
+        else if (p.label === 'def') wDef = r.win;
+        else if (p.label === 'cmp+') wCmpUp = r.win;
+        else if (p.label === 'cmp-') wCmpDown = r.win;
         const m = Math.abs(r.margin);
         if (m < closest) closest = m;
       }
-      const vals = [...wins.values()];
-      if (vals.some(Boolean) && !vals.every(Boolean)) {
+      if (nWin > 0 && nLoss > 0) {
         flipShields.push(shields);
         // Attribution: the attack-heavy roll wins where the bulky one doesn't
         // (or vice versa), and the CMP straddle isolates priority specifically.
-        if (wins.get('atk') && wins.get('def') === false) atkDecides = true;
-        if (wins.get('def') && wins.get('atk') === false) bulkDecides = true;
-        if (wins.has('cmp+') && wins.has('cmp-') && wins.get('cmp+') !== wins.get('cmp-')) cmpDecides = true;
+        if (wAtk && wDef === false) atkDecides = true;
+        if (wDef && wAtk === false) bulkDecides = true;
+        if (wCmpUp !== undefined && wCmpDown !== undefined && wCmpUp !== wCmpDown) cmpDecides = true;
       }
     }
 
@@ -535,7 +710,7 @@ export function rankedOpponents(
     if (kind === 'break' && !hasBreak && flipShields.length === 0) continue;
     if (kind === 'bulk' && !hasBulk && flipShields.length === 0) continue;
 
-    const rank = c.leagueRank[leagueId] ?? 9999;
+    const rank = Math.min(rankOfRef(c, leagueId), 9999);
     const razor = closest < 3;
 
     // A knife-edge — decided in some shield scenarios but not all — is more
@@ -625,14 +800,14 @@ export function relevantOpponents(
   const species = SPECIES_BY_ID.get(parseRef(speciesId).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(speciesId, leagueId);
-  const candidates = opponentCandidatesFor(leagueId).filter((s) => s.id !== speciesId);
+  const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== speciesId);
 
   const scored = candidates
     .map((c) => {
-      const info = opponentInfo(c.id, leagueId);
+      const info = opponentInfo(c, leagueId);
       const hb = kind !== 'bulk' && hasBreakpoint(table, move, info.def);
       const hk = kind !== 'break' && hasBulkpoint(table, info.atk, info.fastMove);
-      return { info, relevant: hb || hk, rank: c.leagueRank[leagueId] ?? Number.MAX_SAFE_INTEGER };
+      return { info, relevant: hb || hk, rank: rankOfRef(c, leagueId) };
     })
     .filter((x) => x.relevant)
     .sort((a, b) => a.rank - b.rank || a.info.name.localeCompare(b.info.name));

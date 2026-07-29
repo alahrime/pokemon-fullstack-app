@@ -10,6 +10,7 @@
  */
 
 import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, parseRef, makeRef } from '../src/lib/data';
+import exclusions from '../../data-src/pool-exclusions.json';
 import {
   SHADOW_ATK_MULT,
   SHADOW_DEF_MULT,
@@ -55,6 +56,91 @@ console.log('\n── opponents ────────────────
 for (const lg of LEAGUES) {
   const ids = OPPONENTS[lg];
   check(`${lg}: curated ids all resolve`, ids.every((id) => SPECIES_BY_ID.has(parseRef(id).id)), `${ids.length} ids`);
+}
+
+console.log('\n── league membership (ranked) ─────────────────────────');
+{
+  // Membership is presence in the league ranking. Neither a rank cutoff nor a
+  // maxCP floor works: the cutoff hid niche matchups, and the floor dropped
+  // ranked-and-played forms whose CP ceiling sits below it.
+  const MASTER_EXEMPT = new Set(['lapras', 'kingdra']);
+  const dropped = (lg: string) =>
+    new Set([...(exclusions.all ?? []), ...((exclusions as Record<string, string[]>)[lg] ?? [])]);
+  for (const lg of LEAGUES) {
+    const base = SPECIES.filter((s) => s.leagues.includes(lg));
+    const shadow = SPECIES.filter((s) => s.shadowLeagues.includes(lg));
+    check(`${lg}: pool is substantial`, base.length + shadow.length > 300, `${base.length} base + ${shadow.length} shadow`);
+    check(
+      `${lg}: every member is ranked in that league`,
+      base.every((s) => s.leagueRank[lg] !== undefined) && shadow.every((s) => s.shadowLeagueRank[lg] !== undefined),
+      base.filter((s) => s.leagueRank[lg] === undefined).slice(0, 3).map((s) => s.id).join(', '),
+    );
+    // Master additionally requires a 3000 maxCP ceiling - uncapped, so a low
+    // ceiling is pure forfeited power rather than a matchup question - less
+    // the two forms named as exempt for landing within 15 CP of it.
+    const eligible = (s: (typeof SPECIES)[number]) =>
+      (lg !== 'master' || s.maxCP >= 3000 || MASTER_EXEMPT.has(s.id)) && !dropped(lg).has(s.id);
+    check(
+      `${lg}: every ranked, eligible form is in the pool`,
+      SPECIES.every((s) => !eligible(s) || ((s.leagueRank[lg] === undefined || s.leagues.includes(lg))
+        && (s.shadowLeagueRank[lg] === undefined || s.shadowLeagues.includes(lg)))),
+      SPECIES.filter((s) => eligible(s) && s.leagueRank[lg] !== undefined && !s.leagues.includes(lg)).slice(0, 3).map((s) => s.id).join(', '),
+    );
+    if (lg === 'master') {
+      check(
+        'master: every member reaches 3000 CP or is named exempt',
+        [...base, ...shadow].every((s) => s.maxCP >= 3000 || MASTER_EXEMPT.has(s.id)),
+        [...base, ...shadow].filter((s) => s.maxCP < 3000 && !MASTER_EXEMPT.has(s.id)).slice(0, 3).map((s) => `${s.id} ${s.maxCP}`).join(', '),
+      );
+    }
+  }
+
+  // Low-maxCP staples: a CP ceiling would drop these, and the old floor did.
+  for (const id of ['farfetchd', 'chansey', 'wobbuffet']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} is a Great opponent despite maxCP ${s?.maxCP}`, !!s?.leagues.includes('great'));
+  }
+  {
+    // Manually excluded from Ultra, though the ranking still rates it.
+    const s = SPECIES_BY_ID.get('aegislash_shield');
+    check('aegislash_shield is excluded from Ultra', !s?.leagues.includes('ultra') && !!s?.leagueRank.ultra);
+  }
+  // In uncapped Master a low ceiling is forfeited power, so these are dropped.
+  for (const id of ['umbreon', 'registeel']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(
+      `${id} is cut from Master by the 3000 floor (maxCP ${s?.maxCP})`,
+      !s?.leagues.includes('master') && !s?.shadowLeagues.includes('master'),
+    );
+  }
+  // ...but the two named exemptions survive it.
+  for (const id of ['lapras', 'kingdra']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} is exempt and stays in Master (maxCP ${s?.maxCP})`, !!s?.leagues.includes('master'));
+  }
+  // And the high-maxCP staples that underlevel into Great.
+  for (const id of ['registeel', 'swampert']) {
+    const s = SPECIES_BY_ID.get(id);
+    check(`${id} survives in Great (maxCP ${s?.maxCP}, no ceiling)`, !!s?.leagues.includes('great'));
+  }
+
+  // Megas are never opponents: PvPoke does not rank them in any league.
+  const megas = SPECIES.filter((s) => /_mega|_primal/.test(s.id));
+  check(
+    'megas and primals are excluded as opponents',
+    megas.every((s) => s.leagues.length === 0 && s.shadowLeagues.length === 0),
+    `${megas.length} checked`,
+  );
+
+  // A Shadow is its own opponent, and a league can rate one form and not the other.
+  const palkia = SPECIES_BY_ID.get('palkia');
+  check(
+    'Shadow Palkia is a Great opponent where plain Palkia is not',
+    !!palkia?.shadowLeagues.includes('great') && !palkia?.leagues.includes('great'),
+  );
+  check('shadowLeagues is never a superset of nothing', SPECIES.every((s) => s.shadowLeagues.length === 0 || s.shadowEligible));
+
+  check('every species carries a maxCP', SPECIES.every((s) => Number.isFinite(s.maxCP) && s.maxCP > 0));
 }
 
 console.log('\n── shadow ─────────────────────────────────────────────');

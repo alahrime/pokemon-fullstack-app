@@ -1,7 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Heatmap } from '../../components/Heatmap';
 import { SegButton, SegGroup } from '../../components/Seg';
-import { ShieldIcon, SwordIcon, TrophyIcon } from '../../components/Icons';
 import { HudLabel } from '../../components/Hud';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
@@ -12,14 +11,6 @@ import type { IV, SpeciesTable } from '../../lib/types';
 /* three.js + R3F is ~1.1MB of the bundle and 3D is opt-in, so it's split out
    and fetched on first use. The 2D grid stays in the main chunk. */
 const Heatmap3D = lazy(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
-
-/** Icon carries the meaning faster than the word: trophy = standing,
- *  sword = damage you deal, shield = damage you take. */
-const COLOR_BY_ITEMS: { id: ColorBy; label: string; hint: string; Icon: typeof TrophyIcon }[] = [
-  { id: 'rank', label: 'Rank', hint: 'Stat product standing within the 4096', Icon: TrophyIcon },
-  { id: 'break', label: 'Breakpoints', hint: 'Damage you deal', Icon: SwordIcon },
-  { id: 'bulk', label: 'Bulkpoints', hint: 'Damage you take', Icon: ShieldIcon },
-];
 
 const NOTES: Record<ColorBy, string> = {
   rank: 'Rank ridges run diagonally: trading one attack point for one defense point barely moves stat product, which is why so many spreads cluster near the top.',
@@ -40,7 +31,6 @@ export function HeatmapView({
   cells,
   colorBy,
   colorByLabel,
-  onColorBy,
   onPick,
   ivS,
   onIvS,
@@ -51,7 +41,6 @@ export function HeatmapView({
   cells: HeatCell[];
   colorBy: ColorBy;
   colorByLabel: string;
-  onColorBy: (c: ColorBy) => void;
   onPick: (a: number, d: number) => void;
   ivS: number;
   onIvS: (v: number) => void;
@@ -68,16 +57,6 @@ export function HeatmapView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <SegGroup>
-          {COLOR_BY_ITEMS.map(({ id, label, hint, Icon }) => (
-            <SegButton key={id} active={colorBy === id} onClick={() => onColorBy(id)} title={hint}>
-              <Icon />
-              {label}
-            </SegButton>
-          ))}
-        </SegGroup>
-      </div>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Viewport controls are pinned to this wrapper's top-right, in a
             reserved strip rather than floating over the plot — at 16×16 the

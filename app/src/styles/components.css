@@ -524,13 +524,24 @@ input[type='range'] { accent-color: var(--color-accent); }
 }
 .move-head { flex-wrap: nowrap; }
 
-/* The three rows that give both tile types the same skeleton. Heights are
-   matched per row rather than on the tile as a whole, so the parity holds even
-   if one row's content changes. */
+/* The three rows that give both tile types the same skeleton.
+
+   Head and stats agree naturally — same markup on both sides. The footers do
+   not: fast shows a tier of value-over-label pairs (30px), charged stacks a
+   caption above the count boxes (39px), and that 9px was the whole of the
+   remaining misalignment. Measured, not guessed.
+
+   One variable holds both, set to the taller, so the two can only ever move
+   together. Matching them per row rather than pinning the tile means the head
+   and stats rows still size themselves. */
+.move-tile { --move-footer-h: 39px; }
 .move-head { min-height: 18px; align-items: center; }
 .move-stats { min-height: 24px; align-items: center; }
 .move-stats-ratio,
-.move-counts { min-height: 22px; align-items: center; }
+.move-counts {
+  min-height: var(--move-footer-h);
+  align-items: center;
+}
 
 .move-tile::before {
   content: '';

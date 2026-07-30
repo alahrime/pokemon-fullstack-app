@@ -58,8 +58,9 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *   2  per-league loadouts, moveset sweep, meta tiers
  *   3  full 9-state shield lattice + both shield policies
  *   4  optimal move timing, second-derivative pass
+ *   5  second derivative at every tier, 500 tier added
  */
-const ENGINE_REV = 4;
+const ENGINE_REV = 5;
 
 /**
  * Loadouts considered per species.
@@ -87,7 +88,7 @@ const WEIGHT_ROUNDS = 4;
  * and the answer genuinely differs by N — a mon can farm the mid-field while
  * folding to the top 20. 0 means the whole pool.
  */
-const TIERS = [50, 100, 200, 300, 0] as const;
+const TIERS = [50, 100, 200, 300, 500, 0] as const;
 const tierLabel = (n: number) => (n === 0 ? 'all' : String(n));
 
 /** Which tier the UI opens on, and which orders the shipped matrix. */
@@ -133,14 +134,21 @@ const OPTIMAL_TIMING = true;
 /**
  * Second-order weighting.
  *
- * The tiers answer "how does this do against the top N" with a hard cutoff:
- * rank 100 counts fully and rank 101 not at all. The second pass replaces that
- * edge with a continuous weight taken from the first pass's own Overall — the
- * meta fades out rather than stopping — and restricts both sides to their
- * rated loadout, so it measures the matchup rather than the movepool. Cubing
- * concentrates it harder than the seeding pass's square.
+ * The first pass answers "how does this do against the top N" with every
+ * opponent inside the cutoff counting equally — beating rank 98 is worth as
+ * much as beating rank 2. The second pass keeps the cutoff but grades the
+ * inside of it, weighting each opponent by the first pass's own Overall, so
+ * what a mon beats matters as much as how many. Both sides are restricted to
+ * their rated loadout, which makes it a measure of the matchup rather than of
+ * the movepool.
  *
- * Costs no simulation: same matrix, different weights.
+ * Run at every tier, because the cutoff and the weighting answer different
+ * questions and compose: "top 50, graded" is the sharp read of the format's
+ * head, "all, graded" is the whole roster with the tail fading out on its own
+ * rather than being chopped. Cubing concentrates harder than the seeding
+ * pass's square.
+ *
+ * Costs no simulation at any tier: same matrix, different weights.
  */
 const D2_POWER = 3;
 
@@ -449,16 +457,23 @@ async function main() {
     }
 
     // ── Second derivative ───────────────────────────────────────────────────
-    // The first pass is now fixed. Feed its Overall back as a continuous
-    // opponent weight — no cutoff, the field fades out — and read only the
-    // rated loadout on both sides, so this measures the matchup rather than
-    // the movepool. Same matrix, so it costs an aggregation and no battles.
+    // The first pass is now fixed. Feed its Overall back as the opponent
+    // weight, so beating the head of the format counts for more than beating
+    // its shoulder, and read only the rated loadout on both sides. Run at
+    // every tier: the cutoff picks who is in the room, the weighting grades
+    // them once they are. Same matrix, so this costs aggregations, no battles.
     const d1 = perRefBest(variants, tierRows[tierLabel(DEFAULT_TIER)], refIdx, nF).best;
     const d1Max = Math.max(...d1);
     const d1Min = Math.min(...d1);
     const d1Span = d1Max - d1Min || 1;
-    const d2Weights = new Float64Array(Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER));
-    const d2Rows = scoreAgainst(variants, nF, matrix, d2Weights, selfIdx, -1);
+    const graded = Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER);
+    const d2TierRows: Record<string, Record<ScenarioId, number>[]> = {};
+    for (const t of TIERS) {
+      const w = new Float64Array(nF);
+      const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
+      for (const j of keep) w[j] = graded[j];
+      d2TierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
+    }
 
     const ref = loadReference(lg);
     const byRef = new Map<string, number[]>();
@@ -509,12 +524,15 @@ async function main() {
       const pv = shadow ? undefined : ref.get(id);
       const dRows = tierRows[tierLabel(DEFAULT_TIER)];
       const recIdx = mine.find((i) => variants[i].recommended) ?? mine[0];
+      // Second derivative, per tier: rated loadout only, opponents inside the
+      // cutoff weighted by their first-pass Overall rather than counted flat.
+      const d2: Record<string, number[]> = {};
+      for (const t of TIERS)
+        d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)][recIdx], variants[recIdx].fastTurns);
       return {
         ref: r,
         name: displayName(r),
-        // Second derivative: rated loadout only, opponents weighted by their
-        // first-pass Overall rather than cut off at a tier boundary.
-        d2: scoresOf(d2Rows[recIdx], variants[recIdx].fastTurns),
+        d2,
         // [label, overall-at-default-tier]. Index 0 is the league's rated set
         // by construction (loadoutsFor pushes it first), so `recommended` does
         // not need storing 28,000 times.

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, type CategoryId } from '../lib/scenarios';
-import { DEFAULT_TIER, ENGINE_REV, TIERS, rankingsFor, tierApplies, type RankOrder, type RankRow } from '../lib/rankings';
+import { DEFAULT_TIER, ENGINE_REV, TIERS, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
 import { LEAGUE_BY_ID, parseRef, speciesOf } from '../lib/data';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -141,14 +141,14 @@ export function RankingsScreen() {
             </SegButton>
           </SegGroup>
         </div>
-        <div style={{ opacity: tierApplies(order) ? 1 : 0.45 }}>
+        <div>
           <div className="hud-label">Opponent pool</div>
           <SegGroup>
             {TIERS(league).map((t) => (
               <SegButton
                 key={t}
-                active={tier === t && tierApplies(order)}
-                onClick={() => reset(() => { setOrder('d1'); setTier(t); })}
+                active={tier === t}
+                onClick={() => reset(() => setTier(t))}
                 title={t === 'all' ? 'Every league-legal form' : `Only the top ${t} by Overall`}
               >
                 {t === 'all' ? 'All' : `Top ${t}`}
@@ -168,15 +168,15 @@ export function RankingsScreen() {
         <br />
         {order === 'd1' ? (
           <>
-            <strong>First derivative:</strong> every swept loadout, scored against a hard top-N
-            opponent cutoff — rank N counts fully and rank N+1 not at all.
+            <strong>First derivative:</strong> every swept loadout, scored against a top-N opponent
+            cutoff where everyone inside it counts the same — beating rank 98 is worth beating rank 2.
           </>
         ) : (
           <>
-            <strong>Weighted regression:</strong> the first pass's own Overall fed back as a
-            continuous opponent weight, so the field fades out instead of stopping at a boundary, and
-            both sides restricted to their rated loadout — it describes the matchup rather than the
-            movepool. The opponent-pool control does not apply here; the weighting replaces it.
+            <strong>Weighted regression:</strong> the same opponent pool, but graded — each opponent
+            weighted by the first pass's own Overall, so beating the head of the format counts for
+            more than beating its shoulder. Both sides are restricted to their rated loadout, which
+            makes it a measure of the matchup rather than of the movepool.
           </>
         )}
         <br />

@@ -28,8 +28,8 @@ interface RawEntry {
   name: string;
   loadouts: RawLoadout[];
   tiers: Record<string, RawTier>;
-  /** Second-derivative scores, in CATEGORIES order. */
-  d2: number[];
+  /** Second-derivative scores per tier, each in CATEGORIES order. */
+  d2: Record<string, number[]>;
   pvpoke: { score: number; scores: number[] } | null;
 }
 
@@ -104,10 +104,14 @@ function pvpokeRaw(entry: RawEntry, cat: CategoryId): number | null {
 /**
  * Which pass to read.
  *
- * `d1` is the first derivative: every swept loadout, scored against a hard
- * top-N opponent cutoff. `d2` feeds d1's own Overall back as a continuous
- * opponent weight — no cutoff, the field fades out — and reads only the rated
- * loadout on both sides, so it describes the matchup rather than the movepool.
+ * `d1` is the first derivative: every swept loadout, scored against a top-N
+ * opponent cutoff where everyone inside it counts equally. `d2` keeps the same
+ * cutoff but grades the inside of it by d1's own Overall, so beating the head
+ * of the format is worth more than beating its shoulder, and reads only the
+ * rated loadout on both sides — a measure of the matchup, not the movepool.
+ *
+ * Both run at every tier, and the two axes are independent: the tier decides
+ * who is in the room, the pass decides whether they all count the same.
  */
 export type RankOrder = 'd1' | 'd2';
 
@@ -139,10 +143,10 @@ export function rankingsFor(
 function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: RankOrder): RankRow[] {
   const league = RANKINGS[lg];
   const ci = CAT_INDEX.get(cat)!;
-  // d2 has no tier axis by construction: the continuous weighting is what
-  // replaces the cutoff, so every tier button reads the same second pass.
   const scoreOf = (e: RawEntry) =>
-    order === 'd2' ? e.d2[ci] : (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
+    order === 'd2'
+      ? (e.d2[tier] ?? e.d2[league.defaultTier])[ci]
+      : (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
 
   // Their ranking is built over only the species they publish, so ours has to
   // be too or the two positions would be counting different populations and
@@ -163,7 +167,7 @@ function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: Ran
       score: scoreOf(e),
       // d2 fixes the loadout by definition, so there is no alternative set to
       // gain from; reporting the d1 best there would be comparing two passes.
-      bestScore: order === 'd2' ? e.d2[ci] : t.best[ci],
+      bestScore: order === 'd2' ? scoreOf(e) : t.best[ci],
       bestLoadout: e.loadouts[t.set]?.[0] ?? e.loadouts[0]?.[0] ?? '',
       bestIsRecommended: t.set === 0,
       loadouts: e.loadouts,
@@ -177,5 +181,3 @@ function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: Ran
   return rows;
 }
 
-/** True where the tier control has any effect, so the UI can say when it does not. */
-export const tierApplies = (order: RankOrder) => order === 'd1';

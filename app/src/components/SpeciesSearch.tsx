@@ -66,6 +66,12 @@ export function SpeciesSearch({
   style,
   /** Include Shadow variants as their own rows (battle screen picks sides). */
   includeShadow = false,
+  /**
+   * Limit selectable refs. The team builders pass their league's candidate
+   * pool: offering Zacian in Great is not a filter preference, it is an answer
+   * to a question nobody asked.
+   */
+  restrictTo,
 }: {
   value: string;
   onChange: (ref: string) => void;
@@ -74,8 +80,13 @@ export function SpeciesSearch({
   style?: CSSProperties;
   className?: string;
   includeShadow?: boolean;
+  restrictTo?: ReadonlySet<string>;
 }) {
-  const pool = includeShadow ? ROSTER : BASE_ROSTER;
+  const base = includeShadow ? ROSTER : BASE_ROSTER;
+  const pool = useMemo(
+    () => (restrictTo ? base.filter((r) => restrictTo.has(r.ref)) : base),
+    [base, restrictTo],
+  );
   const selectedName = displayName(value);
   const [text, setText] = useState(selectedName);
   const [debounced, setDebounced] = useState(selectedName);

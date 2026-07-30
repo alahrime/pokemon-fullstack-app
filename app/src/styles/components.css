@@ -1534,3 +1534,137 @@ textarea.input { min-height: 90px; resize: vertical; }
 .site-footer-line strong { color: var(--text-muted); font-weight: 600; }
 .site-footer a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
 .site-footer a:hover { color: var(--color-accent); }
+
+/* ── Rankings ─────────────────────────────────────────────────────────────
+   A dense table is the right shape here: the point is comparing hundreds of
+   rows on one number, and anything card-shaped would fit a dozen on screen. */
+.rankings-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.rankings-blurb {
+  margin: 0 0 var(--space-3);
+  max-width: 90ch;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.rankings-note {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+.rankings-note strong { color: var(--text-muted); }
+
+.rankings-table { width: 100%; }
+.rankings-table th { white-space: nowrap; }
+.rank-row { cursor: pointer; }
+.rank-row:hover { background: var(--color-accent-100); }
+.rank-row.is-open { background: var(--color-accent-100); }
+.rank-pos { width: 3.5ch; color: var(--text-faint); }
+.rank-name { display: flex; align-items: center; gap: var(--space-2); }
+.rank-name-text { font-weight: 600; line-height: 1.2; }
+.rank-types { display: flex; gap: 3px; margin-top: 2px; }
+
+/* Score plus an inline bar. The number is the fact; the bar is what makes a
+   column of numbers readable as a distribution at a glance. */
+.rank-score { position: relative; min-width: 7ch; font-variant-numeric: tabular-nums; }
+.rank-bar {
+  height: 3px;
+  margin-top: 3px;
+  background: var(--color-neutral-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.rank-bar-fill { display: block; height: 100%; background: var(--color-accent); }
+.rank-delta.is-up { color: var(--color-accent-2); }
+.rank-delta.is-down { color: var(--text-faint); }
+.rank-gain { color: var(--color-accent-2); font-weight: 600; }
+
+.rank-detail-row > td { padding: 0; }
+.rank-detail {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-left: 2px solid var(--color-accent);
+}
+.rank-detail-head {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+.rank-loadouts { margin: 0; padding: 0; list-style: none; }
+.rank-loadouts li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-size: var(--text-xs);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.rank-loadouts li:last-child { border-bottom: 0; }
+.rank-loadouts li.is-rated { font-weight: 600; }
+.rank-loadout-name { flex: 1; }
+.rank-loadout-score { font-variant-numeric: tabular-nums; }
+.rankings-pager { margin-top: var(--space-3); }
+
+/* ── Team builders ──────────────────────────────────────────────────────── */
+.team-builder { display: flex; flex-direction: column; gap: var(--space-4); }
+.team-slots { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.team-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 92px;
+  min-height: 92px;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.team-slot.is-empty {
+  align-items: center;
+  color: var(--text-faint);
+  border-style: dashed;
+  cursor: default;
+  font-size: 20px;
+}
+.team-slot-name {
+  font-size: var(--text-2xs);
+  text-align: center;
+  line-height: 1.15;
+}
+.team-add { max-width: 420px; margin-bottom: var(--space-3); }
+.team-actions { display: flex; align-items: center; gap: var(--space-3); }
+.team-warn { margin-top: var(--space-2); font-size: var(--text-xs); }
+.team-report { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.threat-list, .suggest-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.threat-list li, .suggest-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+  font-size: var(--text-sm);
+}
+.suggest-list li { cursor: pointer; }
+.suggest-list li:hover { background: var(--color-accent-100); }
+.threat-name, .suggest-name { flex: 1; }
+.threat-bar {
+  width: 140px;
+  height: 5px;
+  background: var(--color-neutral-200);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.threat-bar-fill { display: block; height: 100%; background: var(--color-accent); }
+.threat-pct, .suggest-win { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.suggest-gain { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.suggest-gain.is-up { color: var(--color-accent-2); }
+.suggest-gain.is-down { color: var(--text-faint); }

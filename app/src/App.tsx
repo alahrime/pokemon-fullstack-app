@@ -9,11 +9,16 @@ import { LeagueTabs } from './components/LeagueTabs';
 import { opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
+import { RankingsScreen } from './screens/RankingsScreen';
+import { TeamBuilderScreen } from './screens/TeamBuilderScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
 
 const SCREENS: [Screen, string][] = [
   ['report', 'Report'],
   ['battle', 'Battle'],
+  ['rankings', 'Rankings'],
+  ['gbl', 'GBL Teams'],
+  ['show6', 'Show 6'],
 ];
 
 function Nav() {
@@ -69,6 +74,12 @@ function Screens() {
       return <ReportScreen key="report" />;
     case 'battle':
       return <BattleScreen key="battle" />;
+    case 'rankings':
+      return <RankingsScreen key="rankings" />;
+    case 'gbl':
+      return <TeamBuilderScreen key="gbl" size={3} />;
+    case 'show6':
+      return <TeamBuilderScreen key="show6" size={6} />;
   }
 }
 

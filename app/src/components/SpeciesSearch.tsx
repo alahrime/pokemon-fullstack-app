@@ -13,6 +13,21 @@ import { TypeIcon } from './TypeBadge';
  * hundreds.
  */
 const RESULT_LIMIT = 250;
+
+/**
+ * Windowing constants.
+ *
+ * Every row is exactly ROW_H tall — same sprite size, same single line of text
+ * — which is what makes the simple version of this correct. A variable-height
+ * list would need measurement; this one does not, so the whole thing is two
+ * numbers and a slice.
+ *
+ * OVERSCAN rows are rendered beyond each edge so a fast scroll or a held arrow
+ * key does not reach blank space before React re-renders.
+ */
+const ROW_H = 36;
+const LIST_H = 420;
+const OVERSCAN = 6;
 const DEBOUNCE_MS = 120;
 
 /**
@@ -69,7 +84,7 @@ export function SpeciesSearch({
   const [helpOpen, setHelpOpen] = useState(false);
   const timerRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const listboxId = `${id}-listbox`;
 
   useEffect(() => {
@@ -121,10 +136,40 @@ export function SpeciesSearch({
     return scored.slice(0, RESULT_LIMIT).map((x) => x.e);
   }, [debounced, pool, defaults]);
 
-  // Keep the highlighted row in view when arrowing through a long list.
+  // Only the rows on screen are rendered. "water" matches 153 species and the
+  // box shows twelve, so the other 141 were mounting three images each purely
+  // to be scrolled past. Rows are a fixed height, so the window is arithmetic
+  // rather than measurement, and the scrollbar stays honest because the list
+  // keeps its full height in padding.
+  const [scrollTop, setScrollTop] = useState(0);
+  const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+  const last = Math.min(results.length, Math.ceil((scrollTop + LIST_H) / ROW_H) + OVERSCAN);
+  const windowed = results.slice(first, last);
+
+  // A new query resets the scroll, or the window would open part-way down a
+  // list that no longer has those rows.
   useEffect(() => {
-    const el = listRef.current?.children[activeIndex] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: 'nearest' });
+    setScrollTop(0);
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [debounced]);
+
+  // Keep the highlighted row in view when arrowing through a long list.
+  // Computed from the index rather than found in the DOM: the element may not
+  // be rendered yet, which is exactly when it needs scrolling to.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const top = activeIndex * ROW_H;
+    let next = el.scrollTop;
+    if (top < next) next = top;
+    else if (top + ROW_H > next + el.clientHeight) next = top + ROW_H - el.clientHeight;
+    if (next === el.scrollTop) return;
+    el.scrollTop = next;
+    // Update the window here rather than waiting for the scroll event to come
+    // back. Arrowing past the edge moved the box but left the state behind, so
+    // the active row scrolled into view without ever being rendered — the
+    // listbox reported an active option that was not in the DOM.
+    setScrollTop(next);
   }, [activeIndex]);
 
   const commit = (ref: string) => {
@@ -187,19 +232,29 @@ export function SpeciesSearch({
           surface it annotates. */}
       {open && results.length > 0 && (
         <div className="search-dropdown">
-        <ul
+        {/* The scroll box is this wrapper, not the list. Padding on the list
+            would sit outside its own max-height and the box would grow to the
+            full 5,500px instead of clipping at 420. */}
+        <div
           ref={listRef}
+          onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
+          style={{ maxHeight: LIST_H, overflowY: 'auto' }}
+        >
+        <ul
           id={listboxId}
           role="listbox"
           style={{
             margin: 0,
-            padding: 0,
             listStyle: 'none',
-            maxHeight: 420,
-            overflowY: 'auto',
+            // The rows not rendered still occupy their space, so the scrollbar
+            // and scroll position match the full result set.
+            paddingTop: first * ROW_H,
+            paddingBottom: Math.max(0, (results.length - last) * ROW_H),
           }}
         >
-          {results.map((r, i) => (
+          {windowed.map((r, wi) => {
+            const i = first + wi;
+            return (
             <li
               key={r.ref}
               id={`${id}-opt-${r.ref}`}
@@ -239,8 +294,10 @@ export function SpeciesSearch({
                 #{String(r.species.dex).padStart(3, '0')}
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
+        </div>
         <HeldOutNote compact />
         </div>
       )}

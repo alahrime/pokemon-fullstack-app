@@ -394,11 +394,15 @@ function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
   let best: (StatLine & { a: number; d: number; s: number }) | null = null;
 
   // The generator records which roll wins (scripts/build-best-spreads.ts), so
-  // the usual path is one bestAt rather than 4096. The search below still runs
-  // when the key is absent — a species outside every league, or data generated
-  // before the index existed — and whenever a Best Buddy boost is in play,
-  // which can move the winner and is not what the index recorded.
-  const key4096 = maxIdx === MAX_LEVEL_IDX ? species.bestIv?.[leagueId] : undefined;
+  // the usual path is one bestAt rather than 4096. Two indexes: the level-50
+  // winner and, where the boost moves it, the Best Buddy one. bestIvBB is only
+  // stored when it differs, so fall back to bestIv when it is absent. The
+  // search below still runs for a species outside every league, or data
+  // generated before the index existed.
+  const boosted = maxIdx !== MAX_LEVEL_IDX;
+  const key4096 = boosted
+    ? (species.bestIvBB?.[leagueId] ?? species.bestIv?.[leagueId])
+    : species.bestIv?.[leagueId];
   if (key4096 !== undefined) {
     const a = (key4096 >> 8) & 15;
     const d = (key4096 >> 4) & 15;
@@ -1221,12 +1225,17 @@ function classifyCharges(
   oppTypes: readonly string[],
 ): ChargeRoles {
   if (charges.length === 1) return { main: charges[0], secondary: null };
-  const dpe = (c: ChargeMove) => dmg(atk, oppDef, c, oppTypes) / c.energy;
-  const dpe2 = (c: ChargeMove) => dmg(atk, oppDef, c, oppTypes) / (c.energy * c.energy);
-  const byDpe = charges.slice().sort((x, y) => dpe(y) - dpe(x));
-  const main = byDpe[0];
-  const rest = byDpe.slice(1);
-  const secondary = rest.length ? rest.reduce((best, c) => (dpe2(c) > dpe2(best) ? c : best)) : null;
+  // Damage once per move, not once per comparison. A sort comparator that
+  // recomputes dmg() calls it O(n log n) times, and dmg() now walks the type
+  // chart — this was 7.7% of a relevance scan on its own.
+  const scored = charges.map((c) => {
+    const d = dmg(atk, oppDef, c, oppTypes);
+    return { c, dpe: d / c.energy, dpe2: d / (c.energy * c.energy) };
+  });
+  scored.sort((x, y) => y.dpe - x.dpe);
+  const main = scored[0].c;
+  const rest = scored.slice(1);
+  const secondary = rest.length ? rest.reduce((best, x) => (x.dpe2 > best.dpe2 ? x : best)).c : null;
   return { main, secondary };
 }
 
@@ -1292,6 +1301,12 @@ export function battle(
   const fB = dmg(b.atk, a.def, b.fast, a.types);
   const rolesA = classifyCharges(a.atk, b.def, a.charges, b.types);
   const rolesB = classifyCharges(b.atk, a.def, b.charges, a.types);
+  // Charge damage is fixed for the whole battle — attack, defence and typing
+  // do not change — but the "would their next action kill me" test was
+  // recomputing it for every charge move on both sides on every turn, each
+  // call walking the type chart. Precomputed here instead.
+  const chargeDmgA = a.charges.map((c) => dmg(a.atk, b.def, c, b.types));
+  const chargeDmgB = b.charges.map((c) => dmg(b.atk, a.def, c, a.types));
   const log: BattleLogEntry[] = [];
 
   // Turns held with a charged move available but deliberately not thrown,
@@ -1313,10 +1328,10 @@ export function battle(
     // land unshielded. Drives the secondary move's last-gasp condition.
     const incomingKOa =
       (registersB && fB >= hpA) ||
-      (sA === 0 && b.charges.some((c) => eB >= c.energy && dmg(b.atk, a.def, c, a.types) >= hpA));
+      (sA === 0 && b.charges.some((c, i) => eB >= c.energy && chargeDmgB[i] >= hpA));
     const incomingKOb =
       (registersA && fA >= hpB) ||
-      (sB === 0 && a.charges.some((c) => eA >= c.energy && dmg(a.atk, b.def, c, b.types) >= hpB));
+      (sB === 0 && a.charges.some((c, i) => eA >= c.energy && chargeDmgA[i] >= hpB));
 
     const readyA = freeA
       ? pickCharge(rolesA, eA, sB, { oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types })

@@ -60,6 +60,12 @@ export interface Species {
    * and defense but does not change which roll wins.
    */
   bestIv?: Partial<Record<LeagueId, number>>;
+  /**
+   * Same, for the Best Buddy ceiling — present only where the boost actually
+   * moves the winner. Opponents are always priced at that ceiling, so this is
+   * the index the hot path uses.
+   */
+  bestIvBB?: Partial<Record<LeagueId, number>>;
 }
 
 /**

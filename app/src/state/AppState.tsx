@@ -47,6 +47,15 @@ export interface AppStateShape {
   // Charge moves disabled by the user, by move id - defaults to none (both
   // available charge moves are used, letting the battle sim bait/nuke as
   // real play would).
+  /**
+   * Best Buddy per combatant, not shared. On a head-to-head each Pokemon is
+   * independently someone's buddy or not, so one flag could not express the
+   * common case of a boosted mon against an unboosted one. Distinct from the
+   * report screen's single `bestBuddy`, which describes only your own roll —
+   * there the opponents are always priced at their own ceiling.
+   */
+  bestBuddyA: boolean;
+  bestBuddyB: boolean;
   disabledChargesA: string[];
   disabledChargesB: string[];
   shieldsA: number;
@@ -77,6 +86,8 @@ const initialState: AppStateShape = {
   ivB: { a: 15, d: 15, s: 15 },
   fastA: 0,
   fastB: 0,
+  bestBuddyA: false,
+  bestBuddyB: false,
   disabledChargesA: [],
   disabledChargesB: [],
   shieldsA: 1,

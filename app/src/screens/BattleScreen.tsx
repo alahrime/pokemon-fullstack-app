@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
-import { SPECIES_BY_ID, displayName, parseRef } from '../lib/data';
-import { chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
+import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
+import { bestBuddyEligible, chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
+import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { HeldOutNote } from '../components/HeldOutNote';
 import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
@@ -24,6 +25,8 @@ function Side({
   onFast,
   disabledCharges,
   onToggleCharge,
+  bestBuddy,
+  onBestBuddy,
   shields,
   onShields,
   energy,
@@ -39,6 +42,8 @@ function Side({
   onFast: (i: number) => void;
   disabledCharges: string[];
   onToggleCharge: (moveId: string) => void;
+  bestBuddy: boolean;
+  onBestBuddy: (on: boolean) => void;
   shields: number;
   onShields: (n: number) => void;
   energy: number;
@@ -48,7 +53,8 @@ function Side({
   // speciesId is a ref, so it may carry a `_shadow` suffix.
   const { id: baseId, shadow: isShadow } = parseRef(speciesId);
   const species = SPECIES_BY_ID.get(baseId)!;
-  const { entry } = getEntry(speciesId, iv, league);
+  const bbEligible = bestBuddyEligible(species, LEAGUE_BY_ID.get(league)!);
+  const { entry } = getEntry(speciesId, iv, league, bestBuddy && bbEligible);
   const chargeOptions = chargesOf(species.chargeMove, species.chargeMove2);
 
   return (
@@ -63,7 +69,7 @@ function Side({
       />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} className="sprite-holo" />
+        <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
             {species.name}
@@ -81,6 +87,8 @@ function Side({
       </div>
 
       <IVAdjuster iv={iv} onBump={onBump} size={30} />
+
+      <BestBuddyToggle on={bestBuddy} eligible={bbEligible} onChange={onBestBuddy} />
 
       <div>
         <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -157,7 +165,7 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
 
 export function BattleScreen() {
   const { state, patch } = useAppState();
-  const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB } = state;
+  const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB, bestBuddyA, bestBuddyB } = state;
 
   // battleA / battleB are refs and may be Shadow variants, so resolve the base
   // form for stats and movepool but label with the Shadow-aware display name.
@@ -166,8 +174,12 @@ export function BattleScreen() {
   const nameA = displayName(battleA);
   const nameB = displayName(battleB);
   // Shadow multipliers are already baked into these entries by getTable.
-  const { entry: entryA } = getEntry(battleA, ivA, league);
-  const { entry: entryB } = getEntry(battleB, ivB, league);
+  // Eligibility is per species and league; an ineligible mon ignores the flag
+  // rather than being blocked, matching how the report screen treats it.
+  const bbA = bestBuddyA && bestBuddyEligible(speciesA, LEAGUE_BY_ID.get(league)!);
+  const bbB = bestBuddyB && bestBuddyEligible(speciesB, LEAGUE_BY_ID.get(league)!);
+  const { entry: entryA } = getEntry(battleA, ivA, league, bbA);
+  const { entry: entryB } = getEntry(battleB, ivB, league, bbB);
 
   const monA = useMemo(() => {
     const fast = speciesA.fastMoves[Math.min(fastA, speciesA.fastMoves.length - 1)];
@@ -248,12 +260,14 @@ export function BattleScreen() {
           <Side
             label="Pokémon 1"
             speciesId={battleA}
-            onSpecies={(id) => patch({ battleA: id, fastA: 0, disabledChargesA: [] })}
+            onSpecies={(id) => patch({ battleA: id, fastA: 0, disabledChargesA: [], bestBuddyA: false })}
             iv={ivA}
             onBump={bumpA}
             fastIdx={fastA}
             onFast={(i) => patch({ fastA: i })}
             disabledCharges={disabledChargesA}
+            bestBuddy={bestBuddyA}
+            onBestBuddy={(v) => patch({ bestBuddyA: v })}
             onToggleCharge={toggleChargeA}
             shields={shieldsA}
             onShields={(n) => patch({ shieldsA: n })}
@@ -265,12 +279,14 @@ export function BattleScreen() {
         <Side
           label="Pokémon 2"
           speciesId={battleB}
-          onSpecies={(id) => patch({ battleB: id, fastB: 0, disabledChargesB: [] })}
+          onSpecies={(id) => patch({ battleB: id, fastB: 0, disabledChargesB: [], bestBuddyB: false })}
           iv={ivB}
           onBump={bumpB}
           fastIdx={fastB}
           onFast={(i) => patch({ fastB: i })}
           disabledCharges={disabledChargesB}
+          bestBuddy={bestBuddyB}
+          onBestBuddy={(v) => patch({ bestBuddyB: v })}
           onToggleCharge={toggleChargeB}
           shields={shieldsB}
           onShields={(n) => patch({ shieldsB: n })}

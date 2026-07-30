@@ -81,8 +81,8 @@ Done:
   Smeargle). MovePicker extracted to its own module and shared by both screens.
 
 Open:
-- **Unown** trips the fast picker but has one charged move, so it shows a
-  picker on one side and a lone tile on the other. Correct, possibly lopsided.
+- ~~Unown lopsided columns~~ — was real, 33px apart. A slot with no choice now
+  renders a caption where the picker would be.
 - **Traits vocabulary** — the search maps `@spam`, `@nuke` etc. to PvPoke's
   move archetypes. If the intended trait guide (Bulky, Spammy, Risky…) differs,
   it is a lookup table in `lib/query.ts`.
@@ -92,21 +92,26 @@ Open:
 
 ## 5. Performance
 
-Already done: cold opponent-stat fill 419ms → 2ms (precomputed `bestIv`),
-steady Great scan 73.7ms → ~22ms.
+Re-profiled after the correctness work, which had introduced two regressions:
 
-Remaining, in order of value:
-- `rankedOpponents`' own loop is the largest slice (~26% self time), mostly
-  allocation.
-- `probeSpreads` still allocates a small probes array per opponent.
+- Cold fill had gone 2ms → 34ms, because opponents are always priced at their
+  Best Buddy ceiling and the precomputed index was only consulted at the
+  level-50 ceiling. A second index (`bestIvBB`) fixed it — back to 3ms.
+- `battle()` recomputed charge damage every turn for the incoming-KO test, and
+  `classifyCharges` recomputed it inside a sort comparator. Both hoisted.
 
-Neither is urgent. Re-profile before touching either — the last two rounds of
-optimisation both found the bottleneck was somewhere other than expected.
+Steady Great scan sits at ~36ms, up from 22ms before type effectiveness. That
+is the honest cost of correct damage plus sneaking, move timing and
+incoming-KO; the old number was cheaper because it was wrong.
+
+Remaining: `rankedOpponents`' own loop (~40% self time) and `battle` (~32%),
+both mostly allocation and both doing real work. Not worth touching without a
+reason. Re-profile first — every round so far has found the bottleneck
+somewhere other than expected.
 
 ## 6. Housekeeping
 
-- **`app/README.md` is still the stock Vite template.** Real project docs would
-  help — `data-src/README.md` is the model.
+- ~~`app/README.md` was the stock Vite template~~ — replaced with real docs.
 - **`species.json` is generated but committed.** Worth a note in any PR
   description so a reviewer does not read it as hand-edited. `npm run data` is
   deterministic; a dirty diff means the upstream inputs changed.

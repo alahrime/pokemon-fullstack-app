@@ -140,9 +140,9 @@ export interface BattleMon {
   /** Defender typing, for the effectiveness term in dmg(). */
   types: readonly string[];
   fast: FastMove;
-  // Every charge move this mon has equipped, cheapest energy cost first.
-  // charges[0] is the "bait" candidate when 2+ are present and there's a
-  // more expensive, harder-hitting option to save for once shields are gone.
+  // Every charge move this mon has equipped. Order is not significant —
+  // classifyCharges sorts by damage per energy to pick main, and takes the
+  // secondary from what remains.
   charges: ChargeMove[];
 }
 

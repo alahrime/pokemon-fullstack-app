@@ -1196,9 +1196,15 @@ export function buildHeatCells(
 // pricier, higher-DPE) move into a shield - it should spend a cheaper move
 // instead, saving the harder-hitting move for when it will land for real.
 // This means the mon's real "main" move is whichever charge move has the
-// best damage-per-energy, and a *bait* role is only assigned to another move
-// if that move is strictly cheaper than main (there's no point baiting with
-// a move that costs more energy than the move you're saving up for anyway).
+// best damage-per-energy, and the *secondary* is the best of the rest by
+// damage per energy *squared* — weighting cost twice, so a fast-charging move
+// wins over an efficient but slow one. See classifyCharges.
+//
+// Note the secondary rule is currently unreachable: every path into the engine
+// caps a loadout at MAX_CHARGES = 2, so `rest` holds exactly one move and any
+// selection rule returns it. Verified by differential test — swapping the rule
+// leaves a 52,186-row battle snapshot byte-identical. It matters only if that
+// cap is ever raised.
 // While the opponent has shields, throw bait as soon as it's ready; once
 // shields are gone (or there's no bait role at all), hold every point of
 // energy for main and only throw once main's own threshold is met - never

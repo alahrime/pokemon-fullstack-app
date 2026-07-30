@@ -456,9 +456,7 @@ input[type='range'] { accent-color: var(--color-accent); }
   align-items: center;
   gap: var(--space-2);
   margin-bottom: 6px;
-  /* Fixed so the two grids start at the same y. The charged header grows a
-     "reset" button only once a custom set is picked, which otherwise pushed
-     that column down the moment you changed a move. */
+  /* Fixed so the two grids start at the same y. */
   min-height: 22px;
 }
 .moves-grid {
@@ -1449,6 +1447,20 @@ textarea.input { min-height: 90px; resize: vertical; }
    Scoped here rather than on .hud-label globally, where a full-width rule is
    doing useful work as a section divider. */
 .moves-head .hud-label::after { flex: 0 0 56px; }
+
+/* Fit the reset control to the header band rather than letting it grow the
+   band. min-height on .moves-head is a floor, not a cap, so a .btn — 12px of
+   line plus 16px of block padding plus borders, 30px in all — pushed the
+   charged header to 30 and swung the two columns 8px apart the moment you
+   changed a move. The guard could never have worked; it was set against the
+   label's height and never checked against the button's. Mirrors .iv-max-btn,
+   which solves the same problem in the Adjust roll header. */
+.moves-head .btn {
+  min-height: 0;
+  height: 22px;
+  padding-block: 0;
+  font-size: var(--text-2xs);
+}
 
 /* Optical nudge on the Fast column.
    Every box in the two columns measures identical — head, label, glyphs, tile

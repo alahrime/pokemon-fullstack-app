@@ -253,7 +253,7 @@ export function MovesPanel({
             <span>Charged · pick {MAX_CHARGES}</span>
           </span>
           {!isDefault && (
-            <button className="btn btn-ghost" style={{ fontSize: 10 }} onClick={() => onChargeIds([])}>
+            <button className="btn btn-ghost" onClick={() => onChargeIds([])}>
               reset
             </button>
           )}

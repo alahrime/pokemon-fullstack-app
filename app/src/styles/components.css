@@ -1498,3 +1498,27 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-top: var(--border-hairline) solid var(--rule-hairline);
   border-bottom: var(--border-hairline) solid transparent;
 }
+
+/* Attribution and disclaimer. Deliberately quiet — it must be present and
+   legible, not competing with the analysis. */
+.site-footer {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding: 18px 24px 26px;
+  max-width: var(--shell-max);
+  width: 100%;
+  margin-inline: auto;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+.site-footer-line {
+  margin: 0 0 6px;
+  max-width: 100ch;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--text-faint);
+}
+.site-footer-line:last-child { margin-bottom: 0; }
+.site-footer-line strong { color: var(--text-muted); font-weight: 600; }
+.site-footer a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.site-footer a:hover { color: var(--color-accent); }

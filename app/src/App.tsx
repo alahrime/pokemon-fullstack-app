@@ -4,6 +4,7 @@ import { SegButton, SegGroup } from './components/Seg';
 import { SpeciesSearch } from './components/SpeciesSearch';
 import { ThemeSwitch } from './components/ThemeSwitch';
 import { HudGround } from './components/Hud';
+import { SiteFooter } from './components/SiteFooter';
 import { LeagueTabs } from './components/LeagueTabs';
 import { opponentsFor } from './lib/data';
 import { ReportScreen } from './screens/ReportScreen';
@@ -85,6 +86,7 @@ function Shell() {
         >
           <Screens />
         </div>
+        <SiteFooter />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import { bestBuddyEligible, chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
+import { MovePicker } from '../components/MovePicker';
 import { HeldOutNote } from '../components/HeldOutNote';
 import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
@@ -94,13 +95,33 @@ function Side({
         <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
           Fast move
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {species.fastMoves.map((m, i) => (
-            <ChipButton key={m.id} active={fastIdx === i} onClick={() => onFast(i)}>
-              {m.name}
-            </ChipButton>
-          ))}
-        </div>
+        {/* One fast move is equipped, so past one option the pool belongs in a
+            picker rather than a wall of chips — Smeargle learns 82 and Unown
+            16, which flooded this panel and pushed everything below it away.
+            Same component the report screen uses, so the two behave alike. */}
+        {species.fastMoves.length > 1 ? (
+          <>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              <ChipButton active onClick={() => undefined}>
+                {species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)].name}
+              </ChipButton>
+            </div>
+            <MovePicker
+              count={species.fastMoves.length}
+              moves={species.fastMoves}
+              isActive={(m) => m.id === species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)].id}
+              onPick={(m) => onFast(species.fastMoves.findIndex((x) => x.id === m.id))}
+            />
+          </>
+        ) : (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {species.fastMoves.map((m, i) => (
+              <ChipButton key={m.id} active={fastIdx === i} onClick={() => onFast(i)}>
+                {m.name}
+              </ChipButton>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>

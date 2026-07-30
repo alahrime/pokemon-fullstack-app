@@ -1473,3 +1473,28 @@ textarea.input { min-height: 90px; resize: vertical; }
   border: var(--border-hairline) solid var(--rule-strong);
   box-shadow: var(--shadow-md);
 }
+
+/* Occupies the picker's row when a slot has nothing to browse, so the two
+   columns keep the same height whatever the species learns. Matches the
+   picker's box exactly — same height and margin — with a hairline instead of
+   a border so it reads as a caption, not a disabled control. */
+.move-slot-note {
+  /* Box model matched to .move-picker-btn exactly — flex so the line box
+     collapses to the glyph height as the button's does, and a transparent
+     bottom border standing in for the button's. Without both it measured
+     28.5px against the button's 27 and the columns sat 1.5px apart. */
+  display: flex;
+  align-items: center;
+  margin: 4px 0 0;
+  padding: 6px 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  /* The button does not inherit the panel's 15.5px line-height; this would,
+     and that 2.5px was the last of the difference. */
+  line-height: normal;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+  border-bottom: var(--border-hairline) solid transparent;
+}

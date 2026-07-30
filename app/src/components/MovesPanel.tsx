@@ -163,6 +163,24 @@ const PICKER_THRESHOLD_FAST = 1;
 const PICKER_THRESHOLD_CHARGE = MAX_CHARGES;
 
 
+/**
+ * Stands in for the picker when a slot has nothing to browse — the whole pool
+ * is already on screen.
+ *
+ * Rendered rather than omitted so both columns keep the same skeleton. Unown
+ * learns 16 fast moves and one charged, so without this its fast column ran a
+ * picker taller than its charged column and the two bottoms did not line up.
+ * It also answers the question the empty space raised: is there more, or is
+ * that everything?
+ */
+function MoveSlotNote({ count, noun }: { count: number; noun: string }) {
+  return (
+    <p className="move-slot-note">
+      {count === 1 ? `Only ${noun}` : `All ${count} ${noun}s shown`}
+    </p>
+  );
+}
+
 export function MovesPanel({
   species,
   moveIdx,
@@ -217,13 +235,15 @@ export function MovesPanel({
             return <FastTile key={m.id} move={m} active={moveIdx === i} onClick={() => onMoveIdx(i)} />;
           })}
         </div>
-        {fastMany && (
+        {fastMany ? (
           <MovePicker
             count={species.fastMoves.length}
             moves={species.fastMoves}
             isActive={(m) => m.id === fast.id}
             onPick={(m) => onMoveIdx(species.fastMoves.findIndex((x) => x.id === m.id))}
           />
+        ) : (
+          <MoveSlotNote count={species.fastMoves.length} noun="fast move" />
         )}
       </section>
 
@@ -243,13 +263,15 @@ export function MovesPanel({
             <ChargeTile key={m.id} move={m} fast={fast} active={active.includes(m.id)} onClick={() => toggle(m.id)} />
           ))}
         </div>
-        {chargeMany && (
+        {chargeMany ? (
           <MovePicker
             count={species.chargeMoves.length}
             moves={species.chargeMoves}
             isActive={(m) => active.includes(m.id)}
             onPick={(m) => toggle(m.id)}
           />
+        ) : (
+          <MoveSlotNote count={species.chargeMoves.length} noun="charged move" />
         )}
       </section>
     </div>

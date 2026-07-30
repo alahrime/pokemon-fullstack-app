@@ -63,24 +63,32 @@ The engine deliberately targets the **old** system for now. When switching:
 - Revisit `optimizeTiming` — its rationale changes.
 - The `optimizeTiming` toggle already exists and defaults to PvPoke behaviour.
 
-## 4. Loose ends from this session
+## 4. Loose ends
 
-- **`disabledChargesA/B`** on the battle screen are per-species selections in
-  global state. `chargeIds` had exactly this bug (carried across a species
-  change, rendered the wrong moves). Check whether those reset.
-- **No Best Buddy control on the battle screen** — the toggle only exists on
-  the report screen, though the engine supports it on both sides.
-- **Three UI surfaces never seen rendered** (the permission classifier was down
-  when they were built): the search syntax legend, the results dropdown, and
-  the compact held-out note inside it. Worth one visual pass.
-- **Hero Best Buddy badge** was verified by injecting an element with the same
-  class, not by rendering the real component — no species on screen had a
-  rank-1 roll above level 50 at the time. Confirm live.
+Done:
+- ~~`disabledChargesA/B` stale state~~ — checked, they already reset on species
+  change. The bug was only ever on the report screen.
+- ~~No Best Buddy control on the battle screen~~ — added per combatant, since
+  each side is independently a buddy. Ineligible mons show it disabled.
+- ~~Three unseen UI surfaces~~ — reviewed. Two real defects found and fixed:
+  the held-out note rendered *above* the results list rather than at the foot
+  of the dropdown, and the syntax legend's grid left a large gap under the
+  short Identity group. Sprites in the dropdown are lazy, not broken (0 broken
+  of 391).
+- ~~Hero Best Buddy badge~~ — confirmed live on Nidorino (Great rank-1 is
+  level 51), inside the stage at a 10/11px inset.
+- ~~Battle-screen fast moves~~ — rendered every move as a chip (82 for
+  Smeargle). MovePicker extracted to its own module and shared by both screens.
+
+Open:
 - **Unown** trips the fast picker but has one charged move, so it shows a
   picker on one side and a lone tile on the other. Correct, possibly lopsided.
 - **Traits vocabulary** — the search maps `@spam`, `@nuke` etc. to PvPoke's
   move archetypes. If the intended trait guide (Bulky, Spammy, Risky…) differs,
   it is a lookup table in `lib/query.ts`.
+- **Search result cap** — a broad query renders every match (153 rows and 391
+  images for `water`, up to the 250 cap). All lazy, so it is fine today, but
+  virtualising is the answer if it ever feels heavy.
 
 ## 5. Performance
 

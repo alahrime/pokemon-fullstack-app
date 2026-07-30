@@ -23,11 +23,13 @@ import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesRef } from
  * what it always was and no consumer knows the difference. Shared references
  * are a bonus: identity comparison on moves now works.
  */
-interface RawSpecies extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2'> {
+interface RawSpecies
+  extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2' | 'leagueMoves'> {
   fastMoves: string[];
   chargeMoves: string[];
   chargeMove: string;
   chargeMove2: string | null;
+  leagueMoves?: Partial<Record<LeagueId, { fast: string; charge: string; charge2: string | null }>>;
 }
 const raw = speciesRaw as unknown as {
   moves: Record<string, FastMove & ChargeMove>;
@@ -40,7 +42,38 @@ export const SPECIES: Species[] = raw.species.map((s) => ({
   chargeMoves: s.chargeMoves.map((k) => raw.moves[k] as ChargeMove),
   chargeMove: raw.moves[s.chargeMove] as ChargeMove,
   chargeMove2: s.chargeMove2 ? (raw.moves[s.chargeMove2] as ChargeMove) : null,
+  leagueMoves: s.leagueMoves
+    ? Object.fromEntries(
+        Object.entries(s.leagueMoves).map(([lg, m]) => [
+          lg,
+          {
+            fast: raw.moves[m.fast] as FastMove,
+            charge: raw.moves[m.charge] as ChargeMove,
+            charge2: m.charge2 ? (raw.moves[m.charge2] as ChargeMove) : null,
+          },
+        ]),
+      )
+    : undefined,
 }));
+
+/**
+ * The loadout a species actually runs in a given league.
+ *
+ * Falls back to the default pair, which is what every species without a
+ * league-specific entry uses. Everything that simulates a mon as an *opponent*
+ * should resolve through here: using one league's recommended set in another
+ * is the difference between Registeel's Great and Ultra builds.
+ */
+export function movesFor(
+  species: Species,
+  league: LeagueId,
+): { fast: FastMove; charges: ChargeMove[] } {
+  const m = species.leagueMoves?.[league];
+  const fast = m?.fast ?? species.fastMoves[0];
+  const c1 = m?.charge ?? species.chargeMove;
+  const c2 = m ? m.charge2 : species.chargeMove2;
+  return { fast, charges: c2 ? [c1, c2] : [c1] };
+}
 
 export const SPECIES_BY_ID: Map<string, Species> = new Map(SPECIES.map((s) => [s.id, s]));
 

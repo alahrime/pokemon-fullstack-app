@@ -262,13 +262,23 @@ for (const p of bases) {
   const cap = maxCP(p.baseStats);
   const isShadowEligible = (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`);
   let recommended = null;
+  /**
+   * PvPoke publishes a recommended set per league, and they genuinely differ:
+   * of 787 species ranked in both Great and Ultra, 166 get different charged
+   * moves and 49 a different fast move. Collecting only the first league's set
+   * meant Ultra and Master were simulated with Great League loadouts.
+   */
+  const recommendedByLeague = {};
 
   for (const lg of LEAGUES) {
     const table = rankByLeague.get(lg.id);
     const hit = table.get(p.speciesId);
     if (hit) {
       leagueRank[lg.id] = hit.rank;
-      if (!recommended && hit.moveset) recommended = hit.moveset;
+      if (hit.moveset) {
+        recommendedByLeague[lg.id] = hit.moveset;
+        if (!recommended) recommended = hit.moveset;
+      }
     }
     // Membership is the ranking itself — `hit` is exactly "PvPoke rates this
     // form in this league" — plus Master's raw-power floor. Shadow shares the
@@ -306,6 +316,27 @@ for (const p of bases) {
   // Recommended fast move first, so moveIdx 0 is the sensible default.
   const orderedFasts = [defFast, ...fasts.filter((f) => f.id !== defFast.id)];
 
+  // Per-league loadouts, emitted only where a league actually differs from the
+  // default pair above. Most species run the same set everywhere, so storing
+  // the exceptions keeps species.json from growing a third moveset per row.
+  const leagueMoves = {};
+  for (const [lgId, set] of Object.entries(recommendedByLeague)) {
+    const [rf, ...rc] = set;
+    const f = fasts.find((x) => x.id === rf) ?? defFast;
+    const cs = rc.map((id) => byId.get(id)).filter(Boolean).slice(0, 2);
+    if (!cs.length) continue;
+    const same =
+      f.id === defFast.id &&
+      cs.length === defCharges.length &&
+      cs.every((c, i) => c.id === defCharges[i].id);
+    if (same) continue;
+    leagueMoves[lgId] = {
+      fast: intern(f),
+      charge: intern(cs[0]),
+      charge2: intern(cs[1] ?? null),
+    };
+  }
+
   species.push({
     id: p.speciesId,
     dex: p.dex,
@@ -329,6 +360,7 @@ for (const p of bases) {
     // Kept for the existing engine/UI shape: the recommended pair.
     chargeMove: intern(defCharges[0]),
     chargeMove2: intern(defCharges[1] ?? null),
+    ...(Object.keys(leagueMoves).length ? { leagueMoves } : {}),
     leagues,
     shadowLeagues,
     leagueRank,

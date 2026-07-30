@@ -46,6 +46,14 @@ export interface Species {
   /** Recommended default pair, from PvPoke's ranked moveset. */
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
+  /**
+   * Per-league loadout, present only for leagues whose recommended set differs
+   * from the pair above. PvPoke rates each league separately and the sets are
+   * not interchangeable — 166 of the 787 species ranked in both Great and
+   * Ultra get different charged moves there, and 49 a different fast move.
+   * Resolve through movesFor() rather than reading this directly.
+   */
+  leagueMoves?: Partial<Record<LeagueId, { fast: FastMove; charge: ChargeMove; charge2: ChargeMove | null }>>;
   leagues: string[];
   /** Leagues this form's Shadow qualifies for — tracked apart from `leagues`
    *  because a Shadow's shifted stats make it a distinct opponent. */

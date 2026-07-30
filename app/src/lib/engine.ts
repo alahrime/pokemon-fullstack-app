@@ -4,6 +4,7 @@ import {
   LEAGUE_BY_ID,
   OPPONENT_POOL_BY_ID,
   SPECIES_BY_ID,
+  movesFor,
   opponentCandidatesFor,
   opponentsFor,
   parseRef,
@@ -382,7 +383,7 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
  */
 const bestCache = new Map<string, StatLine & { a: number; d: number; s: number }>();
 
-function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
+export function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
   const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const hit = bestCache.get(key);
   if (hit) return hit;
@@ -461,9 +462,12 @@ export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
     atk: best.atk,
     def: best.def,
     hp: best.hp,
-    fastMove: species.fastMoves[0],
-    chargeMove: species.chargeMove,
-    chargeMove2: species.chargeMove2,
+    // Resolved per league: an opponent runs the set that league rates, not
+    // whichever one happened to be read first when the data was generated.
+    ...(() => {
+      const { fast, charges } = movesFor(species, leagueId);
+      return { fastMove: fast, chargeMove: charges[0], chargeMove2: charges[1] ?? null };
+    })(),
   };
 }
 

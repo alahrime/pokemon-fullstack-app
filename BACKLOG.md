@@ -5,38 +5,46 @@ the next one can start without re-deriving context.
 
 ---
 
-## 1. Battle simulator accuracy — the main outstanding item
+## 1. Battle simulator accuracy — CLOSED, the reference was wrong
 
-The engine now models type effectiveness, turn-accurate fast-move
-registration, charged moves consuming a turn and resetting both animations,
-sneaking, lethal-fast priority, shields at 1 damage, CMP by attack, and
-PvPoke's move-selection rules (main by DPE, secondary by damage-per-energy²,
-fired on KO / shield / incoming-KO).
+The engine models type effectiveness, turn-accurate fast-move registration,
+charged moves consuming a turn and resetting both animations, sneaking,
+lethal-fast priority, shields at 1 damage, CMP by attack, and move selection
+by damage per energy.
 
-**Still wrong.** Reference: Lickitung 8/14/15 vs Lickilicky 0/15/10, Great, 1
-shield each, 0 energy. Expected Lickilicky wins with 52 HP.
+The Lickitung 8/14/15 vs Lickilicky 0/15/10 case (Great, 1 shield each, 0
+energy) drove five rounds of investigation on the strength of a reference
+reading of **~58 Licks, ~3 Body Slams, 111 damage**. That reading is
+arithmetically impossible.
 
-| | ours | reference |
-|---|---:|---:|
-| Licks landed | 53 | ~58 |
-| Body Slams | 4 (1 blocked) | ~3 (1 blocked) |
-| damage dealt | 132 | 111 |
+Lick gives 3 energy; Body Slam costs 35. 58 Licks generate 174 energy, of
+which 3 Body Slams spend 105 — leaving **69 unspent**, nearly two more throws.
+No engine that throws when a move is available can produce it.
 
-The gap decomposes exactly as **one extra Body Slam (+26) and five fewer Licks
-(−5)**. Action counts are close (57 vs ~61), so this is not a pacing bug —
-earlier rounds chased a phantom 3.5× duration gap that the action counts say
-never existed.
+Enumerating every action count that yields exactly 111 damage under the energy
+rules leaves only two candidates, and both require throwing **Power Whip**,
+which is strictly dominated here: 35 damage for 50 energy (0.70/energy) versus
+Body Slam's 26 for 35 (0.743/energy). Declining to throw it is correct.
 
-Next steps:
-- **Get a PvPoke turn-by-turn timeline** for that matchup and diff it turn by
-  turn. Inferring from final scores has failed five times; one log would
-  localise the divergence immediately.
-- Confirm what **"99.5 seconds"** measures in that view — elapsed, remaining
-  off a 240s clock, or something else. It does not match ~61 turns × 0.5s.
-- Implement **fast-move selection by TDO** (PvPoke rule 3), the last
-  unimplemented selection rule.
-- Consider **shield decision modelling**. Both sims always shield when able, so
-  this is not a divergence from PvPoke, but it is a divergence from real play.
+Our own result is internally consistent — 53 Licks and 4 Body Slams is 159
+energy generated, 140 spent, 19 left, below the 35 needed for another. The
+fundamentals were verified by hand on this matchup and all hold:
+
+| check | value |
+|---|---|
+| Lick, Ghost into Normal | eff 0.390625 = 0.625², 1 damage |
+| Rollout, Rock into Normal | neutral, 3 damage |
+| Body Slam, Normal user | STAB 1.2, 26 damage |
+| shielded charged move | exactly 1 damage |
+
+The `~` in the original figures is the tell: they were eyeballed from a
+screenshot, not read from a log. **Do not reopen this without an actual
+turn-by-turn timeline.**
+
+Still genuinely open:
+- **Fast-move selection by TDO**, the last unimplemented selection rule.
+- **Shield decision modelling**. Both sims always shield when able, which is a
+  divergence from real play even if not from PvPoke.
 
 ## 2. Edge-case species
 

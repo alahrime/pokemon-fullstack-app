@@ -180,26 +180,23 @@ export function SpeciesSearch({
           setText(selectedName);
         }}
       />
+      {/* One positioned panel holding the list and the held-out note. The note
+          used to sit outside it in normal flow, which put it directly under the
+          input and *above* the absolutely-positioned list — reading as a header
+          rather than a footnote. Inside the panel it sits at the foot of the
+          surface it annotates. */}
       {open && results.length > 0 && (
+        <div className="search-dropdown">
         <ul
           ref={listRef}
           id={listboxId}
           role="listbox"
           style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            minWidth: 260,
-            zIndex: 30,
-            margin: '2px 0 0',
+            margin: 0,
             padding: 0,
             listStyle: 'none',
-            background: 'var(--surface-1)',
-            border: 'var(--border-hairline) solid var(--rule-strong)',
             maxHeight: 420,
             overflowY: 'auto',
-            boxShadow: 'var(--shadow-md)',
           }}
         >
           {results.map((r, i) => (
@@ -244,6 +241,8 @@ export function SpeciesSearch({
             </li>
           ))}
         </ul>
+        <HeldOutNote compact />
+        </div>
       )}
       <button
         type="button"
@@ -259,7 +258,6 @@ export function SpeciesSearch({
         ?
       </button>
       <SearchHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
-      {open && <HeldOutNote compact />}
     </div>
   );
 }

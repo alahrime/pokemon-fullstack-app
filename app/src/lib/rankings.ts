@@ -28,6 +28,8 @@ interface RawEntry {
   name: string;
   loadouts: RawLoadout[];
   tiers: Record<string, RawTier>;
+  /** Second-derivative scores, in CATEGORIES order. */
+  d2: number[];
   pvpoke: { score: number; scores: number[] } | null;
 }
 
@@ -99,9 +101,48 @@ function pvpokeRaw(entry: RawEntry, cat: CategoryId): number | null {
   return v === undefined ? null : v;
 }
 
-export function rankingsFor(lg: LeagueId, tier: string, cat: CategoryId): RankRow[] {
+/**
+ * Which pass to read.
+ *
+ * `d1` is the first derivative: every swept loadout, scored against a hard
+ * top-N opponent cutoff. `d2` feeds d1's own Overall back as a continuous
+ * opponent weight — no cutoff, the field fades out — and reads only the rated
+ * loadout on both sides, so it describes the matchup rather than the movepool.
+ */
+export type RankOrder = 'd1' | 'd2';
+
+/**
+ * Sorted rankings are memoised per (league, tier, category, order).
+ *
+ * There are 3 x 5 x 7 x 2 = 210 possible views over ~2300 entries, and the
+ * screen re-derives one on every control click. The underlying numbers are a
+ * build artefact and never change at runtime, so a view computed once is
+ * correct forever — the cache has no invalidation because it has nothing to
+ * invalidate.
+ */
+const viewCache = new Map<string, RankRow[]>();
+
+export function rankingsFor(
+  lg: LeagueId,
+  tier: string,
+  cat: CategoryId,
+  order: RankOrder = 'd1',
+): RankRow[] {
+  const key = `${lg}|${tier}|${cat}|${order}`;
+  const hit = viewCache.get(key);
+  if (hit) return hit;
+  const out = computeRankings(lg, tier, cat, order);
+  viewCache.set(key, out);
+  return out;
+}
+
+function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: RankOrder): RankRow[] {
   const league = RANKINGS[lg];
   const ci = CAT_INDEX.get(cat)!;
+  // d2 has no tier axis by construction: the continuous weighting is what
+  // replaces the cutoff, so every tier button reads the same second pass.
+  const scoreOf = (e: RawEntry) =>
+    order === 'd2' ? e.d2[ci] : (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
 
   // Their ranking is built over only the species they publish, so ours has to
   // be too or the two positions would be counting different populations and
@@ -109,9 +150,7 @@ export function rankingsFor(lg: LeagueId, tier: string, cat: CategoryId): RankRo
   const rated = league.entries.filter((e) => pvpokeRaw(e, cat) !== null);
   const theirOrder = [...rated].sort((a, b) => pvpokeRaw(b, cat)! - pvpokeRaw(a, cat)!);
   const theirRank = new Map(theirOrder.map((e, i) => [e.ref, i + 1]));
-  const ourOrder = [...rated].sort(
-    (a, b) => (b.tiers[tier] ?? b.tiers[league.defaultTier]).rec[ci] - (a.tiers[tier] ?? a.tiers[league.defaultTier]).rec[ci],
-  );
+  const ourOrder = [...rated].sort((a, b) => scoreOf(b) - scoreOf(a));
   const ourRankAmongRated = new Map(ourOrder.map((e, i) => [e.ref, i + 1]));
 
   const rows = league.entries.map((e): RankRow => {
@@ -121,8 +160,10 @@ export function rankingsFor(lg: LeagueId, tier: string, cat: CategoryId): RankRo
     return {
       ref: e.ref,
       name: e.name,
-      score: t.rec[ci],
-      bestScore: t.best[ci],
+      score: scoreOf(e),
+      // d2 fixes the loadout by definition, so there is no alternative set to
+      // gain from; reporting the d1 best there would be comparing two passes.
+      bestScore: order === 'd2' ? e.d2[ci] : t.best[ci],
       bestLoadout: e.loadouts[t.set]?.[0] ?? e.loadouts[0]?.[0] ?? '',
       bestIsRecommended: t.set === 0,
       loadouts: e.loadouts,
@@ -135,3 +176,6 @@ export function rankingsFor(lg: LeagueId, tier: string, cat: CategoryId): RankRo
   rows.forEach((r, i) => { r.rank = i + 1; });
   return rows;
 }
+
+/** True where the tier control has any effect, so the UI can say when it does not. */
+export const tierApplies = (order: RankOrder) => order === 'd1';

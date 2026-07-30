@@ -57,8 +57,9 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *   1  first cut, 7 scenarios, always-shield
  *   2  per-league loadouts, moveset sweep, meta tiers
  *   3  full 9-state shield lattice + both shield policies
+ *   4  optimal move timing, second-derivative pass
  */
-const ENGINE_REV = 3;
+const ENGINE_REV = 4;
 
 /**
  * Loadouts considered per species.
@@ -115,6 +116,33 @@ const OVERALL = CATEGORIES.findIndex((c) => c.id === 'overall');
  * depends on the opponent misplaying is not one to invest in.
  */
 const POLICIES: readonly ShieldPolicy[] = ['always', 'read'];
+
+/**
+ * Play the charged-move timing properly.
+ *
+ * This was off, and the only reason was comparability with PvPoke's published
+ * ratings — they throw the moment a move is available and say themselves that
+ * it is not optimal. Since those numbers are a reference here rather than a
+ * target, simulating deliberately worse play than a competent human buys
+ * nothing. The engine still abandons the hold when the move kills, when the
+ * mon is about to faint, when the opponent is holding one too, when energy
+ * would overflow, or when the alignment window can never arrive.
+ */
+const OPTIMAL_TIMING = true;
+
+/**
+ * Second-order weighting.
+ *
+ * The tiers answer "how does this do against the top N" with a hard cutoff:
+ * rank 100 counts fully and rank 101 not at all. The second pass replaces that
+ * edge with a continuous weight taken from the first pass's own Overall — the
+ * meta fades out rather than stopping — and restricts both sides to their
+ * rated loadout, so it measures the matchup rather than the movepool. Cubing
+ * concentrates it harder than the seeding pass's square.
+ *
+ * Costs no simulation: same matrix, different weights.
+ */
+const D2_POWER = 3;
 
 // ── Moveset enumeration ─────────────────────────────────────────────────────
 
@@ -257,7 +285,7 @@ function sweep(variants: Variant[], foes: BattleMon[], out: Uint8Array, from: nu
           const pol = POLICIES[p];
           const r = battle(
             me, foes[j], sc.shieldsA, sc.shieldsB, myEnergy[s], foeEnergy[j][s],
-            false, false, undefined, undefined, pol, pol,
+            false, OPTIMAL_TIMING, undefined, undefined, pol, pol,
           );
           out[((i * nF + j) * S + s) * POLICIES.length + p] = Math.round((rating(r) / 1000) * 255);
         }
@@ -420,6 +448,18 @@ async function main() {
       tierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
     }
 
+    // ── Second derivative ───────────────────────────────────────────────────
+    // The first pass is now fixed. Feed its Overall back as a continuous
+    // opponent weight — no cutoff, the field fades out — and read only the
+    // rated loadout on both sides, so this measures the matchup rather than
+    // the movepool. Same matrix, so it costs an aggregation and no battles.
+    const d1 = perRefBest(variants, tierRows[tierLabel(DEFAULT_TIER)], refIdx, nF).best;
+    const d1Max = Math.max(...d1);
+    const d1Min = Math.min(...d1);
+    const d1Span = d1Max - d1Min || 1;
+    const d2Weights = new Float64Array(Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER));
+    const d2Rows = scoreAgainst(variants, nF, matrix, d2Weights, selfIdx, -1);
+
     const ref = loadReference(lg);
     const byRef = new Map<string, number[]>();
     variants.forEach((v, i) => {
@@ -468,9 +508,13 @@ async function main() {
       const { id, shadow } = parseRef(r);
       const pv = shadow ? undefined : ref.get(id);
       const dRows = tierRows[tierLabel(DEFAULT_TIER)];
+      const recIdx = mine.find((i) => variants[i].recommended) ?? mine[0];
       return {
         ref: r,
         name: displayName(r),
+        // Second derivative: rated loadout only, opponents weighted by their
+        // first-pass Overall rather than cut off at a tier boundary.
+        d2: scoresOf(d2Rows[recIdx], variants[recIdx].fastTurns),
         // [label, overall-at-default-tier]. Index 0 is the league's rated set
         // by construction (loadoutsFor pushes it first), so `recommended` does
         // not need storing 28,000 times.

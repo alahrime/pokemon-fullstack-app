@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, type CategoryId } from '../lib/scenarios';
-import { DEFAULT_TIER, ENGINE_REV, TIERS, rankingsFor, type RankRow } from '../lib/rankings';
+import { DEFAULT_TIER, ENGINE_REV, TIERS, rankingsFor, tierApplies, type RankOrder, type RankRow } from '../lib/rankings';
 import { LEAGUE_BY_ID, parseRef, speciesOf } from '../lib/data';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -93,10 +93,11 @@ export function RankingsScreen() {
   const league = state.league;
   const [cat, setCat] = useState<CategoryId>('overall');
   const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
+  const [order, setOrder] = useState<RankOrder>('d1');
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
 
-  const rows = useMemo(() => rankingsFor(league, tier, cat), [league, tier, cat]);
+  const rows = useMemo(() => rankingsFor(league, tier, cat, order), [league, tier, cat, order]);
   const max = rows[0]?.score ?? 1000;
   const pages = Math.ceil(rows.length / PAGE);
   const slice = rows.slice(page * PAGE, page * PAGE + PAGE);
@@ -122,13 +123,32 @@ export function RankingsScreen() {
           </SegGroup>
         </div>
         <div>
+          <div className="hud-label">Pass</div>
+          <SegGroup>
+            <SegButton
+              active={order === 'd1'}
+              onClick={() => reset(() => setOrder('d1'))}
+              title="Every swept loadout, scored against a hard top-N opponent cutoff"
+            >
+              First derivative
+            </SegButton>
+            <SegButton
+              active={order === 'd2'}
+              onClick={() => reset(() => setOrder('d2'))}
+              title="Opponents weighted continuously by their first-pass Overall; rated loadout only"
+            >
+              Weighted regression
+            </SegButton>
+          </SegGroup>
+        </div>
+        <div style={{ opacity: tierApplies(order) ? 1 : 0.45 }}>
           <div className="hud-label">Opponent pool</div>
           <SegGroup>
             {TIERS(league).map((t) => (
               <SegButton
                 key={t}
-                active={tier === t}
-                onClick={() => reset(() => setTier(t))}
+                active={tier === t && tierApplies(order)}
+                onClick={() => reset(() => { setOrder('d1'); setTier(t); })}
                 title={t === 'all' ? 'Every league-legal form' : `Only the top ${t} by Overall`}
               >
                 {t === 'all' ? 'All' : `Top ${t}`}
@@ -145,6 +165,20 @@ export function RankingsScreen() {
         played against every other, at each of the nine shield states and both shield policies, with
         each species swept across up to 12 loadouts. Ranked on the league's rated set so the column is
         comparable; the best swept set is the right-hand column.
+        <br />
+        {order === 'd1' ? (
+          <>
+            <strong>First derivative:</strong> every swept loadout, scored against a hard top-N
+            opponent cutoff — rank N counts fully and rank N+1 not at all.
+          </>
+        ) : (
+          <>
+            <strong>Weighted regression:</strong> the first pass's own Overall fed back as a
+            continuous opponent weight, so the field fades out instead of stopping at a boundary, and
+            both sides restricted to their rated loadout — it describes the matchup rather than the
+            movepool. The opponent-pool control does not apply here; the weighting replaces it.
+          </>
+        )}
         <br />
         PvPoke's <em>position</em> is shown alongside, not their score. Their number is a 0–100 index
         topping out near 93; ours is a mean battle rating where 500 is even. Rescaling one onto the

@@ -1383,28 +1383,44 @@ export function battle(
       ? pickCharge(rolesB, eB, sA, { oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types })
       : null;
 
-    // Default is PvPoke's rule — throw the moment the move is available. It is
-    // deliberately not optimal play (their docs say as much), but it is the
-    // behaviour every published rating is computed against, so it is what a
-    // number here has to be comparable to.
+    // With optimizeTiming off, throw the moment a move is available — PvPoke's
+    // rule, and deliberately not optimal play.
     //
-    // With optimizeTiming on, hold instead until the release lands on the turn
-    // the opponent's fast move registers: zero free turns granted, and the hit
-    // denied. Throw early anyway when the move kills, when holding would waste
-    // energy at the cap, or when the window is unreachable because the two fast
-    // moves are aligned — a 2-turn against a 4-turn never coincides, so waiting
-    // for it would stall forever.
+    // With it on, hold until the release lands on the turn the opponent's fast
+    // move registers: zero free turns granted, and the hit denied. Holding is
+    // abandoned in five situations, and each one is a case where waiting for
+    // the perfect turn loses more than the free turn costs:
+    //
+    //   kills        the fight ends; alignment is irrelevant afterwards.
+    //   aboutToDie   holding a move you never get to throw is the worst
+    //                outcome available. If their next action kills you, the
+    //                move goes out now — a shielded hit still strips a shield,
+    //                and an unshielded one still lands.
+    //   theyAreReady both sides holding is a CMP race, not a standoff. Throwing
+    //                first forces them either to shield — spending a shield to
+    //                answer yours — or to eat it before their own comes out.
+    //                Waiting hands them that same choice against you.
+    //   capped       energy over 100 is discarded, so holding burns the very
+    //                resource it is trying to spend well.
+    //   unreachable  a 2-turn fast move against a 4-turn never coincides, so
+    //                the window would never arrive and the hold never end.
+    const killsB = sB === 0 && !!readyA && dmg(a.atk, b.def, readyA, b.types) >= hpB;
+    const killsA = sA === 0 && !!readyB && dmg(b.atk, a.def, readyB, a.types) >= hpA;
     const wantA =
       !!readyA &&
       (!optimizeTiming ||
-        (sB === 0 && dmg(a.atk, b.def, readyA, b.types) >= hpB) ||
+        killsB ||
+        incomingKOa ||
+        !!readyB ||
         registersB ||
         eA + a.fast.energyGain > 100 ||
         holdA >= b.fast.turns);
     const wantB =
       !!readyB &&
       (!optimizeTiming ||
-        (sA === 0 && dmg(b.atk, a.def, readyB, a.types) >= hpA) ||
+        killsA ||
+        incomingKOb ||
+        !!readyA ||
         registersA ||
         eB + b.fast.energyGain > 100 ||
         holdB >= a.fast.turns);

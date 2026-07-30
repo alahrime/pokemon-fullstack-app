@@ -47,13 +47,18 @@ import {
   consistencyScore,
   type ScenarioId,
 } from '../src/lib/scenarios';
-import type { BattleMon, ChargeMove, FastMove, LeagueId, Species } from '../src/lib/types';
+import type { BattleMon, ChargeMove, FastMove, LeagueId, ShieldPolicy, Species } from '../src/lib/types';
 
 const OUT = resolve(process.cwd(), 'src/data');
 const SRC = resolve(process.cwd(), '..', 'data-src');
 
-/** Bump when an engine change would move these numbers. */
-const ENGINE_REV = 2;
+/**
+ * Bump when an engine change would move these numbers.
+ *   1  first cut, 7 scenarios, always-shield
+ *   2  per-league loadouts, moveset sweep, meta tiers
+ *   3  full 9-state shield lattice + both shield policies
+ */
+const ENGINE_REV = 3;
 
 /**
  * Loadouts considered per species.
@@ -94,6 +99,22 @@ const S = SCENARIOS.length;
 
 /** Position of Overall within CATEGORIES, which score arrays are ordered by. */
 const OVERALL = CATEGORIES.findIndex((c) => c.id === 'overall');
+
+/**
+ * Both shield policies, simulated for every matchup.
+ *
+ * You do not get to choose how your opponent plays, so a single number has to
+ * account for both. `always` shields whatever comes first, which makes baiting
+ * free; `read` eats the bait and saves the shield for the hardest hit, which
+ * makes baiting a gamble. 11.4% of matchups flip outright between them, and
+ * ~19% of those with a full shield budget — far too many to pick one and call
+ * it the answer.
+ *
+ * Headline scores average the two. The gap between them is itself a signal,
+ * and feeds the reliability penalty in consistencyScore: a mon whose record
+ * depends on the opponent misplaying is not one to invest in.
+ */
+const POLICIES: readonly ShieldPolicy[] = ['always', 'read'];
 
 // ── Moveset enumeration ─────────────────────────────────────────────────────
 
@@ -230,11 +251,16 @@ function sweep(variants: Variant[], foes: BattleMon[], out: Uint8Array, from: nu
     const me = variants[i].mon;
     const myEnergy = SCENARIOS.map((s) => startingEnergy(me, s.bankedA));
     for (let j = 0; j < nF; j++) {
-      const base = (i * nF + j) * S;
       for (let s = 0; s < S; s++) {
         const sc = SCENARIOS[s];
-        const r = battle(me, foes[j], sc.shieldsA, sc.shieldsB, myEnergy[s], foeEnergy[j][s], false);
-        out[base + s] = Math.round((rating(r) / 1000) * 255);
+        for (let p = 0; p < POLICIES.length; p++) {
+          const pol = POLICIES[p];
+          const r = battle(
+            me, foes[j], sc.shieldsA, sc.shieldsB, myEnergy[s], foeEnergy[j][s],
+            false, false, undefined, undefined, pol, pol,
+          );
+          out[((i * nF + j) * S + s) * POLICIES.length + p] = Math.round((rating(r) / 1000) * 255);
+        }
       }
     }
   }
@@ -252,7 +278,7 @@ if (!isMainThread) {
 }
 
 async function sweepParallel(lg: LeagueId, variants: Variant[], foes: BattleMon[]): Promise<Uint8Array> {
-  const cells = variants.length * foes.length * S;
+  const cells = variants.length * foes.length * S * POLICIES.length;
   const buffer = new SharedArrayBuffer(cells);
   const view = new Uint8Array(buffer);
   const workers = Math.max(1, Math.min(cpus().length - 1, 8));
@@ -283,13 +309,18 @@ async function sweepParallel(lg: LeagueId, variants: Variant[], foes: BattleMon[
 const decode = (b: number) => (b / 255) * 1000;
 
 /** Mean rating per scenario for every variant, against a weighted foe set. */
+/**
+ * @param policy index into POLICIES, or -1 to average across them.
+ */
 function scoreAgainst(
   variants: Variant[],
   nF: number,
   matrix: Uint8Array,
   weights: Float64Array,
   selfIdx: Int32Array,
+  policy: number,
 ): Record<ScenarioId, number>[] {
+  const P = POLICIES.length;
   const rows: Record<ScenarioId, number>[] = [];
   for (let i = 0; i < variants.length; i++) {
     const acc = new Float64Array(S);
@@ -300,7 +331,15 @@ function scoreAgainst(
       const w = weights[j];
       if (w === 0) continue;
       const base = (i * nF + j) * S;
-      for (let s = 0; s < S; s++) acc[s] += decode(matrix[base + s]) * w;
+      for (let s = 0; s < S; s++) {
+        const cell = (base + s) * P;
+        if (policy >= 0) acc[s] += decode(matrix[cell + policy]) * w;
+        else {
+          let sum = 0;
+          for (let p = 0; p < P; p++) sum += decode(matrix[cell + p]);
+          acc[s] += (sum / P) * w;
+        }
+      }
       wsum += w;
     }
     const row = {} as Record<ScenarioId, number>;
@@ -362,7 +401,7 @@ async function main() {
     let weights = new Float64Array(nF).fill(1);
     let rows: Record<ScenarioId, number>[] = [];
     for (let round = 0; round < WEIGHT_ROUNDS; round++) {
-      rows = scoreAgainst(variants, nF, matrix, weights, selfIdx);
+      rows = scoreAgainst(variants, nF, matrix, weights, selfIdx, -1);
       const { best } = perRefBest(variants, rows, refIdx, nF);
       const max = Math.max(...best);
       const min = Math.min(...best);
@@ -378,7 +417,7 @@ async function main() {
       const w = new Float64Array(nF);
       const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
       for (const j of keep) w[j] = 1;
-      tierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx);
+      tierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
     }
 
     const ref = loadReference(lg);

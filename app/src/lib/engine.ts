@@ -20,6 +20,7 @@ import type {
   League,
   LeagueId,
   RankedEntry,
+  ShieldPolicy,
   Species,
   SpeciesTable,
   StatLine,
@@ -1288,6 +1289,26 @@ function pickCharge(
  * per turn dominated that sweep. Same simulation either way - one branch, no
  * parallel implementation to drift.
  */
+/**
+ * Whether to spend a shield on this hit.
+ *
+ * `always` is the old unconditional behaviour. `read` spends only on something
+ * that would kill, or on the hardest hit the attacker has — which is exactly
+ * "call the bait, shield the nuke". A defender that has read the movepool
+ * knows the cheap move is coming and eats it to keep the shield for the one
+ * that matters.
+ *
+ * Note this makes the *attacker's* bait a genuine gamble rather than free
+ * value, which is the point: at high level the bait only pays when the read is
+ * wrong.
+ */
+function shieldCall(policy: ShieldPolicy, incoming: number, hp: number, worst: number): boolean {
+  if (policy === 'always') return true;
+  // Nothing is worth dying to prove.
+  if (incoming >= hp) return true;
+  return incoming >= worst;
+}
+
 export function battle(
   a: BattleMon,
   b: BattleMon,
@@ -1297,9 +1318,17 @@ export function battle(
   energyB = 0,
   collectLog = true,
   optimizeTiming = false,
+  // Starting HP, for a mon carrying damage in from an earlier matchup. Default
+  // is full, which is every single-matchup caller.
+  startHpA?: number,
+  startHpB?: number,
+  // Shield policy per side. Defaults to `always`, the behaviour every existing
+  // caller was written against.
+  policyA: ShieldPolicy = 'always',
+  policyB: ShieldPolicy = 'always',
 ): BattleResult {
-  let hpA = a.hp;
-  let hpB = b.hp;
+  let hpA = startHpA ?? a.hp;
+  let hpB = startHpB ?? b.hp;
   let eA = energyA;
   let eB = energyB;
   let sA = shieldsA;
@@ -1317,6 +1346,10 @@ export function battle(
   // call walking the type chart. Precomputed here instead.
   const chargeDmgA = a.charges.map((c) => dmg(a.atk, b.def, c, b.types));
   const chargeDmgB = b.charges.map((c) => dmg(b.atk, a.def, c, a.types));
+  // The biggest hit each side can produce, which is what a reading defender is
+  // holding its shield for.
+  const worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
+  const worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
   const log: BattleLogEntry[] = [];
 
   // Turns held with a charged move available but deliberately not thrown,
@@ -1394,8 +1427,9 @@ export function battle(
       for (const who of order) {
         if (who === 'A' && hpA > 0 && moveA) {
           eA -= moveA.energy;
-          const shielded = sB > 0;
-          const damage = shielded ? 1 : dmg(a.atk, b.def, moveA, b.types);
+          const raw = dmg(a.atk, b.def, moveA, b.types);
+          const shielded = sB > 0 && shieldCall(policyB, raw, hpB, worstFromA);
+          const damage = shielded ? 1 : raw;
           if (shielded) sB--;
           hpB -= damage;
           // The sequence resets both animations — that reset is what grants
@@ -1419,8 +1453,9 @@ export function battle(
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
-          const shielded = sA > 0;
-          const damage = shielded ? 1 : dmg(b.atk, a.def, moveB, a.types);
+          const raw = dmg(b.atk, a.def, moveB, a.types);
+          const shielded = sA > 0 && shieldCall(policyA, raw, hpA, worstFromB);
+          const damage = shielded ? 1 : raw;
           if (shielded) sA--;
           hpA -= damage;
           tA = a.fast.turns;
@@ -1502,7 +1537,22 @@ export function battle(
   const mine = finalHpA / a.hp;
   const theirs = finalHpB / b.hp;
   const win = hpA <= 0 && hpB <= 0 ? a.atk >= b.atk : mine > theirs;
-  return { win, mine, theirs, hpA: finalHpA, hpB: finalHpB, maxHpA: a.hp, maxHpB: b.hp, cmpDecided, margin: (mine - theirs) * 100, log };
+  return {
+    win,
+    mine,
+    theirs,
+    hpA: finalHpA,
+    hpB: finalHpB,
+    maxHpA: a.hp,
+    maxHpB: b.hp,
+    cmpDecided,
+    margin: (mine - theirs) * 100,
+    energyA: eA,
+    energyB: eB,
+    shieldsA: sA,
+    shieldsB: sB,
+    log,
+  };
 }
 
 export function mkBattleMon(

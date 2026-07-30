@@ -45,30 +45,45 @@ export interface Scenario {
   bankedB: number;
 }
 
-export type ScenarioId =
-  | 'lead1'
-  | 'lead2'
-  | 'close'
-  | 'switch'
-  | 'charger'
-  | 'attacker1'
-  | 'attacker2';
+export type ShieldState = 'sh00' | 'sh01' | 'sh02' | 'sh10' | 'sh11' | 'sh12' | 'sh20' | 'sh21' | 'sh22';
+
+export type ScenarioId = ShieldState | 'switch' | 'charger';
 
 /**
- * Seven scenarios, chosen so that each ranking category below is a blend of
- * ones actually simulated rather than an adjustment applied after the fact.
+ * The full shield lattice, plus the two energy states.
+ *
+ * Shields in GBL belong to the player for the whole battle — two of them,
+ * spent across three matchups — not to each Pokemon. So a mon does not face
+ * "the 1-shield scenario"; it faces whatever is left when its turn comes, and
+ * over a set that is genuinely every one of the nine combinations. A lead
+ * meets 2v2. Something arriving after both players burned one meets 1v1. A
+ * closer that got there while the opponent still holds both meets 0v2.
+ *
+ * Simulating all nine costs more than picking three representative ones, and
+ * it buys the thing worth having: a mon that holds up wherever the shield
+ * budget landed is reliable in a sense that a single scenario cannot show.
+ * That is what Consistency below actually measures.
  */
 export const SCENARIOS: readonly Scenario[] = [
-  { id: 'lead1', label: '1 shield each', shieldsA: 1, shieldsB: 1, bankedA: 0, bankedB: 0 },
-  { id: 'lead2', label: '2 shields each', shieldsA: 2, shieldsB: 2, bankedA: 0, bankedB: 0 },
-  { id: 'close', label: 'no shields', shieldsA: 0, shieldsB: 0, bankedA: 0, bankedB: 0 },
+  { id: 'sh00', label: '0v0 shields', shieldsA: 0, shieldsB: 0, bankedA: 0, bankedB: 0 },
+  { id: 'sh01', label: '0v1 shields', shieldsA: 0, shieldsB: 1, bankedA: 0, bankedB: 0 },
+  { id: 'sh02', label: '0v2 shields', shieldsA: 0, shieldsB: 2, bankedA: 0, bankedB: 0 },
+  { id: 'sh10', label: '1v0 shields', shieldsA: 1, shieldsB: 0, bankedA: 0, bankedB: 0 },
+  { id: 'sh11', label: '1v1 shields', shieldsA: 1, shieldsB: 1, bankedA: 0, bankedB: 0 },
+  { id: 'sh12', label: '1v2 shields', shieldsA: 1, shieldsB: 2, bankedA: 0, bankedB: 0 },
+  { id: 'sh20', label: '2v0 shields', shieldsA: 2, shieldsB: 0, bankedA: 0, bankedB: 0 },
+  { id: 'sh21', label: '2v1 shields', shieldsA: 2, shieldsB: 1, bankedA: 0, bankedB: 0 },
+  { id: 'sh22', label: '2v2 shields', shieldsA: 2, shieldsB: 2, bankedA: 0, bankedB: 0 },
   // Coming in off a bad lead: they have been farming you, so they arrive
-  // holding a move. This is the scenario a switch actually faces.
+  // holding a move. This is the state a switch actually walks into.
   { id: 'switch', label: 'into a banked opponent', shieldsA: 1, shieldsB: 1, bankedA: 0, bankedB: 1 },
   { id: 'charger', label: 'holding a move', shieldsA: 1, shieldsB: 1, bankedA: 1, bankedB: 0 },
-  { id: 'attacker1', label: 'unshielded vs 1 shield', shieldsA: 0, shieldsB: 1, bankedA: 0, bankedB: 0 },
-  { id: 'attacker2', label: 'unshielded vs 2 shields', shieldsA: 0, shieldsB: 2, bankedA: 0, bankedB: 0 },
 ] as const;
+
+/** The nine shield states, in the order a 3x3 grid reads. */
+export const SHIELD_STATES: readonly ShieldState[] = [
+  'sh00', 'sh01', 'sh02', 'sh10', 'sh11', 'sh12', 'sh20', 'sh21', 'sh22',
+];
 
 export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);
 
@@ -102,23 +117,26 @@ export const CATEGORIES: readonly Category[] = [
     label: 'Overall',
     blurb:
       'The best Pokémon overall across multiple roles. They have the typing, moves, and stats to succeed as top contenders.',
-    // Every role counts, with the shielded scenarios weighted highest because
-    // most turns of a real set are played with shields still up.
-    weights: { lead1: 0.3, lead2: 0.15, close: 0.2, switch: 0.15, charger: 0.1, attacker1: 0.1 },
+    // Weighted by how often each state actually occurs across a set. Even
+    // budgets (2v2, 1v1, 0v0) dominate because both players spend shields at a
+    // similar rate; lopsided ones happen but are the exception.
+    weights: { sh22: 0.2, sh11: 0.2, sh00: 0.15, sh21: 0.08, sh12: 0.08, sh10: 0.06, sh01: 0.06, switch: 0.09, charger: 0.08 },
   },
   {
     id: 'leads',
     label: 'Leads',
     blurb:
       "The best Pokémon with shields in play. Capable of applying pressure or winning extended fights, they're ideal leads in battle.",
-    weights: { lead1: 0.6, lead2: 0.4 },
+    // A lead meets a full shield budget on both sides; 1v1 is the same fight
+    // one exchange later.
+    weights: { sh22: 0.6, sh11: 0.4 },
   },
   {
     id: 'closers',
     label: 'Closers',
     blurb:
       'The best Pokémon with no shields in play. Bulk or hard-hitting moves allow them to close out matchups.',
-    weights: { close: 1 },
+    weights: { sh00: 1 },
   },
   {
     id: 'switches',
@@ -139,7 +157,7 @@ export const CATEGORIES: readonly Category[] = [
     label: 'Attackers',
     blurb:
       'The best Pokémon against shielded opponents, while unshielded. Their natural bulk, resistances, and strong attacks allow them to power through a disadvantage.',
-    weights: { attacker1: 0.6, attacker2: 0.4 },
+    weights: { sh01: 0.4, sh02: 0.6 },
   },
   {
     id: 'consistency',
@@ -199,19 +217,26 @@ export function consistencyScore(
   perScenario: Record<ScenarioId, number>,
   fastTurns: number,
 ): number {
-  const shieldSwing = Math.abs(perScenario.lead1 - perScenario.close);
-  const baitSwing = Math.abs(perScenario.lead1 - perScenario.attacker1);
-  const base = (perScenario.lead1 + perScenario.close + perScenario.attacker1) / 3;
+  // Spread across the whole nine-state lattice, which is the honest measure of
+  // "does this care how the shields fell". Standard deviation rather than
+  // min-to-max: one freak state should not define a mon that is steady across
+  // the other eight.
+  const vals = SHIELD_STATES.map((s) => perScenario[s]);
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const sd = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / vals.length);
 
-  // Each swing is a penalty against the mon's own average result: being
-  // uniformly mediocre is not consistency, so the base term keeps the score
-  // anchored to whether it actually wins.
-  const swingPenalty = 0.5 * shieldSwing + 0.5 * baitSwing;
-  // 1 turn is free, 4 turns costs 60 points. Deliberately small next to the
-  // swing terms — it is a tiebreaker among comparable mons, not a headline.
+  // Bait dependence, isolated: the same shield count on both sides versus
+  // being the only one without them. A mon that needs the opponent to guess
+  // wrong shows up here and nowhere else.
+  const baitSwing = Math.abs(perScenario.sh11 - perScenario.sh01);
+
+  // Being uniformly mediocre is not consistency, so the mean anchors the score
+  // to whether it actually wins; the penalties are what it gives back.
+  // 1 turn is free, 4 turns costs 60 — a tiebreaker among comparable mons,
+  // not a headline.
   const turnPenalty = (fastTurns - 1) * 20;
 
-  return Math.max(0, Math.round(base - swingPenalty - turnPenalty));
+  return Math.max(0, Math.round(mean - 1.5 * sd - 0.25 * baitSwing - turnPenalty));
 }
 
 /** Blend a scenario record by a category's weights. */

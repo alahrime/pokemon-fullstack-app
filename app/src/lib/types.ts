@@ -141,6 +141,21 @@ export interface SpeciesTable {
   defHi: number;
 }
 
+/**
+ * How a player decides whether to spend a shield.
+ *
+ * The choice is most of what separates good play from adequate play, and it is
+ * the mechanism by which baiting works at all. Against `always`, a cheap
+ * charged move reliably draws a shield and the expensive one lands free — so
+ * baiting is strictly free, which is not the game. Against `read`, the bait
+ * gets taken on the chin and the shield is kept for what actually hurts, and
+ * the attacker's whole plan has to be different.
+ *
+ * Matchups flip on this. Simulating both is how a flip becomes visible instead
+ * of being silently decided by whichever policy the engine happened to hold.
+ */
+export type ShieldPolicy = 'always' | 'read';
+
 export interface BattleMon {
   atk: number;
   def: number;
@@ -178,5 +193,18 @@ export interface BattleResult {
   maxHpB: number;
   cmpDecided: boolean;
   margin: number;
+  /**
+   * Energy and shields as the fight ended.
+   *
+   * A single matchup has no use for these — it is over. A team does: the mon
+   * that wins carries its leftover HP and energy into the next opponent, and
+   * shields in GBL belong to the player for the whole battle rather than to
+   * each Pokemon. Without these a chain has to restart every matchup from
+   * scratch, which is a different game from the one being played.
+   */
+  energyA: number;
+  energyB: number;
+  shieldsA: number;
+  shieldsB: number;
   log: BattleLogEntry[];
 }

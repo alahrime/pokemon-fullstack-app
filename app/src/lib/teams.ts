@@ -70,6 +70,7 @@ export interface Core {
   aCovers: string[];
   bCoversTypes: string[];
   aCoversTypes: string[];
+  sharedWeak: string[];
   appearances: number;
   lift: number;
 }
@@ -84,9 +85,24 @@ export interface Pillar {
   covered: string[];
 }
 
+/**
+ * The wire format is deliberately compact: refs are indices into the league's
+ * own `refs` table and everything else is a bare number.
+ *
+ *   t3  [i, j, k, score, sim]
+ *   t6  [a..f, line0, line1, line2, score, sim]
+ *   d3/d6  [synScore, coverage, redundancy, swapWorst, swapMean, typeCover,
+ *           bulk, ...holeIndices]   — head only, parallel to t3/t6
+ *
+ * Written this way because a team as names and a synergy object is ~120 bytes
+ * and a team as five numbers is ~16. That difference is what makes 150 teams
+ * per stratum affordable where 12 used to be the cap.
+ */
 interface RawStratum {
-  threes: BestTeam[];
-  sixes: BestTeam[];
+  t3: number[][];
+  t6: number[][];
+  d3: number[][];
+  d6: number[][];
 }
 
 interface RawLeague {
@@ -96,6 +112,7 @@ interface RawLeague {
   tiers: string[];
   categories: CategoryId[];
   passes: TeamPass[];
+  refs: string[];
   cores: Core[];
   pillars: Pillar[];
   strata: Record<string, RawStratum>;
@@ -106,27 +123,59 @@ const TEAMS = teamsRaw as unknown as Record<LeagueId, RawLeague>;
 export const TEAM_REV = (lg: LeagueId): number => TEAMS[lg].teamRev;
 export const TEAM_ENGINE_REV = (lg: LeagueId): number => TEAMS[lg].engineRev;
 export const TEAM_TIERS = (lg: LeagueId): string[] => TEAMS[lg].tiers;
-
-/**
- * The discovered teams for one stratum.
- *
- * Returns an empty list rather than throwing when a stratum is missing, so a
- * partially-rebuilt artefact degrades to "nothing to show" instead of taking
- * the screen down. `TEAM_ENGINE_REV` is what surfaces staleness properly.
- */
 export const coresFor = (lg: LeagueId): Core[] => TEAMS[lg]?.cores ?? [];
 export const pillarsFor = (lg: LeagueId): Pillar[] => TEAMS[lg]?.pillars ?? [];
 
+/** How many teams a stratum actually holds, without decoding them. */
+export function teamCount(lg: LeagueId, tier: string, cat: CategoryId, pass: TeamPass, size: 3 | 6): number {
+  const st = TEAMS[lg]?.strata[`${tier}|${cat}|${pass}`];
+  if (!st) return 0;
+  return (size === 3 ? st.t3 : st.t6).length;
+}
+
+/**
+ * Decode a slice of a stratum.
+ *
+ * Sliced rather than decoded whole because a stratum now holds 150 teams and a
+ * screen shows a page of them; materialising all of them on every control click
+ * was the thing the old 12-team cap was hiding.
+ */
 export function bestTeams(
   lg: LeagueId,
   tier: string,
   cat: CategoryId,
   pass: TeamPass,
   size: 3 | 6,
+  from = 0,
+  to = Infinity,
 ): BestTeam[] {
-  const st = TEAMS[lg]?.strata[`${tier}|${cat}|${pass}`];
+  const league = TEAMS[lg];
+  const st = league?.strata[`${tier}|${cat}|${pass}`];
   if (!st) return [];
-  return size === 3 ? st.threes : st.sixes;
+  const rows = size === 3 ? st.t3 : st.t6;
+  const detail = size === 3 ? st.d3 : st.d6;
+  const n = size === 3 ? 3 : 6;
+  const out: BestTeam[] = [];
+  for (let i = from; i < Math.min(to, rows.length); i++) {
+    const row = rows[i];
+    const refs = row.slice(0, n).map((x) => league.refs[x]);
+    const line = size === 6 ? row.slice(6, 9).map((x) => league.refs[x]) : undefined;
+    const d = detail[i];
+    out.push({
+      refs,
+      line,
+      score: row[row.length - 2],
+      sim: row[row.length - 1],
+      syn: d && d.length
+        ? {
+            score: d[0], coverage: d[1], redundancy: d[2], swapWorst: d[3],
+            swapMean: d[4], typeCover: d[5], bulk: d[6],
+            holes: d.slice(7).map((x) => league.refs[x]).filter(Boolean),
+          }
+        : undefined,
+    });
+  }
+  return out;
 }
 
 /** Every stratum for a league, flattened — the shape the CSV export wants. */
@@ -152,10 +201,10 @@ export function allTeamRows(lg: LeagueId): {
   const league = TEAMS[lg];
   if (!league) return [];
   const out: ReturnType<typeof allTeamRows> = [];
-  for (const [key, st] of Object.entries(league.strata)) {
+  for (const key of Object.keys(league.strata)) {
     const [tier, category, pass] = key.split('|') as [string, CategoryId, TeamPass];
-    for (const [size, list] of [[3, st.threes], [6, st.sixes]] as const) {
-      list.forEach((t, i) => {
+    for (const size of [3, 6] as const) {
+      bestTeams(lg, tier, category, pass, size).forEach((t, i) => {
         out.push({
           league: lg,
           tier,

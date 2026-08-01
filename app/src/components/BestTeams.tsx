@@ -6,6 +6,7 @@ import {
   TEAM_PASSES,
   allTeamRows,
   bestTeams,
+  teamCount,
   type BestTeam,
   type TeamPass,
 } from '../lib/teams';
@@ -16,6 +17,9 @@ import { TypeBadge } from './TypeBadge';
 import { SegButton, SegGroup } from './Seg';
 import { downloadCsv, stamp } from '../lib/exportData';
 import type { LeagueId } from '../lib/types';
+
+/** Teams per page. A stratum holds 150; a screen does not. */
+const PAGE = 25;
 
 /**
  * The teams the build found, as against the team the user typed in.
@@ -175,11 +179,28 @@ export function BestTeams({ league, size, onLoad }: {
   const [cat, setCat] = useState<CategoryId>('overall');
   const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
   const [pass, setPass] = useState<TeamPass>('d1');
+  const [page, setPage] = useState(0);
 
-  const teams = useMemo(() => bestTeams(league, tier, cat, pass, size), [league, tier, cat, pass, size]);
+  // A stratum now holds 150 teams. Decoding a page at a time keeps a control
+  // click cheap — the compact wire format is indices, so this is a slice.
+  const total = useMemo(
+    () => teamCount(league, tier, cat, pass, size),
+    [league, tier, cat, pass, size],
+  );
+  const pages = Math.max(1, Math.ceil(total / PAGE));
+  const teams = useMemo(
+    () => bestTeams(league, tier, cat, pass, size, page * PAGE, (page + 1) * PAGE),
+    [league, tier, cat, pass, size, page],
+  );
+  const head = useMemo(
+    () => bestTeams(league, tier, cat, pass, size, 0, 1),
+    [league, tier, cat, pass, size],
+  );
   const category = CATEGORIES.find((c) => c.id === cat)!;
   const passDef = TEAM_PASSES.find((p) => p.id === pass)!;
-  const max = teams[0]?.score ?? 1000;
+  // Bars scale against the stratum's best, not the page's, so page two does not
+  // silently rescale and read as though its teams were stronger.
+  const max = head[0]?.score ?? 1000;
   const stale = TEAM_ENGINE_REV(league) !== ENGINE_REV(league);
 
   return (
@@ -238,7 +259,7 @@ export function BestTeams({ league, size, onLoad }: {
           <div className="hud-label">Category</div>
           <SegGroup>
             {CATEGORIES.map((c) => (
-              <SegButton key={c.id} active={cat === c.id} onClick={() => setCat(c.id)} title={c.blurb}>
+              <SegButton key={c.id} active={cat === c.id} onClick={() => { setCat(c.id); setPage(0); }} title={c.blurb}>
                 {c.label}
               </SegButton>
             ))}
@@ -248,7 +269,7 @@ export function BestTeams({ league, size, onLoad }: {
           <div className="hud-label">Pass</div>
           <SegGroup>
             {TEAM_PASSES.map((p) => (
-              <SegButton key={p.id} active={pass === p.id} onClick={() => setPass(p.id)} title={p.blurb}>
+              <SegButton key={p.id} active={pass === p.id} onClick={() => { setPass(p.id); setPage(0); }} title={p.blurb}>
                 {p.label}
               </SegButton>
             ))}
@@ -261,7 +282,7 @@ export function BestTeams({ league, size, onLoad }: {
               <SegButton
                 key={t}
                 active={tier === t}
-                onClick={() => setTier(t)}
+                onClick={() => { setTier(t); setPage(0); }}
                 title={t === 'all' ? 'Opposing teams drawn from every league-legal form' : `Opposing teams drawn from the top ${t}`}
               >
                 {t === 'all' ? 'All' : `Top ${t}`}
@@ -311,7 +332,7 @@ export function BestTeams({ league, size, onLoad }: {
             <TeamRow
               key={t.refs.join('|')}
               t={t}
-              i={i}
+              i={page * PAGE + i}
               max={max}
               league={league}
               size={size}
@@ -320,6 +341,25 @@ export function BestTeams({ league, size, onLoad }: {
             />
           ))}
         </ol>
+      )}
+
+      {total > PAGE && (
+        <div className="opp-pager">
+          <button className="btn opp-page-step" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+            ‹
+          </button>
+          <span className="opp-page-num">{page + 1} / {pages}</span>
+          <button
+            className="btn opp-page-step"
+            disabled={page >= pages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            ›
+          </button>
+          <span className="opp-page-range">
+            {page * PAGE + 1}–{Math.min(total, (page + 1) * PAGE)} of {total} teams in this stratum
+          </span>
+        </div>
       )}
     </div>
   );

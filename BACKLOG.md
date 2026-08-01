@@ -172,6 +172,92 @@ than a gap, it is a **sign flip**: they score Tinkaton 56.2 against Tinkatuff's
 spread, which looks far too weak to catch that. `scenarios.ts` already documents
 that column as correlating with nothing we compute.
 
+## 1d. The rated set is often not the played set — the biggest open lead
+
+`movesFor` resolves a species' loadout from PvPoke's `moveset` field, and §0
+fixes every ranking to that set for comparability. That rule is doing real
+damage, because the field is one of the things their editor can override.
+
+Shadow Forretress is the case that exposed it. Our own sweep, in the shipped
+artefact:
+
+```
+Volt Switch · Sand Tomb / Rock Tomb    745   <- the RATED set, what every ranking uses
+Bug Bite    · Rock Tomb / Mirror Shot  878   <- +133
+Bug Bite    · Mirror Shot / Heavy Slam 875
+```
+
+**Every Bug Bite set beats every Volt Switch set by 105–133 points.** The sweep
+found it; the ranking then discards it. Upstream usage in the same file
+disagrees with the recommendation too — Bug Bite 58,045 uses against Volt
+Switch's 78,121, comparable rather than negligible.
+
+Every ranking, team, core and pillar is computed on the rated set, so wherever
+that field is stale or hand-set we inherit it. This is a far more plausible
+driver of the Registeel/Lickilicky-style inversions than anything in the
+aggregation, all of which was tested and cleared (see §1c).
+
+**Cheap next check:** compare each species' rated-set score against its best
+swept score across the roster. If the gap is routinely large, §0's rank-on-the-
+rated-set rule needs replacing — by the best swept set, a usage-weighted blend,
+or the split scheme below.
+
+## 1e. Splitting a species into several builds — measured, not built
+
+`npm run splits` → `splits.json`. Some species are not one Pokemon: Forretress
+with Volt Switch and with Bug Bite answer different halves of the field, and
+Quagsire's second charged move (Mud Bomb vs Stone Edge) flips 16% of its
+matchups at +13 score.
+
+A split needs **both** conditions, and divergence alone is a trap: Tinkaton's
+most divergent alternative flips 56% of matchups while scoring 212 points
+worse. That is a bad set, not a second build.
+
+Three cuts were measured side by side. `viability` is how far below a species'
+own best a set may score; `divergence` is how much of the field it must flip
+against every set already kept:
+
+| variant | thresholds | Great | Ultra | Master |
+|---|---|---|---|---|
+| primary | <=4% / >=12% | 47/150 split, +37% | 51/150, +47% | 45/150, +37% |
+| secondary | <=8% / >=10% | 95/150, +109% | 107/150, +129% | 88/150, +99% |
+| tertiary | <=12% / >=8% | 128/150, +218% | 127/150, +217% | 122/150, +177% |
+
+**Primary is the recommended cut.** Secondary and tertiary mostly add
+near-duplicate builds of the same few Pokemon — at tertiary, five of Ultra's top
+seven entries are different Registeel and Tinkaton builds, which stops being a
+tier list — while the sweep cost grows quadratically in pool size.
+
+What surfaces at primary is alternate builds of already-strong Pokemon, not new
+Pokemon: Great's #2 entry is a non-rated Registeel build, and Melmetal,
+Togedemaru, Shadow Magnezone and Zacian (Hero) all reach the top 12 on sets the
+rated rule hides.
+
+**Not implemented.** It changes the unit of ranking from species to build, which
+touches the ref scheme, the opponent field, the team pool, cores and the UI. The
+duplicate-species rule already handles the consequence for free, since it keys
+on Pokedex number and would never let two Registeel builds share a team.
+
+## 1f. ABB versus ABC lines
+
+A team where no two members share a typing covers itself more evenly. Measured
+over the shipped threes:
+
+| pass | ABC (no shared typing) |
+|---|---|
+| d1 | 58% |
+| d2 | 54% |
+| syn | **86%** |
+
+The synergy pass already strongly prefers ABC by construction; the simulated
+passes do not. d2 produced `Raikou / Charjabug / Lanturn` — three Electrics —
+which the stacked-weakness constraint did *not* catch, because their defensive
+weaknesses genuinely differ (Charjabug's Bug half resists Ground). **Typing
+redundancy needs its own rule; it is not a side effect of the weakness rule.**
+
+Not added yet, deliberately: constraining team shape while §1d has matchups
+computed from wrong movesets would be tuning around a data bug.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.
@@ -487,10 +573,24 @@ and loadouts are `[label, score]` pairs.
 Next step if it grows: **split per league** and load lazily. Nothing needs
 Ultra's table while looking at Great.
 
-`teams.json` is **719KB raw / 52KB gzipped** — small, because it stores only
-the top 12 per stratum rather than every team scored. It gzips exceptionally
-well (14:1) since the same species names recur across all 252 strata. Widening
-`TOP_OUT` is the cheap knob if more depth is wanted; adding an axis is not.
+`teams.json` is **3.76MB raw / 790KB gzipped** and now ships **150 threes and
+150 sixes per stratum** — 113,400 teams against 9,072 at the old cap of 12.
+
+The 12-cap was never a compute limit: the build already ranked every legal team
+and threw the rest away. It was a wire-format cost, and the cost was strings. On
+the compact format refs are indices into a per-league table and everything else
+is a bare number, so a team is ~16 bytes rather than ~120:
+
+```
+t3  [i, j, k, score, sim]
+t6  [a..f, line0, line1, line2, score, sim]
+d3/d6  [synScore, coverage, redundancy, swapWorst, swapMean, typeCover, bulk, ...holes]
+```
+
+The full synergy breakdown rides only on the first `DETAIL_N` (12) of each
+stratum — it is the expensive part of a row and is read only when one is
+expanded. **12.5x the teams cost 15% more bytes.** The UI pages at 25 and scales
+its bars against the stratum's best rather than the page's.
 
 ## 7. Loose ends
 

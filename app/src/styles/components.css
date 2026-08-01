@@ -1894,3 +1894,14 @@ textarea.input { min-height: 90px; resize: vertical; }
   font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
 }
+
+/* A pair's shared blind spot, called out in the core detail. */
+.core-shared-weak {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  padding-bottom: var(--space-1);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}

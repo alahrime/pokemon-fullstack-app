@@ -69,6 +69,7 @@ import {
   coreStrength,
   relevanceWeights,
   rescue,
+  sharedExposure,
   typePressure,
   worstSharedWeakness,
   resistancesOf,
@@ -98,8 +99,10 @@ const OUT = resolve(process.cwd(), 'src/data');
  * ENGINE_REV because a team artefact can go stale on its own — a change to
  * teamBattle moves teams and leaves the rankings untouched.
  *   1  first cut: line-vs-line tables, 11 team scenarios, exhaustive per tier
+ *   2  150 teams per stratum on a compact index wire format; shared-weakness
+ *      penalty on cores; wider core evidence
  */
-const TEAM_REV = 1;
+const TEAM_REV = 2;
 
 /**
  * Candidate *species* per stratum — distinct Pokedex numbers, not entries.
@@ -141,8 +144,24 @@ const CAND_ENTRY_CAP = 2.5;
 const FIELD_THREES = 48;
 /** Opponent sixes sampled per tier. Each contributes its 20 lines as columns. */
 const FIELD_SIXES = 8;
-/** Teams reported per stratum. */
-const TOP_OUT = 12;
+/**
+ * Teams reported per stratum.
+ *
+ * 150, not 12. The ranking already scores every legal team, so the cut was
+ * purely a wire-format cost — and that cost is strings. Emitting refs as
+ * indices into a per-league table and scores as bare numbers buys twelve times
+ * as many teams for about the same bytes, because a team stops being ~120
+ * characters of names and becomes five numbers.
+ */
+const TOP_OUT = 150;
+/**
+ * How many carry the full synergy breakdown.
+ *
+ * The components and the hole list are the expensive part of a row and are only
+ * read when one is expanded, which nobody does a hundred rows down. The head
+ * keeps them; the tail is refs and scores.
+ */
+const DETAIL_N = 12;
 /**
  * Cores and pillars reported per league.
  *
@@ -169,7 +188,7 @@ const PILLARS_OUT = 200;
  * Unioned across categories rather than taken on Overall, because a specialist
  * is exactly the kind of Pokemon that earns its place in a pair.
  */
-const CORE_POOL_N = 150;
+const CORE_POOL_N = 200;
 
 /**
  * The tier whose field cores are measured against.
@@ -1042,7 +1061,27 @@ async function main() {
           });
         }
 
-        perLeague[`${tier}|${cat.id}|${st.pass}`] = { threes, sixes };
+        // Compact wire format: indices into the league's ref table, then the
+        // two scores. Detail rides alongside for the head only.
+        const idx = new Map(refs.map((r, n) => [r, n]));
+        const packThree = (x: TeamOut) => [...x.refs.map((r) => idx.get(r)!), x.score, x.sim ?? 0];
+        const packSix = (x: TeamOut) => [
+          ...x.refs.map((r) => idx.get(r)!),
+          ...(x.line ?? []).map((r) => idx.get(r)!),
+          x.score, x.sim ?? 0,
+        ];
+        const packDetail = (list: TeamOut[]) =>
+          list.slice(0, DETAIL_N).map((x) => (x.syn
+            ? [x.syn.score, x.syn.coverage, x.syn.redundancy, x.syn.swapWorst,
+               x.syn.swapMean, x.syn.typeCover, x.syn.bulk,
+               ...x.syn.holes.map((r) => idx.get(r) ?? -1).filter((n) => n >= 0)]
+            : []));
+        perLeague[`${tier}|${cat.id}|${st.pass}`] = {
+          t3: threes.map(packThree),
+          t6: sixes.map(packSix),
+          d3: packDetail(threes),
+          d6: packDetail(sixes),
+        };
       });
 
       // ── Cores ─────────────────────────────────────────────────────────────
@@ -1070,9 +1109,17 @@ async function main() {
             if (!legalPair(candUnion[a], candUnion[b])) continue;
             const rowA = rowsByCand[a];
             const rowB = rowsByCand[b];
+            // A hole both members share is worse than either having it alone:
+            // nothing on the pair answers it. See sharedExposure.
+            const shared = sharedExposure(
+              speciesOf(refs[candUnion[a]])?.types ?? [],
+              speciesOf(refs[candUnion[b]])?.types ?? [],
+              pressure,
+            );
             const strength = coreStrength(
               rowA, rowB, coreW,
               strengthOf.get(candUnion[a])!, strengthOf.get(candUnion[b])!,
+              shared.exposure,
             );
             if (strength <= 0) continue;
             corePairs.push({
@@ -1088,6 +1135,7 @@ async function main() {
               aCovers: topCovers(rowB, rowA, synFieldRefs),
               bCoversTypes: coveredTypes(refs[candUnion[a]], refs[candUnion[b]]),
               aCoversTypes: coveredTypes(refs[candUnion[b]], refs[candUnion[a]]),
+              sharedWeak: shared.types,
               appearances: 0,
               lift: 0,
             });
@@ -1159,8 +1207,10 @@ async function main() {
       // input is the mons themselves.
       if (validate && tier === rk.defaultTier) {
         const cat = cats.find((c) => c.id === 'overall')!;
-        const top = (perLeague[`${tier}|overall|d1`] as { threes: TeamOut[] }).threes[0];
-        const mine = top.refs.map((r) => monFor(r, lg));
+        // Decode from the compact wire format — refs are indices into `refs`.
+        const packed = (perLeague[`${tier}|overall|d1`] as { t3: number[][] }).t3[0];
+        const topRefs = packed.slice(0, 3).map((n) => refs[n]);
+        const mine = topRefs.map((r) => monFor(r, lg));
         const per = {} as Record<ScenarioId, number>;
         TEAM_SCENARIOS.forEach((sc, s) => {
           let sum = 0;
@@ -1179,14 +1229,14 @@ async function main() {
         const fresh = categoryValue(
           per,
           cat,
-          top.refs.reduce((n, r) => n + monFor(r, lg).fast.turns, 0) / top.refs.length,
+          topRefs.reduce((n, r) => n + monFor(r, lg).fast.turns, 0) / topRefs.length,
         );
         // The table stores ratings as a byte, so +/-2 per cell is expected and
         // is the only difference that should survive.
-        const drift = Math.abs(fresh - top.score);
+        const drift = Math.abs(fresh - packed[3]);
         console.log(
-          `        TABLE CHECK ${lg}/${tier}/overall/d1: ${top.refs.join(' / ')}` +
-            ` table ${top.score} vs fresh ${fresh.toFixed(1)} — drift ${drift.toFixed(2)}` +
+          `        TABLE CHECK ${lg}/${tier}/overall/d1: ${topRefs.join(' / ')}` +
+            ` table ${packed[3]} vs fresh ${fresh.toFixed(1)} — drift ${drift.toFixed(2)}` +
             `${drift <= 4 ? '' : '   <<< TOO LARGE'}`,
         );
       }
@@ -1200,14 +1250,19 @@ async function main() {
     const memberCount = new Map<string, number>();
     const pairCount = new Map<string, number>();
     let teamsSeen = 0;
-    for (const v of Object.values(perLeague) as { threes: TeamOut[]; sixes: TeamOut[] }[]) {
-      for (const team of [...v.threes, ...v.sixes]) {
-        teamsSeen++;
-        for (let i = 0; i < team.refs.length; i++) {
-          memberCount.set(team.refs[i], (memberCount.get(team.refs[i]) ?? 0) + 1);
-          for (let j = i + 1; j < team.refs.length; j++) {
-            const k = [team.refs[i], team.refs[j]].sort().join('|');
-            pairCount.set(k, (pairCount.get(k) ?? 0) + 1);
+    for (const v of Object.values(perLeague) as { t3: number[][]; t6: number[][] }[]) {
+      // Co-occurrence over the compact rows: the first 3 (or 6) entries are
+      // member indices, the trailing two are scores.
+      for (const [rows, n] of [[v.t3, 3], [v.t6, 6]] as const) {
+        for (const row of rows) {
+          teamsSeen++;
+          const members = row.slice(0, n).map((x) => refs[x]);
+          for (let i = 0; i < members.length; i++) {
+            memberCount.set(members[i], (memberCount.get(members[i]) ?? 0) + 1);
+            for (let j = i + 1; j < members.length; j++) {
+              const k = [members[i], members[j]].sort().join('|');
+              pairCount.set(k, (pairCount.get(k) ?? 0) + 1);
+            }
           }
         }
       }
@@ -1235,6 +1290,9 @@ async function main() {
       tiers,
       categories: cats.map((c) => c.id),
       passes: PASSES,
+      // Every ref the strata index into. Written once instead of ~150 times
+      // per stratum, which is the whole reason 150 teams fit at all.
+      refs,
       cores,
       pillars: topPillars,
       strata: perLeague,
@@ -1246,12 +1304,14 @@ async function main() {
     );
     if (validate) {
       const show = (k: string) => {
-        const v = perLeague[k] as { threes: TeamOut[]; sixes: TeamOut[] } | undefined;
+        const v = perLeague[k] as { t3: number[][]; t6: number[][] } | undefined;
         if (!v) return;
         console.log(`   ${k}`);
-        for (const t of v.threes.slice(0, 3)) console.log(`      3: ${t.score}  ${t.refs.join(' / ')}`);
-        for (const t of v.sixes.slice(0, 2))
-          console.log(`      6: ${t.score}  ${t.refs.join(' / ')}\n           line: ${t.line!.join(' / ')}`);
+        for (const r of v.t3.slice(0, 3))
+          console.log(`      3: ${r[3]}  ${r.slice(0, 3).map((n) => refs[n]).join(' / ')}`);
+        for (const r of v.t6.slice(0, 2))
+          console.log(`      6: ${r[9]}  ${r.slice(0, 6).map((n) => refs[n]).join(' / ')}` +
+            `\n           line: ${r.slice(6, 9).map((n) => refs[n]).join(' / ')}`);
       };
       show(`${rk.defaultTier}|overall|d1`);
       show(`${rk.defaultTier}|overall|d2`);

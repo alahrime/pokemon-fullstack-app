@@ -909,8 +909,13 @@ for (const lg of LEAGUES) {
     compared > 0 && differs >= compared / 2, `${differs}/${compared} categories pick a different top team`);
 
   // Components must be populated and on-scale wherever they appear.
-  const sample = bestTeams(lg, tier, 'overall', 'syn', 3);
-  check(`${lg}: synergy components populated`, sample.every((t) => !!t.syn));
+  // Only the head carries the synergy breakdown — the tail is refs and scores,
+  // which is what makes 150 teams per stratum affordable. Assert on the head.
+  const sample = bestTeams(lg, tier, 'overall', 'syn', 3, 0, 12);
+  check(`${lg}: synergy components populated on the head`, sample.every((t) => !!t.syn));
+  check(`${lg}: strata hold far more than the old cap of 12`,
+    bestTeams(lg, tier, 'overall', 'd1', 3).length > 100,
+    `${bestTeams(lg, tier, 'overall', 'd1', 3).length} threes`);
   check(`${lg}: synergy components on the 0-1000 scale`,
     sample.every((t) => t.syn !== undefined
       && [t.syn.coverage, t.syn.redundancy, t.syn.swapWorst, t.syn.swapMean, t.syn.typeCover, t.syn.bulk]

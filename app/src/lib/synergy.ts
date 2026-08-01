@@ -387,6 +387,8 @@ export interface Core {
   /** Types A is weak to that B resists, and the reverse. */
   bCoversTypes: string[];
   aCoversTypes: string[];
+  /** Types BOTH are weak to — the pair's shared blind spot. */
+  sharedWeak: string[];
   /** Times the pair appears together in a stratum's top teams. */
   appearances: number;
   /**
@@ -441,6 +443,8 @@ export function rescue(aRow: Float64Array, bRow: Float64Array, weights?: Float64
  */
 export interface PairReport {
   score: number;
+  /** Types both members are weak to — the pair's own blind spot. */
+  sharedWeak: string[];
   aRescuedByB: number;
   bRescuedByA: number;
   bCovers: string[];
@@ -458,6 +462,8 @@ export function pairReport(
   weights?: Float64Array,
   strengthA = 1,
   strengthB = 1,
+  /** Field type pressure, so a shared weakness can be priced. */
+  pressure?: Map<string, number>,
 ): PairReport {
   const covers = (mine: Float64Array, theirs: Float64Array) => {
     const out: { ref: string; gain: number }[] = [];
@@ -466,15 +472,22 @@ export function pairReport(
       out.push({ ref: field[o], gain: theirs[o] - mine[o] });
     }
     out.sort((x, y) => y.gain - x.gain);
-    return out.slice(0, 6).map((x) => x.ref);
+    // Scoring always spanned the whole field; only this evidence list was
+    // short, which made the cores look as though they rested on a handful of
+    // matchups. Widened so the breadth of the cover is visible.
+    return out.slice(0, EVIDENCE_N).map((x) => x.ref);
   };
   const resistFor = (weakRef: string, resistRef: string) => {
     const w = weaknessesOf(speciesOf(weakRef)?.types ?? []);
     const r = new Set(resistancesOf(speciesOf(resistRef)?.types ?? []));
     return w.filter((x) => r.has(x));
   };
+  const shared = pressure
+    ? sharedExposure(speciesOf(a)?.types ?? [], speciesOf(b)?.types ?? [], pressure)
+    : { types: [] as string[], exposure: 0 };
   return {
-    score: Math.round(coreStrength(rowA, rowB, weights, strengthA, strengthB)),
+    score: Math.round(coreStrength(rowA, rowB, weights, strengthA, strengthB, shared.exposure)),
+    sharedWeak: shared.types,
     aRescuedByB: Math.round(rescue(rowA, rowB, weights)),
     bRescuedByA: Math.round(rescue(rowB, rowA, weights)),
     bCovers: covers(rowA, rowB),
@@ -483,6 +496,45 @@ export function pairReport(
     aCoversTypes: resistFor(b, a),
   };
 }
+
+/**
+ * How much a pair is jointly exposed: types BOTH members are weak to.
+ *
+ * A core exists to cover holes, so a hole they share is worse than either
+ * member having it alone — there is nothing on the pair that answers it, and
+ * whatever exploits it beats both. Nothing in the score noticed this, and it
+ * showed: Great's top core was Carbink + Gastrodon, both Grass-weak, at a lift
+ * of zero. Diggersby + Carbink is the same shape.
+ *
+ * Weighted by type pressure, so sharing a weakness to something the field
+ * actually brings costs more than sharing one nobody exploits.
+ */
+export function sharedExposure(
+  aTypes: readonly string[],
+  bTypes: readonly string[],
+  pressure: Map<string, number>,
+): { types: string[]; exposure: number } {
+  const aw = new Set(weaknessesOf(aTypes));
+  const types = weaknessesOf(bTypes).filter((t) => aw.has(t));
+  return { types, exposure: types.reduce((n, t) => n + (pressure.get(t) ?? 0), 0) };
+}
+
+/**
+ * What a shared weakness costs. At 4, a pair jointly weak to something a tenth
+ * of the field carries loses ~29% of its score; two shared weaknesses, ~44%.
+ * Steep enough to move such pairs off the top without banning them, because a
+ * shared weakness is a real cost rather than a disqualification.
+ */
+export const SHARED_WEAK_COST = 4;
+
+/**
+ * Opponents listed as evidence per direction.
+ *
+ * Presentation only — `rescue` has always integrated over the entire field.
+ * Six made a core look like it rested on five hard matchups when it rests on
+ * five hundred.
+ */
+export const EVIDENCE_N = 16;
 
 /**
  * Pair strength: two good Pokemon that cover each other.
@@ -507,9 +559,11 @@ export function coreStrength(
   /** Each member's own normalised strength, 0–1. Omit to score rescue alone. */
   strengthA = 1,
   strengthB = 1,
+  /** Weighted pressure of the types both are weak to. See sharedExposure. */
+  sharedWeakExposure = 0,
 ): number {
   const mutual = Math.sqrt(rescue(aRow, bRow, weights) * rescue(bRow, aRow, weights));
-  return mutual * Math.sqrt(strengthA * strengthB);
+  return (mutual * Math.sqrt(strengthA * strengthB)) / (1 + SHARED_WEAK_COST * sharedWeakExposure);
 }
 
 /**

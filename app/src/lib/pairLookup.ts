@@ -9,7 +9,7 @@ import {
   weightedScore,
   type ScenarioId,
 } from './scenarios';
-import { pairReport, relevanceWeights, type PairReport } from './synergy';
+import { pairReport, relevanceWeights, typePressure, type PairReport } from './synergy';
 import type { LeagueId } from './types';
 
 /**
@@ -108,7 +108,7 @@ function distribution(lg: LeagueId): number[] {
       if (!a || !b || a.dex === b.dex) continue;
       scores.push(pairReport(
         pool[i], pool[j], rowFor(pool[i], lg), rowFor(pool[j], lg), fieldFor(lg), weightsFor(lg),
-        strengthFor(lg).get(pool[i]) ?? 0, strengthFor(lg).get(pool[j]) ?? 0,
+        strengthFor(lg).get(pool[i]) ?? 0, strengthFor(lg).get(pool[j]) ?? 0, pressureFor(lg),
       ).score);
     }
   }
@@ -136,6 +136,25 @@ function strengthFor(lg: LeagueId): Map<string, number> {
   return m;
 }
 
+/** Type pressure over the field, matching the offline core build. */
+const pressureCache = new Map<LeagueId, Map<string, number>>();
+function pressureFor(lg: LeagueId): Map<string, number> {
+  const hit = pressureCache.get(lg);
+  if (hit) return hit;
+  const field = fieldFor(lg);
+  const p = typePressure(
+    field.map((r) => {
+      const sp = speciesOf(r);
+      if (!sp) return [] as string[];
+      const rec = movesFor(sp, lg);
+      return [...new Set([rec.fast.type, ...rec.charges.map((c) => c.type)])];
+    }),
+    relevanceWeights(field.map((r) => overallOf(lg, CORE_TIER, r)), 2),
+  );
+  pressureCache.set(lg, p);
+  return p;
+}
+
 /** Relevance weights over the field, matching the offline core build. */
 const weightCache = new Map<LeagueId, Float64Array>();
 function weightsFor(lg: LeagueId): Float64Array {
@@ -153,7 +172,7 @@ export function lookupPair(a: string, b: string, lg: LeagueId): PairLookup {
   // than 1, or an unranked pick would score as if it were the best in the game.
   const rep = pairReport(
     a, b, rowFor(a, lg), rowFor(b, lg), field, weightsFor(lg),
-    str.get(a) ?? 0, str.get(b) ?? 0,
+    str.get(a) ?? 0, str.get(b) ?? 0, pressureFor(lg),
   );
   const dist = distribution(lg);
   const below = dist.filter((v) => v < rep.score).length;

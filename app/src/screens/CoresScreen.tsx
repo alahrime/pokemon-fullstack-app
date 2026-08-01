@@ -95,6 +95,15 @@ function CoreRow({ c, max }: { c: Core; max: number }) {
       </button>
       {open && (
         <div className="core-detail">
+          {c.sharedWeak?.length > 0 && (
+            <div className="core-shared-weak">
+              <strong>Both weak to</strong>
+              {c.sharedWeak.map((t) => <TypeBadge key={t} type={t} />)}
+              <span className="text-faint">
+                — nothing on this pair answers it, so the score is discounted for it.
+              </span>
+            </div>
+          )}
           <Direction from={c.b} to={c.a} covers={c.bCovers} types={c.bCoversTypes} />
           <Direction from={c.a} to={c.b} covers={c.aCovers} types={c.aCoversTypes} />
           <p className="text-faint core-detail-note">

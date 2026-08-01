@@ -67,8 +67,10 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *   9  role scores normalised per category before the Overall composite, as
  *      their Ranker.js does; composing raw ratings had let unevolved forms
  *      back into the graded pass
+ *  10  residual-energy debt: a surviving opponent's banked energy is a charged
+ *      move your next Pokemon walks into, and is now priced like a shield
  */
-const ENGINE_REV = 9;
+const ENGINE_REV = 10;
 
 /**
  * Loadouts considered per species.

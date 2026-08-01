@@ -1,5 +1,5 @@
-import { battle } from './engine';
-import { LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, startingEnergy } from './scenarios';
+import { battle, ENERGY_CAP } from './engine';
+import { ENERGY_DEBT, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, startingEnergy } from './scenarios';
 import type { BattleMon, BattleResult, ShieldPolicy } from './types';
 
 /**
@@ -217,9 +217,11 @@ export function teamRating(r: TeamResult, startShields = TEAM_SHIELDS): number {
     v += SHIELD_BONUS * Math.max(0, startShields - r.shieldsB);
     v += SHIELD_BONUS * Math.max(0, r.shieldsA);
   }
+  // Energy left with a surviving opponent, same as a single matchup prices it.
+  if (r.hpFracB > 0) v -= ENERGY_DEBT * Math.min(1, r.energyB / ENERGY_CAP);
   if (v > SOFT_CAP) v = SOFT_CAP + Math.sqrt(v - SOFT_CAP);
   else if (v < LOSS_CURVE) v = Math.pow(LOSS_CURVE, (LOSS_CURVE + v) / (2 * LOSS_CURVE));
-  return Math.round(v);
+  return Math.round(Math.max(0, v));
 }
 
 /**

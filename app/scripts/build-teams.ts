@@ -70,6 +70,7 @@ import {
   relevanceWeights,
   rescue,
   sharedExposure,
+  sharedTypePairs,
   typePressure,
   worstSharedWeakness,
   resistancesOf,
@@ -101,8 +102,9 @@ const OUT = resolve(process.cwd(), 'src/data');
  *   1  first cut: line-vs-line tables, 11 team scenarios, exhaustive per tier
  *   2  150 teams per stratum on a compact index wire format; shared-weakness
  *      penalty on cores; wider core evidence
+ *   3  ABC rule: no two members of a three may share a typing
  */
-const TEAM_REV = 2;
+const TEAM_REV = 3;
 
 /**
  * Candidate *species* per stratum — distinct Pokedex numbers, not entries.
@@ -133,6 +135,19 @@ const MAX_SHARED_WEAK_3 = 2;
 const MAX_SHARED_WEAK_6 = 3;
 /** A type must be this present in the field before a shared weakness counts. */
 const MIN_TYPE_PRESSURE = 0.04;
+
+/**
+ * How many pairs may share a typing — the ABC rule.
+ *
+ * Zero for a three: that is the definition of an ABC line, and it is what you
+ * field. A six is a menu you pick three from, so it may carry some overlap and
+ * still offer a clean line; two pairs out of fifteen is the allowance.
+ *
+ * Enforced separately from the stacked-weakness rule because the two catch
+ * different failures — see sharedTypePairs.
+ */
+const MAX_SHARED_TYPES_3 = 0;
+const MAX_SHARED_TYPES_6 = 2;
 
 /** Leads considered for a pillar — a lead is a centrepiece, so this stays tight. */
 const PILLAR_LEAD_N = 40;
@@ -763,6 +778,8 @@ async function main() {
     let excludedThrees = 0;
     let excludedSixes = 0;
     let droppedAllThrees = 0;
+    let relaxedThrees = 0;
+    let relaxedSixes = 0;
 
     /**
      * "One in front, two in back": a lead with a narrow weakness that *two*
@@ -875,6 +892,10 @@ async function main() {
       const spMax = Math.max(...spOf) || 1;
       const bulkNorm = new Map(candUnion.map((c, i) => [c, spOf[i] / spMax]));
 
+      /** Does this team repeat a typing past the ABC allowance? */
+      const repeatsTyping = (members: readonly number[], cap: number) =>
+        sharedTypePairs(members.map((m) => speciesOf(refs[m])?.types ?? [])) > cap;
+
       /** Does this team stack an exploitable weakness past the limit? */
       const stacksWeakness = (members: readonly number[], cap: number) => {
         const w = worstSharedWeakness(
@@ -966,7 +987,14 @@ async function main() {
         // before ranking, on every pass. Filtering here rather than penalising
         // the score keeps it a constraint: no amount of chain win rate buys a
         // team out of having no answer to Ground.
-        const eligible = st.triples.filter((r) => !stacksWeakness(rows[r], MAX_SHARED_WEAK_3));
+        const sound = st.triples.filter((r) => !stacksWeakness(rows[r], MAX_SHARED_WEAK_3));
+        let tCap = MAX_SHARED_TYPES_3;
+        let eligible = sound.filter((r) => !repeatsTyping(rows[r], tCap));
+        while (eligible.length === 0 && tCap < 3) {
+          tCap++;
+          eligible = sound.filter((r) => !repeatsTyping(rows[r], tCap));
+        }
+        if (tCap > MAX_SHARED_TYPES_3 && eligible.length) relaxedThrees++;
         const scoredThrees = (eligible.length ? eligible : st.triples).map((r) => ({
           r,
           v: st.pass === 'syn' ? synOf(rows[r], st.ci).score : simOf(r),
@@ -1018,8 +1046,22 @@ async function main() {
 
         const sixes: TeamOut[] = [];
         const best: { v: number; sim: number; six: number[]; line: number[] }[] = [];
-        for (const six of combos(st.six, 6, legalPair)) {
-          if (stacksWeakness(six, MAX_SHARED_WEAK_6)) { excludedSixes++; continue; }
+        // The ABC cap can empty a stratum outright: Master's candidates are
+        // largely Dragon/Steel/Psychic legendaries, and requiring at most two
+        // shared-type pairs out of fifteen leaves nothing. Relax one step at a
+        // time until something survives, and count it — shipping an empty
+        // stratum, or silently dropping the rule, are both worse than saying so.
+        const allSixes = combos(st.six, 6, legalPair)
+          .filter((six) => !stacksWeakness(six, MAX_SHARED_WEAK_6));
+        let typeCap = MAX_SHARED_TYPES_6;
+        let pool = allSixes.filter((six) => !repeatsTyping(six, typeCap));
+        while (pool.length === 0 && typeCap < 15) {
+          typeCap++;
+          pool = allSixes.filter((six) => !repeatsTyping(six, typeCap));
+        }
+        if (typeCap > MAX_SHARED_TYPES_6 && pool.length) relaxedSixes++;
+        excludedSixes += allSixes.length - pool.length;
+        for (const six of pool) {
           // The six's own twenty lines, resolved once rather than per opponent.
           const lineSets = combos(six, 3);
           const lines = lineSets.map(
@@ -1300,7 +1342,9 @@ async function main() {
     console.log(
       `${lg.padEnd(7)} ${(chains / 1e6).toFixed(0).padStart(5)}M chains  ${((performance.now() - t0) / 1000).toFixed(1).padStart(6)}s` +
         `  excluded for stacked weakness: ${excludedThrees.toLocaleString()} threes, ${excludedSixes.toLocaleString()} sixes` +
-        (droppedAllThrees ? `  [${droppedAllThrees} strata had NO eligible three — cap relaxed there]` : ''),
+        (relaxedThrees || relaxedSixes
+          ? `  [ABC cap relaxed: ${relaxedThrees} strata for threes, ${relaxedSixes} for sixes]` : '') +
+        (droppedAllThrees ? `  [${droppedAllThrees} strata had NO eligible three at all]` : ''),
     );
     if (validate) {
       const show = (k: string) => {

@@ -1,3 +1,4 @@
+import { ENERGY_CAP } from './engine';
 import type { BattleMon, BattleResult, ChargeMove } from './types';
 
 /**
@@ -39,6 +40,27 @@ export const LOSS_CURVE = 300;
 export const SHIELD_BONUS = 100;
 
 /**
+ * What a surviving opponent's banked energy costs you.
+ *
+ * The missing half of shield pressure. A matchup does not end when it ends: an
+ * opponent left standing with a full bar walks into your next Pokemon already
+ * holding a charged move, and clearing that costs the next mon HP, a shield, or
+ * both. Nothing in the rating priced it, so a loss that left the opponent empty
+ * and a loss that handed them 80 energy scored identically.
+ *
+ * Registeel into Shadow Ninetales is the case that exposed it. Lock On does one
+ * damage, so Ninetales farms it freely, shields the one nuke that matters,
+ * out-paces to three moves against Registeel's two, and leaves with enough
+ * residual energy that the next Pokemon has to spend a shield or take a hit to
+ * clear it. On the old rating Registeel lost that matchup no more expensively
+ * than it lost a close one.
+ *
+ * Priced at a full shield for a full bar: both are a resource the loser hands
+ * to the winner and the next Pokemon has to answer.
+ */
+export const ENERGY_DEBT = 100;
+
+/**
  * A battle rating on PvPoke's 0–1000 scale.
  *
  * `startShieldsA/B` are what each side began the scenario with; the shield
@@ -56,6 +78,10 @@ export function rating(r: BattleResult, _startShieldsA = 0, startShieldsB = 0): 
     v += SHIELD_BONUS * Math.max(0, startShieldsB - r.shieldsB);
     v += SHIELD_BONUS * Math.max(0, r.shieldsA);
   }
+
+  // The reverse, and it applies whenever they are left standing: energy they
+  // banked is a charged move your next Pokemon walks into. See ENERGY_DEBT.
+  if (r.hpB > 0) v -= ENERGY_DEBT * Math.min(1, r.energyB / ENERGY_CAP);
 
   // A crushing win is barely better than a clean one; a limp loss is much
   // worse than a close one. Both curves compress what we used to pay in full.

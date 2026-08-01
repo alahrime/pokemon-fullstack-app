@@ -182,6 +182,28 @@ const resistMask = (types: readonly string[]) =>
   maskOf(types, resistMaskCache, (t) => typeEffectiveness(t, types) < 1);
 
 /**
+ * How many pairs on a team share a type — the ABB/ABC distinction.
+ *
+ * A team where no two members share a typing covers itself more evenly, because
+ * a threat that beats one member is less likely to beat a second for the same
+ * reason. Zero shared pairs is an "ABC line"; anything above is "ABB".
+ *
+ * This is deliberately NOT the same test as a shared weakness, and the case
+ * that proves it is Raikou / Charjabug / Lanturn — three Electrics that the
+ * stacked-weakness rule waved through, because Charjabug's Bug half resists
+ * Ground and so their defensive weaknesses genuinely differ. Typing redundancy
+ * is its own failure: three Electrics share offensive coverage, energy pacing
+ * and the same answers, whatever the type chart says about their weaknesses.
+ */
+export function sharedTypePairs(teamTypes: readonly (readonly string[])[]): number {
+  let n = 0;
+  for (let i = 0; i < teamTypes.length; i++)
+    for (let j = i + 1; j < teamTypes.length; j++)
+      if (teamTypes[i].some((x) => teamTypes[j].includes(x))) n++;
+  return n;
+}
+
+/**
  * How much of the field can actually attack with each type.
  *
  * A shared weakness only matters if something in the meta exploits it. Being

@@ -258,6 +258,56 @@ redundancy needs its own rule; it is not a side effect of the weakness rule.**
 Not added yet, deliberately: constraining team shape while §1d has matchups
 computed from wrong movesets would be tuning around a data bug.
 
+## 1g. Our matchups against PvPoke's published ones — the test §3 asked for
+
+Their ranking entries carry `matchups` (best five) and `counters` (worst five),
+each an opponent plus a 0–1000 rating on the same scale ours uses. That is a
+direct per-battle comparison, and it is the only test that separates "our
+aggregation differs" from "our simulation differs". **Run it before reopening
+any inversion.** `scratchpad/matchups.ts`.
+
+Over **11,425 published Great matchups**:
+
+| our reading | correlation | mean abs error | agree on winner |
+|---|---|---|---|
+| Overall blend | **0.729** | 111 | **76.6%** |
+| 2v2 only | 0.659 | 134 | 76.4% |
+| 1v1 only | 0.641 | 140 | 72.9% |
+| emulating their play (always-shield, no timing) | 0.613 | 149 | 71.1% |
+
+Two things follow. The engine is not broken — three matchups in four agree. And
+our blend fits their published numbers *better* than imitating their simpler
+play model does, so the extra machinery here is earning its place.
+
+**Registeel's own matchups line up**: Empoleon theirs 724 / ours 713, Guzzlord
+655/709, Lickilicky 608/709. The Shadow Ninetales matchup that prompted the
+whole investigation is **harsher in our sim than theirs** — theirs 107, ours 63
+at 2v2. Mimikyu (theirs 191, ours 709) is the one wild outlier and is expected:
+its built-in shield is why it sits in `UNSIMULATED_IDS`.
+
+So the Registeel inversion is not a battle-simulation disagreement. **94 of 1143
+Great species carry an editor override, Registeel among them — its published
+88.4 is 75% a hand-set 88**, as are Lickilicky, Tinkaton, Altaria, Quagsire,
+Empoleon, Jellicent and Forretress. Nine of the ten species argued over are
+curated numbers.
+
+One hypothesis tested and **rejected**: that our disagreement concentrates on
+overridden species. It does not — overridden species agree with us *more*
+(median rank gap 45) than simulation-only ones (75). Overrides land on well
+known meta Pokemon that both methods already rank highly.
+
+**The real remaining lead: glass cannons.** All 14 largest matchup gaps run one
+direction — high-attack, low-bulk attackers that they score 750–900 and we score
+40–120. Bisharp vs Malamar is theirs 900, ours 41; Charizard vs Empoleon 867
+vs 116; Absol vs Malamar 811 vs 111. These are exactly the Pokemon whose value
+depends on landing a nuke before dying, so shield or bait handling under
+pressure is the place to look.
+
+Not the move data. Every fast-move turn count involved was checked against
+`data-src/moves.json` and matches upstream exactly, including Psywave at 1 turn.
+A prior version of this note asserted several turn counts from memory and was
+wrong about four of them — check the file, not recall.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.
@@ -517,6 +567,12 @@ turn-by-turn timeline.**
 
 Still genuinely open:
 - **Fast-move selection by TDO**, the last unimplemented selection rule.
+- **Residual energy is now priced** (rev 10): a surviving opponent's banked
+  energy is a charged move your next Pokemon walks into, and costs `ENERGY_DEBT`
+  scaled by the bar. Correct on its own merits — it was previously free — but it
+  does **not** demote Registeel, which was the hope. It penalises frequent
+  losers, and Registeel concedes energy in only 35 matchups because it wins the
+  rest; Lickilicky concedes in 100. Measured before rebuilding.
 - ~~Baiting~~ — two real bugs found and fixed at rev 7. Against a `read`
   defender the attacker baited *forever*: the rule threw the secondary whenever
   the opponent held a shield, a reading defender declines baits on purpose, so

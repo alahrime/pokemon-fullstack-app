@@ -41,32 +41,136 @@ fair ranking basis.
 **A species is never scored against itself.** A mirror is a guaranteed draw or
 a CMP win, which flatters whatever is currently top of the pool.
 
-## 1. What does "best" mean — the top open decision
+**A rating is half outcome, half margin.** `rating()` in `lib/scenarios.ts` was
+pure margin, and that is what produced the Carbink problem in §1. It now scores
+`WIN_WEIGHT * won + (1 - WIN_WEIGHT) * margin`, where the margin is damage
+dealt, HP kept and — new — energy the survivor carries out. Do not "simplify"
+this back to a margin: an even matchup still averages 500 over a field, which is
+the only place the scale is read, but a *single* battle's rating is now
+deliberately bimodal and is a poor number to show on its own. `teamRating()` in
+`lib/team.ts` is the same formula on a chain, deliberately, so the §1 decision
+was made once rather than twice.
 
-**Carbink leads Great League** under the first pass at nearly every tier, and
-still takes the top graded spot at 300/500/all. No Great League player would
-accept that.
+## 1. What does "best" mean — DECIDED, with one caveat still open
 
-It is not a bug and not a PvPoke disagreement. Mean battle rating rewards a
-high floor, and Carbink's floor is excellent — it is very hard to blow out —
-while its ceiling is nothing, because it rarely wins decisively. Averaging
-hides the difference.
+**Decision: the win-rate-weighted blend, plus credit for energy kept.** Half the
+rating is now the outcome and half the margin, and the margin counts the energy
+the survivor carries out alongside the HP it kept. `WIN_WEIGHT` and
+`ENERGY_SHARE` in `lib/scenarios.ts`. Engine rev 6.
 
-The weighted-regression pass (§2) already fixed a *different* symptom of the
-same family: unevolved forms (Morgrem, Tinkatuff) appeared in the flat top five
-at four separate tiers and vanish from every graded one. Grading did not touch
-Carbink.
+The mechanism does what it was chosen to do. The high-floor, no-ceiling family
+— exactly the shape of the original complaint — is demoted hard:
 
-Options, none obviously right:
-- **median instead of mean** — kills the high-floor advantage directly.
-- **score the ceiling separately** — a second axis rather than a replacement,
-  so "safe" and "threatening" stop being averaged into one number.
-- **win-rate-weighted blend** — weight the rating by whether it was a win, so
-  losing narrowly to everything stops paying.
+| league / pass | biggest fallers inside the old top 20 |
+|---|---|
+| great d1 | Aurorus (Shadow) +14, Sandslash (Alolan) (Shadow) +10, Bastiodon +4 |
+| great d2 | Lucario +14, Clefable +10, Magnezone (Shadow) +7 |
+| ultra d1 | Aurorus (Shadow) +29, Tentacruel (Shadow) +13, Dondozo +10 |
+| master d2 | Necrozma (Dusk Mane) +12, Kyogre +5 |
 
-This is a product decision about what the ranking is *for*, not a numerical
-one. **Ask before picking.** Everything downstream (both team builders weight
-by Overall) inherits the answer.
+Rank agreement with PvPoke rose in all three leagues and both passes — great
+0.800→0.820, ultra 0.851→0.860, master 0.911→0.929 on d1. Recorded as a sanity
+check, not a target; see §0.
+
+**Carbink survived it, and the diagnostic says that is correct.** It went #1→#2
+in great/d1 at the default tier — Registeel now leads — but is still #1 at
+several other tiers. Before touching `WIN_WEIGHT`, the win rates were measured
+directly (rated loadouts both sides, all 11 scenarios, both policies):
+
+| Great | top 50 | top 100 | top 200 | top 500 | all |
+|---|---|---|---|---|---|
+| Carbink win% | 55.7 | 58.2 | 61.4 | 65.0 | 72.8 |
+| Registeel win% | 86.3 | 74.7 | 69.1 | 63.9 | 71.9 |
+| Bastiodon win% | 71.8 | 59.6 | 57.4 | 57.0 | 63.9 |
+
+**The premise of this section was wrong.** Carbink was never "losing narrowly
+to everything" — it wins the majority of its matchups at every cutoff. The
+old metric was not lying about it. What the old metric *did* get wrong was
+failing to reward Registeel for winning **decisively**: at the top 50 its
+rating went 673 → 752 under the new basis (+79) against Carbink's 527 → 535
+(+8), and that gap is what reordered them. The fix worked by promoting the
+decisive winner, not by demoting a fraud.
+
+So do not raise `WIN_WEIGHT` to push Carbink down further. If it still looks
+wrong, the disagreement is about *format relevance* — Carbink is a fine
+Pokemon that few people build — and that is a different axis from strength,
+which the ranking does not currently carry and arguably should not.
+
+One caveat on the table above: it orders each tier's field by that tier's own
+Overall, whereas the build uses its internal seeded order, so the populations
+are not identical to the shipped tiers. The win rates are robust to that (they
+move monotonically and the gap is large); the exact numbers are not.
+Regenerate with `scratchpad/carbink.ts` if it matters.
+
+## 1b. PvPoke's mechanics, adopted — and what they cost
+
+Their ranking code was read directly (`src/js/battle/rankers/Ranker.js`,
+`RankerOverall.js`) rather than reverse-engineered. Four mechanisms had no
+counterpart here. Three were adopted, one deliberately was not.
+
+**Adopted (engine rev 8).** The base rating already matched — health kept plus
+damage dealt, 500 each. On top of that:
+
+- **shield pressure**: a win earns +100 per opponent shield forced and +100 per
+  shield kept. Nothing here had ever paid for making an opponent spend shields,
+  which is most of what the spam/bait archetype does for a team.
+- **blowout soft cap**: `700 + sqrt(x - 700)`, so a 900 becomes 714. Crushing is
+  worth almost nothing over a clean win. This is what stops a polarising wall
+  out-scoring an even trader.
+- **loss curve** below 300, so failing to trade costs more than losing well.
+
+**Not adopted: the editor override.**
+
+```js
+if(override.editorScore){ rankings[i].score = (rankings[i].score * 0.25) + (override.editorScore * 0.75); }
+```
+
+Where an override exists, **75% of a published PvPoke score is a hand-set human
+value**. This is a far stronger reason than §0 previously recorded for treating
+their column as a reference: on an overridden species, matching them means
+matching a person's judgement, not a simulation. Do not tune toward it.
+
+**Measured effect.** Rank agreement rose 0.820 → 0.826 → 0.835 (Great, Overall,
+d1). The archetype that was most wrong largely corrected — Altaria #178→#54,
+Lickilicky #120→#80, Furret #309→#111, Greedent #482→#247 — and Carbink finally
+left the top five.
+
+## 1c. OPEN REGRESSION: the composite Overall destabilised Great
+
+Rev 9 also changed Overall from a scenario-weighted average to PvPoke's
+construction: a weighted geometric mean of a Pokemon's own five role scores,
+each **normalised per category first**, strongest role weighted 12x. The
+normalisation is not optional — their `Ranker.js` scales each category to 0–100
+against that category's own best before composing, and omitting it was a real
+bug.
+
+**But it made Great worse.** Its d1 top three became
+`Dunsparce / Empoleon (S) / Sableye (S)` — Registeel, a runaway #1 under every
+previous revision, is absent. Zero-lift entries in the top 20 cores went
+10/20 → 16/20. Ultra and Master held up (Registeel + Galarian Moltres at 1.35x
+lift over 650 appearances).
+
+The cause is an interaction, not a coding error: normalising per category and
+*then* sorting per Pokemon means the 12x exponent is assigned by whichever role
+happens to come out highest, and in Great the top 25 sit within 90–94% of each
+other in Leads and Chargers, so that assignment is close to arbitrary. Ultra and
+Master have more spread at the top and survived it.
+
+**Recommended next step: revert the composite, keep the rating mechanics.** The
+per-matchup mechanics in §1b are sound and independent; the composite needs
+inputs that discriminate more than ours currently do. `makeOverall` in
+`lib/scenarios.ts` is the single thing to undo.
+
+The same weakness explains the Tinkaton/Tinkatuff complaint. Tinkaton is ranked
+above it and beats it head-to-head at every shield count, but by 4% where PvPoke
+separates them by 11%. Their per-category columns are *more* compressed than
+ours, so compression is not the cause — the separation lives in the ratings
+themselves. Switches: theirs 84.7 vs 57.9, ours 498 vs 464. Consistency is worse
+than a gap, it is a **sign flip**: they score Tinkaton 56.2 against Tinkatuff's
+91.3 — a 60-energy nuke is bait-dependent and swingy — while we score Tinkaton
+*higher*. `consistencyScore` weights `baitSwing` at 0.25 against 1.5 on shield
+spread, which looks far too weak to catch that. `scenarios.ts` already documents
+that column as correlating with nothing we compute.
 
 ## 2. How the rankings pipeline works
 
@@ -113,6 +217,170 @@ for rankings and candidate filtering.
 **Show 6 is a matrix game**, not an enumeration: C(150,6) is 1.19e10, but you
 bring six and three enter, so it scores as a maximin over each side's twenty
 3-subsets. `analyseShow6` in `lib/teambuild.ts`.
+
+## 2b. Team discovery — what to bring, not how good this is
+
+`scripts/build-teams.ts` → `teams.json` (719KB raw / 52KB gzipped), read by
+`lib/teams.ts` and the `BestTeams` panel on both builder screens. Answers the
+question the builders could not: the best threes and best sixes at **all 252
+strata** — 3 leagues x 6 tiers x 7 categories x 2 passes, 12 of each per
+stratum.
+
+**It is a table, not a search.** Beam search and hill-climbing both report a
+local optimum with no way to say how local. What a team is worth depends only
+on how each of its *lines* fares against each opposing line, and there are far
+fewer lines than teams — so line-vs-line is tabulated once and every team is an
+exhaustive lookup: every legal three from 24 candidate species and every legal
+six from 16, with no beam width to defend.
+
+**Duplicate species are a construction rule, not a filter.** GBL forbids two
+Pokemon sharing a **Pokedex number** — so Alolan Ninetales bars Kanto
+Ninetales, a Mega bars its base form, and a Shadow bars its plain form.
+`conflictsOnTeam` in `lib/data.ts` is the single decision point; comparing refs
+or ids catches only the last of those cases. It is enforced while combinations
+are generated and while the field is sampled, never on the output: filtering
+afterwards would leave the top ten short *and* leave every score measured
+against a field of teams nobody could bring.
+
+That rule also sets the candidate cut. Taking the top 24 *rows* spent 3.6 of
+them on average — 8 in the worst Master stratum — on a second form of a species
+already listed, which can never join it. So the list widens until it holds 24
+distinct dexes and keeps every form of each: full breadth, and the
+Shadow-versus-plain choice stays something the search decides.
+
+**There was a prefilter; it was removed.** Scoring every triple against a small
+field and keeping the best 250 saved only ~1.8x once the candidate lists were
+widened, and `--validate` caught it dropping 3 of Ultra's true top 12. Paying
+1.8x for an exhaustive answer with nothing to defend is the better trade. What
+`--validate` now checks is the *table*: it re-simulates the top team straight
+from the engine, no table and no byte encoding, and compares. Currently **drift
+0.00**. That catches an indexing or stride bug, which is the failure this
+design can still have.
+
+Show 6 falls out of the same table: a six is worth `mean over opposing sixes S
+of (max over my 20 lines, min over their 20)`, which is 20 x |field| lookups
+once the table exists.
+
+**The nine shield parities are simulated at team level**, not inherited through
+the candidate pool. `TeamStart` in `lib/team.ts` takes `shieldsA`/`shieldsB`
+separately plus banked-energy starts, and the scenario ids match the
+single-matchup ones **on purpose**, so `CATEGORIES`' weights apply to teams
+unchanged and the seven categories keep one definition. This is why "best
+Closers team" is a separately-played question rather than "best normal team
+made of good closers". It measurably matters: 59–63 of 84 strata pick a
+different top three, and **all 84 pick a different top six** in Great and Ultra.
+
+**Both sides play `read`**, unlike the rankings which average both policies.
+Rankings sit next to PvPoke's numbers and you do not choose how a stranger
+plays; discovery is asking what to bring, and a team that only looks good
+because the opponent shields the bait is not an answer.
+
+Tiers are deliberately **not** capped at the builder's usual top 100: if they
+were, four of the six would be the same number wearing different labels.
+
+## 2c. Synergy — the third pass, and cores
+
+**Three passes, not a blend.** `d1` and `d2` rank by the simulated chain; `syn`
+ranks the identical candidate set by whether the team covers itself. Kept as a
+third axis rather than folded into a weighted score, for the same reason §1
+exists: coverage and win rate are different questions, and one number averaging
+them answers neither. Switch axis to switch question. 126 strata per league now
+(6 tiers x 7 categories x 3 passes).
+
+It is not a relabelling of the simulated pass. At the default Master tier the
+two disagree on the top team in most categories — d1 takes
+Zacian/Dialga-Origin/Lunala (sim 778, syn 645), syn takes
+Zacian/Palkia-Origin/Zygarde (syn 829, sim 753, and no holes at all).
+`verify-data` asserts they differ in at least half of categories, so a bug that
+collapsed them into the same ordering fails the gate rather than shipping as a
+third button showing the second button's answer.
+
+**Components** (`lib/synergy.ts`, weights in `SYNERGY_WEIGHTS`):
+
+| term | weight | what it measures |
+|---|---|---|
+| coverage | 0.34 | mean best answer across the field — the floor |
+| swapWorst | 0.20 | how the back line answers the single worst lead matchup |
+| redundancy | 0.16 | share of the field with **two** answers, half credit for one |
+| typeCover | 0.12 | share of members' weaknesses a teammate resists |
+| swapMean | 0.10 | the same as swapWorst, averaged over every losing lead |
+| bulk | 0.08 | mean stat product against the tier best |
+
+Both risk readings are kept because the gap between them is the signal: a team
+with a high `swapMean` and a low `swapWorst` is fine on average and has one
+opening it cannot recover from.
+
+Type complement is deliberately small. It is derived from the chart rather than
+from play, so it is a **prior, not evidence** — it earns its place by catching
+shared weaknesses the sampled field happened not to punish, not by outvoting
+simulation.
+
+**The core metric took four revisions. The history is the documentation.**
+Each failure was diagnosed from output, and each named a distinct missing
+dimension rather than a mistuned constant:
+
+1. *Field too narrow* (the tier's own top 100). Cores are usually two mid-ladder
+   Pokemon covering what the top hundred does not contain, so there was nothing
+   for them to cover. Widened to 500 (`CORE_TIER`).
+2. *Field too wide, counted flat.* ~400 tail opponents outvoted the meta; Great's
+   best "cores" came out as Carbink beside four separate forms of Gourgeist, none
+   ever used. Fixed by `relevanceWeights` — opponents graded by their own
+   Overall, squared.
+3. *Rescue was a ratio, not a quantity.* Dividing by the matchups A loses asks
+   "of my problems, what share does my partner solve", which rewards having few
+   problems. Carbink loses to almost nothing and took 8 of the top 10. The
+   denominator is now the whole field.
+4. *No individual-strength term.* Complementary holes are cheap — two *bad*
+   Pokemon manage it easily, because being weak to everything makes you
+   complementary to anything. Coalossal (rank 182) beside Whimsicott (324) beat
+   Altaria (22) beside Empoleon (97). `coreStrength` now multiplies mutual
+   rescue by the geometric mean of both members' normalised Overall.
+
+**`lift` is the instrument, not the score.** It is the only signal here not
+computed from the same arithmetic as the ranking, so it is what caught every one
+of the four. The share of zero-lift entries in a league's top 20 is the health
+check: 18/20 meant the metric had drifted from anything the field rewards.
+Currently 10/20 great, **3/20 ultra**, 9/20 master — Great and Master have a
+dominant anchor (Carbink, Lugia) that legitimately pairs with everything.
+
+**Balance is reported, never folded in.** The two rescue directions say
+different things from their mean. Carbink + Shadow Corviknight scores 570 off
+370/910 — a strong pairing where Carbink does most of the work. Altaria +
+Empoleon scores 268 off 495/378 — lower, and genuinely reciprocal. Averaging
+those into one number would hide exactly the distinction worth having, which is
+the §1 mistake in miniature. `coreBalance` in `lib/teams.ts`, its own column and
+its own sort.
+
+**Cores are discovered, never authored.** There is no table of good pairings
+anywhere in the codebase. A core is a pair where each is strong exactly where
+the other fails, scored as the **geometric mean of both rescue directions** —
+so "a great Pokemon plus a passenger" scores near zero however great the first
+one is. Mutuality is the definition, and `verify-data` asserts every emitted
+core rescues both ways.
+
+Two numbers are reported and they mean different things. **Mutual rescue** is
+the structural claim; **lift** is how often the pair actually appeared together
+in top teams against what independence predicts. The gap is informative — in
+Master, Dialga (Origin) + Ho-Oh scores 188 with a lift of **2.01x** (a real
+partnership: Ho-Oh answers the Fighting/Ground that beats Dialga, Dialga answers
+the Water/Electric/Rock that beats Ho-Oh), while Zacian + Rhyperior (Shadow)
+scores a comparable 172 at lift 0.88 having appeared together twice. High
+rescue with low lift is a pairing the field does not actually reward.
+
+**Pillars** are the other shape: a lead with a narrow weakness that *two*
+teammates independently answer, so the bad lead has two ways to flip rather than
+one. Scored as the share of the lead's losing matchups that **both** backs
+cover. Necrozma (Dawn Wings) behind Xerneas + Zamazenta covers 78% of its 40
+losses in Master.
+
+**Cost.** The synergy pass needs a second table — each candidate against each
+field *species*, one on one, which a team-versus-team table cannot express
+because it has already summed three members into one result. That is the step
+that hides a shared hole. Adds ~90s per league.
+
+One caveat worth keeping visible: `syn` weights the opposing field flat, like
+`d1`. There is no graded variant, on the grounds that a hole is a hole whoever
+is standing in it — but that is an assumption, not a measurement.
 
 Sorted views are memoised per league/tier/category/pass — 210 of them, and the
 numbers are a build artefact so the cache needs no invalidation.
@@ -163,6 +431,15 @@ turn-by-turn timeline.**
 
 Still genuinely open:
 - **Fast-move selection by TDO**, the last unimplemented selection rule.
+- ~~Baiting~~ — two real bugs found and fixed at rev 7. Against a `read`
+  defender the attacker baited *forever*: the rule threw the secondary whenever
+  the opponent held a shield, a reading defender declines baits on purpose, so
+  the shield never came down and the condition never cleared. Lickilicky vs
+  Registeel was four Body Slams and no Shadow Ball, peak energy 47 against the
+  50 it needed. Baiting also had no cost model — it now declines when the bait
+  is under `BAIT_MIN_EFFICIENCY` (0.7) of main's damage per energy. Individual
+  matchups moved by hundreds of points. Neither fixed the Registeel/Lickilicky
+  inversion, which is why §1c matters.
 - ~~Shield decision modelling~~ — done. `ShieldPolicy` in `lib/types.ts`;
   `read` calls the bait and saves the shield for the hardest hit.
 
@@ -210,6 +487,11 @@ and loadouts are `[label, score]` pairs.
 Next step if it grows: **split per league** and load lazily. Nothing needs
 Ultra's table while looking at Great.
 
+`teams.json` is **719KB raw / 52KB gzipped** — small, because it stores only
+the top 12 per stratum rather than every team scored. It gzips exceptionally
+well (14:1) since the same species names recur across all 252 strata. Widening
+`TOP_OUT` is the cheap knob if more depth is wanted; adding an axis is not.
+
 ## 7. Loose ends
 
 Open:
@@ -227,7 +509,52 @@ Open:
   measurement into an opinion — but it is a real gap, and the Switches category
   measures switch pressure only indirectly.
 
+Open, new:
+- **Synergy weights are a judgement, not a measurement.** `SYNERGY_WEIGHTS` in
+  `lib/synergy.ts` was reasoned about (see §2c) but never fitted to anything. If
+  a way to validate them appears — agreement with high-level play, say — that is
+  the thing to check them against. Do not fit them to the simulated passes;
+  reproducing those is the one outcome that would make the axis pointless.
+- **`ANSWER_LINE` at 560 is a round number.** It decides what counts as covering
+  a matchup, so coverage and redundancy both move with it. Worth a sensitivity
+  check before anyone reads too much into a small coverage gap.
+- **Cores are computed at one stratum only** — `CORE_TIER` (500) under Overall —
+  so a pairing that only works at the top 50, or only for Closers, is invisible.
+  One table per league was the deliberate trade for comparability; a per-stratum
+  core view is the obvious extension.
+- **Do the cores disagree with strong players, or with our own rating?** Two
+  pairings named by an experienced player — Altaria + Empoleon, Hisuian
+  Electrode + Carbink — score 268 and 296 against a 570 top, and are the *more
+  reciprocal* pairs (balance 0.76 and 0.21 against the leader's 0.41). They sit
+  below a head dominated by Carbink, which our own rankings put first overall.
+  That may be a real disagreement, or it may be that scoring cores against a
+  rating that already favours Carbink double-counts it. **Do not resolve this by
+  tuning until the named pairs rise** — that is fitting the metric to a
+  conclusion, the §0 trap one level up. Resolve it by finding an independent
+  check, as `lift` was for the four revisions above.
+- **Discovery does not sweep movesets.** Both sides run their rated loadout in
+  `build-teams.ts`. Letting each of three members range over 12 sets multiplies
+  the space by 1728 to answer a question nobody asked — you pick the team, then
+  tune the moves — but it does mean a team whose value depends on an off-meta
+  set will not surface.
+- **Discovery inherits `teamBattle`'s no-switch line**, same as the live
+  builders. It is the same gap noted below, but it bites harder here: a
+  discovered "best team" is best *given nobody switches*.
+- **The three/six candidate cuts are 24 and 16.** A genuinely good team using
+  the stratum's 30th-best species cannot be found. Raising `CAND_N` is cheap;
+  raising `SIX_N` is not — C(n,6) grows fast (16→8008, 20→38,760).
+
 Done:
+- ~~What "best" means (§1)~~ — decided and measured; see that section.
+- ~~Best teams of 3 and 6, discovered across every stratification~~ — §2b.
+- ~~Result export for offline analysis~~ — CSV per view and per league, nested
+  JSON for the full rankings artefact. `lib/exportData.ts` records why NDJSON
+  and Parquet were considered and skipped.
+- ~~Synergy, cores and the 1-front-2-back shape~~ — §2c. Cores and pillars have
+  their own screen, with the evidence for each pairing rather than a bare score.
+- ~~`scripts/` was never typechecked~~ — `tsconfig.scripts.json`. It caught an
+  undefined identifier in `build-teams.ts` the moment it was added; without it
+  that surfaces as a crash partway through a multi-minute build.
 - ~~Search result virtualising~~ — 153 rows → ~20 in the DOM.
 - ~~`paragon-frontend` skill validation~~ — ran; verdict was **unvalidated, not
   validated**. Assertions barely discriminated (11/11 vs 10/11) and the
@@ -253,5 +580,14 @@ runs 12–155ms live.
   changed.
 - **esbuild is a build dependency of the data**, not just of `verify`. A
   `node_modules` restored from another OS breaks `npm run data`.
-- `npm run data` now chains `build-data` → `best-spreads` → `matrix`. The last
-  step is the slow one; `npm run matrix` alone re-runs just it.
+- `npm run data` now chains `build-data` → `best-spreads` → `matrix` → `teams`.
+  The last two are the slow ones; `npm run matrix` and `npm run teams` re-run
+  each alone. **`teams` reads `rankings.json`**, so `matrix` must run first.
+- **Two revisions, not one.** `ENGINE_REV` in `build-matrix.ts` (now **6**) and
+  `TEAM_REV` in `build-teams.ts` (now **1**). `teams.json` also records the
+  `engineRev` it was built against, and `BestTeams` shows a warning when that
+  disagrees with the shipped matrix — a teams artefact can go stale on its own,
+  because a `teamBattle` change moves teams and leaves the rankings alone.
+- `teams.json` is generated and committed, same as `species.json` and
+  `rankings.json`. Worth a line in any PR description so a reviewer does not
+  read it as hand-written.

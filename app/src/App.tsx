@@ -11,6 +11,7 @@ import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { RankingsScreen } from './screens/RankingsScreen';
 import { TeamBuilderScreen } from './screens/TeamBuilderScreen';
+import { CoresScreen } from './screens/CoresScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
 
 const SCREENS: [Screen, string][] = [
@@ -19,6 +20,7 @@ const SCREENS: [Screen, string][] = [
   ['rankings', 'Rankings'],
   ['gbl', 'GBL Teams'],
   ['show6', 'Show 6'],
+  ['cores', 'Cores'],
 ];
 
 function Nav() {
@@ -80,6 +82,8 @@ function Screens() {
       return <TeamBuilderScreen key="gbl" size={3} />;
     case 'show6':
       return <TeamBuilderScreen key="show6" size={6} />;
+    case 'cores':
+      return <CoresScreen key="cores" />;
   }
 }
 

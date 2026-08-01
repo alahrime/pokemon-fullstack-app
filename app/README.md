@@ -48,15 +48,28 @@ scripts/        data generation and verification
 npm run data
 ```
 
-Two passes: `build-data.mjs` writes the file from `../data-src/`, then
-`build-best-spreads.ts` — bundled through esbuild so it uses the real `bestAt`
-rather than a copy — records each species' best IV roll per league. That makes
-**esbuild a build dependency of the data**, not just of `verify`: a
-`node_modules` restored from a different OS or architecture breaks
-`npm run data`.
+Four passes, slowest last:
+
+| step | writes | cost |
+|---|---|---|
+| `build-data.mjs` | `species.json` | seconds |
+| `build-best-spreads.ts` | best IV roll per league | seconds |
+| `build-matrix.ts` (`npm run matrix`) | `rankings.json`, `matrix.json` | ~165s |
+| `build-teams.ts` (`npm run teams`) | `teams.json` | minutes |
+
+`build-best-spreads.ts` is bundled through esbuild so it uses the real `bestAt`
+rather than a copy. That makes **esbuild a build dependency of the data**, not
+just of `verify`: a `node_modules` restored from a different OS or architecture
+breaks `npm run data`.
 
 Output is deterministic. Regenerating with unchanged inputs leaves the file
 byte-identical, so a dirty diff means the upstream data actually changed.
+
+The last two steps are independent of the first two and of each other's inputs
+only in one direction — `build-teams` reads `rankings.json` for its stratum
+orderings, so `npm run matrix` must have run first. Each records a revision
+(`ENGINE_REV`, `TEAM_REV`) that the UI reads back, so a stale artefact shows up
+as a visible warning rather than as numbers that quietly disagree.
 
 See `../data-src/README.md` for where the inputs come from and how league
 membership is decided.

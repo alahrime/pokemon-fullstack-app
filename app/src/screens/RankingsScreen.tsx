@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, type CategoryId } from '../lib/scenarios';
-import { DEFAULT_TIER, ENGINE_REV, TIERS, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
+import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
+import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import { LEAGUE_BY_ID, parseRef, speciesOf } from '../lib/data';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -156,15 +157,66 @@ export function RankingsScreen() {
             ))}
           </SegGroup>
         </div>
+        <div>
+          <div className="hud-label">Export</div>
+          <div className="best-teams-export">
+            <button
+              className="btn btn-sm"
+              title="This view as CSV — one row per species, the columns as shown"
+              onClick={() =>
+                downloadCsv(
+                  `paragon-rankings-${league}-${tier}-${cat}-${order}-${stamp()}`,
+                  rows.map((r) => ({
+                    rank: r.rank,
+                    ref: r.ref,
+                    name: r.name,
+                    league,
+                    tier,
+                    category: cat,
+                    pass: order,
+                    score: r.score,
+                    bestScore: r.bestScore,
+                    bestLoadout: r.bestLoadout,
+                    bestIsRated: r.bestIsRecommended,
+                    pvpokeRank: r.pvpokeRank ?? '',
+                    rankDelta: r.delta ?? '',
+                  })),
+                )
+              }
+            >
+              CSV
+            </button>
+            <button
+              className="btn btn-sm"
+              title="Every tier, category and pass for this league, plus each species' swept loadouts"
+              onClick={() => downloadJson(`paragon-rankings-full-${league}-${stamp()}`, exportAll(league))}
+            >
+              All strata
+            </button>
+          </div>
+        </div>
       </div>
 
       <p className="rankings-blurb">{category.blurb}</p>
 
       <div className="panel rankings-note">
-        <strong>Scores are mean battle ratings</strong>, where 500 is an even fight — every pool member
-        played against every other, at each of the nine shield states and both shield policies, with
-        each species swept across up to 12 loadouts. Ranked on the league's rated set so the column is
-        comparable; the best swept set is the right-hand column.
+        <strong>Category scores are mean battle ratings</strong>, on PvPoke's 0–1000 scale — every
+        pool member played against every other, at each of the nine shield states and both shield
+        policies, with each species swept across up to 12 loadouts. Ranked on the league's rated set
+        so the column is comparable; the best swept set is the right-hand column.
+        <br />
+        A rating is <em>health kept plus damage dealt</em>, then three adjustments taken from
+        PvPoke's own ranker: a win earns <strong>+100 per shield it forced and per shield it kept</strong>,
+        wins above 700 are <strong>soft-capped</strong> so a blowout is worth barely more than a
+        clean win, and losses under 300 are <strong>curved down</strong> so failing to trade costs
+        more than losing gracefully. Their editor override — which replaces 75% of a published score
+        with a hand-set value — is deliberately <em>not</em> reproduced here.
+        <br />
+        <strong>Overall is not a battle rating.</strong> It is a weighted geometric mean of this
+        Pokémon's own five role scores, each first normalised against the best in that category, with
+        its strongest role weighted 12× and consistency 2×. That asks how strong a Pokémon is at what
+        it does rather than how it averages, so a specialist outranks a generalist. It is shown ×10
+        to share an axis with the other columns, but only its <em>order</em> is meaningful.
         <br />
         {order === 'd1' ? (
           <>

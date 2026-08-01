@@ -41,6 +41,7 @@ import {
   SCENARIOS,
   SCENARIO_IDS,
   CATEGORIES,
+  makeOverall,
   rating,
   startingEnergy,
   weightedScore,
@@ -59,8 +60,15 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *   3  full 9-state shield lattice + both shield policies
  *   4  optimal move timing, second-derivative pass
  *   5  second derivative at every tier, 500 tier added
+ *   6  win-weighted rating, energy kept scores alongside HP kept
+ *   7  bait no longer loops forever against a defender that declines it
+ *   8  PvPoke's rating mechanics: shield pressure, blowout soft cap, loss
+ *      curve, and Overall as a weighted geometric mean of the role scores
+ *   9  role scores normalised per category before the Overall composite, as
+ *      their Ranker.js does; composing raw ratings had let unevolved forms
+ *      back into the graded pass
  */
-const ENGINE_REV = 5;
+const ENGINE_REV = 9;
 
 /**
  * Loadouts considered per species.
@@ -295,7 +303,8 @@ function sweep(variants: Variant[], foes: BattleMon[], out: Uint8Array, from: nu
             me, foes[j], sc.shieldsA, sc.shieldsB, myEnergy[s], foeEnergy[j][s],
             false, OPTIMAL_TIMING, undefined, undefined, pol, pol,
           );
-          out[((i * nF + j) * S + s) * POLICIES.length + p] = Math.round((rating(r) / 1000) * 255);
+          out[((i * nF + j) * S + s) * POLICIES.length + p] =
+            Math.round((rating(r, sc.shieldsA, sc.shieldsB) / 1000) * 255);
         }
       }
     }
@@ -391,8 +400,11 @@ function scoreAgainst(
 function perRefBest(variants: Variant[], rows: Record<ScenarioId, number>[], refIdx: Int32Array, nRefs: number) {
   const best = new Float64Array(nRefs).fill(-Infinity);
   const bestVariant = new Int32Array(nRefs).fill(-1);
+  // Overall is normalised against this row set's own maxima, so it has to be
+  // built per call — the maxima differ between tiers and between passes.
+  const overallOf = makeOverall(rows, variants.map((v) => v.fastTurns));
   for (let i = 0; i < variants.length; i++) {
-    const o = weightedScore(rows[i], CATEGORIES[0].weights);
+    const o = overallOf(i);
     if (o > best[refIdx[i]]) {
       best[refIdx[i]] = o;
       bestVariant[refIdx[i]] = i;
@@ -487,9 +499,21 @@ async function main() {
     // objects repeated the seven category names ten times per species and blew
     // rankings.json out to 4.9MB — the keys outweighed the numbers roughly two
     // to one. The reader zips them back against CATEGORIES.
-    const scoresOf = (per: Record<ScenarioId, number>, turns: number) =>
+    // Overall is no longer a scenario weighting — it is a geometric mean over
+    // this species' own role scores after each is normalised against the pool's
+    // best in that category. See makeOverall.
+    const turnsOf = variants.map((v) => v.fastTurns);
+    const overallFor = new Map<Record<ScenarioId, number>[], (i: number) => number>();
+    const overallIn = (rws: Record<ScenarioId, number>[]) => {
+      let f = overallFor.get(rws);
+      if (!f) { f = makeOverall(rws, turnsOf); overallFor.set(rws, f); }
+      return f;
+    };
+    const scoresOf = (rws: Record<ScenarioId, number>[], i: number) =>
       CATEGORIES.map((c) =>
-        c.id === 'consistency' ? consistencyScore(per, turns) : weightedScore(per, c.weights),
+        c.id === 'overall' ? overallIn(rws)(i)
+          : c.id === 'consistency' ? consistencyScore(rws[i], turnsOf[i])
+          : weightedScore(rws[i], c.weights),
       );
 
     const entries = refs.map((r) => {
@@ -510,13 +534,14 @@ async function main() {
         const recIdx = mine.find((i) => variants[i].recommended) ?? mine[0];
         let bi = mine[0];
         let bo = -Infinity;
+        const ovIn = overallIn(rws);
         for (const i of mine) {
-          const o = weightedScore(rws[i], CATEGORIES[0].weights);
+          const o = ovIn(i);
           if (o > bo) { bo = o; bi = i; }
         }
         tiers[key] = {
-          rec: scoresOf(rws[recIdx], variants[recIdx].fastTurns),
-          best: scoresOf(rws[bi], variants[bi].fastTurns),
+          rec: scoresOf(rws, recIdx),
+          best: scoresOf(rws, bi),
           set: variants[bi].set,
         };
       }
@@ -528,7 +553,7 @@ async function main() {
       // cutoff weighted by their first-pass Overall rather than counted flat.
       const d2: Record<string, number[]> = {};
       for (const t of TIERS)
-        d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)][recIdx], variants[recIdx].fastTurns);
+        d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)], recIdx);
       return {
         ref: r,
         name: displayName(r),
@@ -536,7 +561,7 @@ async function main() {
         // [label, overall-at-default-tier]. Index 0 is the league's rated set
         // by construction (loadoutsFor pushes it first), so `recommended` does
         // not need storing 28,000 times.
-        loadouts: mine.map((i) => [variants[i].label, weightedScore(dRows[i], CATEGORIES[OVERALL].weights)]),
+        loadouts: mine.map((i) => [variants[i].label, overallIn(dRows)(i)]),
         tiers,
         pvpoke: pv ? { score: pv.score, scores: pv.scores } : null,
       };

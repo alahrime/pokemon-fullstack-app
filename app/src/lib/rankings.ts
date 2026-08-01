@@ -53,6 +53,30 @@ export function teamPool(lg: LeagueId): string[] {
   return MATRIX[lg].refs;
 }
 
+/**
+ * Top `n` by Overall at a tier — the opponent field coverage is measured over.
+ *
+ * `teamPool` is the top 100 and is the right pool to *build from*; it is the
+ * wrong field to measure coverage *against*, because a core is frequently two
+ * mid-ladder Pokemon answering things a hundred-strong field never contains.
+ * Kept here so the live pair checker and the offline core build ask the same
+ * question of the same opponents.
+ */
+export function fieldPool(lg: LeagueId, tier: string, n: number): string[] {
+  const league = RANKINGS[lg];
+  const ci = CAT_INDEX.get('overall')!;
+  const at = (e: RawEntry) => (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
+  return [...league.entries].sort((a, b) => at(b) - at(a)).slice(0, n).map((e) => e.ref);
+}
+
+/** One species' Overall at a tier — the relevance weight cores are graded by. */
+export function overallOf(lg: LeagueId, tier: string, ref: string): number {
+  const league = RANKINGS[lg];
+  const e = league.entries.find((x) => x.ref === ref);
+  if (!e) return 0;
+  return (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[CAT_INDEX.get('overall')!];
+}
+
 export interface RankRow {
   ref: string;
   name: string;
@@ -71,7 +95,7 @@ export interface RankRow {
    *
    * Deliberately a rank and not a score. Their number is a 0–100 index where
    * the top of the format sits near 93; ours is a mean battle rating where 500
-   * is an even fight. Rescaling one onto the other produces a difference that
+   * is the win/loss line. Rescaling one onto the other produces a difference that
    * looks like an error term and is nothing of the kind — the two are not
    * measuring the same quantity. Rank order is the part that is genuinely
    * comparable, so that is what is shown.
@@ -88,7 +112,8 @@ const CAT_INDEX = new Map(CATEGORIES.map((c, i) => [c.id, i]));
 /**
  * PvPoke publishes Overall as `score` and the other six in `scores`, both on a
  * 0–100 scale where ~93 is the top of the format. Ours is a mean battle rating
- * where 500 is an even fight and the ceiling is nearer 600. The two are not
+ * where the category columns are battle ratings and Overall is a normalised
+   * composite. The two are not
  * measuring the same thing on the same axis, so the comparison is presented as
  * a rank-order sanity check rather than an equivalence — see the note the
  * Rankings screen carries.
@@ -138,6 +163,47 @@ export function rankingsFor(
   const out = computeRankings(lg, tier, cat, order);
   viewCache.set(key, out);
   return out;
+}
+
+/**
+ * The whole league as one nested object, for export.
+ *
+ * Kept nested rather than flattened: the same species appears in 84 strata, so
+ * a rectangle would repeat every name and loadout list 84 times to say what the
+ * structure says once. The per-view CSV export is the flat counterpart, and
+ * between them a reader gets whichever shape their tool wants.
+ */
+export function exportAll(lg: LeagueId) {
+  const league = RANKINGS[lg];
+  return {
+    league: lg,
+    engineRev: league.engineRev,
+    tiers: league.tiers,
+    defaultTier: league.defaultTier,
+    categories: league.categories,
+    passes: ['d1', 'd2'] as RankOrder[],
+    scale: 'Category columns are 0-1000 battle ratings (health kept + damage dealt, with PvPoke shield-pressure credit, a soft cap on blowouts above 700 and a curve on losses below 300). Overall is NOT a battle rating: it is a weighted geometric mean of the five role scores, each normalised against the best in its category, strongest role weighted 12x, shown x10. Only its order is meaningful.',
+    species: league.entries.map((e) => ({
+      ref: e.ref,
+      name: e.name,
+      pvpoke: e.pvpoke,
+      loadouts: e.loadouts.map(([label, score]) => ({ label, score })),
+      // Scores zipped back to their category names — the wire format is a bare
+      // array in CATEGORIES order and nothing outside this module should have
+      // to know that.
+      tiers: Object.fromEntries(
+        Object.entries(e.tiers).map(([t, v]) => [
+          t,
+          {
+            d1: Object.fromEntries(league.categories.map((c, i) => [c, v.rec[i]])),
+            best: Object.fromEntries(league.categories.map((c, i) => [c, v.best[i]])),
+            bestSet: v.set,
+            d2: Object.fromEntries(league.categories.map((c, i) => [c, e.d2[t][i]])),
+          },
+        ]),
+      ),
+    })),
+  };
 }
 
 function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: RankOrder): RankRow[] {

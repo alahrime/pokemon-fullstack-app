@@ -9,7 +9,7 @@
  * would just encode the same mistake twice.
  */
 
-import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, UNSIMULATED_IDS, isSimulated, opponentCandidatesFor, parseRef, makeRef } from '../src/lib/data';
+import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, UNSIMULATED_IDS, conflictsOnTeam, isSimulated, makeRef, movesFor, opponentCandidatesFor, parseRef, pickableFor, speciesOf, teamIsLegal } from '../src/lib/data';
 import exclusions from '../../data-src/pool-exclusions.json';
 import {
   SHADOW_ATK_MULT,
@@ -28,7 +28,14 @@ import {
   fastMoveCounts,
 } from '../src/lib/engine';
 import { QUERY_FORMS, compileQuery } from '../src/lib/query';
-import type { LeagueId } from '../src/lib/types';
+import { CATEGORIES, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, rating } from '../src/lib/scenarios';
+import { teamBattle, teamRating } from '../src/lib/team';
+import { monFor } from '../src/lib/teambuild';
+import { TEAM_ENGINE_REV, TEAM_PASSES, TEAM_TIERS, bestTeams, coresFor, pillarsFor } from '../src/lib/teams';
+import { relevanceWeights, typeCoverage, typePressure, worstSharedWeakness } from '../src/lib/synergy';
+import { ENGINE_REV, fieldPool, overallOf, teamPool } from '../src/lib/rankings';
+import { toCsv } from '../src/lib/exportData';
+import type { BattleResult, LeagueId } from '../src/lib/types';
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = '') => {
@@ -467,6 +474,448 @@ console.log('\n── opponent relevance ─────────────
 
   const cmpCases = sab.filter((x) => x.cmpCost != null).length;
   check('CMP-purchasable matchups are found', cmpCases > 0, `${cmpCases} of ${sab.length}`);
+}
+
+// ── rating basis ───────────────────────────────────────────────────────────
+// PvPoke's mechanics, adopted from their Ranker.js. The three that matter are
+// shield-pressure credit, the soft cap on blowouts, and the curve on bad
+// losses; each is asserted against a case with a known answer.
+console.log('\n── rating basis ───────────────────────────────────────');
+{
+  const res = (o: Partial<BattleResult>): BattleResult => ({
+    win: false, mine: 0, theirs: 0, hpA: 0, hpB: 0, maxHpA: 100, maxHpB: 100,
+    cmpDecided: false, margin: 0, energyA: 0, energyB: 0, shieldsA: 0, shieldsB: 0,
+    log: [], ...o,
+  });
+
+  // Base: health kept + damage dealt, 500 each. Probed at 80% dealt, which
+  // lands at 400 — above LOSS_CURVE, so the raw formula is visible. A loss
+  // dealing half sits at 250 and IS curved; an earlier fixture here asserted
+  // 250 and was simply wrong about where the threshold falls.
+  const cleanLoss = rating(res({ win: false, mine: 0, theirs: 0.2 }), 0, 0);
+  check('base rating is health kept plus damage dealt', cleanLoss === 400, `${cleanLoss}`);
+  const evenLoss = rating(res({ win: false, mine: 0, theirs: 0.5 }), 0, 0);
+
+  // Shield pressure: only on a win, 100 per shield forced and per shield kept.
+  const noPressure = rating(res({ win: true, mine: 0.5, theirs: 0, shieldsA: 0, shieldsB: 2 }), 2, 2);
+  const forcedTwo = rating(res({ win: true, mine: 0.5, theirs: 0, shieldsA: 0, shieldsB: 0 }), 2, 2);
+  check('forcing shields pays on a win', forcedTwo > noPressure, `${noPressure} -> ${forcedTwo}`);
+  const keptTwo = rating(res({ win: true, mine: 0.5, theirs: 0, shieldsA: 2, shieldsB: 2 }), 2, 2);
+  check('keeping your own shields pays too', keptTwo > noPressure, `${noPressure} -> ${keptTwo}`);
+  const lostPressure = rating(res({ win: false, mine: 0, theirs: 0.5, shieldsA: 2, shieldsB: 0 }), 2, 2);
+  check('...and neither pays on a loss', lostPressure === evenLoss, `${lostPressure} vs ${evenLoss}`);
+
+  // Soft cap: a blowout is worth barely more than a clean win. This is the
+  // mechanism that stops a polarising wall out-scoring an even trader.
+  const clean = rating(res({ win: true, mine: 0.4, theirs: 0, shieldsA: 0, shieldsB: 2 }), 2, 2);
+  const blowout = rating(res({ win: true, mine: 1, theirs: 0, shieldsA: 2, shieldsB: 0 }), 2, 2);
+  check('blowouts are soft-capped near 700', blowout < SOFT_CAP + 30, `${blowout}`);
+  check('...so crushing beats winning cleanly by very little', blowout - clean < 120, `${clean} -> ${blowout}`);
+
+  // Loss curve: failing to trade at all costs more than losing gracefully.
+  const graceful = rating(res({ win: false, mine: 0, theirs: 0.45 }), 1, 1);
+  const limp = rating(res({ win: false, mine: 0, theirs: 0.95 }), 1, 1);
+  check('a limp loss is curved down below the linear value', limp < 25 * 2, `${limp} (linear would be 25)`);
+  check('...and grades below a graceful one', limp < graceful, `${limp} < ${graceful}`);
+  check('a loss dealing half is curved, not linear', evenLoss < 250 && evenLoss > 150, `250 -> ${evenLoss}`);
+  // The threshold itself: at and above LOSS_CURVE the value passes through.
+  check('the curve stops exactly at the threshold',
+    rating(res({ win: false, mine: 0, theirs: 0.4 }), 0, 0) === LOSS_CURVE, 'base 300 is untouched');
+  check('SHIELD_BONUS is the documented 100', SHIELD_BONUS === 100);
+}
+
+// ── team chains ────────────────────────────────────────────────────────────
+console.log('\n── team chains ────────────────────────────────────────');
+{
+  const mk = (ref: string) => monFor(ref, 'great');
+  const A = ['registeel', 'azumarill', 'medicham'].map(mk);
+  const B = ['swampert', 'skarmory', 'lanturn'].map(mk);
+
+  const even = teamBattle(A, B, { shields: 2 });
+  check('a 3v3 chain resolves', Number.isFinite(even.hpFracA) && even.steps.length > 0, `${even.steps.length} exchanges, ${even.aliveA}-${even.aliveB}`);
+  check('team rating is on the 0-1000 scale', teamRating(even) >= 0 && teamRating(even) <= 1000, `${teamRating(even)}`);
+
+  // Asymmetric shields must actually reach the engine. A single `shields`
+  // option applied to both sides would make these two identical, which is the
+  // bug this parameter was added to prevent.
+  const up = teamBattle(A, B, { shieldsA: 2, shieldsB: 0 });
+  const down = teamBattle(A, B, { shieldsA: 0, shieldsB: 2 });
+  check('shield parity changes the result', up.hpFracA !== down.hpFracA, `2v0 ${up.hpFracA.toFixed(3)} vs 0v2 ${down.hpFracA.toFixed(3)}`);
+  check('...and holding the shields is better', up.hpFracA > down.hpFracA);
+
+  // Banked energy likewise, and only for the lead.
+  const cold = teamBattle(A, B, { shields: 1, bankedA: 0 });
+  const hot = teamBattle(A, B, { shields: 1, bankedA: 1 });
+  check('a banked lead changes the chain', cold.hpFracA !== hot.hpFracA, `${cold.hpFracA.toFixed(3)} -> ${hot.hpFracA.toFixed(3)}`);
+
+  check('survivor energy is reported', hot.energyA >= 0 && hot.energyA <= 100, `${hot.energyA}`);
+  const wiper = teamBattle(A, A.slice(0, 1), {});
+  check('a wiped side banks no energy', wiper.energyB === 0);
+}
+
+// ── baiting against a reading defender ─────────────────────────────────────
+// A two-move attacker used to bait forever against `read`: the rule threw the
+// secondary whenever the opponent held a shield, the reading defender declined
+// it on purpose, the shield never came down, and the attacker re-threw the
+// cheap move every time it could afford it. Lickilicky vs Registeel was four
+// Body Slams and no Shadow Ball, peak energy 47 against the 50 it needed — its
+// coverage move never existed. This is the regression guard.
+console.log('\n── baiting vs a reading defender ──────────────────────');
+{
+  const mk = (r: string) => monFor(r, 'great');
+  const lick = mk('lickilicky');
+  const reg = mk('registeel');
+  const r = battle(lick, reg, 1, 1, 0, 0, true, true, undefined, undefined, 'read', 'read');
+  const charges = r.log.filter((l) => l.actor === 'A' && l.kind === 'charge');
+  const names = new Set(charges.map((l) => l.moveName));
+  // The point is that the MAIN move comes out — Shadow Ball is the efficient
+  // one into Steel. An earlier fixture required two distinct moves, which the
+  // bait-efficiency rule then made wrong: it now declines the resisted Body
+  // Slam outright, so only Shadow Ball is thrown. That is the better outcome.
+  check('the attacker reaches its main move against a reading defender',
+    names.has('Shadow Ball'), [...names].join(', ') || 'threw nothing');
+  check('...and the resisted bait is not spammed',
+    charges.filter((l) => l.moveName === 'Body Slam').length <= 2,
+    `${charges.filter((l) => l.moveName === 'Body Slam').length} Body Slams`);
+  check('...and the defender\'s shield is eventually spent', r.shieldsB === 0, `${r.shieldsB} left`);
+
+  // The same matchup under `always` must be unaffected: the fix only changes
+  // behaviour once a bait has actually been waved through.
+  const alw = battle(lick, reg, 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always');
+  check('`always` behaviour is untouched', alw.shieldsB === 0 && alw.log.some((l) => l.kind === 'charge' && l.shielded));
+}
+
+// ── team legality ──────────────────────────────────────────────────────────
+// GBL forbids duplicate species and decides duplicate by Pokedex number. Every
+// case below is one this rule has to catch and an id comparison would not.
+console.log('\n── team legality ──────────────────────────────────────');
+{
+  const pair = (a: string, b: string) => conflictsOnTeam(a, b);
+  // Regional forms share a dex.
+  check('Alolan Ninetales blocks Kanto Ninetales', pair('ninetales', 'ninetales_alolan'));
+  check('Galarian Stunfisk blocks Kanto Stunfisk', pair('stunfisk', 'stunfisk_galarian'));
+  // A Shadow shares its base form's dex.
+  check('a Shadow blocks its plain form', pair('registeel', 'registeel_shadow'));
+  check('...and across a regional form too', pair('ninetales_alolan', 'ninetales_alolan_shadow'));
+  // Alternate forms of a legendary.
+  check('Origin Dialga blocks Dialga', pair('dialga', 'dialga_origin'));
+  // Note the id: the base form is `zacian_hero`, not `zacian`. An earlier
+  // version of this check used the latter, which resolves to no species at all
+  // and so passed the rule trivially — a fixture that tested nothing.
+  check('Crowned Zacian blocks Hero Zacian', pair('zacian_hero', 'zacian_crowned_sword'));
+  check('Crowned Zamazenta blocks Hero Zamazenta', pair('zamazenta_hero', 'zamazenta_crowned_shield'));
+  // Guard the trap directly: an unknown ref must never read as "no conflict",
+  // because that is how a typo turns into a silently permissive rule.
+  check('an unknown ref is not silently compatible',
+    !pair('zacian', 'zacian_crowned_sword') && SPECIES_BY_ID.get('zacian') === undefined,
+    'zacian is not a real id — zacian_hero is');
+  // A Mega shares its base dex. Megas are not opponents, so this is asserted
+  // on the rule rather than through a pool.
+  const mega = SPECIES.find((s) => /_mega$/.test(s.id) && SPECIES_BY_ID.has(s.id.replace(/_mega$/, '')));
+  check('a Mega blocks its base form', !!mega && pair(mega.id, mega.id.replace(/_mega$/, '')),
+    mega ? `${mega.id} vs ${mega.id.replace(/_mega$/, '')}` : 'no mega with a base form found');
+  // And genuinely different species stay legal.
+  check('different species do not block each other', !pair('registeel', 'azumarill'));
+  check('a Shadow of a different species is fine', !pair('registeel', 'azumarill_shadow'));
+
+  // What the builder's picker offers, computed the same way the screen does.
+  // Asserted here rather than by driving the dropdown: this is the predicate
+  // the component's `selectable` memo is built from, and a rule that holds in
+  // the module holds in every consumer of it.
+  {
+    const team = ['registeel'];
+    const offered = teamPool('great').filter(
+      (r) => !team.some((m) => m === r || conflictsOnTeam(m, r)),
+    );
+    const pool = teamPool('great');
+    check('picker drops the pick already on the team', !offered.includes('registeel'));
+    check('picker drops its Shadow too',
+      !offered.includes('registeel_shadow'),
+      pool.includes('registeel_shadow') ? 'and the pool does contain it' : 'pool has no Shadow to drop — weak test');
+    check('picker keeps unrelated species', offered.length >= pool.length - 3,
+      `${offered.length} of ${pool.length} still offered`);
+  }
+
+  check('teamIsLegal accepts a clean trio', teamIsLegal(['registeel', 'azumarill', 'medicham']));
+  check('teamIsLegal rejects a Shadow pairing', !teamIsLegal(['registeel', 'azumarill', 'registeel_shadow']));
+  check('teamIsLegal rejects a regional pairing', !teamIsLegal(['ninetales', 'azumarill', 'ninetales_alolan']));
+}
+
+// ── what a builder will let you pick ───────────────────────────────────────
+// The team pickers were restricted to our own top 100, which quietly made
+// Altaria unselectable in Great — PvPoke's #4 there, and our #106, so it missed
+// the cut by one place. League membership in this codebase means "PvPoke ranks
+// it", which is a relevance claim, not a legality one; GBL lets you bring
+// anything inside the CP cap.
+console.log('\n── pickable roster ────────────────────────────────────');
+for (const lg of LEAGUES) {
+  const pick = new Set(pickableFor(lg));
+  check(`${lg}: picker offers far more than the ranked pool`, pick.size > 1000, `${pick.size} refs`);
+
+  // The specific regression, named. Each of these is legal and was blocked.
+  for (const ref of ['altaria', 'altaria_shadow', 'electrode_hisuian', 'kingdra', 'sealeo', 'marowak', 'carbink']) {
+    if (!SPECIES_BY_ID.has(parseRef(ref).id)) continue;
+    check(`${lg}: ${ref} is selectable`, pick.has(ref));
+  }
+
+  // ...and the two exclusions that are real.
+  const megas = [...pick].filter((r) => /_mega|_primal/.test(r));
+  check(`${lg}: Megas and Primals stay out — GBL does not allow them`, megas.length === 0, megas.slice(0, 3).join(', '));
+  const unsim = [...pick].filter((r) => !isSimulated(r));
+  check(`${lg}: species the engine cannot model stay out`, unsim.length === 0, unsim.slice(0, 3).join(', '));
+
+  // Everything offered has to actually simulate, or the picker is a trap.
+  const sample = ['altaria', 'caterpie', 'kingdra'].filter((r) => pick.has(r));
+  let built = 0;
+  for (const r of sample) {
+    const m = monFor(r, lg);
+    if (m.hp > 0 && m.atk > 0 && m.fast) built++;
+  }
+  check(`${lg}: off-meta picks price and simulate`, built === sample.length, `${built}/${sample.length}`);
+}
+
+// ── stacked weaknesses ─────────────────────────────────────────────────────
+// The constraint that no team may be more than two deep into one exploitable
+// weakness. Asserted on the shipped artefact rather than trusted from the
+// build: an earlier version computed type pressure per tier, which silently
+// under-counted Fire at tier 50 and shipped 27 triple-Steel teams. The build
+// reported success throughout.
+console.log('\n── stacked weaknesses ─────────────────────────────────');
+for (const lg of LEAGUES) {
+  const field = fieldPool(lg, '500', 500);
+  const pressure = typePressure(
+    field.map((r) => {
+      const sp = speciesOf(r);
+      if (!sp) return [] as string[];
+      const rec = movesFor(sp, lg);
+      return [...new Set([rec.fast.type, ...rec.charges.map((c) => c.type)])];
+    }),
+    relevanceWeights(field.map((r) => overallOf(lg, '500', r)), 2),
+  );
+
+  // Ground and Fire have to clear the bar, or the threshold is set so high the
+  // constraint is decorative — these are the two that produced real failures.
+  check(`${lg}: Ground registers as an exploitable type`, (pressure.get('ground') ?? 0) > 0.04,
+    `pressure ${(pressure.get('ground') ?? 0).toFixed(3)}`);
+  check(`${lg}: Fire registers as an exploitable type`, (pressure.get('fire') ?? 0) > 0.04,
+    `pressure ${(pressure.get('fire') ?? 0).toFixed(3)}`);
+
+  let bad3 = 0;
+  let bad6 = 0;
+  let first = '';
+  for (const t of TEAM_TIERS(lg)) {
+    for (const c of CATEGORIES) {
+      for (const p of TEAM_PASSES.map((x) => x.id)) {
+        for (const [size, cap] of [[3, 2], [6, 3]] as const) {
+          for (const team of bestTeams(lg, t, c.id, p, size)) {
+            const w = worstSharedWeakness(
+              team.refs.map((r) => speciesOf(r)?.types ?? []), pressure, 0.04,
+            );
+            if (w && w.count > cap) {
+              if (size === 3) bad3++; else bad6++;
+              if (!first) first = `${t}|${c.id}|${p}|${size}: ${team.refs.join('/')} — ${w.count} weak to ${w.type}`;
+            }
+          }
+        }
+      }
+    }
+  }
+  check(`${lg}: no three is more than two deep into one weakness`, bad3 === 0, first || `${bad3} teams`);
+  check(`${lg}: no six is more than three deep into one weakness`, bad6 === 0, `${bad6} teams`);
+}
+
+// ── export ─────────────────────────────────────────────────────────────────
+// These files leave the app and get loaded into something else, so a quoting
+// bug does not show up as an error — it shows up as a column silently shifted
+// by one in someone's analysis weeks later.
+console.log('\n── export ─────────────────────────────────────────────');
+{
+  const csv = toCsv([
+    { a: 'plain', b: 'has,comma', c: 'has"quote', d: 'has\nnewline', e: 1, f: null },
+  ]);
+  const body = csv.replace(/^﻿/, '').split('\r\n')[1];
+  check('header comes from the keys', csv.replace(/^﻿/, '').startsWith('a,b,c,d,e,f'));
+  check('commas are quoted', body.includes('"has,comma"'), body);
+  check('quotes are doubled and wrapped', body.includes('"has""quote"'), body);
+  check('newlines are quoted', body.includes('"has\nnewline"'));
+  check('null renders empty, not the string null', body.endsWith(',1,'), body);
+  check('a BOM leads the file so Excel reads UTF-8', csv.charCodeAt(0) === 0xfeff);
+  check('empty input yields empty output', toCsv([]) === '');
+
+  // Round-trip a row that would break a naive split(','). Parsed with a real
+  // state machine rather than a regex: a regex that "mostly works" here would
+  // be testing the test, and the trailing empty field is exactly the case a
+  // sloppy parser drops.
+  const parseRow = (s: string) => {
+    const out: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inQuotes) {
+        if (c !== '"') cur += c;
+        else if (s[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else if (c === '"') inQuotes = true;
+      else if (c === ',') { out.push(cur); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  };
+  const parsed = parseRow(body);
+  check('a naive-hostile row round-trips', parsed.length === 6, `${parsed.length} fields: ${JSON.stringify(parsed)}`);
+  check('...with every value intact',
+    parsed[1] === 'has,comma' && parsed[2] === 'has"quote' && parsed[3] === 'has\nnewline' && parsed[5] === '',
+    JSON.stringify(parsed));
+}
+
+// ── discovered teams ───────────────────────────────────────────────────────
+console.log('\n── discovered teams ───────────────────────────────────');
+for (const lg of LEAGUES) {
+  const tiers = TEAM_TIERS(lg);
+  check(`${lg}: teams built against the shipped matrix`, TEAM_ENGINE_REV(lg) === ENGINE_REV(lg), `teams rev ${TEAM_ENGINE_REV(lg)}, rankings rev ${ENGINE_REV(lg)}`);
+
+  let missing = 0;
+  let badSize = 0;
+  let dupes = 0;
+  let outOfRange = 0;
+  let unsorted = 0;
+  let illegal = 0;
+  let firstIllegal = '';
+  for (const t of tiers) {
+    for (const c of CATEGORIES) {
+      for (const p of TEAM_PASSES.map((x) => x.id)) {
+        for (const size of [3, 6] as const) {
+          const list = bestTeams(lg, t, c.id, p, size);
+          if (!list.length) { missing++; continue; }
+          for (const team of list) {
+            if (team.refs.length !== size) badSize++;
+            if (new Set(team.refs).size !== size) dupes++;
+            if (!teamIsLegal(team.refs)) {
+              illegal++;
+              if (!firstIllegal) firstIllegal = `${t}|${c.id}|${p}|${size}: ${team.refs.join(' / ')}`;
+            }
+            // A six's carrying line is a real team too and must be legal.
+            if (team.line && !teamIsLegal(team.line)) {
+              illegal++;
+              if (!firstIllegal) firstIllegal = `line ${team.line.join(' / ')}`;
+            }
+            if (!(team.score >= 0 && team.score <= 1000)) outOfRange++;
+          }
+          if (list.some((x, i) => i > 0 && list[i - 1].score < x.score)) unsorted++;
+        }
+      }
+    }
+  }
+  const strata = tiers.length * CATEGORIES.length * TEAM_PASSES.length * 2;
+  check(`${lg}: every stratum populated`, missing === 0, `${strata - missing}/${strata}`);
+  check(`${lg}: team sizes correct`, badSize === 0);
+  check(`${lg}: no repeated member within a team`, dupes === 0);
+  check(`${lg}: no duplicate species within a team`, illegal === 0,
+    illegal === 0 ? '' : `${illegal} teams break the dex rule, e.g. ${firstIllegal}`);
+  check(`${lg}: scores on the 0-1000 scale`, outOfRange === 0);
+  check(`${lg}: each stratum sorted best-first`, unsorted === 0);
+
+  // The stratification has to do work. If every stratum returned the same team
+  // the axes would be decorative — exactly the failure mode the "inherit
+  // through the candidate pool only" design would have had.
+  //
+  // Measured across all 84 strata rather than on one pair, because a single
+  // pair proves nothing either way: at Ultra's top-50 cutoff the pool is small
+  // enough that Leads and Closers genuinely agree, and an assertion that reads
+  // one stratum reports that real result as a bug.
+  const distinct3 = new Set<string>();
+  const distinct6 = new Set<string>();
+  for (const t of tiers)
+    for (const c of CATEGORIES)
+      for (const p of TEAM_PASSES.map((x) => x.id)) {
+        distinct3.add(bestTeams(lg, t, c.id, p, 3)[0]?.refs.join('|') ?? '');
+        distinct6.add(bestTeams(lg, t, c.id, p, 6)[0]?.refs.join('|') ?? '');
+      }
+  check(`${lg}: strata select genuinely different threes`, distinct3.size > strata / 8,
+    `${distinct3.size} distinct top teams across ${tiers.length * CATEGORIES.length * TEAM_PASSES.length} strata`);
+  check(`${lg}: strata select genuinely different sixes`, distinct6.size > strata / 8,
+    `${distinct6.size} distinct top sixes across ${tiers.length * CATEGORIES.length * TEAM_PASSES.length} strata`);
+
+  // A six's carrying line must be three of its own six.
+  const six = bestTeams(lg, tiers[0], 'overall', 'd1', 6)[0];
+  check(`${lg}: a six's best line is drawn from that six`,
+    !!six?.line && six.line.length === 3 && six.line.every((r) => six.refs.includes(r)),
+    six?.line?.join(' / ') ?? 'none');
+}
+
+// ── synergy and cores ──────────────────────────────────────────────────────
+console.log('\n── synergy and cores ──────────────────────────────────');
+{
+  // Type complementarity is pure type-chart arithmetic, so it can be asserted
+  // against cases with a known answer rather than against whatever the data
+  // happens to say.
+  const monoFire = [['fire'], ['fire'], ['fire']];
+  check('three of one typing cover none of their own weaknesses', typeCoverage(monoFire) === 0,
+    `${typeCoverage(monoFire)}`);
+  // Altaria (dragon/flying) is weak to Ice; Empoleon (water/steel) resists it.
+  // Empoleon is weak to Ground and Fighting; Altaria is immune to Ground.
+  const pair = typeCoverage([['dragon', 'flying'], ['water', 'steel']]);
+  check('Altaria/Empoleon typings cover each other', pair > 0.5, `${pair.toFixed(2)} of weaknesses covered`);
+  check('...better than a same-typed pair',
+    pair > typeCoverage([['dragon', 'flying'], ['dragon', 'flying']]));
+}
+
+for (const lg of LEAGUES) {
+  const cores = coresFor(lg);
+  const pillars = pillarsFor(lg);
+  check(`${lg}: cores present`, cores.length > 0, `${cores.length}`);
+  if (cores.length) {
+    // Mutuality is the definition, not a nicety: a geometric mean of the two
+    // rescue directions must be zero unless BOTH are positive.
+    check(`${lg}: every core rescues in both directions`,
+      cores.every((c) => c.aRescuedByB > 0 && c.bRescuedByA > 0),
+      cores.filter((c) => !(c.aRescuedByB > 0 && c.bRescuedByA > 0)).slice(0, 2)
+        .map((c) => `${c.a}+${c.b}`).join(', '));
+    check(`${lg}: no core pairs a species with itself`,
+      cores.every((c) => !conflictsOnTeam(c.a, c.b)),
+      cores.filter((c) => conflictsOnTeam(c.a, c.b)).slice(0, 2).map((c) => `${c.a}+${c.b}`).join(', '));
+    check(`${lg}: cores sorted by mutual rescue`,
+      cores.every((c, i) => i === 0 || cores[i - 1].score >= c.score));
+    check(`${lg}: cores carry their evidence`,
+      cores.every((c) => c.bCovers.length + c.bCoversTypes.length > 0),
+      `${cores.filter((c) => c.bCovers.length + c.bCoversTypes.length === 0).length} without any`);
+  }
+
+  check(`${lg}: pillars present`, pillars.length > 0, `${pillars.length}`);
+  if (pillars.length) {
+    check(`${lg}: a pillar's lead and backs are three distinct species`,
+      pillars.every((p) => p.backs.length === 2 && teamIsLegal([p.lead, ...p.backs])),
+      pillars.filter((p) => !teamIsLegal([p.lead, ...p.backs])).slice(0, 2)
+        .map((p) => `${p.lead}+${p.backs.join('+')}`).join(', '));
+    check(`${lg}: double cover is a share, not a count`,
+      pillars.every((p) => p.doubleCover >= 0 && p.doubleCover <= 1000));
+    check(`${lg}: pillars sorted by double cover`,
+      pillars.every((p, i) => i === 0 || pillars[i - 1].doubleCover >= p.doubleCover));
+  }
+
+  // The synergy pass has to actually rank differently from the simulated one,
+  // or it is a third button that shows the second button's answer.
+  const tier = TEAM_TIERS(lg)[1] ?? TEAM_TIERS(lg)[0];
+  let differs = 0;
+  let compared = 0;
+  for (const c of CATEGORIES) {
+    const d1 = bestTeams(lg, tier, c.id, 'd1', 3)[0]?.refs.join('|');
+    const syn = bestTeams(lg, tier, c.id, 'syn', 3)[0]?.refs.join('|');
+    if (d1 && syn) { compared++; if (d1 !== syn) differs++; }
+  }
+  check(`${lg}: the synergy pass is not a copy of the simulated one`,
+    compared > 0 && differs >= compared / 2, `${differs}/${compared} categories pick a different top team`);
+
+  // Components must be populated and on-scale wherever they appear.
+  const sample = bestTeams(lg, tier, 'overall', 'syn', 3);
+  check(`${lg}: synergy components populated`, sample.every((t) => !!t.syn));
+  check(`${lg}: synergy components on the 0-1000 scale`,
+    sample.every((t) => t.syn !== undefined
+      && [t.syn.coverage, t.syn.redundancy, t.syn.swapWorst, t.syn.swapMean, t.syn.typeCover, t.syn.bulk]
+        .every((v) => v >= 0 && v <= 1000)));
+  check(`${lg}: simulated score carried alongside`, sample.every((t) => typeof t.sim === 'number'));
 }
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}\n`);

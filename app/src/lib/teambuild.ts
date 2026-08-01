@@ -1,5 +1,5 @@
 import { bestSpreadFor, mkBattleMon } from './engine';
-import { movesFor, speciesOf } from './data';
+import { conflictsOnTeam, movesFor, speciesOf } from './data';
 import { teamBattle, carryoverEdge } from './team';
 import { teamPool } from './rankings';
 import type { BattleMon, LeagueId } from './types';
@@ -44,12 +44,20 @@ export function sampleFieldTeams(lg: LeagueId, size: number, count: number): str
   const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const seen = new Set<string>();
   let guard = 0;
-  while (out.length < count && guard++ < count * 20) {
+  // The guard is generous because this rejects on GBL's duplicate-species rule
+  // as well as on exact repeats: near the top of a small pool a lot of draws are
+  // a second form of something already picked. A field containing teams nobody
+  // could legally bring is not a weaker yardstick, it is the wrong one.
+  while (out.length < count && guard++ < count * 200) {
     const team: string[] = [];
-    while (team.length < size) {
+    let tries = 0;
+    while (team.length < size && tries++ < 200) {
       const pick = pool[Math.floor(next() * pool.length)];
-      if (!team.includes(pick)) team.push(pick);
+      if (team.includes(pick)) continue;
+      if (team.some((m) => conflictsOnTeam(m, pick))) continue;
+      team.push(pick);
     }
+    if (team.length < size) continue;
     const key = [...team].sort().join('|');
     if (seen.has(key)) continue;
     seen.add(key);
@@ -167,7 +175,9 @@ export function suggestCompletions(
   const count = opts.count ?? 90;
   const limit = opts.limit ?? 12;
   const field = sampleFieldTeams(lg, targetSize, count);
-  const pool = teamPool(lg).filter((r) => !partial.includes(r));
+  // A completion that duplicates a species already on the team is not a legal
+  // suggestion, so it never becomes a candidate.
+  const pool = teamPool(lg).filter((r) => !partial.some((p) => p === r || conflictsOnTeam(p, r)));
 
   const score = (team: string[]) => {
     const mine = team.map((r) => monFor(r, lg));

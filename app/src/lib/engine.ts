@@ -303,7 +303,7 @@ export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] 
 // ══════════════════════════════════════════════════════════════════════════
 
 /** In-game energy ceiling. Overflow past this is lost, not banked. */
-const ENERGY_CAP = 100;
+export const ENERGY_CAP = 100;
 
 export interface FastMoveStats {
   /** STAB-adjusted power. */
@@ -1217,7 +1217,27 @@ export function buildHeatCells(
 interface ChargeRoles {
   main: ChargeMove;
   secondary: ChargeMove | null;
+  /** Damage per energy of each, in this matchup. See BAIT_MIN_EFFICIENCY. */
+  mainDpe: number;
+  secondDpe: number;
 }
+
+/**
+ * How efficient a bait has to be, against the move it delays, to be worth it.
+ *
+ * Baiting is not free even when it works: the energy spent on the cheap move is
+ * energy the real one does not get, so a bait that trades badly is a loss the
+ * removed shield does not pay for. The old rule ignored this and threw the
+ * secondary whenever the opponent held a shield and it was affordable, which
+ * over-stated baiting throughout the rankings.
+ *
+ * Lickilicky into Registeel is the clean case: Body Slam is resisted by Steel
+ * at 1.18 damage per energy against Shadow Ball's neutral 2.00, so baiting
+ * spends 35 energy to remove a shield and gives up most of a Shadow Ball doing
+ * it. At 0.7 that bait is declined and the coverage move comes out instead;
+ * a bait worth making — one within a third of main's efficiency — still does.
+ */
+const BAIT_MIN_EFFICIENCY = 0.7;
 
 /**
  * Main is the best damage per energy — the most efficient move in this
@@ -1235,7 +1255,10 @@ function classifyCharges(
   charges: ChargeMove[],
   oppTypes: readonly string[],
 ): ChargeRoles {
-  if (charges.length === 1) return { main: charges[0], secondary: null };
+  if (charges.length === 1) {
+    const d = dmg(atk, oppDef, charges[0], oppTypes) / charges[0].energy;
+    return { main: charges[0], secondary: null, mainDpe: d, secondDpe: 0 };
+  }
   // Damage once per move, not once per comparison. A sort comparator that
   // recomputes dmg() calls it O(n log n) times, and dmg() now walks the type
   // chart — this was 7.7% of a relevance scan on its own.
@@ -1246,8 +1269,13 @@ function classifyCharges(
   scored.sort((x, y) => y.dpe - x.dpe);
   const main = scored[0].c;
   const rest = scored.slice(1);
-  const secondary = rest.length ? rest.reduce((best, x) => (x.dpe2 > best.dpe2 ? x : best)).c : null;
-  return { main, secondary };
+  const pick = rest.length ? rest.reduce((best, x) => (x.dpe2 > best.dpe2 ? x : best)) : null;
+  return {
+    main,
+    secondary: pick ? pick.c : null,
+    mainDpe: scored[0].dpe,
+    secondDpe: pick ? pick.dpe : 0,
+  };
 }
 
 /** What the secondary move needs to know beyond energy. */
@@ -1259,6 +1287,23 @@ interface ThrowContext {
   atk: number;
   oppDef: number;
   oppTypes: readonly string[];
+  /**
+   * True once a bait has been thrown and deliberately not shielded.
+   *
+   * Without this the attacker baits forever. The rule below throws the
+   * secondary whenever the opponent holds a shield, on the assumption that a
+   * bait draws it — which is true against `always` and false against `read`,
+   * where declining the bait is the entire policy. Against a reading defender
+   * the shield therefore never came down, the condition stayed true, and the
+   * attacker re-threw the cheap move every time it could afford it and never
+   * banked the energy for its main.
+   *
+   * Lickilicky vs Registeel was four Body Slams and not one Shadow Ball, peak
+   * energy 47 against the 50 it needed, with Registeel's shield still up at the
+   * end. Its coverage move never existed. Baiting is a read, and a read that
+   * comes back wrong has to change the plan.
+   */
+  baitRefused: boolean;
 }
 
 /**
@@ -1278,7 +1323,12 @@ function pickCharge(
   const second = roles.secondary;
   if (second && energy >= second.energy) {
     const kills = oppShields === 0 && dmg(ctx.atk, ctx.oppDef, second, ctx.oppTypes) >= ctx.oppHp;
-    if (kills || oppShields > 0 || ctx.incomingKO) return second;
+    // Bait only while there is reason to think it draws a shield, AND the
+    // trade is worth making. A resisted cheap move spends energy the real move
+    // needed and buys a shield that was not the thing stopping you.
+    const worthBaiting = roles.mainDpe <= 0 || roles.secondDpe / roles.mainDpe >= BAIT_MIN_EFFICIENCY;
+    const baiting = oppShields > 0 && !ctx.baitRefused && worthBaiting;
+    if (kills || baiting || ctx.incomingKO) return second;
   }
   return null;
 }
@@ -1333,6 +1383,9 @@ export function battle(
   let eB = energyB;
   let sA = shieldsA;
   let sB = shieldsB;
+  // Whether each side's bait has been called. See ThrowContext.baitRefused.
+  let baitRefusedA = false;
+  let baitRefusedB = false;
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
@@ -1377,10 +1430,10 @@ export function battle(
       (sB === 0 && a.charges.some((c, i) => eA >= c.energy && chargeDmgA[i] >= hpB));
 
     const readyA = freeA
-      ? pickCharge(rolesA, eA, sB, { oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types })
+      ? pickCharge(rolesA, eA, sB, { oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types, baitRefused: baitRefusedA })
       : null;
     const readyB = freeB
-      ? pickCharge(rolesB, eB, sA, { oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types })
+      ? pickCharge(rolesB, eB, sA, { oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types, baitRefused: baitRefusedB })
       : null;
 
     // With optimizeTiming off, throw the moment a move is available — PvPoke's
@@ -1445,6 +1498,9 @@ export function battle(
           eA -= moveA.energy;
           const raw = dmg(a.atk, b.def, moveA, b.types);
           const shielded = sB > 0 && shieldCall(policyB, raw, hpB, worstFromA);
+          // A bait thrown into a live shield and waved through is a read that
+          // came back wrong; stop baiting this opponent.
+          if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
           const damage = shielded ? 1 : raw;
           if (shielded) sB--;
           hpB -= damage;
@@ -1471,6 +1527,7 @@ export function battle(
           eB -= moveB.energy;
           const raw = dmg(b.atk, a.def, moveB, a.types);
           const shielded = sA > 0 && shieldCall(policyA, raw, hpA, worstFromB);
+          if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const damage = shielded ? 1 : raw;
           if (shielded) sA--;
           hpA -= damage;

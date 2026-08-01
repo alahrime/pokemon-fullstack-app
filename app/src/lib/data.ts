@@ -116,6 +116,35 @@ export function displayName(ref: string): string {
 }
 
 /**
+ * Whether two picks are the same species, and so cannot share a team.
+ *
+ * GBL forbids duplicate species and decides "duplicate" by **Pokedex number**,
+ * not by form or by ref. That one comparison covers every case at once:
+ *
+ *   - regional forms — Ninetales and Alolan Ninetales are both #38
+ *   - a Pokemon and its Mega — same dex by construction
+ *   - a Pokemon and its Shadow — a Shadow shares its base form's dex entirely
+ *   - alternate forms generally — Origin Dialga, Crowned Zacian, Unown letters
+ *
+ * Comparing ids would miss all but the last, because every one of those forms
+ * carries a distinct id. This is why the check lives here rather than being
+ * open-coded as `a !== b` at each call site, which is what it used to be.
+ */
+export function conflictsOnTeam(a: string, b: string): boolean {
+  const sa = speciesOf(a);
+  const sb = speciesOf(b);
+  return !!sa && !!sb && sa.dex === sb.dex;
+}
+
+/** Whether a whole team is free of duplicate species. */
+export function teamIsLegal(refs: readonly string[]): boolean {
+  for (let i = 0; i < refs.length; i++)
+    for (let j = i + 1; j < refs.length; j++)
+      if (conflictsOnTeam(refs[i], refs[j])) return false;
+  return true;
+}
+
+/**
  * Species held out of the simulator because it cannot model them correctly.
  *
  * Each has a mechanic with no representation in the engine: Mimikyu's built-in
@@ -215,6 +244,28 @@ export function opponentsFor(league: LeagueId): Species[] {
  * and both deserve a cell. A league can rate one form and not the other -
  * Shadow Palkia is Great-ranked where plain Palkia is not.
  */
+/**
+ * Everything a player may actually bring to a league.
+ *
+ * Deliberately much wider than `opponentCandidatesFor`. League membership in
+ * this codebase means "PvPoke publishes a ranking for it", which is a statement
+ * about *relevance*, not legality — GBL lets you bring anything inside the CP
+ * cap. Using the ranked set as a picker silently made Altaria unselectable in
+ * Great (PvPoke's own #4) and Carbink unselectable in Ultra, and using the top
+ * 100 was narrower still.
+ *
+ * The one real exclusion is Megas and Primals, which GBL does not permit at
+ * all, plus the species the engine cannot model. Everything else is offered,
+ * ranked or not: an unranked pick simply has no reference column, and the
+ * simulation prices it exactly as it prices anything else.
+ */
+export function pickableFor(_league: LeagueId): string[] {
+  return SPECIES.filter((s) => isSimulated(s.id) && !/_mega|_primal/.test(s.id)).flatMap((s) => [
+    s.id,
+    ...(s.shadowEligible ? [makeRef(s.id, true)] : []),
+  ]);
+}
+
 export function opponentCandidatesFor(league: LeagueId): string[] {
   return SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => [
     ...(s.leagues.includes(league) ? [s.id] : []),

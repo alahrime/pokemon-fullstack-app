@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
-import { LEAGUE_BY_ID, displayName, parseRef, speciesOf } from '../lib/data';
+import { LEAGUE_BY_ID, conflictsOnTeam, displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { teamPool } from '../lib/rankings';
 import { analyseShow6, analyseTeam, suggestCompletions } from '../lib/teambuild';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
+import { BestTeams } from '../components/BestTeams';
+import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 
 /**
  * Both team builders, which differ only in size and in how a team is scored.
@@ -59,7 +61,22 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const [six, setSix] = useState<ReturnType<typeof analyseShow6> | null>(null);
   const [picks, setPicks] = useState<ReturnType<typeof suggestCompletions> | null>(null);
 
+  // Three different pools, and conflating them is what made Altaria
+  // unselectable in Great:
+  //   - what you may PICK        — anything GBL allows (pickableFor)
+  //   - who you are MEASURED against — the top 100 (teamPool)
+  //   - what gets SUGGESTED      — also the top 100, since a recommendation
+  //                                 drawn from the tail is noise
+  // Only the first is a restriction on the user, and it should be as wide as
+  // the game is.
   const pool = useMemo(() => new Set(teamPool(league)), [league]);
+  const selectable = useMemo(
+    () =>
+      new Set(
+        pickableFor(league).filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r))),
+      ),
+    [league, team],
+  );
   const full = team.length === size;
 
   const invalidate = () => {
@@ -72,11 +89,25 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   // overwrites the first instead of appending — which silently dropped members
   // and left the roster looking like it had chosen at random.
   const add = (ref: string) => {
-    setTeam((t) => (t.includes(ref) || t.length >= size ? t : [...t, ref]));
+    setTeam((t) =>
+      // GBL forbids two of the same species, and that is by Pokedex number —
+      // so Alolan Ninetales blocks Kanto Ninetales, and a Shadow blocks its
+      // plain form. Rejected here rather than flagged after the fact, because
+      // an illegal team has no score worth showing.
+      t.includes(ref) || t.length >= size || t.some((m) => conflictsOnTeam(m, ref))
+        ? t
+        : [...t, ref],
+    );
     invalidate();
   };
   const clear = (i: number) => {
     setTeam((t) => t.filter((_, n) => n !== i));
+    invalidate();
+  };
+  // Loading a discovered team replaces the roster outright rather than
+  // appending, so a half-built team does not silently reject the load.
+  const load = (refs: string[]) => {
+    setTeam(refs.slice(0, size));
     invalidate();
   };
 
@@ -125,11 +156,12 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             value=""
             onChange={add}
             placeholder="Add a Pokémon — name, type, @move…"
-            // Shadows are separate candidates here, exactly as they are
-            // separate opponents: the stat multipliers make them a different
-            // Pokemon to build around.
+            // Shadows are separate *candidates* — the stat multipliers make
+            // one a different Pokemon to build around — but not separate
+            // species: picking one removes the other from the list, because
+            // GBL's duplicate rule goes by Pokedex number.
             includeShadow
-            restrictTo={pool}
+            restrictTo={selectable}
           />
         </div>
         <div className="team-actions">
@@ -140,12 +172,65 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             Suggest next pick
           </button>
           {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
+          {report && (
+            <>
+              <button
+                className="btn btn-sm"
+                title="This analysis as JSON — headline numbers, threats, and the Show 6 game where applicable"
+                onClick={() =>
+                  downloadJson(`paragon-team-${league}-${stamp()}`, {
+                    league,
+                    size,
+                    team: team.map((r) => ({ ref: r, name: displayName(r) })),
+                    winRate: report.winRate,
+                    meanHpKept: report.meanHp,
+                    carryoverEdge: report.carryover,
+                    show6: six
+                      ? { floor: six.floor, naive: six.naive, bestLine: six.bestLine }
+                      : null,
+                    threats: (six ? six.threats : report.threats).map((t) => ({
+                      ref: t.ref,
+                      name: displayName(t.ref),
+                      lossRate: t.lossRate,
+                      meanHpCost: t.meanHpCost,
+                    })),
+                  })
+                }
+              >
+                Export JSON
+              </button>
+              <button
+                className="btn btn-sm"
+                title="The threat table as CSV"
+                onClick={() =>
+                  downloadCsv(
+                    `paragon-threats-${league}-${stamp()}`,
+                    (six ? six.threats : report.threats).map((t, i) => ({
+                      rank: i + 1,
+                      ref: t.ref,
+                      name: displayName(t.ref),
+                      lossRate: t.lossRate,
+                      meanHpCost: t.meanHpCost,
+                      league,
+                      team: team.map(displayName).join(' / '),
+                    })),
+                  )
+                }
+              >
+                Threats CSV
+              </button>
+            </>
+          )}
         </div>
         <p className="text-muted team-warn">
-          Picks and the sampled opposing field both come from the top {pool.size} of{' '}
-          {LEAGUE_BY_ID.get(league)!.label} by Overall. Beyond that a builder is offering noise.
+          Pick any of the {selectable.size.toLocaleString()} Pokémon GBL allows in{' '}
+          {LEAGUE_BY_ID.get(league)!.label} — ranked or not. The sampled opposing field and the
+          suggested completions come from the top {pool.size} by Overall, which caps who you are{' '}
+          <em>measured against</em> rather than what you may bring.
         </p>
       </div>
+
+      <BestTeams league={league} size={size} onLoad={load} />
 
       {picks && (
         <div className="panel">

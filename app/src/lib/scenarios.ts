@@ -11,16 +11,58 @@ import type { BattleMon, BattleResult, ChargeMove } from './types';
  */
 
 /**
- * A battle rating on PvPoke's 0–1000 scale, where 500 is an even fight.
+ * PvPoke's own rating mechanics, adopted wholesale.
  *
- * Half the score is damage dealt, half is HP kept. That matters for ranking:
- * winning with 1 HP left and winning untouched are both wins, but only the
- * second says the matchup is safe to rely on, and a team builder that cannot
- * tell them apart recommends coin flips. A plain win/loss bit throws away
- * exactly the information a ranking is for.
+ * Read from their Ranker.js rather than guessed at. Our previous basis and
+ * theirs agree on the starting point — health kept plus damage dealt, each
+ * worth 500 — and then diverge in three ways that turned out to matter far more
+ * than any weight we had been tuning:
+ *
+ *   1. a win is paid for SHIELD PRESSURE — 100 per opponent shield forced and
+ *      100 per shield of your own still held. Nothing in our rating rewarded
+ *      making an opponent spend shields, which is most of what the spam and
+ *      bait archetype does for a team.
+ *   2. wins above 700 are SOFT-CAPPED at 700 + sqrt(excess), so a blowout is
+ *      worth almost nothing over a solid win. This is the direct answer to
+ *      polarising walls out-scoring even traders: we were paying full price for
+ *      crushing wins that a real set converts no better than a comfortable one.
+ *   3. bad losses are CURVED DOWN below 300, so failing to trade at all costs
+ *      more than losing gracefully.
+ *
+ * Deliberately NOT adopted: their editor override, which replaces 75% of a
+ * published score with a hand-set value. That is curation, and reproducing it
+ * would mean copying a judgement rather than computing one.
  */
-export function rating(r: BattleResult): number {
-  return Math.round(500 * (1 - r.theirs) + 500 * r.mine);
+export const SOFT_CAP = 700;
+export const LOSS_CURVE = 300;
+/** Rating credit per shield forced, and per shield kept, on a win. */
+export const SHIELD_BONUS = 100;
+
+/**
+ * A battle rating on PvPoke's 0–1000 scale.
+ *
+ * `startShieldsA/B` are what each side began the scenario with; the shield
+ * bonus needs the difference against what is left, and BattleResult only
+ * carries the remainder.
+ */
+export function rating(r: BattleResult, _startShieldsA = 0, startShieldsB = 0): number {
+  const healthRating = r.mine;
+  const damageRating = 1 - r.theirs;
+  let v = Math.floor((healthRating + damageRating) * 500);
+
+  // Shield pressure, paid only on a win — an opponent who spent shields losing
+  // to you is an opponent who has none left for your next Pokemon.
+  if (r.win) {
+    v += SHIELD_BONUS * Math.max(0, startShieldsB - r.shieldsB);
+    v += SHIELD_BONUS * Math.max(0, r.shieldsA);
+  }
+
+  // A crushing win is barely better than a clean one; a limp loss is much
+  // worse than a close one. Both curves compress what we used to pay in full.
+  if (v > SOFT_CAP) v = SOFT_CAP + Math.sqrt(v - SOFT_CAP);
+  else if (v < LOSS_CURVE) v = Math.pow(LOSS_CURVE, (LOSS_CURVE + v) / (2 * LOSS_CURVE));
+
+  return Math.round(v);
 }
 
 /** Energy a mon needs banked to be holding its cheapest charged move. */
@@ -237,6 +279,56 @@ export function consistencyScore(
   const turnPenalty = (fastTurns - 1) * 20;
 
   return Math.max(0, Math.round(mean - 1.5 * sd - 0.25 * baitSwing - turnPenalty));
+}
+
+/**
+ * PvPoke's composite Overall: a weighted geometric mean of a Pokemon's own
+ * category scores, best-first — over scores NORMALISED per category first.
+ *
+ * The normalisation is not cosmetic and leaving it out was a real bug. Their
+ * Ranker.js scales every category to 0–100 against that category's own best
+ * before RankerOverall composes them:
+ *
+ *     rankings[i].score = Math.floor((rankings[i].score / highest) * 1000) / 10;
+ *
+ * Composing raw battle ratings instead compresses everything, because a rating
+ * has a high floor — damage dealt alone earns ~400 — so a Pokemon that is
+ * mediocre everywhere reads as uniformly decent. Worse, the sort happens per
+ * Pokemon *before* the 12/6/4/2 weights are applied, so normalising changes
+ * which category counts as that Pokemon's best role and therefore what the 12x
+ * exponent lands on. Skipping it put five unevolved forms in Great's top 24 and
+ * undid the very thing the graded pass exists to prevent.
+ *
+ * Returns a factory rather than a plain function because the maxima are a
+ * property of the pool, not of one Pokemon: nothing can be scored until every
+ * candidate has been scored.
+ */
+export function makeOverall(
+  perScenario: readonly Record<ScenarioId, number>[],
+  fastTurns: readonly number[],
+): (i: number) => number {
+  const roleCats = CATEGORIES.filter((c) => c.id !== 'overall');
+  const raw = perScenario.map((per, i) =>
+    roleCats.map((c) =>
+      c.id === 'consistency' ? consistencyScore(per, fastTurns[i]) : weightedScore(per, c.weights),
+    ),
+  );
+  const max = roleCats.map((_, ci) => Math.max(1, ...raw.map((r) => r[ci])));
+
+  return (i: number) => {
+    // 0–100 per category, floored at 1 so a zero cannot annihilate the product.
+    const norm = raw[i].map((v, ci) => Math.max(1, (v / max[ci]) * 100));
+    const consistency = norm[norm.length - 1];
+    const roles = norm.slice(0, -1).sort((a, b) => b - a);
+    const [s0, s1, s2, s3] = roles;
+    const composite = Math.pow(
+      Math.pow(s0, 12) * Math.pow(s1, 6) * Math.pow(s2, 4) * Math.pow(s3, 2) * Math.pow(consistency, 2),
+      1 / 26,
+    );
+    // x10 so Overall shares the 0–1000 axis the category scores are shown on.
+    // Ordering is what the composite decides; the scale is presentation.
+    return Math.round(composite * 10);
+  };
 }
 
 /** Blend a scenario record by a category's weights. */

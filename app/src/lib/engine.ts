@@ -305,6 +305,31 @@ export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] 
 /** In-game energy ceiling. Overflow past this is lost, not banked. */
 export const ENERGY_CAP = 100;
 
+/**
+ * What a full bar carried out of a won matchup is worth, in rating points.
+ *
+ * The mirror of ENERGY_DEBT in scenarios.ts, which docks you for leaving a
+ * surviving opponent with energy. Energy you walk out with is the same
+ * resource seen from the other side: a charged move your next opponent has to
+ * answer before it has earned anything of its own. Scaled linearly off the
+ * cap, so half a bar is worth half of this.
+ *
+ * It lives here rather than beside ENERGY_DEBT because the engine needs it
+ * too — the farm-down rule weighs banked energy against chip damage, and it
+ * has to weigh them on the scale the result is actually scored on. A hold that
+ * looks clever under one exchange rate and loses rating under another is not a
+ * decision, it is a disagreement between two files.
+ */
+export const ENERGY_KEPT = 100;
+
+/**
+ * What full HP is worth on that same scale — the health term of `rating`.
+ *
+ * Duplicated as a named constant rather than the literal 500 so the farm-down
+ * trade reads as the comparison it is.
+ */
+export const HP_WEIGHT = 500;
+
 export interface FastMoveStats {
   /** STAB-adjusted power. */
   damage: number;
@@ -1278,6 +1303,25 @@ function classifyCharges(
   };
 }
 
+/**
+ * The fixed facts the farm-down test needs — everything that cannot change
+ * once the matchup is set. Built once per battle; the parts that move from
+ * turn to turn ride on ThrowContext instead.
+ */
+interface FarmProfile {
+  /** My fast move: damage per hit, and what it costs in turns. */
+  fastDamage: number;
+  fastTurns: number;
+  /** Theirs, plus what it pays them — a farm hands the victim energy. */
+  oppFastDamage: number;
+  oppFastTurns: number;
+  oppFastEnergy: number;
+  /** Their cheapest charged move, which sets how many they get off. */
+  oppCheapest: number;
+  /** Their hardest hit, which is what each of those is assumed to be. */
+  oppWorst: number;
+}
+
 /** What the secondary move needs to know beyond energy. */
 interface ThrowContext {
   /** Damage the secondary would deal, for the "would this KO" test. */
@@ -1304,12 +1348,88 @@ interface ThrowContext {
    * comes back wrong has to change the plan.
    */
   baitRefused: boolean;
+  /** The static half of the farm-down test. */
+  farm: FarmProfile;
+  /** My HP now, and at full — the test trades chip damage against energy. */
+  myHp: number;
+  myMaxHp: number;
+  /** Shields I still hold, which is what makes a farm safe to commit to. */
+  myShields: number;
+  /** Their energy now, which decides what they get to do about it. */
+  oppEnergy: number;
 }
 
 /**
- * Main move first whenever it is affordable; that is the whole of PvPoke's
- * rule 1. The secondary only comes out when main is still out of reach and one
- * of three things is true: it kills, the opponent is holding a shield worth
+ * Can I finish them on fast moves alone, and is it worth doing?
+ *
+ * This is the farm-down: the opponent is close enough to dead that my fast
+ * move gets there on its own, so throwing a charged move spends energy on a
+ * kill I already had. A human who can see that ending holds the energy and
+ * walks into the next Pokemon with a charged move already loaded. The engine
+ * could not — `pickCharge` returned main the instant it was affordable — so
+ * every farm-down in the rankings ended with the winner's bar emptied into a
+ * corpse. Measured across 60x60x3 in Great, 46.3% of all charged throws were
+ * made into an opponent that fast moves had already killed.
+ *
+ * Two conditions, and both have to hold:
+ *
+ * SAFE. Count the fast moves it takes to kill them, and give them everything
+ * they can do in that window — their own fast chip, the energy that chip pays
+ * them, and every charged move that energy buys, each assumed to be their
+ * hardest hit. My shields eat the first few. If what is left still kills me,
+ * this is a race and not a farm. The pessimism is deliberate: a farm I am not
+ * certain of is not a farm, and the cost of being wrong is the whole fight.
+ *
+ * WORTH IT. Farming is not free, but it is much cheaper than it first looks.
+ * The cost is not the whole window's chip damage — throwing does not end the
+ * fight either, and I would have eaten most of those turns anyway. What
+ * farming actually costs is the turns it adds *over* throwing, which is only
+ * the stretch the charged move would have skipped. That marginal chip goes on
+ * the scale the result is scored on, against the energy banked at
+ * ENERGY_KEPT. Against something with real fast pressure the chip still
+ * outruns the energy and the move goes out now; against Registeel's Lock On it
+ * never does, which is the case that started this.
+ *
+ * Only when their shields are down. With a shield up the question is not
+ * whether fast moves finish the job but whether stripping the shield is worth
+ * the energy, which is the bait rule's decision and already made above.
+ */
+function canFarmDown(main: ChargeMove, oppShields: number, ctx: ThrowContext): boolean {
+  if (oppShields > 0) return false;
+  // Never hold into a knockout. The window test below would usually catch this
+  // on its own, but not when the farm is one or two turns long: a window
+  // shorter than their fast move rounds their damage down to nothing, and the
+  // hold would look free right up until it lost the fight.
+  if (ctx.incomingKO) return false;
+  const f = ctx.farm;
+  if (f.fastDamage <= 0 || ctx.myMaxHp <= 0) return false;
+  const windowFarm = Math.ceil(ctx.oppHp / f.fastDamage) * f.fastTurns;
+
+  // Safety is judged over the whole farm, not the marginal part of it.
+  const theirHits = Math.floor(windowFarm / f.oppFastTurns);
+  const theirEnergy = Math.min(ENERGY_CAP, ctx.oppEnergy + theirHits * f.oppFastEnergy);
+  const theirThrows = f.oppCheapest > 0 ? Math.floor(theirEnergy / f.oppCheapest) : 0;
+  const unshielded = Math.max(0, theirThrows - ctx.myShields);
+  if (theirHits * f.oppFastDamage + unshielded * f.oppWorst >= ctx.myHp) return false;
+
+  // The counterfactual: throw now, then finish whatever survives on fast
+  // moves. The difference between the two windows is all farming really costs.
+  const landed = dmg(ctx.atk, ctx.oppDef, main, ctx.oppTypes);
+  const windowThrow = 1 + Math.ceil(Math.max(0, ctx.oppHp - landed) / f.fastDamage) * f.fastTurns;
+  const extraHits = Math.max(0, Math.floor((windowFarm - windowThrow) / f.oppFastTurns));
+
+  const banked = ENERGY_KEPT * Math.min(1, main.energy / ENERGY_CAP);
+  const cost = HP_WEIGHT * ((extraHits * f.oppFastDamage) / ctx.myMaxHp);
+  return banked > cost;
+}
+
+/**
+ * Main move first whenever it is affordable — that is PvPoke's rule 1, and it
+ * holds unless the kill is already banked on fast moves, in which case the
+ * energy is worth more carried out than spent here. See canFarmDown.
+ *
+ * The secondary only comes out when main is still out of reach and one of
+ * three things is true: it kills, the opponent is holding a shield worth
  * burning, or we are about to be knocked out and this is the last damage we
  * will ever deal.
  */
@@ -1319,7 +1439,11 @@ function pickCharge(
   oppShields: number,
   ctx: ThrowContext,
 ): ChargeMove | null {
-  if (energy >= roles.main.energy) return roles.main;
+  if (energy >= roles.main.energy) {
+    // Hold the bar through a farm-down. Re-tested every turn, so the moment
+    // the farm stops being safe the move goes out.
+    return canFarmDown(roles.main, oppShields, ctx) ? null : roles.main;
+  }
   const second = roles.secondary;
   if (second && energy >= second.energy) {
     const kills = oppShields === 0 && dmg(ctx.atk, ctx.oppDef, second, ctx.oppTypes) >= ctx.oppHp;
@@ -1403,6 +1527,28 @@ export function battle(
   // holding its shield for.
   const worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
   const worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
+  // Cheapest charged move each side owns — how often the other can expect to
+  // be hit while being farmed. See canFarmDown.
+  const cheapA = a.charges.length ? Math.min(...a.charges.map((c) => c.energy)) : 0;
+  const cheapB = b.charges.length ? Math.min(...b.charges.map((c) => c.energy)) : 0;
+  const farmA: FarmProfile = {
+    fastDamage: fA,
+    fastTurns: a.fast.turns,
+    oppFastDamage: fB,
+    oppFastTurns: b.fast.turns,
+    oppFastEnergy: b.fast.energyGain,
+    oppCheapest: cheapB,
+    oppWorst: worstFromB,
+  };
+  const farmB: FarmProfile = {
+    fastDamage: fB,
+    fastTurns: b.fast.turns,
+    oppFastDamage: fA,
+    oppFastTurns: a.fast.turns,
+    oppFastEnergy: a.fast.energyGain,
+    oppCheapest: cheapA,
+    oppWorst: worstFromA,
+  };
   const log: BattleLogEntry[] = [];
 
   // Turns held with a charged move available but deliberately not thrown,
@@ -1430,10 +1576,18 @@ export function battle(
       (sB === 0 && a.charges.some((c, i) => eA >= c.energy && chargeDmgA[i] >= hpB));
 
     const readyA = freeA
-      ? pickCharge(rolesA, eA, sB, { oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types, baitRefused: baitRefusedA })
+      ? pickCharge(rolesA, eA, sB, {
+          oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types,
+          baitRefused: baitRefusedA,
+          farm: farmA, myHp: hpA, myMaxHp: a.hp, myShields: sA, oppEnergy: eB,
+        })
       : null;
     const readyB = freeB
-      ? pickCharge(rolesB, eB, sA, { oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types, baitRefused: baitRefusedB })
+      ? pickCharge(rolesB, eB, sA, {
+          oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types,
+          baitRefused: baitRefusedB,
+          farm: farmB, myHp: hpB, myMaxHp: b.hp, myShields: sB, oppEnergy: eA,
+        })
       : null;
 
     // With optimizeTiming off, throw the moment a move is available — PvPoke's

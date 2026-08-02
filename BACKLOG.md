@@ -308,6 +308,67 @@ Not the move data. Every fast-move turn count involved was checked against
 A prior version of this note asserted several turn counts from memory and was
 wrong about four of them — check the file, not recall.
 
+## 1h. Farm-downs and carried energy — BUILT, rev 11
+
+The observation, from play: a good player who can see that fast moves alone
+will finish the opponent does not throw a charged move to do it. They hold the
+bar and walk into the next Pokemon already loaded. Shadow Marowak is the case
+that makes it obvious — Mud Slap into something with no fast pressure farms
+the whole matchup, and with a shield to hide behind it does it for free.
+
+The engine could not express that. `pickCharge` returned `roles.main` the
+instant it was affordable, full stop. Measured over 60x60x3 in Great, **46.3%
+of all charged throws were made into an opponent that fast moves had already
+killed** — every one of them energy spent on a kill that was already banked.
+
+`canFarmDown` in `lib/engine.ts` now holds the bar when two things are true:
+
+- **Safe.** Count the fast moves to the kill, then hand the opponent
+  everything they get in that window — fast chip, the energy it pays them, and
+  every charged move that energy buys, each assumed to be their hardest hit,
+  with my shields eating the first few. If what is left still kills me, it is a
+  race, not a farm. Deliberately pessimistic.
+- **Worth it.** The cost is *not* the whole window's chip. Throwing does not
+  end the fight either — I would have eaten most of those turns anyway. What
+  farming actually costs is the turns it adds *over* throwing, and only that
+  marginal chip is weighed, at HP_WEIGHT, against the energy banked at
+  ENERGY_KEPT. Pricing the full window instead was the first version's bug and
+  it made the rule almost never fire.
+
+Only with their shields down. With a shield up, spending ~50 energy to strip a
+shield is worth 100 by our own exchange rate, so throwing is still right.
+
+`ENERGY_KEPT = 100` is the other half, and the rule does not work without it:
+holding costs a little health, so with nothing on the other side of the trade
+the correct play would have *scored worse* than the careless one. It mirrors
+the ENERGY_DEBT already charged for leaving a live opponent with energy.
+
+Measured before/after against a clean worktree at HEAD:
+
+| | before | after |
+|---|---|---|
+| farm-safe throws, their shields down | 41.7% | 37.5% |
+| mean energy carried out of a win | 11.2 | 16.2 |
+| wins ending on a near-full bar (≥90) | 0.4% | 1.4% |
+
+The residual 37.5% is the worth-it gate declining farms whose chip outruns the
+energy — intended, not leftover bug. Shadow Marowak vs Registeel at 0 shields
+went from 2 charged moves and 30 energy out to **1 and 95**.
+
+PvPoke agreement is unmoved: 76.5% winner agreement at r=0.726, against 76.6%
+and r=0.729 before. That is the expected result — they do not model farm-downs,
+so a large swing either way would have meant something was wrong.
+
+**It does not lower Registeel, and that is worth being clear about.** Registeel
+went 986 → 988 and stayed #1. Lock On is a 1-turn 5-energy move, so Registeel
+banks energy readily and now gets *credited* for it. The mons that gained are
+bulky low-pressure farmers (Cradily +158 places, Greedent +127, Garbodor +95,
+Eldegoss +92); the ones that fell are glass cannons that depended on dumping
+energy (Manectric -55, Alolan Golem -49, Rotom Wash -40). Annihilape did move
+up 27 places and Shadow Ninetales 10, which is the direction the observation
+predicted — but if the goal is specifically Registeel's usage, this is not the
+lever. See §1g: 75% of its published score is a hand-set editor value of 88.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

@@ -585,6 +585,36 @@ console.log('\n── baiting vs a reading defender ─────────�
   check('`always` behaviour is untouched', alw.shieldsB === 0 && alw.log.some((l) => l.kind === 'charge' && l.shielded));
 }
 
+// ── farm-downs and carried energy ──────────────────────────────────────────
+// `pickCharge` used to return main the instant it was affordable, so a mon
+// that could finish the job on fast moves alone still spent its bar on a kill
+// it already had — 46.3% of all charged throws in Great went into an opponent
+// fast moves had already killed. Shadow Marowak's Mud Slap into Registeel is
+// the clean case: no fast pressure coming back, so the farm is nearly free and
+// the energy is worth far more carried into the next Pokemon. See §1h.
+console.log('\n── farm-downs ─────────────────────────────────────────');
+{
+  const mk = (r: string) => monFor(r, 'great');
+  const wak = mk('marowak_alolan_shadow');
+  const reg = mk('registeel');
+  const r = battle(wak, reg, 0, 0, 0, 0, true, true, undefined, undefined, 'always', 'always');
+  check('the farm-down still wins the matchup', r.win, `hpA ${r.hpA}`);
+  check('...and walks out holding most of a bar', r.energyA >= 60, `${r.energyA} energy`);
+
+  // The other side of the rule: real fast pressure must still get the move
+  // thrown. Lickilicky and Registeel chip each other, so farming loses more
+  // health than the banked energy is worth and the bar goes out on schedule.
+  const lick = battle(mk('lickilicky'), reg, 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always');
+  check('a contested matchup still throws its charged moves',
+    lick.log.filter((l) => l.actor === 'A' && l.kind === 'charge').length >= 2,
+    `${lick.log.filter((l) => l.actor === 'A' && l.kind === 'charge').length} throws`);
+
+  // Holding is never allowed to lose a fight it would otherwise have won.
+  // incomingKO short-circuits the rule; this guards that it stays wired up.
+  const azu = battle(mk('azumarill'), mk('medicham'), 0, 0, 0, 0, true, true, undefined, undefined, 'always', 'always');
+  check('a won matchup is not thrown away by holding', azu.win, `hpA ${azu.hpA}`);
+}
+
 // ── team legality ──────────────────────────────────────────────────────────
 // GBL forbids duplicate species and decides duplicate by Pokedex number. Every
 // case below is one this rule has to catch and an id comparison would not.

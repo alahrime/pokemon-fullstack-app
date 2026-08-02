@@ -1,4 +1,4 @@
-import { battle, ENERGY_CAP } from './engine';
+import { battle, ENERGY_CAP, ENERGY_KEPT } from './engine';
 import { ENERGY_DEBT, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, startingEnergy } from './scenarios';
 import type { BattleMon, BattleResult, ShieldPolicy } from './types';
 
@@ -216,6 +216,10 @@ export function teamRating(r: TeamResult, startShields = TEAM_SHIELDS): number {
   if (r.win) {
     v += SHIELD_BONUS * Math.max(0, startShields - r.shieldsB);
     v += SHIELD_BONUS * Math.max(0, r.shieldsA);
+    // Energy the last mon standing walks out with, priced as a single matchup
+    // prices it. This is where the farm-down rule pays: a chain that ends
+    // holding a charged move has genuinely won by more than one that does not.
+    v += ENERGY_KEPT * Math.min(1, r.energyA / ENERGY_CAP);
   }
   // Energy left with a surviving opponent, same as a single matchup prices it.
   if (r.hpFracB > 0) v -= ENERGY_DEBT * Math.min(1, r.energyB / ENERGY_CAP);

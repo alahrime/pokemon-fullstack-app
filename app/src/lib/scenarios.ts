@@ -1,4 +1,4 @@
-import { ENERGY_CAP } from './engine';
+import { ENERGY_CAP, ENERGY_KEPT } from './engine';
 import type { BattleMon, BattleResult, ChargeMove } from './types';
 
 /**
@@ -77,6 +77,12 @@ export function rating(r: BattleResult, _startShieldsA = 0, startShieldsB = 0): 
   if (r.win) {
     v += SHIELD_BONUS * Math.max(0, startShieldsB - r.shieldsB);
     v += SHIELD_BONUS * Math.max(0, r.shieldsA);
+    // Energy you walk out with, on the same footing as a kept shield. This is
+    // the credit that makes the engine's farm-down rule rational: holding a
+    // bar through a kill costs a little health, and without something on the
+    // other side of that trade the correct play would score worse than the
+    // careless one. See ENERGY_KEPT and canFarmDown in engine.ts.
+    v += ENERGY_KEPT * Math.min(1, r.energyA / ENERGY_CAP);
   }
 
   // The reverse, and it applies whenever they are left standing: energy they

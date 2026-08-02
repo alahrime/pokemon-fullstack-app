@@ -69,8 +69,11 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *      back into the graded pass
  *  10  residual-energy debt: a surviving opponent's banked energy is a charged
  *      move your next Pokemon walks into, and is now priced like a shield
+ *  11  farm-downs: a mon that can finish the job on fast moves alone holds its
+ *      energy instead of spending it on a kill it already had, and the bar it
+ *      carries out of a win is credited the way a kept shield is
  */
-const ENGINE_REV = 10;
+const ENGINE_REV = 11;
 
 /**
  * Loadouts considered per species.

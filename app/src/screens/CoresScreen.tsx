@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../lib/teams';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
+import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
+import { bestSpreadFor } from '../lib/engine';
+import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
 import { SegButton, SegGroup } from '../components/Seg';
@@ -62,7 +64,31 @@ function Direction({ from, to, covers, types }: {
   );
 }
 
-function CoreRow({ c, max }: { c: Core; max: number }) {
+/**
+ * One member's rated build: the spread and the set the core was scored on.
+ *
+ * Read back from bestSpreadFor and movesFor rather than restated, so a row can
+ * never advertise a build that did not earn the score beside it.
+ */
+function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
+  const sp = speciesOf(r);
+  const spread = useMemo(() => (sp ? bestSpreadFor(r, league, true) : null), [sp, r, league]);
+  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  if (!sp || !spread) return null;
+  return (
+    <span className="core-build">
+      <span className="numeric core-build-iv">{spread.a}/{spread.d}/{spread.s}</span>
+      <span className="numeric core-build-cp">{spread.cp}<i>CP</i></span>
+      {moves && (
+        <span className="core-build-moves">
+          {moves.fast.name} · {moves.charges.map((m) => m.name).join(' / ')}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function CoreRow({ c, max, league }: { c: Core; max: number; league: LeagueId }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={open ? 'is-open' : ''}>
@@ -71,8 +97,18 @@ function CoreRow({ c, max }: { c: Core; max: number }) {
           <Mon ref={c.a} />
           <Mon ref={c.b} />
         </span>
+        {/* Names, and under each the spread and set it was scored on. A core
+            is a claim about two specific builds — Forretress with Bug Bite is
+            a different partner than Forretress with Volt Switch — so the row
+            has to say which two, or the pairing is unfalsifiable. */}
         <span className="core-names">
-          {displayName(c.a)} <span className="core-amp">+</span> {displayName(c.b)}
+          <span className="core-names-line">
+            {displayName(c.a)} <span className="core-amp">+</span> {displayName(c.b)}
+          </span>
+          <span className="core-builds">
+            <CoreBuild ref={c.a} league={league} />
+            <CoreBuild ref={c.b} league={league} />
+          </span>
         </span>
         <span className="numeric core-score" title="Mutual rescue — both directions, geometric mean">
           {c.score}
@@ -369,7 +405,7 @@ export function CoresScreen() {
               <span className="hud-label">Seen</span>
             </div>
             <ol className="core-list">
-              {cores.map((c) => <CoreRow key={`${c.a}|${c.b}`} c={c} max={maxCore} />)}
+              {cores.map((c) => <CoreRow key={`${c.a}|${c.b}`} c={c} max={maxCore} league={league} />)}
             </ol>
           </div>
         )

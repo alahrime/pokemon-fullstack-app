@@ -3011,3 +3011,55 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 @media (prefers-reduced-motion: reduce) {
   .iv-tick { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CORE ROW BUILDS
+
+   A core is a claim about two specific builds, not two species — Forretress
+   with Bug Bite is a different partner than Forretress with Volt Switch. The
+   row now says which two, so the pairing can be checked rather than taken on
+   trust. See §1d in BACKLOG.md for why the rated set is not always the played
+   one; this is where that distinction becomes visible.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.core-names {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.core-names-line {
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two builds stacked, one per member, in the order the names read. */
+.core-builds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.core-build {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+}
+.core-build-iv { color: var(--text-muted); flex: none; }
+.core-build-cp { color: var(--color-accent); flex: none; }
+.core-build-cp i { font-style: normal; opacity: 0.65; margin-left: 1px; }
+/* Truncates rather than wraps: the row keeps its height whatever the movepool
+   is named, which is what keeps the list scannable. */
+.core-build-moves {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

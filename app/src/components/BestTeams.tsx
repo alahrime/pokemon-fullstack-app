@@ -59,7 +59,9 @@ function TeamRow({ t, i, max, league, size, pass, onLoad }: {
               key={r}
               refId={r}
               league={league}
-              size={size === 3 ? 'compact' : 'mini'}
+              // Sixes were 'mini' on the assumption they would not fit; they
+              // measure 184px at 1440, comfortably past compact's 170px floor.
+              size="compact"
               // The podium foil belongs to the team's standing, not the
               // Pokemon's, so it is passed from the row rather than derived.
               rank={i}

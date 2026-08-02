@@ -25,7 +25,9 @@ import { downloadCsv, stamp } from '../lib/exportData';
  * happens there are two ways to flip it rather than one.
  */
 
-function Mon({ ref: r, size = 34 }: { ref: string; size?: number }) {
+// 52 by default, because the default is what the Pairs list uses and that list
+// is the screen. The explicit sizes below are for the denser contexts.
+function Mon({ ref: r, size = 52 }: { ref: string; size?: number }) {
   const sp = speciesOf(r);
   return (
     <span className="core-mon" title={displayName(r)}>
@@ -53,7 +55,7 @@ function Direction({ from, to, covers, types }: {
       )}
       {covers.length > 0 && (
         <span className="core-dir-mons">
-          {covers.map((c) => <Mon key={c} ref={c} size={22} />)}
+          {covers.map((c) => <Mon key={c} ref={c} size={30} />)}
         </span>
       )}
     </div>
@@ -122,14 +124,14 @@ function PillarRow({ p, max }: { p: Pillar; max: number }) {
   return (
     <li>
       <span className="pillar-lead">
-        <Mon ref={p.lead} size={38} />
+        <Mon ref={p.lead} size={56} />
         <span className="pillar-lead-name">{displayName(p.lead)}</span>
       </span>
       <span className="pillar-arrow" aria-hidden="true">↻</span>
       <span className="pillar-backs">
         {p.backs.map((b) => (
           <span className="pillar-back" key={b}>
-            <Mon ref={b} size={30} />
+            <Mon ref={b} size={42} />
             <span className="pillar-back-name">{displayName(b)}</span>
           </span>
         ))}
@@ -334,8 +336,8 @@ export function CoresScreen() {
           {result && (
             <div className="core-detail core-check-result">
               <div className="core-check-head">
-                <Mon ref={result.a} size={44} />
-                <Mon ref={result.b} size={44} />
+                <Mon ref={result.a} size={64} />
+                <Mon ref={result.b} size={64} />
                 <span className="core-names">
                   {displayName(result.a)} <span className="core-amp">+</span> {displayName(result.b)}
                 </span>

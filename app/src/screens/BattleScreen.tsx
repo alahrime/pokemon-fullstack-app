@@ -70,20 +70,38 @@ function Side({
         includeShadow
       />
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" />
-        <div className="min-w-0">
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
+      <div className="battle-mon">
+        <span className="battle-mon-art">
+          <Sprite sprite={species.sprite} dex={species.dex} size={104} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="battle-mon-name">
             {species.name}
             {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
           </div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', margin: '2px 0 4px' }}>
+          <div className="my-1 flex flex-wrap gap-1">
             {species.types.map((t) => (
               <TypeBadge key={t} type={t} />
             ))}
           </div>
-          <div className="text-muted numeric text-sm">
-            CP {entry.cp} · L{entry.lvl} · #{entry.rank}/4096
+          {/* The spread, spelled out rather than abbreviated — this is the
+              screen where the exact roll decides the outcome. */}
+          <div className="numeric battle-mon-stats">
+            <span><i>IV</i>{iv.a}/{iv.d}/{iv.s}</span>
+            <span><i>CP</i>{entry.cp}</span>
+            <span><i>LVL</i>{entry.lvl}</span>
+            <span><i>RANK</i>{entry.rank}</span>
+          </div>
+          <div className="battle-mon-bars">
+            {([['ATK', entry.atk, 200], ['DEF', entry.def, 200], ['HP', entry.hp, 250]] as const).map(
+              ([lab, v, ceil]) => (
+                <span className="battle-mon-bar" key={lab} title={`${lab} ${v.toFixed(1)}`}>
+                  <i>{lab}</i>
+                  <span><span style={{ width: `${Math.min(100, (v / ceil) * 100)}%` }} /></span>
+                  <b className="numeric">{Math.round(v)}</b>
+                </span>
+              ),
+            )}
           </div>
         </div>
       </div>
@@ -234,42 +252,39 @@ export function BattleScreen() {
       <ScreenHeader
         title="Battle"
         blurb="Head-to-head PvP simulation: independent movesets, starting energy and shield counts per side, with selective baiting when a mon carries two charge moves of different costs."
+        aside={<HeldOutNote compact />}
       />
-      <div className="mb-4 flex flex-wrap items-start gap-4">
-        <div className="min-w-0 flex-[1_1_30ch]">
-          <HeldOutNote />
+      {/* One strip rather than a stacked column. Label, control and the
+          consequence of the choice sit on a single baseline, so the setting
+          costs one row instead of three and the horizontal space it was
+          already occupying carries the explanation. */}
+      <div className="battle-timing">
+        <span className="hud-label battle-timing-label">Charge timing</span>
+        <div className="form-toggle flex-none" role="group" aria-label="Charge move timing">
+          <button
+            type="button"
+            className={`form-opt form-opt-normal${!state.optimizeTiming ? ' is-active' : ''}`}
+            aria-pressed={!state.optimizeTiming}
+            onClick={() => patch({ optimizeTiming: false })}
+            title="Throw as soon as the move is available — matches PvPoke"
+          >
+            Immediate
+          </button>
+          <button
+            type="button"
+            className={`form-opt form-opt-buddy${state.optimizeTiming ? ' is-active' : ''}`}
+            aria-pressed={state.optimizeTiming}
+            onClick={() => patch({ optimizeTiming: true })}
+            title="Hold until the release lands on the opponent's registration turn"
+          >
+            Optimised
+          </button>
         </div>
-
-        <div className="flex-none">
-          <div className="hud-label mb-[7px]">
-            <span>Charge timing</span>
-          </div>
-          <div className="form-toggle" role="group" aria-label="Charge move timing">
-            <button
-              type="button"
-              className={`form-opt form-opt-normal${!state.optimizeTiming ? ' is-active' : ''}`}
-              aria-pressed={!state.optimizeTiming}
-              onClick={() => patch({ optimizeTiming: false })}
-              title="Throw as soon as the move is available — matches PvPoke"
-            >
-              Immediate
-            </button>
-            <button
-              type="button"
-              className={`form-opt form-opt-buddy${state.optimizeTiming ? ' is-active' : ''}`}
-              aria-pressed={state.optimizeTiming}
-              onClick={() => patch({ optimizeTiming: true })}
-              title="Hold until the release lands on the opponent's registration turn"
-            >
-              Optimised
-            </button>
-          </div>
-          <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '34ch' }}>
-            {state.optimizeTiming
-              ? 'Holds each charge for the turn the opponent’s fast move registers — fewer free turns given away, but no longer comparable to PvPoke’s numbers.'
-              : 'Throws the moment a move is charged, as PvPoke does. Not optimal play, but it is what published ratings are measured against.'}
-          </div>
-        </div>
+        <p className="battle-timing-note text-muted">
+          {state.optimizeTiming
+            ? 'Holds each charge for the turn the opponent’s fast move registers — fewer free turns given away, but no longer comparable to PvPoke’s numbers.'
+            : 'Throws the moment a move is charged, as PvPoke does. Not optimal play, but it is what published ratings are measured against.'}
+        </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>

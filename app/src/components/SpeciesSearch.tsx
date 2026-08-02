@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BASE_ROSTER, ROSTER, SPECIES, displayName, type RosterEntry } from '../lib/data';
+import {
+  BASE_ROSTER,
+  ROSTER,
+  SPECIES,
+  SPECIES_BY_ID,
+  UNSIMULATED_IDS,
+  displayName,
+  type RosterEntry,
+} from '../lib/data';
 import { compileQuery } from '../lib/query';
 import { SearchHelp } from './SearchHelp';
 import { HeldOutNote } from './HeldOutNote';
@@ -25,7 +33,7 @@ const RESULT_LIMIT = 250;
  * OVERSCAN rows are rendered beyond each edge so a fast scroll or a held arrow
  * key does not reach blank space before React re-renders.
  */
-const ROW_H = 36;
+const ROW_H = 52;
 const LIST_H = 420;
 const OVERSCAN = 6;
 const DEBOUNCE_MS = 120;
@@ -72,6 +80,19 @@ export function SpeciesSearch({
    * to a question nobody asked.
    */
   restrictTo,
+  /**
+   * Start empty and return to empty, rather than showing the current
+   * selection.
+   *
+   * The landing page's search is a starting point, not a readout: arriving
+   * home to find "Azumarill" already typed means clearing it before you can
+   * search, and it makes the page look like it is mid-task when it is not.
+   * The screen remounts on navigation, so going home genuinely resets it.
+   *
+   * The nav's copy keeps the old behaviour, where showing the current species
+   * is the whole point.
+   */
+  startEmpty = false,
 }: {
   value: string;
   onChange: (ref: string) => void;
@@ -81,6 +102,7 @@ export function SpeciesSearch({
   className?: string;
   includeShadow?: boolean;
   restrictTo?: ReadonlySet<string>;
+  startEmpty?: boolean;
 }) {
   const base = includeShadow ? ROSTER : BASE_ROSTER;
   const pool = useMemo(
@@ -88,8 +110,10 @@ export function SpeciesSearch({
     [base, restrictTo],
   );
   const selectedName = displayName(value);
-  const [text, setText] = useState(selectedName);
-  const [debounced, setDebounced] = useState(selectedName);
+  // What the box shows when it is not being edited.
+  const resting = startEmpty ? '' : selectedName;
+  const [text, setText] = useState(resting);
+  const [debounced, setDebounced] = useState(resting);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -99,8 +123,8 @@ export function SpeciesSearch({
   const listboxId = `${id}-listbox`;
 
   useEffect(() => {
-    if (!open) setText(selectedName);
-  }, [selectedName, open]);
+    if (!open) setText(resting);
+  }, [resting, open]);
 
   useEffect(() => {
     window.clearTimeout(timerRef.current);
@@ -157,6 +181,25 @@ export function SpeciesSearch({
   const last = Math.min(results.length, Math.ceil((scrollTop + LIST_H) / ROW_H) + OVERSCAN);
   const windowed = results.slice(first, last);
 
+  /**
+   * Which held-out species this query was reaching for, if any.
+   *
+   * The note at the foot of the list exists to explain an absence you actually
+   * hit. Rendering it unconditionally — which is what it used to do — meant an
+   * exact match on a present species still came with a paragraph about three
+   * unrelated ones. Matched the same way the roster is matched, so "mimi",
+   * "778" and "Mimikyu" all count.
+   */
+  const heldOutHits = useMemo(() => {
+    const q = debounced.trim().toLowerCase();
+    if (!q) return [];
+    return [...UNSIMULATED_IDS].filter((id) => {
+      const sp = SPECIES_BY_ID.get(id);
+      if (!sp) return false;
+      return sp.name.toLowerCase().includes(q) || String(sp.dex) === q;
+    });
+  }, [debounced]);
+
   // A new query resets the scroll, or the window would open part-way down a
   // list that no longer has those rows.
   useEffect(() => {
@@ -186,11 +229,13 @@ export function SpeciesSearch({
   const commit = (ref: string) => {
     onChange(ref);
     setOpen(false);
-    setText(displayName(ref));
+    setText(startEmpty ? '' : displayName(ref));
   };
 
   return (
-    <div className={className} style={{ position: 'relative', ...style }}>
+    // `species-search` is the stable hook every variant is styled from, so the
+    // field does not depend on whichever class the caller happened to pass.
+    <div className={`species-search${className ? ' ' + className : ''}`} style={{ position: 'relative', ...style }}>
       <span className="nav-search-glyph" aria-hidden>
         ⌕
       </span>
@@ -228,12 +273,12 @@ export function SpeciesSearch({
             if (open && results[activeIndex]) commit(results[activeIndex].ref);
           } else if (e.key === 'Escape') {
             setOpen(false);
-            setText(selectedName);
+            setText(resting);
           }
         }}
         onBlur={() => {
           setOpen(false);
-          setText(selectedName);
+          setText(resting);
         }}
       />
       {/* One positioned panel holding the list and the held-out note. The note
@@ -241,7 +286,14 @@ export function SpeciesSearch({
           input and *above* the absolutely-positioned list — reading as a header
           rather than a footnote. Inside the panel it sits at the foot of the
           surface it annotates. */}
-      {open && results.length > 0 && (
+      {/* Opens for results, and *also* for a query that found nothing — an
+          empty box that simply vanishes leaves you unable to tell a typo from
+          a species we hold out. That was the real defect behind the stray
+          note: it lived inside a panel gated on `results.length > 0`, so
+          searching Mimikyu returned nothing, closed the panel, and took the
+          one explanation that mattered with it. The note could only ever
+          appear alongside results it had nothing to do with. */}
+      {open && (results.length > 0 || debounced.trim().length > 0) && (
         <div className="search-dropdown">
         {/* The scroll box is this wrapper, not the list. Padding on the list
             would sit outside its own max-height and the box would grow to the
@@ -265,6 +317,7 @@ export function SpeciesSearch({
         >
           {windowed.map((r, wi) => {
             const i = first + wi;
+            const rank = bestRankOf(r);
             return (
             <li
               key={r.ref}
@@ -276,40 +329,58 @@ export function SpeciesSearch({
                 commit(r.ref);
               }}
               onMouseEnter={() => setActiveIndex(i)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '5px 10px',
-                fontSize: 13,
-                cursor: 'pointer',
-                background: i === activeIndex ? 'var(--color-accent)' : 'transparent',
-                color: i === activeIndex ? 'var(--color-on-accent)' : 'var(--color-text)',
-              }}
+              className={`search-row${i === activeIndex ? ' is-active' : ''}`}
+              // The one value that must agree with the windowing arithmetic
+              // above, so it is set from the same constant rather than left to
+              // drift in a stylesheet.
+              style={{ height: ROW_H }}
             >
-              <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} shadow={r.shadow} />
-              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.name}
+              <span className="search-row-art">
+                <Sprite sprite={r.species.sprite} dex={r.species.dex} size={38} shadow={r.shadow} />
               </span>
-              {/* Typing is the fastest way to tell near-identical forms apart
-                  while scanning; icons carry it without stealing name width. */}
-              <span style={{ display: 'inline-flex', gap: 2, flex: 'none' }}>
-                {r.species.types.map((t) => (
-                  <TypeIcon key={t} type={t} size={14} />
-                ))}
+              <span className="search-row-id">
+                <span className="search-row-name">{r.name}</span>
+                {/* Typing is the fastest way to tell near-identical forms apart
+                    while scanning; icons carry it without stealing name width. */}
+                <span className="search-row-meta">
+                  {r.species.types.map((t) => (
+                    <TypeIcon key={t} type={t} size={13} />
+                  ))}
+                  {/* Best rank in any league, labelled. It used to sit bare on
+                      the right as "#42", which reads as a Pokédex number and is
+                      not one — two different numbers wearing the same hash. */}
+                  {rank !== Number.MAX_SAFE_INTEGER && (
+                    <span className="numeric search-row-rank">
+                      <i>rank</i>{rank}
+                    </span>
+                  )}
+                </span>
               </span>
-              <span
-                className="numeric"
-                style={{ fontSize: 10, opacity: i === activeIndex ? 0.75 : 0.45 }}
-              >
-                #{String(r.species.dex).padStart(3, '0')}
+              {/* The Pokédex number, which is what a bare # should mean. */}
+              <span className="numeric search-row-dex">
+                {String(r.species.dex).padStart(4, '0')}
               </span>
             </li>
             );
           })}
         </ul>
         </div>
-        <HeldOutNote compact />
+        {/* Nothing matched. Say so, and name the species we hold out if that
+            is what was being reached for — those are different problems and
+            silence looked identical for both. */}
+        {results.length === 0 && (
+          <p className="search-empty">
+            No match for <strong>{debounced.trim()}</strong>
+            {heldOutHits.length === 0 && (
+              <span className="search-empty-hint">
+                Try a type, a generation, or a move — <code>water</code>, <code>gen1</code>,{' '}
+                <code>@counter</code>
+              </span>
+            )}
+          </p>
+        )}
+        {/* Only when the query was actually reaching for a held-out species. */}
+        {heldOutHits.length > 0 && <HeldOutNote compact only={heldOutHits} />}
         </div>
       )}
       <button

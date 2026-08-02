@@ -1,6 +1,6 @@
-import { AppStateProvider, useAppState, type Screen } from './state/AppState';
+import { AppStateProvider, useAppState } from './state/AppState';
+import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
-import { SegButton, SegGroup } from './components/Seg';
 import { SpeciesSearch } from './components/SpeciesSearch';
 import { ThemeSwitch } from './components/ThemeSwitch';
 import { HudGround } from './components/Hud';
@@ -14,15 +14,6 @@ import { RankingsScreen } from './screens/RankingsScreen';
 import { TeamBuilderScreen } from './screens/TeamBuilderScreen';
 import { CoresScreen } from './screens/CoresScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
-
-const SCREENS: [Screen, string][] = [
-  ['report', 'Report'],
-  ['battle', 'Battle'],
-  ['rankings', 'Rankings'],
-  ['gbl', 'GBL Teams'],
-  ['show6', 'Show 6'],
-  ['cores', 'Cores'],
-];
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -44,24 +35,43 @@ function Nav() {
           id="nav-species"
           value={state.species}
           onChange={(id) =>
+            // Go to the Report, because the Report is the only screen that
+            // shows the species this picks. Rankings, Cores and the two team
+            // builders never read `state.species`, so choosing from here used
+            // to commit the selection and change nothing visible — the control
+            // looked broken on four of the six screens when it was in fact
+            // working perfectly and reporting to an empty room.
+            //
             // chargeIds must clear with the species. Held across a change they
             // name moves the new species does not learn, and the moves panel —
             // which shows only the selected moves once a pool needs a picker —
             // then matches nothing and renders empty. Switching from Azumarill
             // to Mew was showing no charged moves at all.
-            patch({ species: id, moveIdx: 0, chargeIds: [] })
+            patch({ species: id, moveIdx: 0, chargeIds: [], screen: 'report' })
           }
           placeholder="Name, type, gen1, @counter, water&!legendary…"
           className="nav-search"
         />
       )}
-      <SegGroup>
-        {SCREENS.map(([id, label]) => (
-          <SegButton key={id} active={state.screen === id} onClick={() => set('screen', id)}>
-            {label}
-          </SegButton>
+      {/* Not SegGroup any more: these are the app's primary destinations, and
+          rendering them as the same control used for a sort order made them
+          read as a minor setting. Each carries its own hue and glyph, matching
+          the landing page's card for the same screen. */}
+      <nav className="nav-tabs" aria-label="Sections">
+        {SCREEN_DEFS.map((d) => (
+          <button
+            key={d.id}
+            className={`nav-tab${state.screen === d.id ? ' is-active' : ''}`}
+            style={{ ['--tab-hue' as string]: d.hue }}
+            aria-current={state.screen === d.id ? 'page' : undefined}
+            onClick={() => set('screen', d.id)}
+            title={d.blurb}
+          >
+            <span className="nav-tab-glyph" aria-hidden="true">{d.glyph}</span>
+            <span className="nav-tab-label">{d.label}</span>
+          </button>
         ))}
-      </SegGroup>
+      </nav>
       <LeagueTabs
         value={state.league}
         onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}

@@ -4,7 +4,9 @@ import { useAppState } from '../state/AppState';
 import { CATEGORIES, type CategoryId } from '../lib/scenarios';
 import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
-import { LEAGUE_BY_ID, parseRef, speciesOf } from '../lib/data';
+import { LEAGUE_BY_ID, movesFor, parseRef, speciesOf } from '../lib/data';
+import { bestSpreadFor } from '../lib/engine';
+import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
 import { SegButton, SegGroup } from '../components/Seg';
@@ -22,26 +24,53 @@ function Bar({ value, max }: { value: number; max: number }) {
   );
 }
 
-function Row({ row, i, max, expanded, onToggle }: {
+function Row({ row, i, max, league, expanded, onToggle }: {
   row: RankRow;
   i: number;
   max: number;
+  league: LeagueId;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const { shadow } = parseRef(row.ref);
   const sp = speciesOf(row.ref);
   const gain = row.bestScore - row.score;
+  // Read back from the same calls the build made, so the row cannot show a
+  // spread or a set that did not earn the score beside it.
+  const spread = useMemo(() => (sp ? bestSpreadFor(row.ref, league, true) : null), [sp, row.ref, league]);
+  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   return (
     <>
       <tr className={`rank-row${expanded ? ' is-open' : ''}`} onClick={onToggle}>
         <td className="numeric rank-pos">{i}</td>
         <td>
+          {/* The row had a 30px sprite and nothing but a name beside it, which
+              wasted the width the table already had. At 56px with the rated
+              spread and the set underneath, the row answers "is this the build
+              I am thinking of" without expanding it. Same data the score was
+              computed from — bestSpreadFor and movesFor, not a second guess. */}
           <div className="rank-name">
-            {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={30} shadow={shadow} />}
-            <div>
+            <span className="rank-art">
+              {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={56} shadow={shadow} />}
+            </span>
+            <div className="min-w-0">
               <div className="rank-name-text">{row.name}</div>
               <div className="rank-types">{sp?.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
+              {spread && (
+                <div className="numeric rank-spread">
+                  <span className="rank-iv">{spread.a}/{spread.d}/{spread.s}</span>
+                  <span className="rank-cp">{spread.cp}<i>CP</i></span>
+                  <span className="rank-lvl">L{spread.lvl}</span>
+                </div>
+              )}
+              {moves && (
+                <div className="rank-moves">
+                  <span className="rank-move is-fast">{moves.fast.name}</span>
+                  {moves.charges.map((c) => (
+                    <span className="rank-move" key={c.id}>{c.name}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </td>
@@ -266,6 +295,7 @@ export function RankingsScreen() {
               row={r}
               i={page * PAGE + n + 1}
               max={max}
+              league={league}
               expanded={open === r.ref}
               onToggle={() => setOpen(open === r.ref ? null : r.ref)}
             />

@@ -55,12 +55,33 @@ function StatRow({
 }) {
   const changed = useChanged(value);
   const perfect = value === MAX_IV;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  /**
+   * Which tick the pointer is over, from its position along the track.
+   *
+   * Computed from geometry rather than from whichever tick element happens to
+   * be under the cursor: during a drag the pointer is captured by the track, so
+   * `event.target` stays the track and per-tick handlers never fire. Reading
+   * the offset also lets the value follow a pointer that has slid above or
+   * below the row, which is what makes a drag feel attached.
+   */
+  const tickAt = (clientX: number): number => {
+    const el = trackRef.current;
+    if (!el) return value;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0) return value;
+    const frac = (clientX - r.left) / r.width;
+    return Math.max(0, Math.min(MAX_IV, Math.ceil(frac * MAX_IV)));
+  };
 
   return (
-    <div className={`iv-row${perfect ? ' is-perfect' : ''}`}>
+    <div className={`iv-row${perfect ? ' is-perfect' : ''}${dragging ? ' is-dragging' : ''}`}>
       <span className="iv-label">{label}</span>
 
       <div
+        ref={trackRef}
         className="iv-track"
         role="slider"
         tabIndex={0}
@@ -68,6 +89,34 @@ function StatRow({
         aria-valuemin={0}
         aria-valuemax={MAX_IV}
         aria-valuenow={value}
+        onPointerDown={(e) => {
+          // Left button / touch / pen only.
+          if (e.button !== 0) return;
+          e.preventDefault();
+          setDragging(true);
+          // Capture so the drag survives leaving the track, and so a pointerup
+          // anywhere still ends it.
+          e.currentTarget.setPointerCapture(e.pointerId);
+          const hit = tickAt(e.clientX);
+          // Pressing the tick already set clears to 0, which is otherwise
+          // unreachable from the bar. Only on the press — during a drag it
+          // would blank the value every time the pointer crossed its own tick.
+          onSet(hit === value ? 0 : hit);
+        }}
+        onPointerMove={(e) => {
+          if (!dragging) return;
+          const next = tickAt(e.clientX);
+          // Only commit real changes — a move within one tick would otherwise
+          // dispatch a state update on every pointer event.
+          if (next !== value) onSet(next);
+        }}
+        onPointerUp={(e) => {
+          setDragging(false);
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          }
+        }}
+        onPointerCancel={() => setDragging(false)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
             e.preventDefault();
@@ -87,13 +136,11 @@ function StatRow({
         {Array.from({ length: MAX_IV }, (_, i) => {
           const tick = i + 1;
           return (
-            <button
+            // Presentational only. The track handles pointer input as one
+            // surface, which is what lets a press become a drag; a per-tick
+            // onClick would fire a second time for the same press.
+            <span
               key={tick}
-              type="button"
-              tabIndex={-1}
-              // Clicking the tick you're already on clears to 0 — otherwise
-              // there'd be no way to reach 0 from the bar itself.
-              onClick={() => onSet(value === tick ? 0 : tick)}
               className={`iv-tick${tick <= value ? ' is-on' : ''}${tick % GROUP === 0 && tick !== MAX_IV ? ' is-group-end' : ''}`}
               title={`${label} ${tick}`}
               aria-hidden

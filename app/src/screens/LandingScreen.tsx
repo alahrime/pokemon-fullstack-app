@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useAppState, type Screen } from '../state/AppState';
+import { useAppState } from '../state/AppState';
+import { SCREEN_DEFS } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { PokemonCard } from '../components/PokemonCard';
 import { LEAGUE_BY_ID, ROSTER, SPECIES, speciesOf } from '../lib/data';
@@ -26,14 +27,7 @@ import { teamCount } from '../lib/teams';
  * describes, which is the point of using utilities at all.
  */
 
-const ROUTES: [Screen, string, string, string][] = [
-  ['report', 'Report', 'One Pokémon, every spread, against the field it will actually meet', '◈'],
-  ['battle', 'Battle', 'Two Pokémon, turn by turn, with shields and energy played out', '⚔'],
-  ['rankings', 'Rankings', 'The whole league sorted by role, at every opponent-pool depth', '▤'],
-  ['gbl', 'GBL Teams', 'Best threes, simulated as one continuous chain rather than three matchups', '⬢'],
-  ['show6', 'Show 6', 'Best sixes, scored as the matrix game a Show 6 really is', '⬡'],
-  ['cores', 'Cores', 'Pairs that cover each other, and the third that finishes them', '⧗'],
-];
+
 
 export function LandingScreen() {
   const { state, set, patch } = useAppState();
@@ -67,7 +61,9 @@ export function LandingScreen() {
     <div className="landing">
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="landing-hero flex flex-col items-center px-6 pt-20 pb-16 text-center">
-        <div className="landing-hero-glow" aria-hidden="true" />
+        <div className="landing-hero-clip" aria-hidden="true">
+          <div className="landing-hero-glow" />
+        </div>
 
         <p className="hud-label relative mb-6 [animation:landing-rise_var(--dur-4)_var(--ease-out)_120ms_both]">
           Pokémon GO · PvP IV analysis
@@ -91,7 +87,7 @@ export function LandingScreen() {
 
         {/* The search, given a lit ring and a soft bloom so it reads as the one
             thing on the page you are meant to touch. */}
-        <div className="group relative w-full max-w-2xl [animation:landing-rise_var(--dur-5)_var(--ease-out)_440ms_both]">
+        <div className="group relative z-50 w-full max-w-2xl [animation:landing-rise_var(--dur-5)_var(--ease-out)_440ms_both]">
           <div
             className="pointer-events-none absolute -inset-px bg-gradient-to-r from-(--color-accent)/40 via-(--color-accent-2)/40 to-(--color-accent)/40 opacity-0 blur-md transition-opacity duration-300 group-focus-within:opacity-100 motion-reduce:transition-none"
             aria-hidden="true"
@@ -107,6 +103,8 @@ export function LandingScreen() {
             }
             placeholder="Search any Pokémon…"
             className="landing-search-input relative"
+            // Home is a fresh start, not a readout of what you last looked at.
+            startEmpty
           />
         </div>
 
@@ -164,22 +162,27 @@ export function LandingScreen() {
         <header className="mb-6 border-b border-(--rule-hairline) pb-3">
           <h2 className="font-(family-name:--font-head) text-2xl tracking-tight">Where to go</h2>
         </header>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-          {ROUTES.map(([id, label, blurb, glyph]) => (
+        {/* Equal columns and equal rows: `1fr` rather than auto-fit means the
+            six stay a tidy 3x2 that rebalances at 2x3 and 1x6, and every card
+            is the height of the tallest so the grid reads as a grid. */}
+        <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SCREEN_DEFS.map((r) => (
             <button
-              key={id}
-              onClick={() => set('screen', id)}
-              className="landing-route group flex flex-col gap-2 pr-12"
+              key={r.id}
+              onClick={() => set('screen', r.id)}
+              className="landing-route group flex flex-col items-start gap-3"
+              // Each card's own hue, consumed by every layer in the CSS.
+              style={{ ['--route-hue' as string]: r.hue }}
             >
-              <span
-                className="text-2xl leading-none text-(--color-accent) opacity-70 transition-transform duration-300 ease-(--ease-spring) group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-                aria-hidden="true"
-              >
-                {glyph}
+              <span className="landing-route-glyph" aria-hidden="true">
+                {r.glyph}
               </span>
-              <span className="font-(family-name:--font-head) text-lg tracking-tight">{label}</span>
-              <span className="text-sm/relaxed text-(--text-muted)">{blurb}</span>
-              <span className="landing-route-arrow" aria-hidden="true">
+              <span className="hud-label landing-route-kicker">{r.kicker}</span>
+              <span className="font-(family-name:--font-head) text-xl leading-none tracking-tight">
+                {r.label}
+              </span>
+              <span className="text-sm/relaxed text-(--text-muted)">{r.blurb}</span>
+              <span className="landing-route-arrow mt-auto" aria-hidden="true">
                 →
               </span>
             </button>

@@ -1265,40 +1265,68 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* Primary search: the first control anyone reaches for, so it takes the space
    the header was wasting rather than sitting at a fixed 220px. */
+/* ── The search field, one definition, two sizes ──────────────────────────
+   The nav and the landing hero are the same control at different scales. They
+   used to be styled independently, which is how the landing copy ended up with
+   a 20px text inset and a glyph pinned at 11px — the two overlapped. Size is
+   the only thing a variant sets now; everything else is shared, so they cannot
+   drift apart again. --field-h and --field-pad drive both. */
+.species-search {
+  --field-h: 40px;
+  --field-pad: 34px;
+  --field-fs: var(--text-md);
+  --field-glyph: 13px;
+}
+.species-search .input {
+  width: 100%;
+  height: var(--field-h);
+  font-size: var(--field-fs);
+  padding-left: var(--field-pad);
+  padding-right: calc(var(--field-pad) - 6px);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.species-search .input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
 .nav-search {
   flex: 1 1 380px;
   min-width: 200px;
   max-width: 620px;
 }
-.nav-search .input {
-  width: 100%;
-  height: 40px;
-  font-size: var(--text-md);
-  padding-left: 32px;
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+
+/* The hero copy: same field, scaled up, with a deeper chamfer to match the
+   weight of the type above it. */
+.landing-search-input {
+  --field-h: 62px;
+  --field-pad: 52px;
+  --field-fs: var(--text-xl);
+  --field-glyph: 19px;
 }
-.nav-search .input:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent);
+.landing-search-input .input {
+  clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
 }
 /* Glyph sits inside the field; purely decorative, so it is aria-hidden. */
 .nav-search-glyph {
   position: absolute;
-  left: 11px;
-  top: 50%;
+  left: calc(var(--field-pad, 34px) - 22px);
+  top: calc(var(--field-h, 40px) / 2);
   transform: translateY(-50%);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--field-glyph, 13px);
   color: var(--text-faint);
   pointer-events: none;
+  transition: color var(--dur-2) var(--ease-out);
 }
-.nav-search:focus-within .nav-search-glyph { color: var(--color-accent); }
+.species-search:focus-within .nav-search-glyph { color: var(--color-accent); }
 
 /* Search syntax legend. */
 .search-help-btn {
   position: absolute;
   right: 8px;
-  top: 50%;
+  top: calc(var(--field-h, 40px) / 2);
   transform: translateY(-50%);
   width: 20px;
   height: 20px;
@@ -2208,8 +2236,24 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 .landing-hero {
   position: relative;
-  overflow: hidden;
+  /* Deliberately NOT `overflow: hidden`. It used to be, to contain the aurora,
+     and it clipped the search dropdown — which is 454px tall and necessarily
+     hangs past the hero's lower edge. The aurora is clipped by its own wrapper
+     instead, so containment applies to the decoration that needs it rather
+     than to every descendant.
+
+     The z-index puts the whole hero above the sections that follow it, so the
+     dropdown paints over the featured cards rather than under them. */
+  z-index: 5;
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+
+/* Clips the aurora, and nothing else. */
+.landing-hero-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* A slow aurora, keyed off the league accent so the page retints with the
@@ -2281,13 +2325,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   to   { transform: scaleX(1); }
 }
 
-/* The search is the widest single control in the app on purpose. */
-.landing-search-input input {
-  height: 62px;
-  font-size: var(--text-xl);
-  padding-inline: var(--space-5);
-}
-
 .landing-stat-value {
   font-size: var(--size-h4);
   font-weight: 700;
@@ -2295,32 +2332,78 @@ textarea.input { min-height: 90px; resize: vertical; }
   line-height: 1.1;
 }
 
+/* Route cards. Each carries its own --route-hue; everything below is derived
+   from it, so adding a route means adding one colour and nothing else. */
 .landing-route {
   position: relative;
+  overflow: hidden;
   text-align: left;
   border: var(--border-hairline) solid var(--rule-strong);
   background: transparent;
   color: inherit;
-  cursor: pointer;
-  padding: var(--space-4);
-  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
-  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+  padding: var(--space-5);
+  min-height: 190px;
+  clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 11px 100%, 0 calc(100% - 11px));
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
 }
-.landing-route:hover {
-  border-color: var(--color-accent);
-  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
-  transform: translateY(-2px);
-}
-.landing-route-arrow {
+
+/* The hue arrives as a wash that only becomes fully visible on approach —
+   at rest the six cards read as a calm set, on hover the one under the
+   cursor commits to its colour. */
+.landing-route::before {
+  content: '';
   position: absolute;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  color: var(--color-accent);
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 0% 0%, color-mix(in oklab, var(--route-hue) 22%, transparent), transparent 62%);
+  opacity: 0.45;
+  transition: opacity var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+
+/* A rail down the leading edge, in the card's own hue. Gives the six a shared
+   anatomy so they scan as one family rather than six unrelated tiles. */
+.landing-route::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--route-hue), transparent 85%);
+  pointer-events: none;
+}
+
+.landing-route:hover,
+.landing-route:focus-visible {
+  border-color: color-mix(in oklab, var(--route-hue) 70%, transparent);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px -12px color-mix(in oklab, var(--route-hue) 55%, transparent);
+}
+.landing-route:hover::before,
+.landing-route:focus-visible::before { opacity: 1; }
+
+.landing-route-glyph {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--route-hue);
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+.landing-route:hover .landing-route-glyph { transform: scale(1.18) rotate(-6deg); }
+
+.landing-route-kicker { color: color-mix(in oklab, var(--route-hue) 75%, var(--text-muted)); }
+
+.landing-route-arrow {
+  color: var(--route-hue);
   opacity: 0;
-  transform: translateX(-6px);
+  transform: translateX(-8px);
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
-.landing-route:hover .landing-route-arrow { opacity: 1; transform: translateX(0); }
+.landing-route:hover .landing-route-arrow,
+.landing-route:focus-visible .landing-route-arrow { opacity: 1; transform: translateX(0); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    BOARD — user-reorderable panels.
@@ -2403,4 +2486,528 @@ textarea.input { min-height: 90px; resize: vertical; }
     opacity: 1 !important;
     transform: none !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE CURSORS — one rule, so this cannot regress again.
+
+   Cursors used to be declared per component, which meant every new control
+   started life with the wrong one and only got fixed when somebody noticed.
+   The brand in the nav became a button and read as dead text for exactly that
+   reason. Anything that responds to a click says so here, once.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+button,
+summary,
+[role='button'],
+[role='option'],
+[role='tab'],
+a[href],
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'],
+[role='button'][aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* The brand doubles as the way home, so it is a real button now. Stripped back
+   to look like the text it replaced. */
+.nav-brand {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  transition: color var(--dur-2) var(--ease-out);
+}
+.nav-brand:hover { color: var(--color-accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH RESULT ROWS
+
+   Every row is exactly ROW_H tall — the windowing maths in SpeciesSearch is a
+   slice, not a measurement, so a row that grows by a pixel desynchronises the
+   scrollbar from the list. Height is therefore set from the TS constant; only
+   appearance lives here.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  position: relative;
+  border-left: 3px solid transparent;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+
+/* The active row is marked with a lit rail and a tinted ground rather than a
+   solid accent fill. The old full-bleed fill inverted the text, which meant the
+   type icons and the dex number had to fight it — at this row height there is
+   room to indicate selection without recolouring everything inside it. */
+.search-row.is-active {
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  border-left-color: var(--color-accent);
+}
+
+.search-row-art {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+}
+
+.search-row-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-row-name {
+  /* Tight line box. The inherited 1.55 gave a 14px name a 21.7px line, which
+     put the two-line block's optical weight above its geometric centre — every
+     box measured centred and the row still read as sitting high. */
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  line-height: 1;
+}
+
+/* Best rank in any league, labelled so it cannot be mistaken for the dex. */
+.search-row-rank {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.search-row-rank i {
+  font-style: normal;
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.search-row.is-active .search-row-rank { color: var(--color-accent); }
+
+/* Pokédex number: the one figure a bare hash should mean. Right-aligned in a
+   fixed column so it forms a clean edge down the list while scrolling. */
+.search-row-dex {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  letter-spacing: var(--tracking-wide);
+  min-width: 42px;
+  text-align: right;
+  transition: color var(--dur-1) var(--ease-out);
+}
+.search-row-dex::before { content: '#'; opacity: 0.5; }
+.search-row.is-active .search-row-dex { color: var(--color-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .search-row, .nav-brand { transition: none; }
+}
+
+/* Empty state. Shares the dropdown's surface so a search that finds nothing
+   still lands somewhere, rather than the panel silently disappearing. */
+.search-empty {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.search-empty strong { color: var(--color-text); }
+.search-empty-hint { font-size: var(--text-xs); color: var(--text-faint); }
+.search-empty-hint code {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  padding: 0 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAV TABS — the app's primary destinations.
+
+   Were SegButtons, the same control used for a sort order, which made the six
+   sections read as a minor preference rather than as where you go. Each now
+   carries the hue of its landing card, so a section is recognisable by colour
+   before its label is read, and the active one lights its rail.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.nav-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: var(--border-hairline) solid transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  transition:
+    color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out);
+}
+
+/* The rail. Grows from the leading edge on hover, sits full-width when active
+   — one element doing both states rather than two that can disagree. */
+.nav-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--tab-hue);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.nav-tab:hover::after { transform: scaleX(0.4); }
+.nav-tab.is-active::after { transform: scaleX(1); }
+
+.nav-tab:hover {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--tab-hue) 10%, transparent);
+}
+.nav-tab.is-active {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--tab-hue) 16%, transparent);
+  border-color: color-mix(in oklab, var(--tab-hue) 40%, transparent);
+}
+
+.nav-tab-glyph {
+  color: var(--tab-hue);
+  font-size: 15px;
+  line-height: 1;
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+.nav-tab:hover .nav-tab-glyph { transform: scale(1.2) rotate(-8deg); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RANKINGS ROW — now carries the spread and the set it was scored on.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.rank-art {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  position: relative;
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+/* A faint ground behind the sprite so it sits on the row rather than floating
+   over the rules of the table. */
+.rank-art::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.rank-row:hover .rank-art { transform: scale(1.08); }
+.rank-row:hover .rank-art::before { opacity: 1; }
+
+.rank-spread {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+  margin-top: 3px;
+}
+.rank-iv { color: var(--text-muted); }
+.rank-cp { color: var(--color-accent); }
+.rank-cp i, .rank-lvl { font-style: normal; opacity: 0.7; }
+
+.rank-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: 4px;
+}
+.rank-move {
+  font-size: var(--text-2xs);
+  padding: 1px var(--space-2);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.rank-move.is-fast {
+  border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
+  color: var(--color-accent);
+}
+
+/* Rows lift very slightly on approach — enough to say "this is clickable"
+   without the table appearing to breathe. */
+.rank-row { transition: background var(--dur-1) var(--ease-out); }
+.rank-row:hover { background: color-mix(in oklab, var(--color-accent) 6%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-tab, .nav-tab::after, .nav-tab-glyph,
+  .rank-art, .rank-art::before, .rank-row,
+  .landing-route, .landing-route::before, .landing-route-glyph, .landing-route-arrow {
+    transition: none;
+  }
+  .nav-tab:hover .nav-tab-glyph,
+  .landing-route:hover .landing-route-glyph,
+  .rank-row:hover .rank-art { transform: none; }
+  .landing-route:hover, .landing-route:focus-visible { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BATTLE COMBATANTS
+
+   The two mons are the subject of this screen and were rendered at 64px with
+   a CP line — smaller than the search box above them. At 104px with the spread
+   and the stat bars they carry the weight they should, and the held-out notice
+   moved into the screen header so it stopped taking a column of prose out of
+   the space they needed.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.battle-mon {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.battle-mon-art {
+  flex: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+/* Type-neutral ground: this screen already colours by side, so a second hue
+   here would compete with it. */
+.battle-mon-art::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-accent) 14%, transparent), transparent 72%);
+}
+.battle-mon:hover .battle-mon-art { transform: translateY(-3px) scale(1.04); }
+
+.battle-mon-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--size-h4);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+}
+
+.battle-mon-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  margin-top: var(--space-1);
+}
+.battle-mon-stats i {
+  font-style: normal;
+  color: var(--text-faint);
+  letter-spacing: var(--tracking-wide);
+  margin-right: 4px;
+  font-size: var(--text-2xs);
+}
+
+.battle-mon-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: var(--space-2);
+}
+.battle-mon-bar {
+  display: grid;
+  grid-template-columns: 28px 1fr 34px;
+  align-items: center;
+  gap: var(--space-2);
+}
+.battle-mon-bar i {
+  font-style: normal;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+.battle-mon-bar > span {
+  height: 5px;
+  background: var(--color-neutral-300);
+  overflow: hidden;
+}
+.battle-mon-bar > span > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2, var(--color-accent)));
+  /* Transition, NOT animation. `animation: pc-fill` restarts from 0 every time
+     React re-renders the element, so dropping an IV by one made the bar slam to
+     empty and refill. A width transition interpolates from whatever is
+     currently painted to the new value, symmetrically in both directions, and
+     ignores re-renders that did not change the width. */
+  transition: width var(--dur-3) var(--ease-out);
+}
+.battle-mon-bar b {
+  font-weight: 500;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* The held-out notice, when it sits in a screen header rather than in flow. */
+.screen-head-note .held-out-note.is-compact { margin: 0; max-width: 46ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-mon-art { transition: none; }
+  .battle-mon:hover .battle-mon-art { transform: none; }
+  .battle-mon-bar > span > span { transition: none; }
+}
+
+/* Cores rows: sprites went up a size class, so give them a ground and a lift
+   on approach to match the other screens. */
+.core-mon {
+  display: flex;
+  position: relative;
+  transition: transform var(--dur-2) var(--ease-spring);
+}
+.core-row:hover .core-mon,
+tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
+
+/* The score bar fills once when the row appears rather than sitting static —
+   the same treatment the team and card bars already use, so the three screens
+   read as one product. */
+.core-bar-fill { animation: pc-fill var(--dur-4) var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .core-mon { transition: none; }
+  .core-row:hover .core-mon, tr:hover > td > .core-mon { transform: none; }
+  .core-bar-fill { animation: none; }
+}
+
+/* Charge timing: a single strip. The label, the two-state control and the
+   consequence of the choice share one baseline, so a binary setting costs one
+   row rather than three stacked blocks above the combatants. */
+.battle-timing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-left: 3px solid var(--color-accent);
+}
+.battle-timing-label { flex: none; color: var(--text-faint); }
+/* Takes the leftover width instead of being capped at 34ch and leaving the
+   rest of the row empty. */
+.battle-timing-note {
+  flex: 1 1 32ch;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HELD-OUT LEGEND
+
+   The compact form of the note, shaped like a chart legend rather than a
+   paragraph: a bounded box with its own ground, sized to the names it carries.
+   It was four lines of prose taking a column of the Battle screen; the full
+   explanation is now on hover, where it costs no layout at all.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.held-out-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-width: 30ch;
+  background: color-mix(in oklab, var(--color-accent) 9%, var(--surface-2));
+  border: var(--border-hairline) solid color-mix(in oklab, var(--color-accent) 35%, transparent);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  cursor: help;
+}
+
+.held-out-legend-mark {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.held-out-legend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.held-out-legend-head {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-accent);
+  line-height: 1.1;
+}
+
+/* The names truncate rather than wrap — the box keeps its height whatever is
+   held out, which is what makes it read as a legend and not a message. */
+.held-out-legend-names {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The IV track is a drag surface, so it says so — and the ticks under it are
+   presentational, so pointer events belong to the track alone. */
+.iv-track { cursor: ew-resize; touch-action: none; }
+.iv-row.is-dragging .iv-track { cursor: grabbing; }
+.iv-tick { pointer-events: none; }
+/* Ticks ease as the value sweeps past them under a drag, so the bar reads as
+   one moving quantity rather than fifteen independent lamps. */
+.iv-tick { transition: background var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-tick { transition: none; }
 }

@@ -1,6 +1,7 @@
 /* Entry point for the design system.
 
    Load order matters — later layers consume tokens defined by earlier ones:
+     tailwind   → utility layer, first so component classes win ties
      tokens     → primitives (no colour)
      themes     → colour ramps + semantic aliases, per [data-theme]
      components → classes built from semantic tokens
@@ -8,17 +9,78 @@
      hud        → chrome that only renders under [data-theme='hud']
 
    Retune the look in themes.css. Retune the feel in tokens.css (--motion-scale,
-   duration and easing tokens). Component classes should rarely need editing. */
+   duration and easing tokens). Component classes should rarely need editing.
+
+   ── On Tailwind, and on cascade layers ───────────────────────────────────
+   Utilities own layout: flex, grid, gap, padding, alignment — the scaffolding
+   that used to be inline `style={{…}}` objects scattered through the TSX.
+   Component classes keep everything with a real opinion: the card foil, the
+   HUD chrome, league accents, anything using a pseudo-element or a blend mode.
+
+   Every design-system file is imported INTO `layer(components)`, and that is
+   load-bearing rather than tidiness. Tailwind v4 emits its utilities inside
+   `@layer utilities`, and an unlayered rule beats a layered one no matter how
+   specific either is. Left unlayered, all ~3,300 lines here silently outrank
+   every utility: a bare `h1 { margin: 0 0 8px }` was quietly beating `mb-10`,
+   which is not a cascade anyone can reason about while writing markup.
+
+   Layering the design system below `utilities` restores the rule you would
+   expect — a utility in the markup wins, and the component class is the
+   default it overrides. Preflight sits in `base`, still below all of this, so
+   nothing here had to change to accommodate the reset.
+
+   The @theme block maps our tokens onto Tailwind's scale. Every @import has to
+   precede it: the CSS spec drops any @import that follows a rule, which
+   silently unstyles the entire app. */
 
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import 'tailwindcss';
+@import './styles/tokens.css' layer(components);
+@import './styles/themes.css' layer(components);
+@import './styles/components.css' layer(components);
+@import './styles/motion.css' layer(components);
+@import './styles/hud.css' layer(components);
+@import './styles/types.css' layer(components);
+@import './styles/leagues.css' layer(components);
 
-@import './styles/tokens.css';
-@import './styles/themes.css';
-@import './styles/components.css';
-@import './styles/motion.css';
-@import './styles/hud.css';
-@import './styles/types.css';
-@import './styles/leagues.css';
+/* Tailwind's spacing scale is already ours: both are a 4px base, so `p-4`
+   and `var(--space-4)` are both 16px with nothing to configure. Overriding
+   `--spacing-*` here would have been noise that looked like control.
+
+   What IS worth bridging is colour, because these have no Tailwind equivalent
+   and hard-coding hexes in utilities would break the theme swap. `inline`
+   emits `var(--color-accent)` into the utility rather than resolving it at
+   build time — a resolved value would freeze one theme's palette into every
+   utility and [data-theme] would stop working. */
+@theme inline {
+  /* Our type scale has two steps Tailwind's does not — `2xs` and `md`. Without
+     these the utilities silently emit nothing and the element falls back to
+     inherited size, which looks like a styling opinion rather than a missing
+     class. The steps Tailwind does share (`xs`, `sm`, `lg`…) already resolve
+     to our values, because tokens.css declares the same `--text-*` names in a
+     later layer and wins. */
+  --text-2xs: var(--text-2xs);
+  --text-md: var(--text-md);
+
+  --color-accent: var(--color-accent);
+  --color-accent-2: var(--color-accent-2);
+  --color-accent-700: var(--color-accent-700);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--surface-2);
+  --color-bg: var(--color-bg);
+  --color-ink: var(--color-text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-rule: var(--rule-hairline);
+  --color-rule-strong: var(--rule-strong);
+
+  --font-body: var(--font-body);
+  --font-head: var(--font-heading);
+  --font-mono: var(--font-mono);
+
+  --ease-out: var(--ease-out);
+  --ease-spring: var(--ease-spring);
+}
 
 #root {
   min-height: 100vh;

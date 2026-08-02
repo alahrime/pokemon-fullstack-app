@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { teamPool } from '../lib/rankings';
 import { analyseShow6, analyseTeam, suggestCompletions } from '../lib/teambuild';
 import { Sprite } from '../components/Sprite';
+import { PokemonCard } from '../components/PokemonCard';
+import { TypeBadge } from '../components/TypeBadge';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { BestTeams } from '../components/BestTeams';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
+import type { LeagueId } from '../lib/types';
 
 /**
  * Both team builders, which differ only in size and in how a team is scored.
@@ -18,16 +22,12 @@ import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
  * six by starting from a three they already trust.
  */
 
-function Slot({ ref: r, onClear }: { ref: string | null; onClear: () => void }) {
+function Slot({ ref: r, league, onClear }: { ref: string | null; league: LeagueId; onClear: () => void }) {
   if (!r) return <div className="team-slot is-empty">＋</div>;
-  const sp = speciesOf(r);
-  const { shadow } = parseRef(r);
-  return (
-    <div className="team-slot" onClick={onClear} title="Remove">
-      {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={52} shadow={shadow} />}
-      <span className="team-slot-name">{displayName(r)}</span>
-    </div>
-  );
+  // The full card: a slot is the one place there is room for the whole thing,
+  // and it is where you most want to see the spread and the set you are
+  // actually fielding rather than a sprite and a name.
+  return <PokemonCard refId={r} league={league} size="full" onClick={onClear} title="Click to remove" />;
 }
 
 function ThreatList({ threats }: { threats: { ref: string; lossRate: number; meanHpCost: number }[] }) {
@@ -137,11 +137,19 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
 
   return (
     <div className="team-builder">
+      <ScreenHeader
+        title={size === 3 ? 'GBL Teams' : 'Show 6'}
+        blurb={
+          size === 3
+            ? 'Build a team of three, or take one the discovery pass already found. Every legal team from the stratum was played as one continuous chain — HP, energy and shields all carrying across matchups — rather than as three independent fights.'
+            : 'Build a Show 6, or take one the discovery pass found. A six is scored as the matrix game it really is: against each opposing six you pick your best of twenty lines and they answer with theirs.'
+        }
+      />
       <div className="panel panel-strong">
         <div className="hud-label">{size === 3 ? 'Your team of 3' : 'Your Show 6'}</div>
         <div className="team-slots">
           {Array.from({ length: size }, (_, i) => (
-            <Slot key={i} ref={team[i] ?? null} onClear={() => clear(i)} />
+            <Slot key={i} ref={team[i] ?? null} league={league} onClear={() => clear(i)} />
           ))}
         </div>
         <div className="team-add">
@@ -239,22 +247,36 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             Every candidate tried in the open slot and the whole team re-simulated. With carryover in
             play a candidate cannot be scored on its own matchups — its value depends on what the rest
             of the team leaves it. The second column is win rate against the <em>median</em> candidate,
-            so it measures this pick rather than the fact that three beats two.
+            so it measures this pick rather than the fact that three beats two. Candidates obey the
+            same rules discovery does — no duplicate species, and no repeated typing on a three.
           </p>
-          <ol className="suggest-list">
-            {picks.map((p) => {
-              const sp = speciesOf(p.ref);
-              return (
-                <li key={p.ref} onClick={() => add(p.ref)}>
-                  {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={30} shadow={parseRef(p.ref).shadow} />}
-                  <span className="suggest-name">{displayName(p.ref)}</span>
-                  <span className="numeric suggest-win" title="Win rate of the completed team">{Math.round(p.winRate * 100)}%</span>
-                  <span className={`numeric suggest-gain${p.gain >= 0 ? ' is-up' : ' is-down'}`}>
-                    {p.gain >= 0 ? '+' : ''}{Math.round(p.gain * 100)}
-                  </span>
-                </li>
-              );
-            })}
+          <ol className="suggest-cards">
+            {picks.map((p) => (
+              <li key={p.ref}>
+                <PokemonCard
+                  refId={p.ref}
+                  league={league}
+                  size="full"
+                  metric={`${Math.round(p.winRate * 100)}%`}
+                  metricLabel="win rate"
+                  onClick={() => add(p.ref)}
+                  title="Add to the team"
+                  note={
+                    <span className="suggest-why">
+                      <span className={`numeric suggest-gain${p.gain >= 0 ? ' is-up' : ' is-down'}`}>
+                        {p.gain >= 0 ? '+' : ''}{Math.round(p.gain * 100)}
+                      </span>
+                      <span className="text-faint">vs median pick</span>
+                      {p.covers.length > 0 && (
+                        <span className="suggest-covers">
+                          shores up {p.covers.map((c) => <TypeBadge key={c} type={c} />)}
+                        </span>
+                      )}
+                    </span>
+                  }
+                />
+              </li>
+            ))}
           </ol>
         </div>
       )}
@@ -309,7 +331,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
               </p>
               <div className="team-slots">
                 {six.bestLine.map((r) => (
-                  <Slot key={r} ref={r} onClear={() => {}} />
+                  <PokemonCard key={r} refId={r} league={league} size="compact" />
                 ))}
               </div>
             </div>

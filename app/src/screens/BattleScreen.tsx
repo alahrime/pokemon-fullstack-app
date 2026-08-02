@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import { bestBuddyEligible, chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
@@ -71,7 +72,7 @@ function Side({
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" />
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 20 }}>
             {species.name}
             {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
@@ -81,7 +82,7 @@ function Side({
               <TypeBadge key={t} type={t} />
             ))}
           </div>
-          <div className="text-muted numeric" style={{ fontSize: 12 }}>
+          <div className="text-muted numeric text-sm">
             CP {entry.cp} · L{entry.lvl} · #{entry.rank}/4096
           </div>
         </div>
@@ -92,7 +93,7 @@ function Side({
       <BestBuddyToggle on={bestBuddy} eligible={bbEligible} onChange={onBestBuddy} />
 
       <div>
-        <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Fast move
         </div>
         {/* One fast move is equipped, so past one option the pool belongs in a
@@ -114,7 +115,7 @@ function Side({
             />
           </>
         ) : (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-1.5">
             {species.fastMoves.map((m, i) => (
               <ChipButton key={m.id} active={fastIdx === i} onClick={() => onFast(i)}>
                 {m.name}
@@ -125,10 +126,10 @@ function Side({
       </div>
 
       <div>
-        <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Charge moves {chargeOptions.length > 1 ? '(both equipped — untoggle to test a single move)' : ''}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-1.5">
           {chargeOptions.map((m) => (
             <ChipButton key={m.id} active={!disabledCharges.includes(m.id)} onClick={() => onToggleCharge(m.id)}>
               {m.name}
@@ -138,7 +139,7 @@ function Side({
       </div>
 
       <div>
-        <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Shields
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -151,7 +152,7 @@ function Side({
       </div>
 
       <div>
-        <div className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Starting energy — {energy}%
         </div>
         <input type="range" min={0} max={100} step={10} value={energy} onChange={(e) => onEnergy(Number(e.target.value))} style={{ width: '100%' }} />
@@ -164,20 +165,16 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
   const pct = (hp / maxHp) * 100;
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+      <div className="flex justify-between text-xs tracking-[0.06em] uppercase">
         <span className="text-muted">{label}</span>
         <span className="numeric">
           {Math.round(hp)} / {maxHp} HP ({pct.toFixed(0)}%)
         </span>
       </div>
-      <div style={{ height: 8, background: 'var(--color-neutral-300)', marginTop: 3 }}>
+      <div className="mt-[3px] h-2 bg-(--color-neutral-300)">
         <div
-          style={{
-            height: 8,
-            background: color,
-            width: `${pct}%`,
-            transition: 'width var(--dur-4) var(--ease-out)',
-          }}
+          className="h-2 transition-[width] duration-(--dur-4) ease-(--ease-out) motion-reduce:transition-none"
+          style={{ background: color, width: `${pct}%` }}
         />
       </div>
     </div>
@@ -234,18 +231,17 @@ export function BattleScreen() {
 
   return (
     <>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 30ch', minWidth: 0 }}>
-          <h3 style={{ margin: 0 }}>Battle simulator</h3>
-          <div className="text-muted" style={{ fontSize: 12 }}>
-            Head-to-head PvP simulation: independent movesets, starting energy, and shield counts per side, with selective
-            baiting when a mon carries two charge moves of different costs.
-          </div>
+      <ScreenHeader
+        title="Battle"
+        blurb="Head-to-head PvP simulation: independent movesets, starting energy and shield counts per side, with selective baiting when a mon carries two charge moves of different costs."
+      />
+      <div className="mb-4 flex flex-wrap items-start gap-4">
+        <div className="min-w-0 flex-[1_1_30ch]">
           <HeldOutNote />
         </div>
 
-        <div style={{ flex: 'none' }}>
-          <div className="hud-label" style={{ marginBottom: 7 }}>
+        <div className="flex-none">
+          <div className="hud-label mb-[7px]">
             <span>Charge timing</span>
           </div>
           <div className="form-toggle" role="group" aria-label="Charge move timing">
@@ -340,7 +336,7 @@ export function BattleScreen() {
           </div>
           <HpBar label={nameA} hp={current.hpA} maxHp={Math.round(current.maxHpA)} color="var(--color-accent)" />
           <HpBar label={nameB} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
-          <div style={{ fontSize: 12 }}>{winner} wins {winCount} of 9 shield-count combinations.</div>
+          <div className="text-sm">{winner} wins {winCount} of 9 shield-count combinations.</div>
           <div className="text-muted" style={{ fontSize: 11, maxWidth: '42ch' }}>
             {verdictLine(entryA.rank)} · {verdictLine(entryB.rank)}
           </div>
@@ -364,7 +360,7 @@ export function BattleScreen() {
             <tbody>
               {matrix.map((row, sA) => (
                 <tr key={sA}>
-                  <th style={{ textAlign: 'left' }}>P1 {SHIELD_LABELS[sA]}</th>
+                  <th className="text-left">P1 {SHIELD_LABELS[sA]}</th>
                   {row.map((r, sB) => {
                     const active = sA === shieldsA && sB === shieldsB;
                     return (
@@ -389,7 +385,7 @@ export function BattleScreen() {
                         >
                           {r.win ? 'P1' : 'P2'}
                         </div>
-                        <div className="text-muted" style={{ fontSize: 10 }}>
+                        <div className="text-muted text-2xs">
                           {Math.abs(r.margin).toFixed(0)}%
                         </div>
                       </td>
@@ -399,13 +395,13 @@ export function BattleScreen() {
               ))}
             </tbody>
           </table>
-          <p className="text-muted" style={{ fontSize: 11, margin: '10px 0 0' }}>
+          <p className="text-muted text-xs mt-2.5">
             Click any cell to load that shield scenario. Rows are Pokémon 1's shields, columns are Pokémon 2's.
           </p>
         </div>
       </div>
 
-      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20 }}>
+      <div className="border-2 border-t-0 border-(--rule-strong) p-5">
         <div className="panel-title">
           HP &amp; energy progression — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
@@ -420,7 +416,7 @@ export function BattleScreen() {
         />
       </div>
 
-      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20 }}>
+      <div className="border-2 border-t-0 border-(--rule-strong) p-5">
         <div className="panel-title">
           Charge move log — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
@@ -448,12 +444,12 @@ export function BattleScreen() {
                 return (
                   <tr key={i}>
                     <td className="text-muted">{(e.turn * 0.5).toFixed(1)}s</td>
-                    <td style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>{actorName}</td>
+                    <td className="font-(family-name:--font-head) font-extrabold">{actorName}</td>
                     <td>{e.moveName}</td>
                     <td>
                       {e.bait && <span className="tag tag-neutral" style={{ marginRight: 6 }}>bait</span>}
                       {e.shielded ? (
-                        <span style={{ fontSize: 12 }}>shielded — 1 dmg</span>
+                        <span className="text-sm">shielded — 1 dmg</span>
                       ) : (
                         <span style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{e.damage} dmg</span>
                       )}
@@ -466,7 +462,7 @@ export function BattleScreen() {
             </tbody>
           </table>
         )}
-        <p className="text-muted" style={{ fontSize: 11, margin: '10px 0 0' }}>
+        <p className="text-muted text-xs mt-2.5">
           A shielded charge move always deals 1 damage regardless of which move is thrown, so a mon with two charge moves of
           different energy costs spends the cheaper one into a shield ("bait") and saves the pricier, harder-hitting move for
           when the opponent is out of shields.

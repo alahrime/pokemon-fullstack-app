@@ -1,5 +1,6 @@
 import { bestSpreadFor, mkBattleMon } from './engine';
 import { conflictsOnTeam, movesFor, speciesOf } from './data';
+import { resistancesOf, sharedTypePairs, weaknessesOf } from './synergy';
 import { teamBattle, carryoverEdge } from './team';
 import { teamPool } from './rankings';
 import type { BattleMon, LeagueId } from './types';
@@ -147,6 +148,8 @@ export function analyseTeam(team: string[], lg: LeagueId, opts: { size?: number;
 export interface Suggestion {
   ref: string;
   winRate: number;
+  /** Types this pick resists that the existing members are weak to. */
+  covers: string[];
   /**
    * Win rate against the median candidate's, not against the partial team's.
    *
@@ -175,9 +178,16 @@ export function suggestCompletions(
   const count = opts.count ?? 90;
   const limit = opts.limit ?? 12;
   const field = sampleFieldTeams(lg, targetSize, count);
-  // A completion that duplicates a species already on the team is not a legal
-  // suggestion, so it never becomes a candidate.
-  const pool = teamPool(lg).filter((r) => !partial.some((p) => p === r || conflictsOnTeam(p, r)));
+  // A completion has to satisfy every rule the offline discovery pass enforces,
+  // or the builder recommends teams that discovery would have thrown out:
+  // no duplicate species, and no repeated typing on a three (the ABC rule).
+  // Filtering here rather than after scoring keeps the gain column honest —
+  // the median it is measured against is a median of legal picks.
+  const pool = teamPool(lg).filter((r) => {
+    if (partial.some((p) => p === r || conflictsOnTeam(p, r))) return false;
+    if (targetSize === 3 && sharedTypePairs([...partial, r].map((x) => speciesOf(x)?.types ?? []))) return false;
+    return true;
+  });
 
   const score = (team: string[]) => {
     const mine = team.map((r) => monFor(r, lg));
@@ -189,7 +199,17 @@ export function suggestCompletions(
   const scored = pool.map((ref) => ({ ref, winRate: score([...partial, ref]) }));
   const sortedRates = scored.map((s) => s.winRate).sort((a, b) => a - b);
   const median = sortedRates[Math.floor(sortedRates.length / 2)] ?? 0;
-  const out = scored.map((s) => ({ ...s, gain: s.winRate - median }));
+  // What the pick actually shores up, so the list says why rather than only
+  // how much. A weakness the existing team already answers is not a reason.
+  const open = new Set(
+    partial.flatMap((p) => weaknessesOf(speciesOf(p)?.types ?? []))
+      .filter((w) => !partial.some((p) => resistancesOf(speciesOf(p)?.types ?? []).includes(w))),
+  );
+  const out = scored.map((s) => ({
+    ...s,
+    gain: s.winRate - median,
+    covers: resistancesOf(speciesOf(s.ref)?.types ?? []).filter((r) => open.has(r)),
+  }));
   out.sort((a, b) => b.winRate - a.winRate);
   return out.slice(0, limit);
 }

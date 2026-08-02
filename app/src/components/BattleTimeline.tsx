@@ -119,11 +119,11 @@ export function BattleTimeline({
   return (
     <div>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 6, fontSize: 11 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span className="flex items-center gap-[5px]">
           <span style={{ width: 10, height: 10, background: 'var(--color-accent)', display: 'inline-block' }} />
           {nameA} HP/energy
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span className="flex items-center gap-[5px]">
           <span style={{ width: 10, height: 10, background: 'var(--color-neutral-700)', display: 'inline-block' }} />
           {nameB} HP/energy
         </span>

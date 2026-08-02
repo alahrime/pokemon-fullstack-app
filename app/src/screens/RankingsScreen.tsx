@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, type CategoryId } from '../lib/scenarios';
 import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
@@ -112,6 +113,10 @@ export function RankingsScreen() {
 
   return (
     <div className="rankings">
+      <ScreenHeader
+        title="Rankings"
+        blurb="Every league-legal form scored in seven roles, at five opponent-pool depths. The pass decides how the score is read: a raw simulated result, a weighted regression against the field, or the second derivative that finds who is quietly rising."
+      />
       <div className="panel panel-strong rankings-controls">
         <div>
           <div className="hud-label">Category</div>

@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor } from '../lib/data';
 
-export type Screen = 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
@@ -65,7 +65,9 @@ export interface AppStateShape {
 }
 
 const initialState: AppStateShape = {
-  screen: 'report',
+  // The search is the first step of every task here, so the page whose whole
+  // job is the search is where you start. Choosing a species moves you on.
+  screen: 'landing',
   league: 'great',
   species: 'azumarill',
   shadow: false,

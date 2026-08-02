@@ -31,8 +31,8 @@ export function SpriteAudit() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
-        <h3 style={{ margin: 0 }}>Sprite coverage</h3>
-        <div className="text-muted" style={{ fontSize: 12 }}>
+        <h3 className="m-0">Sprite coverage</h3>
+        <div className="text-muted text-sm">
           {SPECIES.length} species · {loaded} primary slugs loaded · {failed.length} fell back to the dex image
         </div>
       </div>

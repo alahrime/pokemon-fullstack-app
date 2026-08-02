@@ -10,10 +10,9 @@ import {
   type BestTeam,
   type TeamPass,
 } from '../lib/teams';
-import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor } from '../lib/engine';
+import { displayName, parseRef, speciesOf } from '../lib/data';
+import { PokemonCard } from './PokemonCard';
 import { Sprite } from './Sprite';
-import { TypeBadge } from './TypeBadge';
 import { SegButton, SegGroup } from './Seg';
 import { downloadCsv, stamp } from '../lib/exportData';
 import type { LeagueId } from '../lib/types';
@@ -30,39 +29,6 @@ const PAGE = 25;
  * screen, plus a third pass the species rankings have no use for: synergy,
  * which is a property of a team.
  */
-
-/** One member, at the spread and loadout the whole app prices opponents at. */
-function Member({ ref: r, league, size }: { ref: string; league: LeagueId; size: number }) {
-  const sp = speciesOf(r);
-  const { shadow } = parseRef(r);
-  // Same call the simulation used, so what is displayed is what was played —
-  // rank-1 roll at the Best Buddy ceiling. Anything else would be showing a
-  // different Pokemon than the one that earned the score.
-  const spread = useMemo(() => bestSpreadFor(r, league, true), [r, league]);
-  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
-  if (!sp) return null;
-  return (
-    <div className="bt-member">
-      <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={shadow} />
-      <div className="bt-member-body">
-        <div className="bt-member-name">{displayName(r)}</div>
-        <div className="bt-member-types">
-          {sp.types.map((t) => <TypeBadge key={t} type={t} />)}
-        </div>
-        <div className="numeric bt-member-iv" title={`Rank-1 roll · CP ${spread.cp} · level ${spread.lvl}`}>
-          {spread.a}/{spread.d}/{spread.s}
-          <span className="bt-member-cp">{spread.cp}</span>
-        </div>
-        {moves && (
-          <div className="bt-member-moves" title="The league's rated set — what was simulated">
-            <span className="bt-move-fast">{moves.fast.name}</span>
-            <span className="bt-move-charge">{moves.charges.map((c) => c.name).join(' · ')}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const SYN_FIELDS = [
   ['coverage', 'Coverage', 'Mean best answer across the field — the floor-raising term'],
@@ -86,10 +52,18 @@ function TeamRow({ t, i, max, league, size, pass, onLoad }: {
   return (
     <li className={`bt-row${open ? ' is-open' : ''}`}>
       <div className="bt-row-main">
-        <span className="numeric bt-pos">{i + 1}</span>
+        <span className={`numeric bt-pos${i < 3 ? ' is-podium' : ''}`}>{i + 1}</span>
         <div className={`bt-members bt-members-${size}`}>
           {t.refs.map((r) => (
-            <Member key={r} ref={r} league={league} size={size === 3 ? 48 : 40} />
+            <PokemonCard
+              key={r}
+              refId={r}
+              league={league}
+              size={size === 3 ? 'compact' : 'mini'}
+              // The podium foil belongs to the team's standing, not the
+              // Pokemon's, so it is passed from the row rather than derived.
+              rank={i}
+            />
           ))}
         </div>
         <div className="bt-metrics">

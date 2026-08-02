@@ -23,6 +23,7 @@ import { OpponentGrid } from '../components/OpponentGrid';
 import { MetricTabs } from '../components/MetricTabs';
 import { metricSortLabel } from '../lib/metrics';
 import { MovesPanel } from '../components/MovesPanel';
+import { Board, BoardControls } from '../components/Board';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
 import { HeldOutNote } from '../components/HeldOutNote';
@@ -40,6 +41,9 @@ import { FlipView } from './detail/FlipView';
  * truncating at an arbitrary depth.
  */
 const OPPONENT_WINDOW = 16;
+
+/** Storage key for the right column's panel order. */
+const REPORT_BOARD = 'report-analysis';
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
@@ -67,6 +71,9 @@ export function ReportScreen() {
   // Sorted by whichever metric is selected, then paged. The scan finds ~48
   // decidable matchups against 16 cells; paging shows the surplus without the
   // movement an auto-rotating board introduced.
+  const [editing, setEditing] = useState(false);
+  // Bumped on reset so the Board remounts and re-reads cleared storage.
+  const [boardNonce, setBoardNonce] = useState(0);
   const [sortDesc, setSortDesc] = useState(true);
   const [page, setPage] = useState(0);
 
@@ -177,7 +184,7 @@ export function ReportScreen() {
               onChange={(v) => set('shadow', v)}
               speciesName={species.name}
             />
-            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
+            <div className="text-muted text-xs mt-1.5 max-w-[38ch]">
               {species.shadowEligible
                 ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
                 : 'No Shadow form exists for this Pokémon.'}
@@ -191,7 +198,7 @@ export function ReportScreen() {
               eligible={bbEligible}
               onChange={(v) => set('bestBuddy', v)}
             />
-            <div className="text-muted" style={{ fontSize: 11, marginTop: 6, maxWidth: '38ch' }}>
+            <div className="text-muted text-xs mt-1.5 max-w-[38ch]">
               {bbEligible
                 ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
                 : `${species.name} tops out below level 50 in this league, so a Best Buddy boost changes nothing for it. Opponents are still priced at theirs.`}
@@ -200,7 +207,7 @@ export function ReportScreen() {
 
           <div className="side-block">
             <div className="hud-label" style={{ marginBottom: 7, display: 'flex', alignItems: 'center' }}>
-              <span style={{ flex: 1 }}>Adjust roll</span>
+              <span className="flex-1">Adjust roll</span>
               {/* Rank 1 is a specific spread, not 15/15/15 — under a cap a low
                   attack IV usually buys enough extra level to win on stat
                   product. Stepping to it by hand means knowing which of the
@@ -298,18 +305,18 @@ export function ReportScreen() {
               control belongs at the top, but this is a readout of its effect. */}
           <div>
             {shadowCompare && (
-              <table className="table numeric" style={{ fontSize: 12 }}>
+              <table className="table numeric text-sm">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left' }}>vs {opp.name}</th>
-                    <th style={{ textAlign: 'right' }}>Normal</th>
-                    <th style={{ textAlign: 'right' }}>Shadow</th>
+                    <th className="text-left">vs {opp.name}</th>
+                    <th className="text-right">Normal</th>
+                    <th className="text-right">Shadow</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td>{mv.name} dealt</td>
-                    <td style={{ textAlign: 'right' }}>{shadowCompare.dealtN}</td>
+                    <td className="text-right">{shadowCompare.dealtN}</td>
                     <td style={{ textAlign: 'right', color: shadowCompare.dealtS > shadowCompare.dealtN ? 'var(--color-accent-700)' : undefined }}>
                       {shadowCompare.dealtS}
                       {shadowCompare.dealtS > shadowCompare.dealtN ? ` (+${shadowCompare.dealtS - shadowCompare.dealtN})` : ''}
@@ -317,7 +324,7 @@ export function ReportScreen() {
                   </tr>
                   <tr>
                     <td>{opp.fastMove.name} taken</td>
-                    <td style={{ textAlign: 'right' }}>{shadowCompare.takenN}</td>
+                    <td className="text-right">{shadowCompare.takenN}</td>
                     <td style={{ textAlign: 'right', color: shadowCompare.takenS > shadowCompare.takenN ? 'var(--color-accent-700)' : undefined }}>
                       {shadowCompare.takenS}
                       {shadowCompare.takenS > shadowCompare.takenN ? ` (+${shadowCompare.takenS - shadowCompare.takenN})` : ''}
@@ -325,8 +332,8 @@ export function ReportScreen() {
                   </tr>
                   <tr>
                     <td className="text-muted">PvPoke rank</td>
-                    <td style={{ textAlign: 'right' }}>{shadowCompare.rankN ?? '—'}</td>
-                    <td style={{ textAlign: 'right' }}>{shadowCompare.rankS ?? '—'}</td>
+                    <td className="text-right">{shadowCompare.rankN ?? '—'}</td>
+                    <td className="text-right">{shadowCompare.rankS ?? '—'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -334,74 +341,113 @@ export function ReportScreen() {
           </div>
         </div>
 
-        {/* Right column */}
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          {/* Loadout first: the moves decide every matchup listed below it. */}
-          <MovesPanel
-            species={species}
-            moveIdx={moveIdx}
-            onMoveIdx={(i) => set('moveIdx', i)}
-            chargeIds={chargeIds}
-            onChargeIds={(ids) => set('chargeIds', ids)}
-          />
-
-          {/* Governs the heatmap ramp, which opponents the scan surfaces, and
-              the sort below — so it sits above all three. */}
-          <MetricTabs value={colorBy} onChange={(c) => set('colorBy', c)} />
-
-          <HeldOutNote />
-          <OpponentGrid
-            items={visible}
-            page={page}
-            pageCount={pageCount}
-            total={sorted.length}
-            activeId={effectiveOppId}
-            sortLabel={metricSortLabel(colorBy)}
-            sortDesc={sortDesc}
-            onSort={setSortDesc}
-            onPage={setPage}
-            onSelect={(id) => set('oppId', id)}
-          />
-
-          {/* Sits directly above the view it switches. At the top of the column
-              it was several hundred pixels from the thing it re-rendered, so
-              the cause and its effect were never on screen together. */}
-          <VizTabs value={viz} onChange={(v) => set('viz', v)} />
-
-          {viz === 'heat' && (
-            <HeatmapView
-              cells={heatCells}
-              colorBy={colorBy}
-              colorByLabel={colorByLabel}
-              onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
-              ivS={iv.s}
-              onIvS={(v) => patch({ iv: { ...iv, s: v } })}
-              table={table}
-              iv={iv}
-              palette={palette}
+        {/* Right column. The panels here are independent readouts and which one
+            matters most depends on the task, so their order is the user's. */}
+        <div className="flex min-w-0 flex-col gap-3.5 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="hud-label text-(--text-faint)">
+              {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
+            </span>
+            <BoardControls
+              storageKey={REPORT_BOARD}
+              editing={editing}
+              onEditing={setEditing}
+              onReset={() => setBoardNonce((n) => n + 1)}
             />
-          )}
-          {viz === 'ruler' && <RulerView rulers={rulers} />}
-          {viz === 'table' && <ThresholdTable rows={bpRows} />}
-          {viz === 'flip' && grid && (
-            <FlipView
-              ivA={iv.a}
-              ivD={iv.d}
-              shieldsMine={state.shields}
-              shieldsTheirs={state.shieldsOpp}
-              scenarios={scenarios}
-              onShields={(mine, theirs) => patch({ shields: mine, shieldsOpp: theirs })}
-              grid={grid}
-              ivS={iv.s}
-              onIvS={(v) => patch({ iv: { ...iv, s: v } })}
-              onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
-              rows={flipRows}
-              activeOppIdx={activeOppIdx}
-              onSelectOpponent={(idx) => set('oppId', visible[idx].info.id)}
-              now={grid.results.find((o) => o.entry.a === iv.a && o.entry.d === iv.d)?.result ?? { win: false, margin: 0 }}
-              cmpWin={entry.atk >= grid.opponentMon.atk}
-            />
-          )}
+          </div>
+          <Board
+            // Remounts on reset so the board re-reads the cleared storage.
+            key={boardNonce}
+            storageKey={REPORT_BOARD}
+            editing={editing}
+            className="flex flex-col gap-3.5"
+            blocks={[
+              {
+                id: 'moves',
+                label: 'Loadout',
+                node: (
+                  <MovesPanel
+                    species={species}
+                    moveIdx={moveIdx}
+                    onMoveIdx={(i) => set('moveIdx', i)}
+                    chargeIds={chargeIds}
+                    onChargeIds={(ids) => set('chargeIds', ids)}
+                  />
+                ),
+              },
+              {
+                id: 'metric',
+                label: 'Metric',
+                node: <MetricTabs value={colorBy} onChange={(c) => set('colorBy', c)} />,
+              },
+              {
+                id: 'opponents',
+                label: 'Opponents',
+                node: (
+                  <>
+                    <HeldOutNote />
+                    <OpponentGrid
+                      items={visible}
+                      page={page}
+                      pageCount={pageCount}
+                      total={sorted.length}
+                      activeId={effectiveOppId}
+                      sortLabel={metricSortLabel(colorBy)}
+                      sortDesc={sortDesc}
+                      onSort={setSortDesc}
+                      onPage={setPage}
+                      onSelect={(id) => set('oppId', id)}
+                    />
+                  </>
+                ),
+              },
+              {
+                id: 'viz',
+                label: 'Visualisation',
+                // Tabs travel with the view they switch: separated, the cause
+                // and its effect were never on screen together.
+                node: (
+                  <div className="flex flex-col gap-3.5">
+                    <VizTabs value={viz} onChange={(v) => set('viz', v)} />
+                    {viz === 'heat' && (
+                      <HeatmapView
+                        cells={heatCells}
+                        colorBy={colorBy}
+                        colorByLabel={colorByLabel}
+                        onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
+                        ivS={iv.s}
+                        onIvS={(v) => patch({ iv: { ...iv, s: v } })}
+                        table={table}
+                        iv={iv}
+                        palette={palette}
+                      />
+                    )}
+                    {viz === 'ruler' && <RulerView rulers={rulers} />}
+                    {viz === 'table' && <ThresholdTable rows={bpRows} />}
+                    {viz === 'flip' && grid && (
+                      <FlipView
+                        ivA={iv.a}
+                        ivD={iv.d}
+                        shieldsMine={state.shields}
+                        shieldsTheirs={state.shieldsOpp}
+                        scenarios={scenarios}
+                        onShields={(mine, theirs) => patch({ shields: mine, shieldsOpp: theirs })}
+                        grid={grid}
+                        ivS={iv.s}
+                        onIvS={(v) => patch({ iv: { ...iv, s: v } })}
+                        onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
+                        rows={flipRows}
+                        activeOppIdx={activeOppIdx}
+                        onSelectOpponent={(idx) => set('oppId', visible[idx].info.id)}
+                        now={grid.results.find((o) => o.entry.a === iv.a && o.entry.d === iv.d)?.result ?? { win: false, margin: 0 }}
+                        cmpWin={entry.atk >= grid.opponentMon.atk}
+                      />
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+          />
         </div>
       </div>
       <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>

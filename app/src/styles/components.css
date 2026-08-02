@@ -1720,9 +1720,13 @@ textarea.input { min-height: 90px; resize: vertical; }
   align-self: flex-start;
   padding-top: var(--space-2);
 }
-.bt-members { display: flex; flex: 1; gap: var(--space-2); min-width: 0; flex-wrap: wrap; }
-.bt-members-3 > * { flex: 1 1 30%; }
-.bt-members-6 > * { flex: 1 1 15%; }
+/* Grid, not flex-wrap. Percentage flex bases collapsed to one card per line
+   at ~820px — a card's own min-content width (type badges, the CP strip) beat
+   the 15% basis, so every card grew to fill its own row and a six-team became
+   six rows tall. `auto-fit` + a pixel minimum packs predictably at any width. */
+.bt-members { display: grid; flex: 1; gap: var(--space-2); min-width: 0; }
+.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
 .bt-member {
   display: flex;
   align-items: center;
@@ -1904,4 +1908,499 @@ textarea.input { min-height: 90px; resize: vertical; }
   font-size: var(--text-sm);
   padding-bottom: var(--space-1);
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+
+/* ── Pokémon card ───────────────────────────────────────────────────────── */
+/* Built out of the Pokemon's own two type colours (--t1/--t2, set inline), so a
+   Steel/Fairy card and a Water/Ghost card are recognisable before either name
+   is read. Four stacked layers, all composited, none of them in React's path:
+   pointer position arrives as --mx/--my written straight onto the node.
+
+   Everything decorative is inert under prefers-reduced-motion — see the query
+   at the end of this block. */
+.pc {
+  --mx: 0.5;
+  --my: 0.5;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-width: 0;
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: var(--color-surface-2, var(--color-surface));
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+/* Type wash. The angle is derived from the pointer so the gradient itself
+   shifts under the cursor rather than sitting flat. */
+.pc-wash {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background:
+    linear-gradient(calc(120deg + (var(--mx) - 0.5) * 40deg),
+      color-mix(in srgb, var(--t1) 22%, transparent) 0%,
+      transparent 46%,
+      color-mix(in srgb, var(--t2) 26%, transparent) 100%);
+}
+
+/* Hairline grid, so the surface reads as machined rather than as a flat panel.
+   Masked to fade out toward the bottom-right so it never competes with text. */
+.pc-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--t1) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--t1) 12%, transparent) 1px, transparent 1px);
+  background-size: 14px 14px;
+  -webkit-mask-image: linear-gradient(150deg, #000 0%, transparent 62%);
+  mask-image: linear-gradient(150deg, #000 0%, transparent 62%);
+}
+
+/* The foil. A conic sweep centred on the cursor, blended so it brightens the
+   art rather than washing it out. Invisible until hover — this is a card that
+   reacts, not one that glitters at rest. */
+.pc-foil {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  mix-blend-mode: color-dodge;
+  background:
+    radial-gradient(120% 90% at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+      color-mix(in srgb, var(--t2) 55%, white) 0%,
+      color-mix(in srgb, var(--t1) 30%, transparent) 35%,
+      transparent 68%);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.pc-body { position: relative; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; padding: var(--space-2); }
+
+.pc.is-clickable { cursor: pointer; }
+.pc.is-clickable:hover {
+  border-color: color-mix(in srgb, var(--t1) 70%, var(--color-accent));
+  box-shadow:
+    0 10px 26px -14px color-mix(in srgb, var(--t1) 70%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--t2) 34%, transparent) inset;
+  /* Tilt toward the cursor. Small numbers — a card that swings reads as a toy. */
+  transform:
+    perspective(760px)
+    rotateX(calc((var(--my) - 0.5) * -7deg))
+    rotateY(calc((var(--mx) - 0.5) * 9deg))
+    translateZ(6px);
+}
+.pc.is-clickable:hover .pc-foil { opacity: 0.5; }
+.pc.is-clickable:focus-visible { outline: var(--ring-width) solid var(--color-accent); outline-offset: 2px; }
+.pc.is-dim { opacity: 0.5; }
+
+/* The sprite sits proud of the card: translated further in Z than the body, so
+   the parallax separates art from surface on tilt. */
+.pc-art { position: relative; display: flex; flex: 0 0 auto; transform: translateZ(18px); }
+.pc-halo {
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--t1) 42%, transparent) 0%, transparent 70%);
+}
+.pc-shadow {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  font-size: var(--text-2xs);
+  color: var(--color-accent-2, var(--color-accent));
+  line-height: 1;
+  text-shadow: 0 0 6px currentColor;
+}
+
+.pc-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pc-id { min-width: 0; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.pc-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-sm);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-types { display: flex; gap: 2px; flex-wrap: wrap; }
+
+/* The roll reads as a spec strip: mono, tabular, with the units set smaller so
+   the numbers carry and the labels recede. */
+.pc-roll { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+.pc-iv { color: var(--text-muted); letter-spacing: 0.04em; }
+.pc-cp { color: var(--color-accent); font-weight: 600; }
+.pc-cp i, .pc-lvl { font-style: normal; color: var(--text-faint); font-size: var(--text-2xs); }
+.pc-lvl { margin-left: auto; }
+
+.pc-metric { margin-left: auto; text-align: right; flex: 0 0 auto; transform: translateZ(10px); }
+.pc-metric-value {
+  font-family: var(--font-heading);
+  font-size: var(--size-h5);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+.pc-metric-label { font-size: var(--text-2xs); }
+
+.pc-stats { display: flex; flex-direction: column; gap: 3px; }
+.pc-stat { display: grid; grid-template-columns: 26px 1fr 30px; align-items: center; gap: var(--space-2); }
+.pc-stat .hud-label { font-size: var(--text-2xs); }
+.pc-stat-bar {
+  display: block;
+  height: 5px;
+  background: color-mix(in srgb, var(--color-neutral-200) 70%, transparent);
+  overflow: hidden;
+  clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
+}
+.pc-stat-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--t1), var(--t2));
+  /* Fills once on mount. Never idles — see the design rules in the skill. */
+  animation: pc-fill var(--dur-4) var(--ease-out) both;
+}
+@keyframes pc-fill { from { transform: scaleX(0); transform-origin: left; } }
+.pc-stat-value { font-size: var(--text-2xs); text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+.pc-moves { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc-move {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  padding: 1px var(--space-1);
+  border-left: 2px solid color-mix(in srgb, var(--t2) 55%, transparent);
+  background: color-mix(in srgb, var(--t2) 7%, transparent);
+}
+.pc-move-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-move-fast { border-left-color: var(--color-accent); color: var(--color-accent); }
+.pc-move-eco { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.pc-move-eco i { font-style: normal; opacity: 0.7; margin-left: 1px; }
+.pc-note { margin-top: var(--space-1); padding-top: var(--space-1); border-top: var(--border-hairline) solid var(--rule-hairline); }
+
+/* Podium. A corner notch in metal, not a badge — the rank is already in the
+   row number, so this only has to make the top three feel different. */
+.pc.is-gold, .pc.is-silver, .pc.is-bronze { border-color: color-mix(in srgb, var(--pc-medal) 60%, var(--rule-hairline)); }
+.pc.is-gold { --pc-medal: #d9a441; }
+.pc.is-silver { --pc-medal: #b9c0c7; }
+.pc.is-bronze { --pc-medal: #b07a4d; }
+.pc.is-gold::after, .pc.is-silver::after, .pc.is-bronze::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 22px; height: 22px;
+  background: linear-gradient(225deg, var(--pc-medal) 0%, transparent 62%);
+  pointer-events: none;
+}
+
+/* Densities. Mini is identity only; full is the slot and suggestion card. */
+.pc-mini .pc-body { padding: var(--space-1) var(--space-2); }
+.pc-mini .pc-name { font-size: var(--text-2xs); }
+.pc-full .pc-body { gap: var(--space-2); padding: var(--space-3); }
+.pc-full .pc-name { font-size: var(--text-md); }
+
+.pc-team { display: flex; gap: var(--space-2); min-width: 0; flex: 1; }
+.pc-team > * { flex: 1 1 0; min-width: 0; }
+
+/* Motion is a garnish here, so it comes off entirely when asked. The tilt in
+   particular is the kind of thing that makes people ill. */
+@media (prefers-reduced-motion: reduce) {
+  .pc, .pc.is-clickable:hover { transform: none; transition: none; }
+  .pc-foil { display: none; }
+  .pc-stat-bar > span { animation: none; }
+}
+
+/* ── Suggestions as cards ───────────────────────────────────────────────── */
+.suggest-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.suggest-why { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-2xs); }
+.suggest-covers { display: flex; align-items: center; gap: 2px; color: var(--text-muted); }
+
+/* Team slots hold full cards now, so they need room rather than a fixed box. */
+.team-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.team-slot.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 132px;
+  border: var(--border-hairline) dashed var(--rule-hairline);
+  color: var(--text-faint);
+  font-size: var(--size-h4);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+@media (max-width: 720px) {
+  .pc-team { flex-wrap: wrap; }
+  .pc-team > * { flex: 1 1 45%; }
+  .suggest-cards { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Team row, restyled around the cards ────────────────────────────────── */
+/* The row is now a frame for three or six cards, so its own chrome recedes:
+   the rank numeral and the score carry it, everything else is the cards. */
+.bt-row { padding: var(--space-3) 0; }
+.bt-pos {
+  font-family: var(--font-heading);
+  font-size: var(--size-h4);
+  line-height: 1;
+  color: var(--text-faint);
+  min-width: 2.5ch;
+  text-align: right;
+  align-self: center;
+  padding-top: 0;
+}
+.bt-pos.is-podium { color: var(--color-accent); }
+
+.bt-score {
+  font-family: var(--font-heading);
+  font-size: var(--size-h4);
+  line-height: 1;
+}
+.bt-score-bar {
+  width: 100%;
+  height: 6px;
+  background: color-mix(in srgb, var(--color-neutral-200) 70%, transparent);
+  clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
+}
+.bt-score-bar-fill {
+  background: linear-gradient(90deg, var(--color-accent-2, var(--color-accent)), var(--color-accent));
+  animation: pc-fill var(--dur-4) var(--ease-out) both;
+}
+.bt-metrics { min-width: 13ch; }
+
+/* Suggestions get a wider minimum now that the card carries stat bars. */
+.suggest-cards { grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-score-bar-fill { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDING — the way in.
+
+   Only what Tailwind cannot express lives here: the aurora behind the hero,
+   the accent underline that draws itself, the route cards' corner chamfer.
+   Every flex/grid/gap/padding decision on this screen is a utility in the TSX,
+   which is why this block is short for the amount of page it describes.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.landing-hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+
+/* A slow aurora, keyed off the league accent so the page retints with the
+   league tabs. Pure decoration, so it sits behind everything and never
+   intercepts a pointer. */
+.landing-hero-glow {
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 130%;
+  pointer-events: none;
+  background:
+    radial-gradient(50% 50% at 22% 30%, color-mix(in oklab, var(--color-accent) 26%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 78% 18%, color-mix(in oklab, var(--color-accent-2, var(--color-accent)) 20%, transparent), transparent 70%);
+  filter: blur(38px);
+  opacity: 0.75;
+  animation: landing-drift 22s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes landing-drift {
+  from { transform: translate3d(-3%, -2%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
+}
+
+.landing-title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: clamp(38px, 7vw, 84px);
+  line-height: 0.94;
+  letter-spacing: var(--tracking-tight);
+  /* A line-height under 1 makes the box SHORTER than the glyphs it contains —
+     at 84px the descenders hang 6px below the border box. Margin alone cannot
+     see that overhang, so the following paragraph collided with the headline.
+     Padding reserves the space the line box does not account for.
+
+     Deliberately sets no `margin`: spacing here belongs to the utility in the
+     TSX, and since components.css loads after Tailwind a `margin: 0` would
+     silently beat `mb-6` and reintroduce exactly that collision. Component
+     classes own appearance; utilities own layout. */
+  padding-bottom: 0.08em;
+}
+
+/* The accent half of the headline, underscored by a rule that wipes in once.
+   Drawn with a pseudo-element rather than a border so it can start at zero
+   width without the text reflowing.
+
+   Deliberately sets no `color`: the fill is a clipped gradient applied by
+   utilities in the TSX, and a colour here would win the cascade (components
+   load after Tailwind) and paint over it. */
+.landing-title-accent {
+  position: relative;
+  /* The clipped gradient paints the glyphs; the underline needs its own
+     opaque colour since it cannot inherit a transparent one. */
+  --rule-color: var(--color-accent);
+}
+.landing-title-accent::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.12em;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--rule-color, var(--color-accent)), transparent);
+  transform-origin: left;
+  animation: landing-rule var(--dur-5) var(--ease-out) both;
+}
+
+@keyframes landing-rule {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* The search is the widest single control in the app on purpose. */
+.landing-search-input input {
+  height: 62px;
+  font-size: var(--text-xl);
+  padding-inline: var(--space-5);
+}
+
+.landing-stat-value {
+  font-size: var(--size-h4);
+  font-weight: 700;
+  display: block;
+  line-height: 1.1;
+}
+
+.landing-route {
+  position: relative;
+  text-align: left;
+  border: var(--border-hairline) solid var(--rule-strong);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: var(--space-4);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.landing-route:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
+  transform: translateY(-2px);
+}
+.landing-route-arrow {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  color: var(--color-accent);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.landing-route:hover .landing-route-arrow { opacity: 1; transform: translateX(0); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOARD — user-reorderable panels.
+
+   The grip only exists in edit mode, so the resting page is exactly what it
+   was before the feature. Everything here is state feedback: what is being
+   dragged, and where it would land.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.board-slot { position: relative; }
+.board.is-editing .board-slot {
+  border: var(--border-hairline) dashed var(--rule-hairline);
+  padding: var(--space-2);
+  cursor: grab;
+}
+.board.is-editing .board-slot:active { cursor: grabbing; }
+
+/* The dragged panel stays visible but recedes; the drop target lights its top
+   edge, so the answer to "where will this land" is a line, not a guess. */
+.board-slot.is-dragging { opacity: 0.4; }
+.board-slot.is-over { border-color: var(--color-accent); }
+.board-slot.is-over::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: -2px;
+  height: 3px;
+  background: var(--color-accent);
+}
+
+.board-grip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.board-grip-label { flex: 1; min-width: 0; }
+.board-grip-pos { color: var(--text-faint); }
+
+/* Six dots — the universal "drag me", drawn rather than shipped as an asset. */
+.board-grip-dots {
+  width: 10px;
+  height: 16px;
+  flex: none;
+  background-image: radial-gradient(currentColor 1px, transparent 1.2px);
+  background-size: 5px 5px;
+  opacity: 0.6;
+}
+
+.board-edit-btn.is-on {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-glow { animation: none; }
+  .landing-title-accent::after { animation: none; }
+  .landing-route:hover { transform: none; }
+}
+
+/* The entrance the landing page's staggered reveals animate on. Kept here
+   rather than as a Tailwind arbitrary keyframe so the reduced-motion override
+   below can reach it. */
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Everything on the landing page reveals with landing-rise; without this the
+     content would sit permanently at opacity 0, because the animation is what
+     brings it in. Snap to the end state instead of animating to it. */
+  .landing [style*='landing-rise'],
+  .landing [class*='landing-rise'] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

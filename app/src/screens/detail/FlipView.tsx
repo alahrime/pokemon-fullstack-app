@@ -22,7 +22,7 @@ function FlipFace({ win, margin, back = false }: { win: boolean; margin: number;
         >
           {win ? 'W' : 'L'}
         </div>
-        <div className="text-muted numeric" style={{ fontSize: 10 }}>
+        <div className="text-muted numeric text-2xs">
           {margin >= 0 ? '+' : ''}
           {margin.toFixed(0)}%
         </div>
@@ -126,7 +126,7 @@ export function FlipView({
             <span>rows = DEF IV 15 → 0</span>
           </div>
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">
               HP IV slice {ivS}
             </span>
             <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} style={{ flex: 1, minWidth: 140 }} />
@@ -143,7 +143,7 @@ export function FlipView({
             {cmpLine}
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="flex min-w-[280px] flex-1 flex-col gap-3">
           <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', padding: 14 }}>
             <div
               style={{
@@ -180,7 +180,7 @@ export function FlipView({
                   onClick={() => onSelectOpponent(i)}
                 >
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="flex items-center gap-2">
                       <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
                       <span style={{ fontSize: 13 }}>{r.species.name}</span>
                     </div>

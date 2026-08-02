@@ -34,7 +34,7 @@ export function VizTabs({ value, onChange }: { value: Viz; onChange: (v: Viz) =>
             <span className="viz-tab-icon">
               <Icon size={20} />
             </span>
-            <span style={{ minWidth: 0 }}>
+            <span className="min-w-0">
               <span className="viz-tab-label">{label}</span>
               <span className="viz-tab-hint">{hint}</span>
             </span>

@@ -6,9 +6,9 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
       {rulers.map((r, i) => (
         <div key={i} style={{ ['--i' as string]: i }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, marginBottom: 26 }}>
-            <div style={{ minWidth: 0 }}>
+            <div className="min-w-0">
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 16 }}>{r.title}</div>
-              <div className="text-muted" style={{ fontSize: 12 }}>
+              <div className="text-muted text-sm">
                 {r.sub}
               </div>
             </div>

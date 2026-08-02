@@ -24,7 +24,7 @@ export function ThresholdTable({ rows }: { rows: ThresholdRow[] }) {
                 <span className={r.kind === 'Bulkpoint' ? 'tag tag-neutral' : 'tag tag-accent'}>{r.kind}</span>
               </td>
               <td>{r.move}</td>
-              <td style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>{r.needLabel}</td>
+              <td className="font-(family-name:--font-head) font-extrabold">{r.needLabel}</td>
               <td className="text-muted">{r.spread}</td>
               <td>{r.dmgLabel}</td>
               <td

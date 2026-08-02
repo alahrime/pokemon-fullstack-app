@@ -125,14 +125,14 @@ export function HeatmapView({
             </div>
           )}
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 620 }}>
-            <span className="text-muted" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">
               HP IV slice
             </span>
-            <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} style={{ flex: 1 }} />
+            <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} className="flex-1" />
             <span className="numeric" style={{ fontWeight: 800, fontSize: 18, width: 24, textAlign: 'right' }}>{ivS}</span>
           </div>
         </div>
-        <div className="stagger" style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="stagger flex min-w-[280px] flex-1 flex-col gap-3">
           <div className="panel hud-frame" style={{ ['--i' as string]: 0 }}>
             <div className="panel-title">Legend — {colorByLabel}</div>
             {(() => {
@@ -150,7 +150,7 @@ export function HeatmapView({
           {colorBy === 'rank' ? (
             <div className="panel hud-frame" style={{ ['--i' as string]: 1 }}>
               <div className="panel-title">Top of the space</div>
-              <table className="table" style={{ fontSize: 12 }}>
+              <table className="table text-sm">
                 <thead>
                   <tr>
                     <th>#</th>

@@ -46,7 +46,7 @@ export function OpponentGrid({
   return (
     <div>
       <div className="opp-bar">
-        <span className="hud-label" style={{ flex: 1 }}>
+        <span className="hud-label flex-1">
           <span>Matchups where your roll decides it</span>
         </span>
 

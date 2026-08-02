@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../lib/teams';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -194,6 +195,10 @@ export function CoresScreen() {
 
   return (
     <div className="cores-screen">
+      <ScreenHeader
+        title="Cores"
+        blurb="Pairs that answer what the other cannot, ranked by how much the partnership adds over the two Pokémon alone. Lift is the whole point: a core is only a core if it beats its own halves."
+      />
       <div className="panel panel-strong">
         <div className="best-teams-head">
           <div className="hud-label">Cores</div>

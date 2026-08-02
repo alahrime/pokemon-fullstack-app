@@ -225,7 +225,7 @@ export function MovesPanel({
     <div className="moves-panel">
       <section className="moves-col">
         <div className="moves-head">
-          <span className="hud-label" style={{ flex: 1 }}>
+          <span className="hud-label flex-1">
             <span>Fast</span>
           </span>
         </div>
@@ -249,7 +249,7 @@ export function MovesPanel({
 
       <section className="moves-col">
         <div className="moves-head">
-          <span className="hud-label" style={{ flex: 1 }}>
+          <span className="hud-label flex-1">
             <span>Charged · pick {MAX_CHARGES}</span>
           </span>
           {!isDefault && (

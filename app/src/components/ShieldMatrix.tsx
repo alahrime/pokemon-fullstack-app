@@ -42,7 +42,7 @@ export function ShieldMatrix({
       <div className="hud-label">
         <span>Shield scenarios · your HP margin</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="flex items-center gap-2">
         <span className="shield-axis-y">your shields</span>
         <div>
           <div className="shield-matrix" role="group" aria-label="Shield scenario">

@@ -93,26 +93,46 @@ export function BattleTimeline({
     const y = HP_HEIGHT - (hp / max) * HP_HEIGHT;
     const isActor = e.actor === side;
     if (!isActor) return null;
-    const label = e.shielded
-      ? e.bait
-        ? `${e.moveName} (bait — shielded, 1 dmg)`
-        : `${e.moveName} (shielded, 1 dmg)`
-      : `${e.moveName} (${e.damage} dmg)`;
+    const label =
+      (e.shielded
+        ? e.bait
+          ? `${e.moveName} (bait — shielded, 1 dmg)`
+          : `${e.moveName} (shielded, 1 dmg)`
+        : `${e.moveName} (${e.damage} dmg)`) + (e.buffText ? ` · ${e.buffText}` : '');
+    const delay = { ['--marker-delay' as string]: `${300 + (e.turn / Math.max(1, totalTurns)) * 700}ms` } as CSSProperties;
     return (
-      <circle
-        key={`${e.turn}-${e.actor}-${e.moveName}`}
-        className="pop-marker"
-        cx={x}
-        cy={y}
-        r={e.shielded ? 4 : 5.5}
-        fill={e.shielded ? 'var(--surface-1)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
-        stroke={side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
-        strokeWidth={1.5}
-        // Markers land in step with the line as it draws past them.
-        style={{ ['--marker-delay' as string]: `${300 + (e.turn / Math.max(1, totalTurns)) * 700}ms` } as CSSProperties}
-      >
-        <title>{`t=${seconds(e.turn)}s · ${side === 'A' ? nameA : nameB} · ${label}`}</title>
-      </circle>
+      <g key={`${e.turn}-${e.actor}-${e.moveName}`}>
+        {/* A dashed ring marks the turn a stat stage actually landed, so the
+            point where damage output changes is visible on the curve itself
+            rather than only in the log below it. Shares the marker's delay so
+            it arrives with its own dot rather than ahead of the line. */}
+        {e.buffText && (
+          <circle
+            className="pop-marker"
+            cx={x}
+            cy={y}
+            r={9}
+            fill="none"
+            stroke="var(--color-accent-700)"
+            strokeWidth={1.5}
+            strokeDasharray="2,2"
+            style={delay}
+          />
+        )}
+        <circle
+          className="pop-marker"
+          cx={x}
+          cy={y}
+          r={e.shielded ? 4 : 5.5}
+          fill={e.shielded ? 'var(--surface-1)' : side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
+          stroke={side === 'A' ? 'var(--color-accent)' : 'var(--color-neutral-700)'}
+          strokeWidth={1.5}
+          // Markers land in step with the line as it draws past them.
+          style={delay}
+        >
+          <title>{`t=${seconds(e.turn)}s · ${side === 'A' ? nameA : nameB} · ${label}`}</title>
+        </circle>
+      </g>
     );
   };
 

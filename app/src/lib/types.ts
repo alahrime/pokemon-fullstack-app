@@ -12,6 +12,17 @@ export interface FastMove {
   stab: number;
 }
 
+// Stat-stage change a charge move applies on resolution — win or shielded,
+// since a shield only blocks damage, never the secondary effect. Stages are
+// clamped to ±4 by the sim; `chance` is the move's real per-throw probability
+// (1 for guaranteed moves like Superpower, as low as .1 for Ancient Power).
+export interface MoveBuffs {
+  atkStage: number;
+  defStage: number;
+  target: 'self' | 'opponent';
+  chance: number;
+}
+
 export interface ChargeMove {
   id: string;
   name: string;
@@ -20,6 +31,7 @@ export interface ChargeMove {
   power: number;
   energy: number;
   stab: number;
+  buffs?: MoveBuffs;
 }
 
 export interface Species {
@@ -181,6 +193,15 @@ export interface BattleLogEntry {
   hpB: number;
   energyA: number;
   energyB: number;
+  // Stat stages in effect *after* this action resolves (±4), so a timeline
+  // can render the buff/debuff state at every frame, not just its own move.
+  atkStageA: number;
+  defStageA: number;
+  atkStageB: number;
+  defStageB: number;
+  // Set only when this action's move actually rolled its buff/debuff (chance
+  // met) — null when the move has no buff, or its chance roll missed.
+  buffText: string | null;
 }
 
 export interface BattleResult {

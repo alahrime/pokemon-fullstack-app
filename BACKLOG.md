@@ -310,6 +310,28 @@ Not the move data. Every fast-move turn count involved was checked against
 A prior version of this note asserted several turn counts from memory and was
 wrong about four of them — check the file, not recall.
 
+**Sharper characterisation, from the rev-12 re-run.** "We undervalue glass
+cannons" is the wrong frame, and it sent an earlier pass looking at shield and
+bait handling for attackers. Counting the *opponent* in the sixteen largest
+disagreements:
+
+| opponent | appearances |
+|---|---|
+| Empoleon | 6 |
+| Forretress (Shadow) | 2 |
+| Clodsire | 2 |
+| Altaria | 2 |
+| everything else | 1 each |
+
+It is not a broad class of attackers scoring badly. It is a handful of bulky
+defenders — Empoleon above all — that beat far more things in our sim than in
+theirs. That is a much smaller search: work out what our Empoleon does that
+theirs does not, on one matchup, rather than auditing an archetype.
+
+Stat stages are **not** the cause. The rev-12 agreement moved 76.5% → 75.3%
+(r 0.726 → 0.712), a small drop, and the top disagreers mostly carry no buff
+move at all (Bisharp, Absol). The same cluster was there at rev 10 and 11.
+
 ## 1h. Farm-downs and carried energy — BUILT, rev 11
 
 The observation, from play: a good player who can see that fast moves alone
@@ -370,6 +392,66 @@ energy (Manectric -55, Alolan Golem -49, Rotom Wash -40). Annihilape did move
 up 27 places and Shadow Ninetales 10, which is the direction the observation
 predicted — but if the goal is specifically Registeel's usage, this is not the
 lever. See §1g: 75% of its published score is a hand-set editor value of 88.
+
+## 1i. Stat stages — BUILT, rev 12
+
+Around ninety charged moves change a stat on use: Superpower drops your own
+attack and defence, Acid Spray guts the opponent's, Rage Fist and Power-Up
+Punch stack their own attack, Ancient Power occasionally raises everything.
+The engine modelled none of it — damage was flat for the whole fight — and
+**104 of the top 200 in Great run one at their rated set**, so this was not a
+rare-case gap.
+
+Modelled as stages rather than multipliers, because that is what the game
+tracks: clamped to ±4 on an asymmetric table where +1 is 1.25x and -1 is 0.8x
+rather than 1/1.25. `buffMultiplier` in `lib/engine.ts`.
+
+What follows the stages: every damage figure, the move roles (damage per energy
+decides main from secondary, and a debuff can genuinely reorder them), the CMP
+tiebreak, and the farm-down test. Damage used to be precomputed once outside
+the loop as a deliberate optimisation — "attack, defence and typing do not
+change". Stages break that premise, so it is now re-derived when a stage
+actually moves rather than every turn, which keeps almost all of the original
+saving since a battle sees a handful of buffs at most.
+
+**The effect applies even when the move is shielded.** A shield blocks damage,
+never the secondary effect, so an Acid Spray eaten on a shield still leaves the
+defence debuff behind.
+
+**Chance-gated buffs apply at their expected value. Do not replace this with a
+roll.** 64 of the 145 buff-carrying moves land only some of the time. A seeded
+PRNG is the obvious model and it was built first, on sound-looking reasoning:
+`battle()` must be a pure function of its inputs, since flipGrid calls it once
+per IV combination — up to 4096 times for one moveset — and those cells are
+only comparable if the rolls match, so the seed has to be fixed.
+
+A fixed seed means every battle replays the *same* sequence. The first draw from
+ours was **0.0211**, so every 10%-chance buff landed on its first throw in every
+single battle. The distribution was fine — 9.93% over a long run — and that is
+exactly what made it hard to see. It was the per-battle restart that turned a
+good generator into a systematic bias, and it inflated the Ancient Power
+carriers by 500+ ranking places (Spinda +575, Garganacl +581, Naclstack +590)
+in a full rebuild before it was caught.
+
+A fractional stage is the honest model. Rankings aggregate thousands of
+matchups, so the expected effect is what the average should reflect, and
+`buffMultiplier` is continuous — a 10% chance of Def −1 is applied as −0.1 of a
+stage. Deterministic, identical across every IV cell, unbiased: everything the
+PRNG was reaching for and none of what it delivered. Gate assertions cover the
+determinism, the expected-value pricing and that a fractional stage actually
+reaches the multiplier.
+
+**The data comes from the generator, not from hand-editing.** The branch this
+arrived on wrote buff fields directly into `src/data/species.json`, which is
+generated — the next `npm run data` would have silently erased all of it with
+no test to catch it. `build-data.mjs` now reads the upstream `buffs`,
+`buffTarget` and `buffApplyChance` fields, which were in `data-src/moves.json`
+all along on 91 of 334 moves.
+
+It also vindicates the original Annihilape observation from §1h. Rage Fist
+stacks attack three times against Registeel, and Counter goes 4 → 5 → 6 damage
+over the fight. That is the pressure the farm-down work could not find, because
+until now the engine did not model the move that creates it.
 
 ## 2. How the rankings pipeline works
 

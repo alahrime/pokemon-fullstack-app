@@ -3063,3 +3063,13 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   white-space: nowrap;
   min-width: 0;
 }
+
+/* Stat-stage column in the battle log. The throw that caused a change names it
+   in the accent colour; the running totals under it stay quiet, because they
+   repeat on every row and would otherwise shout on all of them. */
+.battle-stages { font-size: var(--text-2xs); line-height: 1.35; }
+.battle-stage-hit {
+  display: block;
+  color: var(--color-accent);
+  font-weight: 600;
+}

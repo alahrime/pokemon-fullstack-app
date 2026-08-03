@@ -199,6 +199,9 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
   );
 }
 
+/** `+2`, `-1`, `0` — signed so a debuff is never mistaken for a buff. */
+const fmtStage = (n: number): string => (n > 0 ? `+${n}` : String(n));
+
 export function BattleScreen() {
   const { state, patch } = useAppState();
   const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB, bestBuddyA, bestBuddyB } = state;
@@ -447,6 +450,7 @@ export function BattleScreen() {
                 <th>Pokémon</th>
                 <th>Move</th>
                 <th>Outcome</th>
+                <th>Stat stages</th>
                 <th>{nameA} HP</th>
                 <th>{nameB} HP</th>
               </tr>
@@ -469,6 +473,17 @@ export function BattleScreen() {
                         <span style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{e.damage} dmg</span>
                       )}
                     </td>
+                    {/* Stage state after this throw resolved. The buff text
+                        appears on the throw that caused it; the running totals
+                        below say where both sides stand from then on. */}
+                    <td className="numeric battle-stages">
+                      {e.buffText && <span className="battle-stage-hit">{e.buffText}</span>}
+                      <span className="text-faint">
+                        {nameA} {fmtStage(e.atkStageA)}/{fmtStage(e.defStageA)}
+                        {' · '}
+                        {nameB} {fmtStage(e.atkStageB)}/{fmtStage(e.defStageB)}
+                      </span>
+                    </td>
                     <td>{Math.round(e.hpA)}</td>
                     <td>{Math.round(e.hpB)}</td>
                   </tr>
@@ -480,7 +495,10 @@ export function BattleScreen() {
         <p className="text-muted text-xs mt-2.5">
           A shielded charge move always deals 1 damage regardless of which move is thrown, so a mon with two charge moves of
           different energy costs spends the cheaper one into a shield ("bait") and saves the pricier, harder-hitting move for
-          when the opponent is out of shields.
+          when the opponent is out of shields. Stat-changing moves — Superpower, Acid Spray, Night Slash and
+          around ninety others — apply their attack or defence stage on every throw that lands its chance,
+          <strong> including when shielded</strong>, since a shield blocks damage and not the secondary effect.
+          Every damage figure after that point, and the CMP tiebreak, uses the changed stat.
         </p>
       </div>
     </>

@@ -11,6 +11,7 @@ import {
   rankOfRef,
 } from './data';
 import type {
+  MoveBuffs,
   BattleLogEntry,
   BattleMon,
   BattleResult,
@@ -145,6 +146,57 @@ export function dmg(
  */
 export const SHADOW_ATK_MULT = 6 / 5;
 export const SHADOW_DEF_MULT = 5 / 6;
+
+// ── Stat stages (attack/defence buffs and debuffs) ────────────────────────
+//
+// Roughly 90 charged moves raise or lower a stat on use — Superpower drops
+// your own attack and defence, Acid Spray guts the opponent's, Ancient Power
+// occasionally raises everything. Modelled as stages rather than multipliers
+// because that is what the game tracks: clamped to ±4, with an asymmetric
+// table where +1 is 1.25x but -1 is 0.8x rather than 1/1.25.
+export const STAGE_MIN = -4;
+export const STAGE_MAX = 4;
+
+export function buffMultiplier(stage: number): number {
+  const s = Math.max(STAGE_MIN, Math.min(STAGE_MAX, stage));
+  return s >= 0 ? (4 + s) / 4 : 4 / (4 - s);
+}
+
+const clampStage = (n: number): number => Math.max(STAGE_MIN, Math.min(STAGE_MAX, n));
+
+/**
+ * Chance-gated buffs are applied at their expected value, not rolled.
+ *
+ * 64 of the 145 buff-carrying moves land their effect only some of the time —
+ * Ancient Power is 10%, Crunch 30%. The obvious model is a seeded PRNG, and it
+ * is wrong here in a way that took a rebuild to see: `battle()` must be a pure
+ * function of its inputs (flipGrid calls it once per IV combination, up to 4096
+ * times for the same moveset, and those cells are only comparable if the rolls
+ * match), so the seed has to be fixed — and a fixed seed means every battle
+ * replays the *same* sequence. The first draw from ours was 0.0211, so every
+ * 10% move landed its buff on its first throw in every single battle. The
+ * distribution was fine at 9.93% over a long run; it was the per-battle
+ * restart that made it a systematic bias, and it inflated the Ancient Power
+ * carriers by 500+ ranking places before it was caught.
+ *
+ * A fractional stage is the honest model instead. Rankings aggregate thousands
+ * of matchups, so the expected effect is what the average should reflect, and
+ * `buffMultiplier` is continuous — a 10% chance of +2 is applied as +0.2 of a
+ * stage. It is deterministic, identical across every IV cell, and unbiased,
+ * which is everything the PRNG was reaching for and none of what it delivered.
+ */
+
+/** Human-readable summary of a buff that landed, for the battle log. */
+function describeBuff(buffs: MoveBuffs, dAtk: number, dDef: number, selfLabel: string, oppLabel: string): string {
+  const fmt = (n: number) => `${n > 0 ? '+' : ''}${Number(n.toFixed(2))}`;
+  const parts: string[] = [];
+  if (dAtk) parts.push(`Atk ${fmt(dAtk)}`);
+  if (dDef) parts.push(`Def ${fmt(dDef)}`);
+  // Names the nominal effect and its chance when the two differ, so a
+  // fractional stage reads as "10% of +2" rather than as a strange constant.
+  const gated = buffs.chance < 1 ? ` (${Math.round(buffs.chance * 100)}% of ${buffs.atkStage || buffs.defStage > 0 ? '' : ''}${[buffs.atkStage && `Atk ${buffs.atkStage > 0 ? '+' : ''}${buffs.atkStage}`, buffs.defStage && `Def ${buffs.defStage > 0 ? '+' : ''}${buffs.defStage}`].filter(Boolean).join(', ')})` : '';
+  return `${buffs.target === 'self' ? selfLabel : oppLabel} ${parts.join(', ')}${gated}`;
+}
 
 const tableCache = new Map<string, SpeciesTable>();
 
@@ -1513,42 +1565,85 @@ export function battle(
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
-  const fA = dmg(a.atk, b.def, a.fast, b.types);
-  const fB = dmg(b.atk, a.def, b.fast, a.types);
-  const rolesA = classifyCharges(a.atk, b.def, a.charges, b.types);
-  const rolesB = classifyCharges(b.atk, a.def, b.charges, a.types);
-  // Charge damage is fixed for the whole battle — attack, defence and typing
-  // do not change — but the "would their next action kill me" test was
-  // recomputing it for every charge move on both sides on every turn, each
-  // call walking the type chart. Precomputed here instead.
-  const chargeDmgA = a.charges.map((c) => dmg(a.atk, b.def, c, b.types));
-  const chargeDmgB = b.charges.map((c) => dmg(b.atk, a.def, c, a.types));
-  // The biggest hit each side can produce, which is what a reading defender is
-  // holding its shield for.
-  const worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
-  const worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
-  // Cheapest charged move each side owns — how often the other can expect to
-  // be hit while being farmed. See canFarmDown.
+
+  // Stat stages. Fractional, because chance-gated buffs apply at their
+  // expected value rather than being rolled — see applyBuff.
+  const stA = { atk: 0, def: 0 };
+  const stB = { atk: 0, def: 0 };
+
+  // Effective battle stats at the current stages. Every damage figure below is
+  // derived from these rather than from a.atk/b.def directly.
+  let atkA = a.atk, defA = a.def, atkB = b.atk, defB = b.def;
+
+  // Damage used to be precomputed once and treated as fixed for the whole
+  // battle — "attack, defence and typing do not change" — because recomputing
+  // it per turn, per move, walking the type chart each time, dominated a
+  // relevance sweep. Stat stages break that premise: after a Superpower the
+  // same move hits for less.
+  //
+  // So it is still computed in one place, just re-derived when a stage
+  // actually moves rather than every turn. A battle sees a handful of buffs at
+  // most, so this keeps the original optimisation almost entirely intact while
+  // being correct under stages.
+  let fA = 0, fB = 0;
+  let rolesA!: ChargeRoles, rolesB!: ChargeRoles;
+  let chargeDmgA: number[] = [], chargeDmgB: number[] = [];
+  let worstFromA = 0, worstFromB = 0;
+  let farmA!: FarmProfile, farmB!: FarmProfile;
   const cheapA = a.charges.length ? Math.min(...a.charges.map((c) => c.energy)) : 0;
   const cheapB = b.charges.length ? Math.min(...b.charges.map((c) => c.energy)) : 0;
-  const farmA: FarmProfile = {
-    fastDamage: fA,
-    fastTurns: a.fast.turns,
-    oppFastDamage: fB,
-    oppFastTurns: b.fast.turns,
-    oppFastEnergy: b.fast.energyGain,
-    oppCheapest: cheapB,
-    oppWorst: worstFromB,
+
+  const syncDerived = () => {
+    atkA = a.atk * buffMultiplier(stA.atk);
+    defA = a.def * buffMultiplier(stA.def);
+    atkB = b.atk * buffMultiplier(stB.atk);
+    defB = b.def * buffMultiplier(stB.def);
+    fA = dmg(atkA, defB, a.fast, b.types);
+    fB = dmg(atkB, defA, b.fast, a.types);
+    // Move roles are re-derived too: damage per energy is what decides main
+    // from secondary, and a debuff can genuinely reorder them.
+    rolesA = classifyCharges(atkA, defB, a.charges, b.types);
+    rolesB = classifyCharges(atkB, defA, b.charges, a.types);
+    chargeDmgA = a.charges.map((c) => dmg(atkA, defB, c, b.types));
+    chargeDmgB = b.charges.map((c) => dmg(atkB, defA, c, a.types));
+    worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
+    worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
+    farmA = {
+      fastDamage: fA, fastTurns: a.fast.turns,
+      oppFastDamage: fB, oppFastTurns: b.fast.turns, oppFastEnergy: b.fast.energyGain,
+      oppCheapest: cheapB, oppWorst: worstFromB,
+    };
+    farmB = {
+      fastDamage: fB, fastTurns: b.fast.turns,
+      oppFastDamage: fA, oppFastTurns: a.fast.turns, oppFastEnergy: a.fast.energyGain,
+      oppCheapest: cheapA, oppWorst: worstFromA,
+    };
   };
-  const farmB: FarmProfile = {
-    fastDamage: fB,
-    fastTurns: b.fast.turns,
-    oppFastDamage: fA,
-    oppFastTurns: a.fast.turns,
-    oppFastEnergy: a.fast.energyGain,
-    oppCheapest: cheapA,
-    oppWorst: worstFromA,
+  syncDerived();
+
+  /**
+   * Apply a charged move's stat effect after it resolves.
+   *
+   * Deliberately runs whether or not the move was shielded: a shield blocks
+   * damage, never the secondary effect, so an Acid Spray eaten on a shield
+   * still leaves the defence debuff behind. Returns the log text, or null when
+   * the move has no buff or its chance roll missed.
+   */
+  const applyBuff = (move: ChargeMove, selfIsA: boolean): string | null => {
+    const buffs = move.buffs;
+    if (!buffs) return null;
+    // Scaled by apply-chance — see the note above on why this is not a roll.
+    const dAtk = buffs.atkStage * buffs.chance;
+    const dDef = buffs.defStage * buffs.chance;
+    if (!dAtk && !dDef) return null;
+    const toSelf = buffs.target === 'self';
+    const target = (selfIsA ? toSelf : !toSelf) ? stA : stB;
+    target.atk = clampStage(target.atk + dAtk);
+    target.def = clampStage(target.def + dDef);
+    syncDerived();
+    return describeBuff(buffs, dAtk, dDef, selfIsA ? 'A' : 'B', selfIsA ? 'B' : 'A');
   };
+
   const log: BattleLogEntry[] = [];
 
   // Turns held with a charged move available but deliberately not thrown,
@@ -1577,14 +1672,14 @@ export function battle(
 
     const readyA = freeA
       ? pickCharge(rolesA, eA, sB, {
-          oppHp: hpB, incomingKO: incomingKOa, atk: a.atk, oppDef: b.def, oppTypes: b.types,
+          oppHp: hpB, incomingKO: incomingKOa, atk: atkA, oppDef: defB, oppTypes: b.types,
           baitRefused: baitRefusedA,
           farm: farmA, myHp: hpA, myMaxHp: a.hp, myShields: sA, oppEnergy: eB,
         })
       : null;
     const readyB = freeB
       ? pickCharge(rolesB, eB, sA, {
-          oppHp: hpA, incomingKO: incomingKOb, atk: b.atk, oppDef: a.def, oppTypes: a.types,
+          oppHp: hpA, incomingKO: incomingKOb, atk: atkB, oppDef: defA, oppTypes: a.types,
           baitRefused: baitRefusedB,
           farm: farmB, myHp: hpB, myMaxHp: b.hp, myShields: sB, oppEnergy: eA,
         })
@@ -1611,8 +1706,8 @@ export function battle(
     //                resource it is trying to spend well.
     //   unreachable  a 2-turn fast move against a 4-turn never coincides, so
     //                the window would never arrive and the hold never end.
-    const killsB = sB === 0 && !!readyA && dmg(a.atk, b.def, readyA, b.types) >= hpB;
-    const killsA = sA === 0 && !!readyB && dmg(b.atk, a.def, readyB, a.types) >= hpA;
+    const killsB = sB === 0 && !!readyA && dmg(atkA, defB, readyA, b.types) >= hpB;
+    const killsA = sA === 0 && !!readyB && dmg(atkB, defA, readyB, a.types) >= hpA;
     const wantA =
       !!readyA &&
       (!optimizeTiming ||
@@ -1645,12 +1740,12 @@ export function battle(
     // move registering *this* turn qualifies; one still mid-animation does not.
     const snipe = (registersA && fA >= hpB) || (registersB && fB >= hpA);
     if ((moveA || moveB) && !snipe) {
-      const order: ('A' | 'B')[] = moveA && moveB ? (a.atk >= b.atk ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
+      const order: ('A' | 'B')[] = moveA && moveB ? (atkA >= atkB ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
       if (moveA && moveB) cmpDecided = true;
       for (const who of order) {
         if (who === 'A' && hpA > 0 && moveA) {
           eA -= moveA.energy;
-          const raw = dmg(a.atk, b.def, moveA, b.types);
+          const raw = dmg(atkA, defB, moveA, b.types);
           const shielded = sB > 0 && shieldCall(policyB, raw, hpB, worstFromA);
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
@@ -1658,6 +1753,8 @@ export function battle(
           const damage = shielded ? 1 : raw;
           if (shielded) sB--;
           hpB -= damage;
+          // A shield blocks damage, never the secondary effect.
+          const buffTextA = applyBuff(moveA, true);
           // The sequence resets both animations — that reset is what grants
           // the defender "free" turns when thrown at the wrong moment.
           tA = a.fast.turns;
@@ -1675,16 +1772,22 @@ export function battle(
             hpB: Math.max(0, hpB),
             energyA: eA,
             energyB: eB,
+            atkStageA: stA.atk,
+            defStageA: stA.def,
+            atkStageB: stB.atk,
+            defStageB: stB.def,
+            buffText: buffTextA,
           });
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
-          const raw = dmg(b.atk, a.def, moveB, a.types);
+          const raw = dmg(atkB, defA, moveB, a.types);
           const shielded = sA > 0 && shieldCall(policyA, raw, hpA, worstFromB);
           if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const damage = shielded ? 1 : raw;
           if (shielded) sA--;
           hpA -= damage;
+          const buffTextB = applyBuff(moveB, false);
           tA = a.fast.turns;
           tB = b.fast.turns;
           holdB = 0;
@@ -1700,6 +1803,11 @@ export function battle(
             hpB: Math.max(0, hpB),
             energyA: eA,
             energyB: eB,
+            atkStageA: stA.atk,
+            defStageA: stA.def,
+            atkStageB: stB.atk,
+            defStageB: stB.def,
+            buffText: buffTextB,
           });
         }
       }
@@ -1712,13 +1820,15 @@ export function battle(
         hpB -= fA;
         eA = Math.min(100, eA + a.fast.energyGain);
         if (collectLog) log.push({ turn, actor: 'A', kind: 'fast', moveName: a.fast.name, bait: false,
-          shielded: false, damage: fA, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB });
+          shielded: false, damage: fA, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
+          atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: null });
       }
       if (registersB && hpB > 0 && !moveB && hpA > 0) {
         hpA -= fB;
         eB = Math.min(100, eB + b.fast.energyGain);
         if (collectLog) log.push({ turn, actor: 'B', kind: 'fast', moveName: b.fast.name, bait: false,
-          shielded: false, damage: fB, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB });
+          shielded: false, damage: fB, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
+          atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: null });
       }
       continue;
     }
@@ -1738,6 +1848,11 @@ export function battle(
         hpB: Math.max(0, hpB),
         energyA: eA,
         energyB: eB,
+        atkStageA: stA.atk,
+        defStageA: stA.def,
+        atkStageB: stB.atk,
+        defStageB: stB.def,
+        buffText: null,
       });
     }
     if (--tB <= 0) {
@@ -1756,6 +1871,11 @@ export function battle(
         hpB: Math.max(0, hpB),
         energyA: eA,
         energyB: eB,
+        atkStageA: stA.atk,
+        defStageA: stA.def,
+        atkStageB: stB.atk,
+        defStageB: stB.def,
+        buffText: null,
       });
     }
   }

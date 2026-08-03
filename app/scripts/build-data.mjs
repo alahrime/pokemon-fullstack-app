@@ -210,9 +210,39 @@ function fastMove(id, types) {
   };
 }
 
+/**
+ * Stat-stage effect carried by a charged move, from the upstream gamemaster.
+ *
+ * Upstream shape is `buffs: [atkStages, defStages]` with `buffTarget` and
+ * `buffApplyChance` alongside it — 91 of 334 moves carry one. Normalised here
+ * into a named object so the engine reads fields rather than array indices.
+ *
+ * This lives in the generator rather than being written into species.json by
+ * hand, which is how it arrived on the branch this came from. species.json is
+ * generated: hand-edits survive exactly until the next `npm run data`, and
+ * then vanish silently with no test to catch it.
+ */
+function moveBuffs(m) {
+  const pair = m.buffs;
+  if (!Array.isArray(pair) || pair.length < 2) return undefined;
+  const atkStage = Number(pair[0]) || 0;
+  const defStage = Number(pair[1]) || 0;
+  if (!atkStage && !defStage) return undefined;
+  const chance = m.buffApplyChance === undefined ? 1 : Number(m.buffApplyChance);
+  return {
+    atkStage,
+    defStage,
+    target: m.buffTarget === 'self' ? 'self' : 'opponent',
+    // Upstream ships this as a string ("1", ".1"); a NaN here would silently
+    // disable the buff, so fall back to always-on rather than never.
+    chance: Number.isFinite(chance) ? chance : 1,
+  };
+}
+
 function chargeMove(id, types) {
   const m = MOVE_BY_ID.get(id);
   if (!m) return missingMoves.add(id), null;
+  const buffs = moveBuffs(m);
   return {
     id,
     name: m.name,
@@ -221,6 +251,9 @@ function chargeMove(id, types) {
     power: m.power,
     energy: m.energy,
     stab: types.includes(m.type) ? 1.2 : 1.0,
+    // Omitted entirely when the move has no effect, so the interning key and
+    // the emitted JSON stay unchanged for the ~73% of moves without one.
+    ...(buffs ? { buffs } : {}),
   };
 }
 

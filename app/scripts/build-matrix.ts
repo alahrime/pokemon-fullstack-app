@@ -72,8 +72,11 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *  11  farm-downs: a mon that can finish the job on fast moves alone holds its
  *      energy instead of spending it on a kill it already had, and the bar it
  *      carries out of a win is credited the way a kept shield is
+ *  12  attack/defence stat stages: ~90 charged moves raise or lower a stat on
+ *      use, and every damage figure, the CMP tiebreak and the farm-down test
+ *      now follow them. 104 of the top 200 in Great run one at their rated set
  */
-const ENGINE_REV = 11;
+const ENGINE_REV = 12;
 
 /**
  * Loadouts considered per species.

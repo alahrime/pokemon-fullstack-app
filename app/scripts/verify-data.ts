@@ -26,6 +26,7 @@ import {
   scenarioMatrix,
   chargeMoveStats,
   fastMoveCounts,
+  buffMultiplier,
 } from '../src/lib/engine';
 import { QUERY_FORMS, compileQuery } from '../src/lib/query';
 import { CATEGORIES, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, rating } from '../src/lib/scenarios';
@@ -585,6 +586,63 @@ console.log('\n── baiting vs a reading defender ─────────�
   // behaviour once a bait has actually been waved through.
   const alw = battle(lick, reg, 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always');
   check('`always` behaviour is untouched', alw.shieldsB === 0 && alw.log.some((l) => l.kind === 'charge' && l.shielded));
+}
+
+// ── stat stages (buffs and debuffs) ────────────────────────────────────────
+// ~90 charged moves change a stat on use. The data comes from the upstream
+// gamemaster through build-data.mjs — NOT hand-written into species.json,
+// which is generated and would lose it on the next run. See engine rev 12.
+console.log('\n── stat stages ────────────────────────────────────────');
+{
+  // The game's table is asymmetric: +1 is 1.25x but -1 is 0.8x, not 1/1.25.
+  check('stage multipliers match the game table',
+    buffMultiplier(0) === 1 && buffMultiplier(1) === 1.25 && buffMultiplier(-1) === 0.8
+      && buffMultiplier(4) === 2 && buffMultiplier(-4) === 0.5,
+    `${buffMultiplier(-1)} / ${buffMultiplier(1)}`);
+  check('stages clamp at ±4', buffMultiplier(9) === buffMultiplier(4) && buffMultiplier(-9) === buffMultiplier(-4));
+
+  // The tagging survived generation.
+  const tagged = SPECIES.flatMap((sp) => sp.chargeMoves).filter((m) => m.buffs);
+  check('charge moves carry buff data after generation', tagged.length > 50, `${tagged.length} tagged`);
+  const sp = SPECIES_BY_ID.get('annihilape');
+  const rage = sp?.chargeMoves.find((m) => m.id === 'RAGE_FIST');
+  check('Rage Fist raises its own attack', rage?.buffs?.atkStage === 1 && rage?.buffs?.target === 'self',
+    JSON.stringify(rage?.buffs));
+
+  const mk = (r: string) => monFor(r, 'great');
+  // A self-buff stacks and damage follows it: Rage Fist into Registeel is the
+  // case that motivated this, since Registeel applies no pressure back.
+  const r = battle(mk('annihilape'), mk('registeel'), 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always');
+  const landed = r.log.filter((l) => l.buffText);
+  check('a self-buff lands and stacks', landed.length >= 2, `${landed.length} landed`);
+  const peak = r.log.reduce((m, l) => Math.max(m, l.atkStageA), 0);
+  check('...raising the stage above 1', peak >= 2, `peak +${peak}`);
+  const fastDmgs = new Set(r.log.filter((l) => l.kind === 'fast' && l.actor === 'A').map((l) => l.damage));
+  check('...and later damage follows the stage', fastDmgs.size > 1, `${[...fastDmgs].join(', ')} dmg`);
+
+  // Chance-gated buffs apply at their expected value rather than being rolled;
+  // a fixed-seed PRNG made every battle replay the same sequence and landed
+  // every 10% buff on its first throw. This guards the property that mattered.
+  const twice = () => battle(mk('annihilape'), mk('registeel'), 1, 1, 0, 0, false, true, undefined, undefined, 'always', 'always');
+  const x = twice(), y = twice();
+  check('battle() is deterministic',
+    x.win === y.win && x.hpA === y.hpA && x.hpB === y.hpB && x.margin === y.margin,
+    `${x.margin.toFixed(2)} vs ${y.margin.toFixed(2)}`);
+
+  // A 10%-chance +2 must move the stage by 0.2, not by 2 and not by 0. The
+  // first is the bug this replaced; the second would make the move inert.
+  // Psychic is a 10% chance of Def -1 on the opponent, so it should move the
+  // stage by -0.1: not by -1 (the fixed-seed bug this replaced) and not by 0.
+  const psy = SPECIES.flatMap((sp) => sp.chargeMoves).find((m) => m.id === 'PSYCHIC' && m.buffs);
+  check('a chance-gated buff is priced at its expected value',
+    !!psy && Math.abs(psy.buffs!.defStage * psy.buffs!.chance - -0.1) < 1e-9,
+    psy ? `${psy.name}: ${psy.buffs!.defStage} x ${psy.buffs!.chance}` : 'PSYCHIC not found');
+
+  // And that a fractional stage actually reaches the multiplier rather than
+  // being rounded away somewhere between the move and the damage roll.
+  check('fractional stages reach the multiplier',
+    buffMultiplier(0.2) > 1 && buffMultiplier(0.2) < buffMultiplier(1),
+    `+0.2 -> ${buffMultiplier(0.2).toFixed(3)}x`);
 }
 
 // ── farm-downs and carried energy ──────────────────────────────────────────

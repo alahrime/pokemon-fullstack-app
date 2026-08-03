@@ -19,7 +19,7 @@
  * choice is visible rather than assumed: the cut decides whether the pool grows
  * by a third or doubles, and which builds reach the top.
  */
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { movesFor, speciesOf, displayName } from '../src/lib/data';
 import { battle, bestSpreadFor, mkBattleMon } from '../src/lib/engine';
@@ -27,8 +27,13 @@ import { CATEGORIES, SCENARIOS, rating, startingEnergy, weightedScore } from '..
 import type { ChargeMove, FastMove, LeagueId } from '../src/lib/types';
 import type { ScenarioId } from '../src/lib/scenarios';
 
-const OUT = resolve(process.cwd(), 'src/data');
+const DATA = resolve(process.cwd(), 'src/data');
 const SRC = resolve(process.cwd(), '..', 'data-src');
+/**
+ * The report is evidence for the §1e decision, not something the app imports,
+ * so it stays out of `src/` where a stray import could bundle it.
+ */
+const ANALYSIS = resolve(process.cwd(), 'analysis');
 
 /**
  * The three cuts, widening.
@@ -53,7 +58,7 @@ const FIELD_N = 100;
 /** Sets examined per species before the cut. */
 const MAX_SETS = 10;
 
-const RANKINGS = JSON.parse(readFileSync(join(OUT, 'rankings.json'), 'utf8')) as Record<LeagueId, {
+const RANKINGS = JSON.parse(readFileSync(join(DATA, 'rankings.json'), 'utf8')) as Record<LeagueId, {
   categories: string[];
   entries: { ref: string; name: string; tiers: Record<string, { rec: number[] }> }[];
 }>;
@@ -208,8 +213,9 @@ function main() {
     console.log('');
   }
 
-  writeFileSync(join(OUT, 'splits.json'), JSON.stringify(report));
-  console.log(`wrote splits.json — ${VARIANTS.map((v) => v.name).join(', ')}`);
+  mkdirSync(ANALYSIS, { recursive: true });
+  writeFileSync(join(ANALYSIS, 'splits.json'), JSON.stringify(report));
+  console.log(`wrote analysis/splits.json — ${VARIANTS.map((v) => v.name).join(', ')}`);
 }
 
 main();

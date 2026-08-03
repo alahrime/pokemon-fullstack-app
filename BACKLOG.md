@@ -204,7 +204,9 @@ or the split scheme below.
 
 ## 1e. Splitting a species into several builds — measured, not built
 
-`npm run splits` → `splits.json`. Some species are not one Pokemon: Forretress
+`npm run splits` → `app/analysis/splits.json`. That report is evidence for this
+decision, not something the app reads — it lives outside `src/` so it is never
+at risk of being bundled. Some species are not one Pokemon: Forretress
 with Volt Switch and with Bug Bite answer different halves of the field, and
 Quagsire's second charged move (Mud Bomb vs Stone Edge) flips 16% of its
 matchups at +13 score.

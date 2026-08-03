@@ -121,6 +121,21 @@ function levelCapIdx(species: Species, league: League, bestBuddy: boolean): numb
  * Defender typing is required rather than optional so a call site cannot
  * silently fall back to neutral again.
  */
+/**
+ * Trainer Battle damage bonus.
+ *
+ * PvP is not the raid formula. The game applies an extra x1.3 to every hit in
+ * a Trainer Battle, and PvPoke carries it as `bonusMultiplier` in Battle.js.
+ * We did not have it at all, so every damage figure this engine produced was
+ * ~23% low and every fight ran correspondingly long — which handed extra fast
+ * moves, and therefore extra energy and extra charged moves, to both sides.
+ *
+ * Caught from a reported matchup: Rollout should hit a 136.6-defence Azumarill
+ * for 4, and we said 3. floor(0.5 * 7 * 104.3/136.6 * 1.3) + 1 = 4 exactly,
+ * against 3 without it.
+ */
+export const PVP_BONUS = 1.3;
+
 export function dmg(
   atk: number,
   def: number,
@@ -128,7 +143,7 @@ export function dmg(
   defTypes: readonly string[],
 ): number {
   const eff = typeEffectiveness(move.type, defTypes);
-  return Math.floor(0.5 * move.power * (atk / def) * move.stab * eff) + 1;
+  return Math.floor(0.5 * move.power * (atk / def) * move.stab * eff * PVP_BONUS) + 1;
 }
 
 /**
@@ -1811,19 +1826,38 @@ export function battle(
           });
         }
       }
-      // Sneak: a fast move whose animation completes on this same turn still
-      // lands, after the charged damage, provided its owner is still alive.
-      // This is why a mirror match cannot be timed — your throw always falls
-      // on turn 2n+1 and their registrations are on even turns, so the two
-      // never coincide and the sneak is unavoidable. A KO denies it.
-      if (registersA && hpA > 0 && !moveA && hpB > 0) {
+      // The sneak, and it is GUARANTEED rather than incidental.
+      //
+      // Throwing a charged move without charge-move priority always lets the
+      // opponent's fast attack through, resolved after the charged damage. It
+      // does not matter where in its animation that fast move happened to be —
+      // the throw creates the opening, so the fast hit always comes.
+      //
+      // This used to be gated on `registersA`: the sneak only landed if the
+      // defender's animation happened to complete on that exact turn. The
+      // comment reasoned correctly about the mirror-match case, where equal
+      // turn counts make the registrations coincide, and wrongly concluded the
+      // general rule from it. Everywhere else the defender was silently robbed
+      // of a fast move on every single charged throw — damage AND the energy
+      // that comes with it.
+      //
+      // Azumarill vs Lickilicky is the case that exposed it. At turn 49
+      // Azumarill sat one turn into a three-turn Bubble, so the old condition
+      // denied the sneak; with it, Azumarill reaches 61 energy at turn 49
+      // rather than 52, lands Play Rough at 50, and wins on 2 HP instead of
+      // dying to one more Rollout.
+      //
+      // The one exception is a knockout: if the charged move killed, the
+      // victim's fast move never lands, which is what `hpA > 0` enforces.
+      if (hpA > 0 && !moveA && hpB > 0) {
         hpB -= fA;
         eA = Math.min(100, eA + a.fast.energyGain);
         if (collectLog) log.push({ turn, actor: 'A', kind: 'fast', moveName: a.fast.name, bait: false,
           shielded: false, damage: fA, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
           atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: null });
       }
-      if (registersB && hpB > 0 && !moveB && hpA > 0) {
+      // Mirror of the above for the other side; see the note there.
+      if (hpB > 0 && !moveB && hpA > 0) {
         hpA -= fB;
         eB = Math.min(100, eB + b.fast.energyGain);
         if (collectLog) log.push({ turn, actor: 'B', kind: 'fast', moveName: b.fast.name, bait: false,

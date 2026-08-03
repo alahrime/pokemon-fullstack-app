@@ -75,8 +75,16 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *  12  attack/defence stat stages: ~90 charged moves raise or lower a stat on
  *      use, and every damage figure, the CMP tiebreak and the farm-down test
  *      now follow them. 104 of the top 200 in Great run one at their rated set
+ *  13  two missing PvP mechanics (see BACKLOG §1k): the Trainer Battle x1.3
+ *      damage bonus, absent entirely so every hit was ~23% low, and the
+ *      guaranteed sneak — a charged throw without priority always concedes the
+ *      opponent's next fast move, which we allowed only when its animation
+ *      happened to land on that turn. Both favoured grind over burst.
+ *      Also: opponent weighting by log of rank rather than normalised score,
+ *      the turn penalty and baitSwing dropped from consistency, and the
+ *      attackers category reweighted off the rare sh02 state.
  */
-const ENGINE_REV = 12;
+const ENGINE_REV = 13;
 
 /**
  * Loadouts considered per species.
@@ -161,12 +169,35 @@ const OPTIMAL_TIMING = true;
  * Run at every tier, because the cutoff and the weighting answer different
  * questions and compose: "top 50, graded" is the sharp read of the format's
  * head, "all, graded" is the whole roster with the tail fading out on its own
- * rather than being chopped. Cubing concentrates harder than the seeding
- * pass's square.
+ * rather than being chopped.
  *
  * Costs no simulation at any tier: same matrix, different weights.
+ *
+ * ── Weighted by log of RANK, not by score ────────────────────────────────
+ * This used to be `((o - min) / span) ** 3` — the first-pass Overall
+ * normalised against the field's worst, then cubed. It looked concentrated and
+ * measured almost flat, because scores are compressed and the floor is set by
+ * the very bottom of the roster. Unown at 166 anchored the span, which put
+ * rank 100 at 82% of the way up it; cubing 0.82 is still 0.55.
+ *
+ * What that produced, in Great:
+ *
+ *   rank 50 carried 63% of rank 1's weight, rank 200 carried 46%,
+ *   and the bottom HALF of the roster held 22% of all weight —
+ *   nearly twice what the top 50 held (11.6%).
+ *
+ * So beating the 200th-best Pokemon counted almost half as much as beating the
+ * best one, and the tail collectively outvoted the head. That is not a graded
+ * pass, it is an average wearing one.
+ *
+ * Rank is the honest axis: it is what "top meta" means, and it does not care
+ * how compressed the score scale happens to be. `1 - ln(rank)/ln(N)` squared
+ * gives rank 1 the full weight, rank 10 about 45%, rank 100 about 12%, rank
+ * 500 about 1%, and the last-ranked Pokemon exactly zero. Top 50 now hold
+ * 38.7% and the bottom half 3.4% — beating Unown moves the needle by an
+ * epsilon, which is the whole point.
  */
-const D2_POWER = 3;
+const D2_RANK_POWER = 2;
 
 // ── Moveset enumeration ─────────────────────────────────────────────────────
 
@@ -483,10 +514,14 @@ async function main() {
     // every tier: the cutoff picks who is in the room, the weighting grades
     // them once they are. Same matrix, so this costs aggregations, no battles.
     const d1 = perRefBest(variants, tierRows[tierLabel(DEFAULT_TIER)], refIdx, nF).best;
-    const d1Max = Math.max(...d1);
-    const d1Min = Math.min(...d1);
-    const d1Span = d1Max - d1Min || 1;
-    const graded = Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER);
+    // Rank each opponent by its first-pass Overall, then weight by log of that
+    // rank. See the note on D2_RANK_POWER for why rank rather than score.
+    const byScore = Array.from(d1, (_, i) => i).sort((x, y) => d1[y] - d1[x]);
+    const rankOf = new Float64Array(nF);
+    byScore.forEach((idx, r) => { rankOf[idx] = r + 1; });
+    const lnN = Math.log(Math.max(2, nF));
+    const graded = Array.from(d1, (_, i) =>
+      Math.pow(Math.max(0, 1 - Math.log(rankOf[i]) / lnN), D2_RANK_POWER));
     const d2TierRows: Record<string, Record<ScenarioId, number>[]> = {};
     for (const t of TIERS) {
       const w = new Float64Array(nF);

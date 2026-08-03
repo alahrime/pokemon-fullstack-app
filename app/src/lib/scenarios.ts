@@ -231,7 +231,18 @@ export const CATEGORIES: readonly Category[] = [
     label: 'Attackers',
     blurb:
       'The best Pokémon against shielded opponents, while unshielded. Their natural bulk, resistances, and strong attacks allow them to power through a disadvantage.',
-    weights: { sh01: 0.4, sh02: 0.6 },
+    // Was { sh01: 0.4, sh02: 0.6 }, which put 60% of a whole role category on
+    // the rarest state on the board. sh02 means holding zero shields against
+    // two — you have to have burned both while the opponent burned none, which
+    // is not how most games go. It then fed a geometric mean, where one weak
+    // term drags the composite hard, so the rarest scenario had outsized say
+    // over the ranking.
+    //
+    // The role still means "behind on shields", because that is what separates
+    // it from Leads and Closers. It is just weighted toward the deficit that
+    // actually happens: down one is common, down two is not, and sh12 is the
+    // same one-shield deficit from the other side of the board.
+    weights: { sh01: 0.45, sh12: 0.35, sh02: 0.2 },
   },
   {
     id: 'consistency',
@@ -289,7 +300,9 @@ export const PVPOKE_SCORE_COLUMNS: readonly CategoryId[] = [
  */
 export function consistencyScore(
   perScenario: Record<ScenarioId, number>,
-  fastTurns: number,
+  // Retained so the call in makeOverall keeps its shape; the fast-move length
+  // is no longer priced here, for the reason given below.
+  _fastTurns?: number,
 ): number {
   // Spread across the whole nine-state lattice, which is the honest measure of
   // "does this care how the shields fell". Standard deviation rather than
@@ -299,18 +312,24 @@ export function consistencyScore(
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
   const sd = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / vals.length);
 
-  // Bait dependence, isolated: the same shield count on both sides versus
-  // being the only one without them. A mon that needs the opponent to guess
-  // wrong shows up here and nowhere else.
-  const baitSwing = Math.abs(perScenario.sh11 - perScenario.sh01);
-
-  // Being uniformly mediocre is not consistency, so the mean anchors the score
-  // to whether it actually wins; the penalties are what it gives back.
-  // 1 turn is free, 4 turns costs 60 — a tiebreaker among comparable mons,
-  // not a headline.
-  const turnPenalty = (fastTurns - 1) * 20;
-
-  return Math.max(0, Math.round(mean - 1.5 * sd - 0.25 * baitSwing - turnPenalty));
+  // Spread alone, deliberately. Two penalties used to sit here and both were
+  // charging for something already counted:
+  //
+  //   baitSwing = |sh11 - sh01|, called "bait dependence". It is not — sh11
+  //     against sh01 is a shield DEFICIT, not a bait, and baiting is move
+  //     selection. Worse, both of those states are already inside the standard
+  //     deviation above, so it billed the same variance twice.
+  //
+  //   turnPenalty = (fastTurns - 1) * 20. The cost of a slow fast move is
+  //     already fully simulated — fewer decision points, longer lock-in, worse
+  //     charged-move alignment, more free turns conceded, and damage forfeited
+  //     entirely if the user is knocked out before the final turn registers.
+  //     All of that lands in `mean`. Subtracting a flat 20 per turn on top gave
+  //     every 1-turn move a structural head start no battle had earned.
+  //
+  // Being uniformly mediocre is still not consistency, so the mean anchors the
+  // score to whether it actually wins and the spread is what it gives back.
+  return Math.max(0, Math.round(mean - 1.5 * sd));
 }
 
 /**

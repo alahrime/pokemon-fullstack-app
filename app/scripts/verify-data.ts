@@ -27,6 +27,9 @@ import {
   chargeMoveStats,
   fastMoveCounts,
   buffMultiplier,
+  dmg,
+  getEntry,
+  PVP_BONUS,
 } from '../src/lib/engine';
 import { QUERY_FORMS, compileQuery } from '../src/lib/query';
 import { CATEGORIES, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, rating } from '../src/lib/scenarios';
@@ -601,6 +604,59 @@ console.log('\n── rank-1 spread index ────────────�
   const indexed = SPECIES.filter((sp) => sp.bestIv && Object.keys(sp.bestIv).length).length;
   check('species.json carries the bestIv index', indexed > 500,
     `${indexed} species indexed — if 0, run \`npm run best-spreads\` after build-data.mjs`);
+}
+
+// ── PvP damage bonus, and the guaranteed sneak ─────────────────────────────
+// Two mechanics this engine did not model, both found from one reported
+// matchup: Azumarill 0/15/15 vs Lickilicky 0/15/10, one shield each, which
+// should end with Azumarill alive on 2 HP and 1 energy while Lickilicky goes
+// down holding 10. We had Lickilicky winning.
+//
+//   1. Trainer Battles apply an extra x1.3 to every hit that the raid formula
+//      does not. Without it every damage figure was ~23% low and every fight
+//      ran correspondingly long, handing both sides extra fast moves and
+//      therefore extra energy and extra charged moves.
+//
+//   2. Throwing a charged move without charge-move priority ALWAYS lets the
+//      opponent's fast attack through afterwards. Ours only allowed it when
+//      the defender's animation happened to complete on that exact turn, so
+//      the defender was robbed of a fast move — and its energy — on most
+//      charged throws.
+//
+// Both are pinned here against the externally-reported numbers, because both
+// are invisible in aggregate: they shift every matchup slightly in the same
+// direction rather than breaking anything outright.
+console.log('\n── PvP damage bonus and sneak ─────────────────────────');
+{
+  check('the Trainer Battle bonus is 1.3', PVP_BONUS === 1.3, String(PVP_BONUS));
+
+  const azu = getEntry('azumarill', { a: 0, d: 15, s: 15 }, 'great').entry;
+  const lick = getEntry('lickilicky', { a: 0, d: 15, s: 10 }, 'great').entry;
+  const azuSp = speciesOf('azumarill')!, lickSp = speciesOf('lickilicky')!;
+  const azuM = movesFor(azuSp, 'great'), lickM = movesFor(lickSp, 'great');
+
+  // Reported from the game: Rollout hits this Azumarill for 4, Bubble hits
+  // this Lickilicky for 5. Neither is reachable without the 1.3.
+  check('Rollout hits Azumarill for 4',
+    dmg(lick.atk, azu.def, lickM.fast, azuSp.types) === 4,
+    String(dmg(lick.atk, azu.def, lickM.fast, azuSp.types)));
+  check('Bubble hits Lickilicky for 5',
+    dmg(azu.atk, lick.def, azuM.fast, lickSp.types) === 5,
+    String(dmg(azu.atk, lick.def, azuM.fast, lickSp.types)));
+
+  // The whole matchup, which is what the two fixes together have to reproduce.
+  const A = mkBattleMon(azu, azuM.fast, azuM.charges, azuSp.types);
+  const B = mkBattleMon(lick, lickM.fast, lickM.charges, lickSp.types);
+  const r = battle(A, B, 1, 1, 0, 0, false, false, undefined, undefined, 'read', 'always');
+  check('Azumarill beats Lickilicky at 1 shield, reading the bait', r.win, r.win ? '' : 'Lickilicky won');
+  check('...surviving on 2 HP', Math.round(r.hpA) === 2, `${Math.round(r.hpA)} HP`);
+  check('...with Lickilicky down holding 10 energy', r.energyB === 10, `${r.energyB} energy`);
+
+  // The sneak's one exception: a charged move that KOs denies the fast move
+  // that would otherwise have followed it.
+  const dead = battle(A, B, 0, 0, 0, 100, false, false, 1, undefined, 'read', 'always');
+  check('a charged KO denies the victim its sneak', dead.hpA <= 0 && !dead.win,
+    `azu ${Math.round(dead.hpA)} hp`);
 }
 
 // ── fast-move registration ─────────────────────────────────────────────────

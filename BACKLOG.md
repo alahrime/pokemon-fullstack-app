@@ -485,6 +485,51 @@ calibrate correctly *within* a no-switch sim; the sim is what is narrow, not
 the numbers. Any future work on the debuff archetype should start here rather
 than by tuning the buff model.
 
+## 1k. Two missing PvP mechanics — FOUND, and they explain a lot
+
+Reported matchup: Azumarill 0/15/15 vs Lickilicky 0/15/10, one shield each.
+Should end Azumarill alive on 2 HP and 1 energy, Lickilicky down holding 10.
+We had Lickilicky winning with 7% health. Two mechanics were missing.
+
+**1. The Trainer Battle damage bonus, x1.3.** PvP is not the raid formula; the
+game applies an extra 1.3 to every hit and PvPoke carries it as
+`bonusMultiplier`. We had none. Every damage figure this engine ever produced
+was ~23% low. Confirmed twice from reported numbers: Rollout hits that
+Azumarill for 4 (we said 3), Bubble hits that Lickilicky for 5 (we said 4).
+Neither value is reachable without it.
+
+**2. The sneak is guaranteed, not incidental.** Throwing a charged move without
+charge-move priority ALWAYS lets the opponent's fast attack through, resolved
+after the charged damage, wherever that fast move happened to be in its
+animation. The only exception is a knockout — a charged move that kills denies
+the victim its fast move.
+
+Ours gated the sneak on `registersA`, so it landed only when the defender's
+animation happened to finish on that exact turn. The old comment reasoned
+correctly about the mirror match, where equal turn counts make registrations
+coincide, and generalised from it wrongly. Everywhere else the defender lost a
+fast move — and its energy — on most charged throws.
+
+**Why this matters far beyond one matchup.** Both errors push the same way.
+Damage 23% low makes every fight ~23% longer; a denied sneak removes damage and
+energy from whoever is being thrown at. Together they systematically favour
+grind over burst, which is very likely the single cause behind several things
+recorded here as separate mysteries:
+
+- §1g's "glass cannons": Bisharp vs Malamar theirs 900, ours 45. A nuke that
+  cannot close the fight lets a bulky mon grind it down.
+- Empoleon appearing in 6 of the 16 largest PvPoke disagreements.
+- Lickilicky, Quagsire, Feraligatr and Fearow sitting 60-160 places below
+  PvPoke's rank for them.
+- Plausibly the rev-12 debuff-stacking archetype too, since longer fights mean
+  more stacks land.
+
+Seven assertions pin both mechanics to the reported matchup, including that a
+charged KO denies the sneak. They are worth keeping because neither failure was
+visible in aggregate: they shifted every matchup slightly in one direction
+rather than breaking anything outright, which is exactly the kind of error a
+ranking pipeline will happily average over forever.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

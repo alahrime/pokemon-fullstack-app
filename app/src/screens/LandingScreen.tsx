@@ -4,8 +4,7 @@ import { SCREEN_DEFS } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { PokemonCard } from '../components/PokemonCard';
 import { LEAGUE_BY_ID, ROSTER, SPECIES, speciesOf } from '../lib/data';
-import { ENGINE_REV, fieldPool } from '../lib/rankings';
-import { teamCount } from '../lib/teams';
+import { summaryFor } from '../lib/summary';
 
 /**
  * The way in.
@@ -34,19 +33,24 @@ export function LandingScreen() {
   const league = LEAGUE_BY_ID.get(state.league)!;
 
   // Headline numbers, read from the artefacts rather than written down, so a
-  // rebuild that changes them changes this too.
-  const stats = useMemo(() => {
-    const teams = teamCount(state.league, '100', 'overall', 'd1', 3);
-    return [
+  // rebuild that changes them changes this too. They arrive via summary.json
+  // rather than lib/rankings and lib/teams because reading them from the full
+  // artefacts put 6.9MB in the entry chunk to render a count and six names;
+  // scripts/build-summary.ts resolves the same calls at build time instead.
+  const summary = summaryFor(state.league);
+
+  const stats = useMemo(
+    () => [
       { value: SPECIES.length.toLocaleString(), label: 'species' },
       { value: ROSTER.length.toLocaleString(), label: 'forms simulated' },
       { value: '4,096', label: 'spreads each' },
-      { value: teams ? teams.toLocaleString() : '—', label: 'teams / stratum' },
-      { value: `rev ${ENGINE_REV(state.league)}`, label: 'engine' },
-    ];
-  }, [state.league]);
+      { value: summary.teams ? summary.teams.toLocaleString() : '—', label: 'teams / stratum' },
+      { value: `rev ${summary.engineRev}`, label: 'engine' },
+    ],
+    [summary],
+  );
 
-  const featured = useMemo(() => fieldPool(state.league, '100', 6), [state.league]);
+  const featured = summary.featured;
 
   const open = (ref: string) =>
     patch({

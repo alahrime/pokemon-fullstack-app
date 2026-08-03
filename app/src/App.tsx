@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { AppStateProvider, useAppState } from './state/AppState';
 import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
@@ -10,10 +11,21 @@ import { opponentsFor } from './lib/data';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
-import { RankingsScreen } from './screens/RankingsScreen';
-import { TeamBuilderScreen } from './screens/TeamBuilderScreen';
-import { CoresScreen } from './screens/CoresScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
+
+/**
+ * The three screens that read `rankings.json` (3.1MB) or `teams.json` (3.8MB)
+ * are loaded on demand; the rest are not.
+ *
+ * The split is drawn around the artefacts, not around component size. Landing,
+ * Report and Battle all run off `species.json`, which every screen needs and
+ * which therefore has to be in the entry chunk anyway — making those lazy would
+ * buy a few kB of app code and cost a spinner. These three are where the
+ * megabytes are, and none of them is the first thing anyone sees.
+ */
+const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })));
+const TeamBuilderScreen = lazy(() => import('./screens/TeamBuilderScreen').then((m) => ({ default: m.TeamBuilderScreen })));
+const CoresScreen = lazy(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -97,14 +109,35 @@ function Screens() {
     case 'battle':
       return <BattleScreen key="battle" />;
     case 'rankings':
-      return <RankingsScreen key="rankings" />;
+      return <LazyScreen key="rankings"><RankingsScreen /></LazyScreen>;
     case 'gbl':
-      return <TeamBuilderScreen key="gbl" size={3} />;
+      return <LazyScreen key="gbl"><TeamBuilderScreen size={3} /></LazyScreen>;
     case 'show6':
-      return <TeamBuilderScreen key="show6" size={6} />;
+      return <LazyScreen key="show6"><TeamBuilderScreen size={6} /></LazyScreen>;
     case 'cores':
-      return <CoresScreen key="cores" />;
+      return <LazyScreen key="cores"><CoresScreen /></LazyScreen>;
   }
+}
+
+/**
+ * Holds the shell steady while a screen's chunk arrives.
+ *
+ * Sized rather than empty on purpose: these screens sit inside the shell's
+ * animated container, and an unsized fallback collapses the page to the nav for
+ * a frame before it snaps back to full height.
+ */
+function LazyScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="panel hud-frame text-muted" style={{ minHeight: 460, display: 'grid', placeItems: 'center', fontSize: 12 }}>
+          Loading…
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
 }
 
 function Shell() {

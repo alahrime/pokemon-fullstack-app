@@ -31,7 +31,9 @@ import { QUERY_FORMS, compileQuery } from '../src/lib/query';
 import { CATEGORIES, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, rating } from '../src/lib/scenarios';
 import { teamBattle, teamRating } from '../src/lib/team';
 import { monFor } from '../src/lib/teambuild';
-import { TEAM_ENGINE_REV, TEAM_PASSES, TEAM_TIERS, bestTeams, coresFor, pillarsFor } from '../src/lib/teams';
+import { TEAM_ENGINE_REV, TEAM_PASSES, TEAM_TIERS, bestTeams, coresFor, pillarsFor, teamCount } from '../src/lib/teams';
+import { summaryFor } from '../src/lib/summary';
+import { LANDING_FEATURED_N, LANDING_STRATUM } from '../src/lib/summarySpec';
 import { relevanceWeights, typeCoverage, typePressure, worstSharedWeakness } from '../src/lib/synergy';
 import { ENGINE_REV, fieldPool, overallOf, teamPool } from '../src/lib/rankings';
 import { toCsv } from '../src/lib/exportData';
@@ -951,6 +953,31 @@ for (const lg of LEAGUES) {
       && [t.syn.coverage, t.syn.redundancy, t.syn.swapWorst, t.syn.swapMean, t.syn.typeCover, t.syn.bulk]
         .every((v) => v >= 0 && v <= 1000)));
   check(`${lg}: simulated score carried alongside`, sample.every((t) => typeof t.sim === 'number'));
+}
+
+// ── landing summary ────────────────────────────────────────────────────────
+// summary.json exists so the landing screen can show its headline numbers
+// without importing rankings.json (3.1MB) or teams.json (3.8MB). That saving is
+// real but it costs the guarantee the screen used to have for free: the numbers
+// were true because they were read from the artefact at render time. Here that
+// guarantee is bought back — recompute them from the artefacts and compare. A
+// regenerated ranking with a forgotten `npm run summary` fails the gate instead
+// of quietly showing last week's featured six.
+console.log('\n── landing summary ────────────────────────────────────');
+for (const lg of LEAGUES) {
+  const s = summaryFor(lg);
+  const { tier, cat, pass, size } = LANDING_STRATUM;
+  check(`${lg}: summary present`, !!s);
+  if (!s) continue;
+  check(`${lg}: summary engine rev matches rankings`, s.engineRev === ENGINE_REV(lg),
+    `summary ${s.engineRev}, rankings ${ENGINE_REV(lg)}`);
+  check(`${lg}: summary team count matches teams.json`, s.teams === teamCount(lg, tier, cat, pass, size),
+    `summary ${s.teams}, artefact ${teamCount(lg, tier, cat, pass, size)}`);
+  const featured = fieldPool(lg, tier, LANDING_FEATURED_N);
+  check(`${lg}: summary featured matches rankings`, JSON.stringify(s.featured) === JSON.stringify(featured),
+    `summary [${s.featured.join(', ')}], artefact [${featured.join(', ')}]`);
+  check(`${lg}: featured all resolve to real species`,
+    s.featured.every((ref) => SPECIES_BY_ID.has(parseRef(ref).id)));
 }
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}\n`);

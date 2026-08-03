@@ -588,6 +588,21 @@ console.log('\n── baiting vs a reading defender ─────────�
   check('`always` behaviour is untouched', alw.shieldsB === 0 && alw.log.some((l) => l.kind === 'charge' && l.shielded));
 }
 
+// ── the rank-1 spread index ────────────────────────────────────────────────
+// build-best-spreads.ts writes bestIv into species.json AFTER build-data.mjs
+// has written the file. So running build-data.mjs on its own silently strips
+// the index — which is exactly what happened while adding buff tagging, and
+// nothing caught it: every spread stayed correct because the engine falls back
+// to an exhaustive 4096 search, so the only symptom was a build several times
+// slower. Verified at the time: all 1,639 stored entries match that search
+// exactly. This assertion turns "silently slower" into a failure.
+console.log('\n── rank-1 spread index ────────────────────────────────');
+{
+  const indexed = SPECIES.filter((sp) => sp.bestIv && Object.keys(sp.bestIv).length).length;
+  check('species.json carries the bestIv index', indexed > 500,
+    `${indexed} species indexed — if 0, run \`npm run best-spreads\` after build-data.mjs`);
+}
+
 // ── fast-move registration ─────────────────────────────────────────────────
 // The old PvP turn system, which this engine models: a fast move's damage and
 // energy register entirely on the FINAL turn of its duration — never spread

@@ -588,6 +588,46 @@ console.log('\n── baiting vs a reading defender ─────────�
   check('`always` behaviour is untouched', alw.shieldsB === 0 && alw.log.some((l) => l.kind === 'charge' && l.shielded));
 }
 
+// ── fast-move registration ─────────────────────────────────────────────────
+// The old PvP turn system, which this engine models: a fast move's damage and
+// energy register entirely on the FINAL turn of its duration — never spread
+// across it. A 1-turn move lands immediately; a 5-turn Incinerate lands on the
+// fifth turn, after four turns of waiting. And a Pokemon knocked out before
+// that final turn deals nothing at all for the move it had begun.
+//
+// Both rules are load-bearing for every timing decision above them (the free
+// window for a charged move, the sneak, CMP), and both are the kind of thing a
+// refactor of the turn loop could break without any other test noticing.
+console.log('\n── fast-move registration ─────────────────────────────');
+{
+  const mk = (r: string) => monFor(r, 'great');
+  const fast = mk('registeel');   // Lock On, 1 turn
+  const slow = mk('talonflame');  // Incinerate, 5 turns
+
+  const r = battle(fast, slow, 2, 2, 0, 0, true, false, undefined, undefined, 'always', 'always');
+  const turnsOf = (who: 'A' | 'B') =>
+    r.log.filter((l) => l.actor === who && l.kind === 'fast').map((l) => l.turn);
+  const slowTurns = turnsOf('B');
+  const fastTurns = turnsOf('A');
+
+  // Turn indices are 0-based, so an n-turn move first lands at index n-1.
+  check(`a ${slow.fast.turns}-turn move first registers after ${slow.fast.turns - 1} turns of waiting`,
+    slowTurns[0] === slow.fast.turns - 1, `landed at index ${slowTurns[0]}`);
+  check('a 1-turn move registers immediately, every turn',
+    fastTurns.slice(0, 6).every((t, i) => t === i), fastTurns.slice(0, 6).join(','));
+  // The first interval is the clean one; later gaps widen where a charged move
+  // resets both animations, which is correct rather than a drift.
+  check('...and its uninterrupted interval is its own turn count',
+    slowTurns[1] - slowTurns[0] === slow.fast.turns,
+    `${slowTurns[1] - slowTurns[0]} turns between the first two`);
+
+  // Knocked out mid-animation: the move in progress deals nothing.
+  const dead = battle(fast, slow, 0, 0, 0, 0, true, false, 1000, 3, 'always', 'always');
+  check('a Pokemon KO\'d before its final turn deals no fast-move damage',
+    dead.log.filter((l) => l.actor === 'B' && l.kind === 'fast').length === 0 && dead.hpB <= 0,
+    `${dead.log.filter((l) => l.actor === 'B' && l.kind === 'fast').length} landed`);
+}
+
 // ── stat stages (buffs and debuffs) ────────────────────────────────────────
 // ~90 charged moves change a stat on use. The data comes from the upstream
 // gamemaster through build-data.mjs — NOT hand-written into species.json,

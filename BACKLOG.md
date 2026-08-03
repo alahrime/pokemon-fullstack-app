@@ -453,6 +453,38 @@ stacks attack three times against Registeel, and Counter goes 4 → 5 → 6 dama
 over the fight. That is the pressure the farm-down work could not find, because
 until now the engine did not model the move that creates it.
 
+## 1j. Fast-move registration — VERIFIED correct; switching is the real gap
+
+The engine models the **old** PvP turn system, and this was checked against the
+documented rules rather than assumed:
+
+- Damage and energy register **entirely on the final turn** of a move's
+  duration. Never spread across it. A 1-turn move lands immediately; a 5-turn
+  Incinerate lands on the fifth turn, after four turns of waiting.
+- A Pokemon knocked out **before** that final turn deals nothing for the move
+  it had begun.
+
+Measured: Incinerate first registers at turn index 4 with a clean interval of
+5; Lock On registers at 0,1,2,3,… ; Talonflame started at 3 HP against a 1-turn
+attacker landed zero fast moves. Gate assertions now cover all four, because
+these are load-bearing for the free window, the sneak and CMP, and a turn-loop
+refactor could break them with nothing else noticing. Wider gaps between
+registrations are charged moves resetting both animations — correct, not drift.
+
+**What is NOT modelled, and it matters more than the timing.** Voluntary
+switching. `teamBattle` says so in its own header: each side sends its next
+Pokemon only when the current one faints. So the standard play of throwing one
+fast move and swapping out — leaving the opponent's in-flight long fast move to
+land on the Pokemon coming in — cannot be expressed at all.
+
+That is not just a missing feature, it **biases the rankings**. Switching is
+the counterplay to debuff stacking, and without it a mon that grinds an
+opponent to Atk −4 is never escaped. It is a large part of why Spinda and
+Spidops climb on Rock Tomb and Lunge under rev 12 (§1i). Their win rates
+calibrate correctly *within* a no-switch sim; the sim is what is narrow, not
+the numbers. Any future work on the debuff archetype should start here rather
+than by tuning the buff model.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

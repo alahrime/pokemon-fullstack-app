@@ -39,7 +39,7 @@ import { TEAM_ENGINE_REV, TEAM_PASSES, TEAM_TIERS, bestTeams, coresFor, pillarsF
 import { summaryFor } from '../src/lib/summary';
 import { LANDING_FEATURED_N, LANDING_STRATUM } from '../src/lib/summarySpec';
 import { relevanceWeights, typeCoverage, typePressure, worstSharedWeakness } from '../src/lib/synergy';
-import { ENGINE_REV, fieldPool, overallOf, teamPool } from '../src/lib/rankings';
+import { DEFAULT_TIER, ENGINE_REV, btFitFor, fieldPool, overallOf, teamPool } from '../src/lib/rankings';
 import { toCsv } from '../src/lib/exportData';
 import type { BattleResult, LeagueId } from '../src/lib/types';
 
@@ -657,6 +657,30 @@ console.log('\n── PvP damage bonus and sneak ──────────�
   const dead = battle(A, B, 0, 0, 0, 100, false, false, 1, undefined, 'read', 'always');
   check('a charged KO denies the victim its sneak', dead.hpA <= 0 && !dead.win,
     `azu ${Math.round(dead.hpA)} hp`);
+}
+
+// ── emitted artefact shape ─────────────────────────────────────────────────
+// rankings.json is read through `as unknown as Record<...>`, so its shape is
+// never checked against the interfaces that describe it. A field renamed in the
+// build without the reader following is invisible to tsc and shows up as a
+// blank screen at runtime — which is exactly what happened when the cycle count
+// went from `sampled` to `total` in the type and the screen but not the emit.
+console.log('\n── artefact shape ─────────────────────────────────────');
+{
+  const need = ['r2', 'rmse', 'cyclicPct', 'total', 'n', 'worst'] as const;
+  for (const lg of LEAGUES) {
+    const fit = btFitFor(lg, DEFAULT_TIER(lg));
+    check(`${lg}: btFit present at the default tier`, !!fit);
+    if (!fit) continue;
+    const missing = need.filter((k) => (fit as unknown as Record<string, unknown>)[k] === undefined);
+    check(`${lg}: btFit carries every field the UI reads`, missing.length === 0,
+      missing.length ? `missing ${missing.join(', ')}` : `${need.length} fields`);
+    check(`${lg}: cyclic share is a sane share`, fit.cyclicPct >= 0 && fit.cyclicPct <= 100, `${fit.cyclicPct}%`);
+    // C(n,3) — the census claim the screen makes about the number.
+    const expect = (fit.n * (fit.n - 1) * (fit.n - 2)) / 6;
+    check(`${lg}: triple count equals C(n,3), so it is a census not a sample`,
+      fit.total === expect, `${fit.total} vs ${expect}`);
+  }
 }
 
 // ── fast-move registration ─────────────────────────────────────────────────

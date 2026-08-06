@@ -61,10 +61,18 @@ export function DiagnosticsScreen() {
     [rows],
   );
 
-  if (!fit) {
+  // rankings.json is cast rather than parsed, so a field the build renamed
+  // without the reader following is invisible to the compiler and arrives here
+  // as undefined. Guarding the whole panel is cheaper than a white screen —
+  // this page is a diagnostic, and a diagnostic that takes the app down with
+  // it is worse than no diagnostic.
+  if (!fit || typeof fit.cyclicPct !== 'number' || typeof fit.total !== 'number') {
     return (
       <>
-        <ScreenHeader title="Diagnostics" blurb="No Bradley-Terry fit in this build. Re-run npm run matrix." />
+        <ScreenHeader
+          title="Diagnostics"
+          blurb="No usable Bradley-Terry fit in this build — the artefact is missing fields this screen needs. Re-run `npm run matrix`."
+        />
       </>
     );
   }
@@ -89,7 +97,7 @@ export function DiagnosticsScreen() {
             <span style={{ width: `${cyclicOfMax}%` }} />
           </span>
           <span className="diag-stat-note">
-            of {fit.total.toLocaleString()} A&gt;B&gt;C&gt;A triples, every one in the pool, among this tier&rsquo;s{' '}
+            of {(fit.total ?? 0).toLocaleString()} A&gt;B&gt;C&gt;A triples, every one in the pool, among this tier&rsquo;s{' '}
             {fit.n} Pokémon. A perfectly transitive format is 0%. Independent coin flips are 25%.
           </span>
         </div>

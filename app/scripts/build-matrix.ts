@@ -770,7 +770,7 @@ async function main() {
             r2: Math.round(f.r2 * 1000) / 1000,
             rmse: Math.round(f.rmse * 1000) / 1000,
             cyclicPct: Math.round((1000 * f.cycles.cyclic) / (f.cycles.total || 1)) / 10,
-            sampled: f.cycles.total,
+            total: f.cycles.total,
             n: f.strength.reduce((acc, v) => acc + (Number.isFinite(v) ? 1 : 0), 0),
             worst: f.worst.slice(0, 12).map((w) => ({
               a: refs[w.a],

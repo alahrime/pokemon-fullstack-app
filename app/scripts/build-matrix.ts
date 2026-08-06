@@ -99,8 +99,30 @@ const FAST_K = 3;
 const CHARGE_K = 4;
 const MOVESETS_MAX = 12;
 
-/** Rounds of opponent re-weighting when seeding the order. */
-const WEIGHT_ROUNDS = 4;
+/**
+ * Opponent re-weighting when seeding the order: iterate until the order stops
+ * changing, not for a fixed count.
+ *
+ * This is a fixed-point iteration — score everyone with uniform weights, feed
+ * those scores back as the weights, rescore. It was capped at 4 rounds, and
+ * measurement showed 4 is not enough. In Great the order is still moving at
+ * round 4 (325 of 1140 refs shifting, largest jump 9 places) and does not
+ * settle until round 7:
+ *
+ *   round 1: 1096 moved   round 4: 325 moved   round 7: 0
+ *   round 2:  954         round 5:  71
+ *   round 3:  631         round 6:  44
+ *
+ * That matters more than it looks: the seeded order decides tier membership,
+ * so "top 50" and "top 100" were drawn from a list still in motion, and every
+ * tier average, d2 weight and team candidate pool inherited it.
+ *
+ * The loop costs no simulation — same matrix, different weights — so running
+ * it to convergence is nearly free. The cap is a guard against a cycle, not a
+ * budget; if it is ever hit, the order is oscillating and that is worth
+ * knowing rather than silently truncating.
+ */
+const WEIGHT_ROUNDS_MAX = 40;
 
 /**
  * Opponent pools the rankings are computed against, as "top N by Overall".
@@ -487,13 +509,23 @@ async function main() {
     // Seed an order by re-weighting foes by their own strength until it settles.
     let weights = new Float64Array(nF).fill(1);
     let rows: Record<ScenarioId, number>[] = [];
-    for (let round = 0; round < WEIGHT_ROUNDS; round++) {
+    let prevOrder: string | null = null;
+    let rounds = 0;
+    for (; rounds < WEIGHT_ROUNDS_MAX; rounds++) {
       rows = scoreAgainst(variants, nF, matrix, weights, selfIdx, -1);
       const { best } = perRefBest(variants, rows, refIdx, nF);
+      const ord = Array.from({ length: nF }, (_, i) => i)
+        .sort((a, b) => best[b] - best[a])
+        .join(',');
+      if (ord === prevOrder) break;
+      prevOrder = ord;
       const max = Math.max(...best);
       const min = Math.min(...best);
       const span = max - min || 1;
       weights = new Float64Array(Array.from(best, (o) => ((o - min) / span) ** 2));
+    }
+    if (rounds >= WEIGHT_ROUNDS_MAX) {
+      console.log(`  ${lg}: WARNING seed order never settled in ${WEIGHT_ROUNDS_MAX} rounds`);
     }
     const seeded = perRefBest(variants, rows, refIdx, nF);
     const order = Array.from({ length: nF }, (_, i) => i).sort((a, b) => seeded.best[b] - seeded.best[a]);

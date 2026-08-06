@@ -572,6 +572,68 @@ they do not have will disagree with them by construction. It is a live option
 to reinstate, not a closed question. What is not in doubt is the rest of §1k
 and the two double-count removals, which improved every league.
 
+## 1m. The seed order was read before it settled — and what that suggests next
+
+Asked whether earlier iterations carry errors forward. Checked directly:
+`build-matrix` reads only `data-src` and starts every run from
+`weights.fill(1)`, so **no state crosses builds**. Rev 13 inherits nothing from
+rev 12.
+
+One error *within* a build, now fixed. The seeded order comes from a fixed-point
+iteration — score everyone with uniform weights, feed those scores back as the
+weights, rescore — and it was capped at four rounds. Four is not enough:
+
+| round | refs still moving (of 1140, Great) | largest jump |
+|---|---|---|
+| 4 (old stopping point) | 325 | 9 |
+| 5 | 71 | 6 |
+| 6 | 44 | 8 |
+| 7 | 0 | 0 |
+
+That order decides tier membership, so "top 50" and "top 100" were drawn from a
+list still in motion, and every tier average, d2 weight and team candidate pool
+inherited it. It now iterates to convergence; the loop costs no simulation, so
+this is nearly free. `WEIGHT_ROUNDS_MAX` is a cycle guard, not a budget — if it
+is ever hit the order is oscillating, which is worth a warning rather than a
+silent truncation.
+
+**Effect is small and should be reported as such**: mean rank change 1.8 places
+in Great, correlation 0.8522 -> 0.8524. The tiers are coarse enough that nine
+places rarely crosses a boundary. Real bug, correct fix, modest consequence.
+
+**The recurring risk is not accumulation, it is artefacts disagreeing.** Twice
+in one session an artefact was silently inconsistent with its siblings — a
+stripped `bestIv` index, and teams built under a different weighting — and both
+times the rev stamp could not see it because the *engine* rev was identical.
+Hashing the weighting constants and generator inputs into the stamp would close
+both. Still open.
+
+**Where a ground-up rebuild is and is not warranted.** The battle engine now has
+external validation: 83.1% matchup agreement at 1v1, against damage figures
+confirmed from the live game (§1k). That layer is in the best shape it has been.
+The *aggregation* layer has no external check at all, and it is where everything
+unresolved lives — Lickilicky's gap survives correct battles (§1j/§1k), the
+score-versus-log-rank question could not be settled by measurement (§1l), and it
+is built from hand-set constants: `1.5 * sd`, `D2_POWER`, the 12/6/4/2 composite
+weights, the category blends.
+
+**Bradley-Terry is the principled replacement, and the seeding loop is already a
+crude version of it.** Score, re-weight, rescore is a hand-rolled power
+iteration. Fitting a latent strength per Pokemon to the whole matchup matrix by
+least squares on log-odds would make "beating a strong opponent counts more"
+fall out of the mathematics rather than out of a chosen curve — which dissolves
+§1l rather than deciding it — and would remove `WEIGHT_ROUNDS`, `D2_POWER` and
+the tier/curve compounding together. The matrix is already in memory, so it
+costs no battles.
+
+The honest caveat: Bradley-Terry assumes one latent strength explains matchups,
+i.e. approximate transitivity, and PvP is famously intransitive — cores and
+coverage triangles *are* the cyclic structure. A pure fit will show systematic
+residuals exactly where the meta is rock-paper-scissors. That is the most
+valuable part: those residuals measure how much of this format any single-number
+ranking can express, which nothing here currently reports. Low-rank bilinear
+terms are the known extension if the residuals are large.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

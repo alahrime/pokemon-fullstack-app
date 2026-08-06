@@ -3073,3 +3073,95 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   color: var(--color-accent);
   font-weight: 600;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIAGNOSTICS — two rankings, and the limits of both
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.diag-headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.diag-stat { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.diag-stat-value {
+  font-size: var(--size-h2);
+  line-height: 1;
+  font-family: var(--font-heading);
+  letter-spacing: var(--tracking-tight);
+}
+/* The cyclic figure is the one that changes how the rest of the app should be
+   read, so it is the only one that gets a colour. */
+.diag-stat-value.is-warn { color: var(--color-accent); }
+.diag-bar {
+  height: 4px;
+  background: var(--color-neutral-300);
+  overflow: hidden;
+}
+.diag-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2, var(--color-accent)));
+  animation: pc-fill var(--dur-4) var(--ease-out) both;
+}
+.diag-stat-note { font-size: var(--text-xs); color: var(--text-faint); line-height: 1.45; }
+
+.diag-read {
+  font-size: var(--text-md);
+  line-height: 1.6;
+  max-width: 92ch;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+}
+
+.diag-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.diag-export { margin-left: auto; }
+
+/* Two columns that stack rather than scroll sideways on a narrow screen. */
+.diag-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.diag-col { min-width: 0; }
+.diag-col-head { margin-bottom: var(--space-3); }
+.diag-sub { font-size: var(--text-xs); line-height: 1.5; margin: 0 0 var(--space-3); }
+
+.diag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.diag-list > li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+  min-width: 0;
+}
+.diag-list > li:first-child { border-top: 0; }
+.diag-pos { width: 30px; text-align: right; color: var(--text-faint); font-size: var(--text-xs); flex: none; }
+.diag-mon { flex: none; display: inline-grid; place-items: center; }
+.diag-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diag-score { font-size: var(--text-xs); color: var(--text-muted); flex: none; }
+.diag-delta { font-size: var(--text-2xs); color: var(--text-faint); flex: none; min-width: 52px; text-align: right; }
+.diag-delta.is-up { color: var(--color-ok, #3fa46a); }
+.diag-delta.is-down { color: var(--color-warn, #d0674f); }
+
+@media (prefers-reduced-motion: reduce) {
+  .diag-bar > span { animation: none; }
+}

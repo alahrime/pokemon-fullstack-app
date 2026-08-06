@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor } from '../lib/data';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 

@@ -26,6 +26,7 @@ import { SpriteAudit } from './screens/SpriteAudit';
 const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })));
 const TeamBuilderScreen = lazy(() => import('./screens/TeamBuilderScreen').then((m) => ({ default: m.TeamBuilderScreen })));
 const CoresScreen = lazy(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
+const DiagnosticsScreen = lazy(() => import('./screens/DiagnosticsScreen').then((m) => ({ default: m.DiagnosticsScreen })));
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -116,6 +117,8 @@ function Screens() {
       return <LazyScreen key="show6"><TeamBuilderScreen size={6} /></LazyScreen>;
     case 'cores':
       return <LazyScreen key="cores"><CoresScreen /></LazyScreen>;
+    case 'diagnostics':
+      return <LazyScreen key="diagnostics"><DiagnosticsScreen /></LazyScreen>;
   }
 }
 

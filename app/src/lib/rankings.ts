@@ -31,6 +31,24 @@ interface RawEntry {
   /** Second-derivative scores per tier, each in CATEGORIES order. */
   d2: Record<string, number[]>;
   pvpoke: { score: number; scores: number[] } | null;
+  /** Latent strength from the Bradley-Terry fit, log-odds. See btFit. */
+  bt?: number;
+}
+
+/**
+ * How well a single number can describe the format at all.
+ *
+ * Emitted by the Bradley-Terry fit in scripts/bradley-terry.ts. `cyclicPct` is
+ * the load-bearing figure: 0% would mean a perfectly transitive format where a
+ * ranking is a complete description, and 25% is what independent coin flips
+ * would produce. See BACKLOG §1n.
+ */
+export interface BTFitSummary {
+  r2: number;
+  rmse: number;
+  cyclicPct: number;
+  sampled: number;
+  worst: { a: string; b: string; observed: number; predicted: number }[];
 }
 
 interface RawLeague {
@@ -39,6 +57,7 @@ interface RawLeague {
   defaultTier: string;
   categories: CategoryId[];
   entries: RawEntry[];
+  btFit?: BTFitSummary;
 }
 
 const RANKINGS = rankingsRaw as unknown as Record<LeagueId, RawLeague>;
@@ -47,6 +66,36 @@ const MATRIX = matrixRaw as unknown as Record<LeagueId, { engineRev: number; ref
 export const TIERS = (lg: LeagueId): string[] => RANKINGS[lg].tiers;
 export const DEFAULT_TIER = (lg: LeagueId): string => RANKINGS[lg].defaultTier;
 export const ENGINE_REV = (lg: LeagueId): number => RANKINGS[lg].engineRev;
+
+/** The Bradley-Terry diagnostics for a league, if the build emitted them. */
+export const btFitFor = (lg: LeagueId): BTFitSummary | undefined => RANKINGS[lg].btFit;
+
+/**
+ * Both rankings side by side: the composite Overall and the Bradley-Terry
+ * strength, each with its own position, for the Diagnostics screen.
+ */
+export function btComparison(lg: LeagueId, tier: string) {
+  const ent = RANKINGS[lg].entries.filter((e) => e.bt !== undefined && e.d2[tier]);
+  const byComposite = [...ent].sort((a, b) => b.d2[tier][0] - a.d2[tier][0]);
+  const byBt = [...ent].sort((a, b) => (b.bt ?? 0) - (a.bt ?? 0));
+  const cPos = new Map(byComposite.map((e, i) => [e.ref, i + 1]));
+  const bPos = new Map(byBt.map((e, i) => [e.ref, i + 1]));
+  const rows = byComposite.map((e) => ({
+    ref: e.ref,
+    name: e.name,
+    composite: e.d2[tier][0],
+    compositeRank: cPos.get(e.ref)!,
+    bt: e.bt!,
+    btRank: bPos.get(e.ref)!,
+    delta: cPos.get(e.ref)! - bPos.get(e.ref)!,
+  }));
+  // Spearman between the two orderings, which is the headline "do these agree".
+  const n = rows.length;
+  let d2 = 0;
+  for (const r of rows) d2 += (r.compositeRank - r.btRank) ** 2;
+  const rho = n > 1 ? 1 - (6 * d2) / (n * (n * n - 1)) : 1;
+  return { rows, rho };
+}
 
 /** The team-builder candidate pool: top N by Overall at the default tier. */
 export function teamPool(lg: LeagueId): string[] {

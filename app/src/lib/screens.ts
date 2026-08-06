@@ -71,6 +71,14 @@ export const SCREEN_DEFS: ScreenDef[] = [
     hue: 'var(--type-fairy)',
     blurb: 'Two that cover each other, and the third that finishes them.',
   },
+  {
+    id: 'diagnostics',
+    label: 'Diagnostics',
+    kicker: 'The method',
+    glyph: '◎',
+    hue: 'var(--type-steel)',
+    blurb: 'Two rankings of the same data, and how much either can actually say.',
+  },
 ];
 
 export const HUE_OF: Record<string, string> = Object.fromEntries(

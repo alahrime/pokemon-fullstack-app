@@ -25,6 +25,7 @@
  * rather than quietly wrong.
  */
 import { writeFileSync, readFileSync } from 'node:fs';
+import { fitBradleyTerry } from './bradley-terry';
 import { resolve, join } from 'node:path';
 import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { cpus } from 'node:os';
@@ -559,6 +560,35 @@ async function main() {
       d2TierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
     }
 
+    // ── Bradley-Terry, as an alternative to the composite ────────────────
+    // Ref-by-ref rating matrix at each species' RATED loadout, averaged over
+    // every scenario and both shield policies. This is the same data the
+    // composite aggregates; the difference is entirely in what is done with it.
+    const ratedOf = new Int32Array(nF).fill(-1);
+    variants.forEach((v, i) => {
+      if (v.recommended && ratedOf[refIdx[i]] < 0) ratedOf[refIdx[i]] = i;
+    });
+    const R = new Float64Array(nF * nF);
+    const P = POLICIES.length;
+    for (let a = 0; a < nF; a++) {
+      const i = ratedOf[a];
+      if (i < 0) continue;
+      for (let b = 0; b < nF; b++) {
+        if (a === b) continue;
+        let sum = 0;
+        const base = (i * nF + b) * S;
+        for (let sc = 0; sc < S; sc++) {
+          for (let pol = 0; pol < P; pol++) sum += decode(matrix[(base + sc) * P + pol]);
+        }
+        R[a * nF + b] = sum / (S * P);
+      }
+    }
+    const bt = fitBradleyTerry(R, nF);
+    console.log(
+      `  ${lg}: Bradley-Terry R2 ${bt.r2.toFixed(3)}  rmse ${bt.rmse.toFixed(3)}  ` +
+        `cyclic triples ${((100 * bt.cycles.cyclic) / (bt.cycles.sampled || 1)).toFixed(1)}%`,
+    );
+
     const ref = loadReference(lg);
     const byRef = new Map<string, number[]>();
     variants.forEach((v, i) => {
@@ -628,6 +658,10 @@ async function main() {
         d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)], recIdx);
       return {
         ref: r,
+        // Latent strength from the Bradley-Terry fit, on the log-odds scale.
+        // Emitted alongside the composite rather than replacing it — the two
+        // answer different questions and the Diagnostics screen compares them.
+        bt: Math.round(bt.strength[refPos.get(r)!] * 1000) / 1000,
         name: displayName(r),
         d2,
         // [label, overall-at-default-tier]. Index 0 is the league's rated set
@@ -649,6 +683,19 @@ async function main() {
       // The key for every `rec` / `best` array below.
       categories: CATEGORIES.map((c) => c.id),
       entries,
+      // How well ONE number can describe this format at all. See §1n.
+      btFit: {
+        r2: Math.round(bt.r2 * 1000) / 1000,
+        rmse: Math.round(bt.rmse * 1000) / 1000,
+        cyclicPct: Math.round((1000 * bt.cycles.cyclic) / (bt.cycles.sampled || 1)) / 10,
+        sampled: bt.cycles.sampled,
+        worst: bt.worst.slice(0, 12).map((w) => ({
+          a: refs[w.a],
+          b: refs[w.b],
+          observed: Math.round(w.observed * 100) / 100,
+          predicted: Math.round(w.predicted * 100) / 100,
+        })),
+      },
     };
     matrices[lg] = { engineRev: ENGINE_REV, refs: entries.slice(0, TEAM_POOL_N).map((e) => e.ref) };
 

@@ -634,6 +634,59 @@ valuable part: those residuals measure how much of this format any single-number
 ranking can express, which nothing here currently reports. Low-rank bilinear
 terms are the known extension if the residuals are large.
 
+## 1n. Bradley-Terry, and the measurement that reframes the whole ranking
+
+Built as a prototype alongside the composite, not as a replacement. Both read
+the same matchup matrix; the difference is entirely what they do with it.
+
+The composite aggregates each Pokemon's results under weights somebody chose —
+an opponent curve, five category blends, a geometric mean with exponents
+12/6/4/2. Bradley-Terry instead asks what single strength per Pokemon best
+explains every matchup at once. Over a complete graph the least-squares
+solution is closed-form — each strength is the mean of its row of log-odds — so
+there is no solver, no learning rate and no convergence question. "Beating a
+strong opponent counts more" falls out of the fit rather than out of a curve,
+which is what made it worth trying after §1l could not settle the curve by
+measurement.
+
+**The finding is not the ranking. It is the residual.**
+
+| league | variance explained | typical miss | cyclic triples |
+|---|---|---|---|
+| great | 23.8% | 14.9 pts of win rate | **17.8%** |
+| ultra | 23.9% | 15.0 | 18.3% |
+| master | 35.6% | 14.8 | 16.0% |
+
+Read the cyclic count, not the R2 — R2 is deflated by the rating scale's own
+compression (soft cap, loss curve), while the triple count only needs "who
+beats whom" and is robust to it.
+
+**17.8% of sampled triples are rock-paper-scissors cycles.** A perfectly
+transitive format would be 0%. Independent coin flips would be 25%. So this
+meta sits about 70% of the way from "rankable" toward "maximally cyclic", and
+Master — the most stat-driven league — is the most transitive of the three,
+which is the direction that makes sense.
+
+That is the reframing: **a ranking is a lossy summary of this format, not a
+description of it, and the loss is large.** Nothing in this pipeline reported
+that before. It is a positive argument for the Cores and Teams views, where
+cyclic structure is the subject rather than the error term, and it is *not* an
+argument that either ranking is broken.
+
+**The two rankings agree at rho 0.87–0.94 overall and disagree sharply at the
+head** — Registeel is 2nd on the composite and 92nd on Bradley-Terry, Carbink
+is 1st on both. Some of that is a genuine difference in question; some is a
+design choice worth flagging before anyone reads too much into it: **the fit
+weights every opponent equally over the whole field, with no tier and no
+relevance weighting**, so it answers "strongest against everything released"
+while the composite answers "strongest against the tier". That is not
+apples-to-apples and the Diagnostics screen says so.
+
+Next, if this is taken further: low-rank bilinear terms are the standard
+extension for modelling the cyclic part explicitly, and would turn the residual
+from a diagnostic into structure the app could show. Restricting the fit to a
+tier would also make the head-to-head comparison fair.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

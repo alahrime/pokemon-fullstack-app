@@ -48,7 +48,7 @@ export interface BTFitSummary {
   r2: number;
   rmse: number;
   cyclicPct: number;
-  sampled: number;
+  total: number;
   /** Refs inside this tier — the population the fit was run over. */
   n: number;
   worst: { a: string; b: string; observed: number; predicted: number }[];

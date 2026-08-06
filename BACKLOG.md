@@ -710,6 +710,51 @@ extension for modelling the cyclic part explicitly, and would turn the residual
 from a diagnostic into structure the app could show. Restricting the fit to a
 tier would also make the head-to-head comparison fair.
 
+## 1o. Pressure — the metric nothing here measures, and probably the answer
+
+Raised from play: people bring Fearow and Empoleon because they are "generally
+not walled in energy or charge attack pressure". Measured against the top 100
+in Great, and it holds:
+
+| mon | energy/turn | cheapest charge | share of field NOT resisting its coverage |
+|---|---|---|---|
+| Empoleon | 4.00 | 40 | 99.0% |
+| Lickilicky | 4.33 | **35** | 99.0% |
+| Fearow | 4.00 | 40 | 98.0% |
+| Forretress | 4.00 | 40 | 100.0% |
+| Azumarill | 3.67 | 55 | 75.8% |
+| Carbink | 2.50 | 45 | 80.8% |
+| Skarmory | 3.00 | 50 | 69.0% |
+
+Those top three are **exactly the species PvPoke rates far above us** (§1l:
+Lickilicky their #1 against our ~171st, Fearow +105 places, Empoleon +39). And
+Skarmory, which we rank 923rd, has the worst profile in the set.
+
+**Nothing in the pipeline measures this.** `consistency` measures variance
+across *shield states*. The five role categories are all blends of scenario
+ratings. Energy generation rate, charged-move cost and coverage breadth appear
+nowhere, so a Pokemon that always has a move ready and always threatens damage
+gets no credit for it — only for the win or loss that results, which averages
+away the fact that the pressure was never interruptible.
+
+A first cut at the metric: `energyGain / turns` for the rate, the cheapest
+charged move for how often that rate converts into a threat, and the share of
+the tier whose typing does not resist the best available charge. All three are
+already available without a single new battle.
+
+Two cautions before building it. It must not double-count — the sim already
+plays energy and resistance out, so this has to be priced as what those results
+*fail to express* (an availability floor) rather than as a second helping of
+the same effect; §1l is a standing lesson about exactly that. And it should be
+validated against something other than PvPoke rank correlation, which §0 warns
+is not a target and which 94 editor overrides make unreliable in Great anyway.
+
+A related measurement that did NOT support the idea, recorded so nobody repeats
+it: a plain *rating floor* (the 10th percentile of a mon's matchup ratings)
+does not separate these species. Fearow's floor is poor — 21.3% of its top-100
+matchups score under 300, against Lickilicky's 5.0% and Registeel's 2.5%. The
+mechanism is pressure availability, not the absence of bad matchups.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

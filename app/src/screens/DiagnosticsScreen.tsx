@@ -89,7 +89,7 @@ export function DiagnosticsScreen() {
             <span style={{ width: `${cyclicOfMax}%` }} />
           </span>
           <span className="diag-stat-note">
-            of {fit.sampled.toLocaleString()} sampled A&gt;B&gt;C&gt;A triples among this tier&rsquo;s{' '}
+            of {fit.total.toLocaleString()} A&gt;B&gt;C&gt;A triples, every one in the pool, among this tier&rsquo;s{' '}
             {fit.n} Pokémon. A perfectly transitive format is 0%. Independent coin flips are 25%.
           </span>
         </div>

@@ -620,7 +620,7 @@ async function main() {
       `  ${lg}: Bradley-Terry by tier — ` +
         TIERS.map((t) => {
           const f = btTiers[tierLabel(t)];
-          return `${tierLabel(t)}:${((100 * f.cycles.cyclic) / (f.cycles.sampled || 1)).toFixed(1)}%`;
+          return `${tierLabel(t)}:${((100 * f.cycles.cyclic) / (f.cycles.total || 1)).toFixed(1)}%`;
         }).join('  '),
     );
 
@@ -731,8 +731,8 @@ async function main() {
           return [tierLabel(t), {
             r2: Math.round(f.r2 * 1000) / 1000,
             rmse: Math.round(f.rmse * 1000) / 1000,
-            cyclicPct: Math.round((1000 * f.cycles.cyclic) / (f.cycles.sampled || 1)) / 10,
-            sampled: f.cycles.sampled,
+            cyclicPct: Math.round((1000 * f.cycles.cyclic) / (f.cycles.total || 1)) / 10,
+            sampled: f.cycles.total,
             n: f.strength.reduce((acc, v) => acc + (Number.isFinite(v) ? 1 : 0), 0),
             worst: f.worst.slice(0, 12).map((w) => ({
               a: refs[w.a],

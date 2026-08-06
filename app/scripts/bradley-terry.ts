@@ -68,10 +68,12 @@ export interface BTFit {
    */
   worst: { a: number; b: number; observed: number; predicted: number }[];
   /**
-   * Cyclic triples found by sampling: a beats b, b beats c, c beats a. The
-   * count is the direct measure of how non-transitive the format is.
+   * Cyclic triples: a beats b, b beats c, c beats a. Every triple in the pool
+   * is enumerated, so `total` is exactly C(n,3) and the share is a census
+   * rather than an estimate. See the note at the enumeration for why sampling
+   * was the wrong instrument.
    */
-  cycles: { sampled: number; cyclic: number };
+  cycles: { total: number; cyclic: number };
 }
 
 const sigma = (x: number): number => 1 / (1 + Math.exp(-x));
@@ -149,25 +151,41 @@ export function fitBradleyTerry(R: Float64Array, n: number, topK = 20): BTFit {
   }
   worst.sort((x, y) => Math.abs(y.observed - y.predicted) - Math.abs(x.observed - x.predicted));
 
-  // Intransitivity, measured directly rather than inferred from residuals.
-  // Sampling rather than enumerating: n^3 is 1.5 billion triples in Great.
+  // Intransitivity, measured directly rather than inferred from residuals —
+  // and enumerated exhaustively rather than sampled.
+  //
+  // Sampling uniformly at random was wrong, and wrong in a way that mattered.
+  // A roster is not an encounter distribution: several hundred of the entries
+  // in Great are unevolved or outclassed, so a uniform triple is mostly drawn
+  // from Pokemon nobody brings, and the figure ends up describing a population
+  // that is never played. Enumerating every triple in the pool removes the
+  // question entirely — no estimator, no variance, no weighting choice to
+  // defend — and the tier restriction then does the work of deciding which
+  // population is being described, which is what it is for.
+  //
+  // The cost is affordable: 433M triples across every league and tier, on a
+  // packed byte matrix with the row hoisted out of the inner loop.
+  const B = new Uint8Array(n * n);
+  for (let a = 0; a < n; a++) {
+    for (let b = 0; b < n; b++) {
+      if (a !== b && sigma(L[a * n + b]) > 0.5) B[a * n + b] = 1;
+    }
+  }
   let sampled = 0;
   let cyclic = 0;
-  const beats = (x: number, y: number) => sigma(L[x * n + y]) > 0.5;
-  let seed = 0x2f6e2b1;
-  const rnd = () => {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    return seed / 0x7fffffff;
-  };
-  const TRIPLES = 200_000;
-  for (let t = 0; t < TRIPLES && n >= 3; t++) {
-    const a = Math.floor(rnd() * n);
-    const b = Math.floor(rnd() * n);
-    const c = Math.floor(rnd() * n);
-    if (a === b || b === c || a === c) continue;
-    sampled++;
-    if (beats(a, b) && beats(b, c) && beats(c, a)) cyclic++;
-    else if (beats(b, a) && beats(c, b) && beats(a, c)) cyclic++;
+  for (let a = 0; a < n; a++) {
+    const ra = a * n;
+    for (let b = a + 1; b < n; b++) {
+      const rb = b * n;
+      const ab = B[ra + b];
+      const ba = B[rb + a];
+      for (let c = b + 1; c < n; c++) {
+        sampled++;
+        // Two orientations for three items; either one is a cycle.
+        if (ab && B[rb + c] && B[c * n + a]) cyclic++;
+        else if (ba && B[c * n + b] && B[ra + c]) cyclic++;
+      }
+    }
   }
 
   return {
@@ -175,6 +193,6 @@ export function fitBradleyTerry(R: Float64Array, n: number, topK = 20): BTFit {
     r2: ssTot > 0 ? 1 - ssRes / ssTot : 0,
     rmse: Math.sqrt(sqSum / (pairs || 1)),
     worst: worst.slice(0, topK),
-    cycles: { sampled, cyclic },
+    cycles: { total: sampled, cyclic },
   };
 }

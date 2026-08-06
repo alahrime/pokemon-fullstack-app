@@ -197,7 +197,7 @@ const OPTIMAL_TIMING = true;
  * 38.7% and the bottom half 3.4% — beating Unown moves the needle by an
  * epsilon, which is the whole point.
  */
-const D2_RANK_POWER = 2;
+const D2_POWER = 3;
 
 // ── Moveset enumeration ─────────────────────────────────────────────────────
 
@@ -516,12 +516,9 @@ async function main() {
     const d1 = perRefBest(variants, tierRows[tierLabel(DEFAULT_TIER)], refIdx, nF).best;
     // Rank each opponent by its first-pass Overall, then weight by log of that
     // rank. See the note on D2_RANK_POWER for why rank rather than score.
-    const byScore = Array.from(d1, (_, i) => i).sort((x, y) => d1[y] - d1[x]);
-    const rankOf = new Float64Array(nF);
-    byScore.forEach((idx, r) => { rankOf[idx] = r + 1; });
-    const lnN = Math.log(Math.max(2, nF));
-    const graded = Array.from(d1, (_, i) =>
-      Math.pow(Math.max(0, 1 - Math.log(rankOf[i]) / lnN), D2_RANK_POWER));
+    const d1Min = Math.min(...d1);
+    const d1Span = (Math.max(...d1) - d1Min) || 1;
+    const graded = Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER);
     const d2TierRows: Record<string, Record<ScenarioId, number>[]> = {};
     for (const t of TIERS) {
       const w = new Float64Array(nF);

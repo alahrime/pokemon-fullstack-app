@@ -530,6 +530,48 @@ visible in aggregate: they shifted every matchup slightly in one direction
 rather than breaking anything outright, which is exactly the kind of error a
 ranking pipeline will happily average over forever.
 
+## 1l. Opponent weighting — measured four ways, score curve kept
+
+Asked to make beating a bottom-ranked Pokemon worth an epsilon and beating the
+best worth a great deal. The existing d2 weighting looked concentrated and
+measured nearly flat: normalising by score against the field's worst put rank
+100 at 82% of the span, and cubing 0.82 is still 0.55. Rank 50 carried 63% of
+rank 1's weight and the bottom HALF of the roster held 22% of all weight,
+against the top 50's 11.6%.
+
+A log-of-rank curve fixes exactly that — rank 10 at 45%, rank 100 at 12%, rank
+500 at 1%, last place at zero, bottom half down to 3.4% of total weight. It is
+the right shape for the stated goal. It also regressed rank agreement with
+PvPoke in every league, and a second variant regressed further:
+
+| config | great | ultra | master |
+|---|---|---|---|
+| rev 12 baseline | 0.8300 | 0.8144 | 0.8836 |
+| + rev-13 mechanics only | 0.8082 | 0.8130 | 0.8911 |
+| **+ consistency and attackers fixes** | **0.8522** | **0.8494** | **0.9109** |
+| + log-rank (ranked over full field) | 0.7935 | 0.8105 | 0.9085 |
+| + log-rank (ranked within tier) | 0.7376 | 0.7851 | 0.9080 |
+
+The within-tier variant was an attempt to fix a real compounding problem — the
+tier cutoff and the curve both grade opponent quality, so a full-field rank
+re-applies the cutoff's judgement inside the kept set, spreading weights 5.1x
+across a top-50 tier against 1.6x before. Ranking within the tier instead
+zeroes the bottom of every tier, effectively shrinking it, and measured worse
+still. The compounding is real; that was not the fix for it.
+
+**Kept: the score curve.** Not because log-rank is wrong — it does what it was
+asked to do — but because it is the only configuration that measures worse on
+the one external check available, and there is no independent evidence for it
+beyond intent.
+
+**Read that comparison carefully, though.** PvPoke does not do a weighted
+regression at all, and their published matchups look like 1-shield data: our
+agreement with them is 83.1% at sh11 against 72.3% at sh00 and 72.9% at sh22.
+So rank correlation is a weak test of *our weighting specifically* — a curve
+they do not have will disagree with them by construction. It is a live option
+to reinstate, not a closed question. What is not in doubt is the rest of §1k
+and the two double-count removals, which improved every league.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

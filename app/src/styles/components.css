@@ -1826,13 +1826,32 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* ── Cores ──────────────────────────────────────────────────────────────── */
 .cores-screen { display: flex; flex-direction: column; gap: var(--space-4); }
+/* Seven columns: a block per member with the "+" between them, then the four
+   figures. The two member blocks share the free width equally, so neither name
+   crowds the other and the numeric columns keep fixed, alignable widths.
+
+   The previous template had a fixed 84px sprite column sized for two 34px
+   sprites. Bumping them to 52px pushed 106px of content through it, and with
+   `overflow: visible` the second sprite spilled 14px into the name column —
+   which is what read as text overlapping the icons. Sizing by content rather
+   than by a literal is what stops that recurring. */
 .core-head, .core-row {
   display: grid;
-  grid-template-columns: 84px 1fr 120px 64px 56px 62px;
+  /* The separator column is a fixed width rather than `auto`: the header's
+     cell for it is empty, and an auto track sized to content collapses there
+     while the row's "+" holds it open, so the two grids disagreed by 5px. */
+  grid-template-columns:
+    minmax(0, 1fr) 16px minmax(0, 1fr)
+    124px 68px 60px 66px;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
-.core-head { padding: 0 0 var(--space-1); }
+.core-head {
+  padding: 0 0 var(--space-1);
+  /* Matches the row's lit-rail border so the two grids start at the same x.
+     Without it the header sat 3px left of every column it labels. */
+  border-left: 3px solid transparent;
+}
 .core-head .hud-label { text-align: right; }
 .core-list, .pillar-list { margin: 0; padding: 0; list-style: none; }
 .core-list > li { border-bottom: var(--border-hairline) solid var(--rule-hairline); }
@@ -1840,17 +1859,40 @@ textarea.input { min-height: 90px; resize: vertical; }
   width: 100%;
   background: transparent;
   border: 0;
+  border-left: 3px solid transparent;
   cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
   padding: var(--space-2) 0;
   text-align: left;
   color: inherit;
   font: inherit;
 }
 .core-row:hover { background: var(--color-accent-100); }
-.core-pair { display: flex; gap: 2px; }
-.core-mon { display: flex; }
+/* One member: sprite, name, and the build it was scored on. */
+.core-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.core-side-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.core-side-name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.core-mon { display: flex; flex: none; }
 .core-names { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.core-amp { color: var(--color-accent); font-weight: 700; }
+.core-amp {
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  flex: none;
+  opacity: 0.8;
+}
 .core-score { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-variant-numeric: tabular-nums; }
 .core-bar { display: block; width: 90px; height: 5px; background: var(--color-neutral-200); border-radius: 3px; overflow: hidden; }
 .core-bar-fill { display: block; height: 100%; background: var(--color-accent); }
@@ -1891,9 +1933,19 @@ textarea.input { min-height: 90px; resize: vertical; }
 @media (max-width: 860px) {
   .bt-row-main { flex-wrap: wrap; }
   .bt-members-3 > *, .bt-members-6 > * { flex: 1 1 100%; }
-  .core-head, .core-row { grid-template-columns: 70px 1fr 90px 52px; }
-  .core-balance { display: none; }
-  .core-head > :last-child, .core-row > :last-child { display: none; }
+  /* Four columns for seven children would wrap them onto extra rows, which is
+     what the old 70px/1fr/90px/52px template did once the row became two
+     member blocks plus a separator. Members stack instead: each takes the full
+     width, the "+" spans, and the figures share a row beneath. */
+  .core-head, .core-row {
+    grid-template-columns: repeat(4, 1fr);
+    row-gap: var(--space-2);
+  }
+  .core-side { grid-column: span 4; }
+  .core-amp { display: none; }
+  .core-head > :nth-child(-n + 3) { display: none; }
+  .core-score, .core-lift, .core-appear, .core-balance { align-items: flex-start; text-align: left; }
+  .core-bar { width: 100%; }
   .pillar-list > li { grid-template-columns: 1fr 1fr; }
 }
 
@@ -3218,4 +3270,21 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 
 @media (prefers-reduced-motion: reduce) {
   .diag-tier, .diag-tier-bar > span { transition: none; }
+}
+
+
+/* Cores rows pick up the same approach treatment the Rankings rows use, so the
+   two lists read as the same product rather than two tables that happen to
+   share a stylesheet. */
+.core-list > li:hover .core-row {
+  background: color-mix(in oklab, var(--color-accent) 6%, transparent);
+  border-left-color: color-mix(in oklab, var(--color-accent) 55%, transparent);
+}
+.core-list > li.is-open .core-row {
+  background: color-mix(in oklab, var(--color-accent) 9%, transparent);
+  border-left-color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .core-row { transition: none; }
 }

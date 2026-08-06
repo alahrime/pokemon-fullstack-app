@@ -93,20 +93,24 @@ function CoreRow({ c, max, league }: { c: Core; max: number; league: LeagueId })
   return (
     <li className={open ? 'is-open' : ''}>
       <button className="core-row" onClick={() => setOpen((v) => !v)}>
-        <span className="core-pair">
+        {/* One block per member rather than a sprite pair beside a shared
+            name column. The old layout gave the names 940px it did not need
+            while the sprite column stayed at the width two 34px sprites once
+            needed — so the second 52px sprite spilled 14px into the text.
+            Side by side, each member owns its own space and the row reads as
+            the pairing it describes. */}
+        <span className="core-side">
           <Mon ref={c.a} />
-          <Mon ref={c.b} />
-        </span>
-        {/* Names, and under each the spread and set it was scored on. A core
-            is a claim about two specific builds — Forretress with Bug Bite is
-            a different partner than Forretress with Volt Switch — so the row
-            has to say which two, or the pairing is unfalsifiable. */}
-        <span className="core-names">
-          <span className="core-names-line">
-            {displayName(c.a)} <span className="core-amp">+</span> {displayName(c.b)}
-          </span>
-          <span className="core-builds">
+          <span className="core-side-id">
+            <span className="core-side-name">{displayName(c.a)}</span>
             <CoreBuild ref={c.a} league={league} />
+          </span>
+        </span>
+        <span className="core-amp" aria-hidden="true">+</span>
+        <span className="core-side">
+          <Mon ref={c.b} />
+          <span className="core-side-id">
+            <span className="core-side-name">{displayName(c.b)}</span>
             <CoreBuild ref={c.b} league={league} />
           </span>
         </span>
@@ -397,12 +401,17 @@ export function CoresScreen() {
           <div className="panel text-muted">No cores recorded. Re-run <code>npm run teams</code>.</div>
         ) : (
           <div className="panel">
+            {/* Header cells match the row's grid one-for-one; the old version
+                was two blanks short of the six columns it labelled, so every
+                heading sat above the wrong number. */}
             <div className="core-head">
+              <span className="hud-label">Core</span>
               <span />
               <span />
               <span className="hud-label">Mutual rescue</span>
               <span className="hud-label">Lift</span>
               <span className="hud-label">Seen</span>
+              <span className="hud-label">Balance</span>
             </div>
             <ol className="core-list">
               {cores.map((c) => <CoreRow key={`${c.a}|${c.b}`} c={c} max={maxCore} league={league} />)}

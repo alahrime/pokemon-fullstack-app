@@ -78,6 +78,61 @@ export function Board({
   const byId = useMemo(() => new Map(blocks.map((b) => [b.id, b])), [blocks]);
   const ordered = order.map((id) => byId.get(id)).filter((b): b is Block => !!b);
 
+  /**
+   * Auto-scroll while dragging near a viewport edge.
+   *
+   * HTML5 drag and drop does not scroll the page reliably, and this board sits
+   * under a sticky nav — so a panel taller than the viewport could not be
+   * dragged past its own height, and a drop target hidden under the nav could
+   * not be reached at all. Both were reported as "arrange does not work", which
+   * is accurate: the interaction was unfinishable, not merely awkward.
+   *
+   * `dragover` fires irregularly and stops entirely when the pointer is still,
+   * so the scrolling runs on its own timer and the event only records where the
+   * pointer is. That also makes a held-at-the-edge drag keep scrolling, which
+   * is what every other sortable list does.
+   *
+   * A timer rather than requestAnimationFrame, deliberately: several browsers
+   * suspend rAF for the duration of an HTML5 drag, which is precisely when this
+   * needs to run. An interval keeps ticking, and at 16ms the motion is
+   * indistinguishable.
+   *
+   * The top edge zone starts BELOW the sticky nav, measured rather than
+   * hardcoded: the nav wraps to two rows on a narrow viewport, so a constant
+   * would be wrong exactly when the screen is smallest.
+   */
+  const pointerY = useRef<number | null>(null);
+  useEffect(() => {
+    if (!editing || !dragId) return;
+    const EDGE = 110;
+    const MAX_SPEED = 22;
+    let timer = 0;
+
+    const navBottom = () => {
+      const nav = document.querySelector('.nav');
+      return nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0;
+    };
+    const onDragOver = (e: DragEvent) => { pointerY.current = e.clientY; };
+    const step = () => {
+      const y = pointerY.current;
+      if (y !== null) {
+        const top = navBottom();
+        let dy = 0;
+        if (y < top + EDGE) dy = -((top + EDGE - y) / EDGE) * MAX_SPEED;
+        else if (y > window.innerHeight - EDGE) dy = ((y - (window.innerHeight - EDGE)) / EDGE) * MAX_SPEED;
+        if (dy) window.scrollBy(0, dy);
+      }
+    };
+
+    window.addEventListener('dragover', onDragOver);
+    timer = window.setInterval(step, 16);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.clearInterval(timer);
+      pointerY.current = null;
+    };
+  }, [editing, dragId]);
+
   const onDrop = useCallback(
     (targetId: string) => {
       if (!dragId || dragId === targetId) return;

@@ -8,6 +8,7 @@ import { Sprite } from '../components/Sprite';
 import { PokemonCard } from '../components/PokemonCard';
 import { TypeBadge } from '../components/TypeBadge';
 import { SpeciesSearch } from '../components/SpeciesSearch';
+import { AddPokemonModal, movesForChoice, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { BestTeams } from '../components/BestTeams';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import type { LeagueId } from '../lib/types';
@@ -22,12 +23,40 @@ import type { LeagueId } from '../lib/types';
  * six by starting from a three they already trust.
  */
 
-function Slot({ ref: r, league, onClear }: { ref: string | null; league: LeagueId; onClear: () => void }) {
-  if (!r) return <div className="team-slot is-empty">＋</div>;
+function Slot({ ref: r, league, onClear, onAdd, build }: {
+  ref: string | null;
+  league: LeagueId;
+  onClear: () => void;
+  onAdd: () => void;
+  build?: AddPokemonChoice;
+}) {
+  // An empty slot was a decorative "＋" that did nothing; the only way to add
+  // was the search box below. It is now the button it always looked like, and
+  // opens the build picker.
+  if (!r) {
+    return (
+      <button className="team-slot is-empty" onClick={onAdd} title="Add a Pokémon, with its moves and roll">
+        <span aria-hidden="true">＋</span>
+        <span className="team-slot-hint">Add</span>
+      </button>
+    );
+  }
   // The full card: a slot is the one place there is room for the whole thing,
   // and it is where you most want to see the spread and the set you are
   // actually fielding rather than a sprite and a name.
-  return <PokemonCard refId={r} league={league} size="full" onClick={onClear} title="Click to remove" />;
+  // The card reports the build this slot actually carries, not the league's
+  // rated set — otherwise it contradicts the analysis running behind it.
+  const resolved = build ? movesForChoice(build, league) : null;
+  return (
+    <PokemonCard
+      refId={r}
+      league={league}
+      size="full"
+      onClick={onClear}
+      title="Click to remove"
+      build={resolved ? { ...resolved, iv: build!.iv } : null}
+    />
+  );
 }
 
 function ThreatList({ threats }: { threats: { ref: string; lossRate: number; meanHpCost: number }[] }) {
@@ -56,6 +85,15 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const { state } = useAppState();
   const league = state.league;
   const [team, setTeam] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
+  /**
+   * Per-species build overrides chosen through the modal.
+   *
+   * Keyed by ref rather than by slot: the duplicate rule means a ref appears at
+   * most once on a team, and keying by slot would lose the build when a
+   * teammate ahead of it is cleared and the array shifts.
+   */
+  const [builds, setBuilds] = useState<Record<string, AddPokemonChoice>>({});
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<ReturnType<typeof analyseTeam> | null>(null);
   const [six, setSix] = useState<ReturnType<typeof analyseShow6> | null>(null);
@@ -88,6 +126,11 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   // same tick both read the `team` their own render closed over, so the second
   // overwrites the first instead of appending — which silently dropped members
   // and left the roster looking like it had chosen at random.
+  const addBuilt = (choice: AddPokemonChoice) => {
+    setBuilds((b) => ({ ...b, [choice.ref]: choice }));
+    add(choice.ref);
+  };
+
   const add = (ref: string) => {
     setTeam((t) =>
       // GBL forbids two of the same species, and that is by Pokedex number —
@@ -116,10 +159,10 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     // Yield once so the button paints its busy state before the sim blocks.
     setTimeout(() => {
       const t0 = performance.now();
-      if (size === 3) setReport(analyseTeam(team, league));
+      if (size === 3) setReport(analyseTeam(team, league, { builds }));
       else {
-        setSix(analyseShow6(team, league));
-        setReport(analyseTeam(team, league, { size: 3, count: 160 }));
+        setSix(analyseShow6(team, league, { builds }));
+        setReport(analyseTeam(team, league, { size: 3, count: 160 , builds }));
       }
       setElapsed(performance.now() - t0);
       setBusy(false);
@@ -149,7 +192,14 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         <div className="hud-label">{size === 3 ? 'Your team of 3' : 'Your Show 6'}</div>
         <div className="team-slots">
           {Array.from({ length: size }, (_, i) => (
-            <Slot key={i} ref={team[i] ?? null} league={league} onClear={() => clear(i)} />
+            <Slot
+              key={i}
+              ref={team[i] ?? null}
+              league={league}
+              onClear={() => clear(i)}
+              onAdd={() => setAdding(true)}
+              build={team[i] ? builds[team[i]] : undefined}
+            />
           ))}
         </div>
         <div className="team-add">
@@ -356,6 +406,14 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           deplete across the whole battle rather than resetting each time.
           {size === 6 && ' Six is scored as a matrix game: both players choose their three after seeing the other six.'}
         </div>
+      )}
+      {adding && (
+        <AddPokemonModal
+          league={league}
+          restrictTo={selectable}
+          onCommit={addBuilt}
+          onClose={() => setAdding(false)}
+        />
       )}
     </div>
   );

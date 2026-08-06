@@ -165,9 +165,23 @@ export function ReportScreen() {
 
   return (
     <>
+      {/* The whole report takes the colour of what it is reporting on.
+          --t1/--t2 come from the species' own typing and are consumed by the
+          wash, the rules and the hero below; a Steel/Fairy report and a
+          Water/Ghost one are recognisable before either name is read. Set as
+          custom properties rather than classes so a dual type blends instead
+          of picking a side. */}
+      <div
+        className="report-frame"
+        style={{
+          ['--t1' as string]: `var(--type-${species.types[0]})`,
+          ['--t2' as string]: `var(--type-${species.types[1] ?? species.types[0]})`,
+        }}
+      >
+        <span className="report-wash" aria-hidden="true" />
       {/* Widened from 340px to fit the larger sprite frame without crowding the
           name beside it. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,390px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,390px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)', position: 'relative' }}>
         {/* Left column */}
         <div className="report-side">
           {/* Identity → form → roll. The three things you change sit together at
@@ -453,6 +467,7 @@ export function ReportScreen() {
       <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>
         {footnote}
       </p>
+      </div>
     </>
   );
 }

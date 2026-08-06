@@ -90,8 +90,26 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
 
 function CoreRow({ c, max, league }: { c: Core; max: number; league: LeagueId }) {
   const [open, setOpen] = useState(false);
+  // All four typings of the pairing, so the row is tinted by the core rather
+  // than by one member. A mono-type member repeats its own colour, which keeps
+  // the gradient even instead of leaving a gap where its second type would be.
+  const hues = useMemo(() => {
+    const t = (r: string) => {
+      const sp = speciesOf(r);
+      const ty = sp?.types ?? [];
+      return [ty[0] ?? 'normal', ty[1] ?? ty[0] ?? 'normal'];
+    };
+    const [a1, a2] = t(c.a);
+    const [b1, b2] = t(c.b);
+    return {
+      ['--ca1' as string]: `var(--type-${a1})`,
+      ['--ca2' as string]: `var(--type-${a2})`,
+      ['--cb1' as string]: `var(--type-${b1})`,
+      ['--cb2' as string]: `var(--type-${b2})`,
+    };
+  }, [c.a, c.b]);
   return (
-    <li className={open ? 'is-open' : ''}>
+    <li className={open ? 'is-open' : ''} style={hues}>
       <button className="core-row" onClick={() => setOpen((v) => !v)}>
         {/* One block per member rather than a sprite pair beside a shared
             name column. The old layout gave the names 940px it did not need

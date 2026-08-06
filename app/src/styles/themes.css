@@ -195,3 +195,255 @@
   --shadow-aura-deep: #4c1d95;
   --shadow-ink: #2e1065;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MIDNIGHT — dark, indigo, softer contrast than HUD.
+
+   Same contract as every theme above: if a token is listed for `hud` it must
+   be listed here, or the value falls through to the :root default and the
+   theme is subtly wrong in a way nothing reports. token-parity.mjs checks it.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root[data-theme='midnight'] {
+  color-scheme: dark;
+
+  --color-bg: #0b0f1a;
+  --color-surface: #141a2b;
+  --color-text: #dfe3f2;
+  --color-accent: #8b7cf6;
+  --color-accent-2: #4fd1c5;
+  --color-divider: color-mix(in srgb, #8f9ac4 40%, transparent);
+
+  --color-neutral-100: #141a2b;
+  --color-neutral-200: #1c2438;
+  --color-neutral-300: #253048;
+  --color-neutral-400: #32405e;
+  --color-neutral-500: #465578;
+  --color-neutral-600: #5f6f95;
+  --color-neutral-700: #8290b4;
+  --color-neutral-800: #adb8d4;
+  --color-neutral-900: #dde3f4;
+
+  --color-accent-100: #17103a;
+  --color-accent-200: #201751;
+  --color-accent-300: #2e2070;
+  --color-accent-400: #402e96;
+  --color-accent-500: #5741bd;
+  --color-accent-600: #7159dd;
+  --color-accent-700: #8b7cf6;
+  --color-accent-800: #b3a8fa;
+  --color-accent-900: #d8d2fd;
+
+  --color-accent-2-100: #05231f;
+  --color-accent-2-200: #07352f;
+  --color-accent-2-300: #0a4d44;
+  --color-accent-2-400: #0d6a5e;
+  --color-accent-2-500: #12907f;
+  --color-accent-2-600: #1cb5a1;
+  --color-accent-2-700: #4fd1c5;
+  --color-accent-2-800: #8ee4dc;
+  --color-accent-2-900: #c5f2ee;
+
+  --surface-1: #141a2b;
+  --surface-2: #1c2438;
+  --surface-3: #253048;
+  --surface-inverse: #dde3f4;
+  --text-inverse: #0b0f1a;
+  --text-muted: #96a2c4;
+  --text-faint: #66739a;
+  --color-on-accent: #0b0f1a;
+
+  --rule-hairline: color-mix(in srgb, #8290b4 26%, transparent);
+  --rule-strong: color-mix(in srgb, #8290b4 46%, transparent);
+  --focus-ring: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  --grid-line: color-mix(in srgb, #8290b4 12%, transparent);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 6px 18px -6px rgb(0 0 0 / 0.62);
+  --shadow-lg: 0 20px 48px -18px rgb(0 0 0 / 0.7);
+  --glow-accent: 0 0 22px color-mix(in srgb, var(--color-accent) 34%, transparent);
+  --glow-signal: 0 0 14px color-mix(in srgb, var(--color-accent-2) 30%, transparent);
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 800;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-numeric: var(--font-mono);
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+
+  /* Keeps the HUD chrome, at half strength — this is a quieter room, not a
+     different building. */
+  --chrome-opacity: 0.5;
+
+  --shadow-aura: #a855f7;
+  --shadow-aura-deep: #6b21a8;
+  --shadow-ink: #3b0764;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAPER — light, warm, low glare. For long reading sessions.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root[data-theme='paper'] {
+  color-scheme: light;
+
+  --color-bg: #f7f3ea;
+  --color-surface: #efe9dc;
+  --color-text: #2a2621;
+  --color-accent: #b4531f;
+  --color-accent-2: #2f7d6b;
+  --color-divider: color-mix(in srgb, #2a2621 34%, transparent);
+
+  --color-neutral-100: #fbf8f1;
+  --color-neutral-200: #f0ebe0;
+  --color-neutral-300: #ded7c8;
+  --color-neutral-400: #c4bca9;
+  --color-neutral-500: #a49b87;
+  --color-neutral-600: #857c69;
+  --color-neutral-700: #675f4f;
+  --color-neutral-800: #494337;
+  --color-neutral-900: #302c24;
+
+  --color-accent-100: #fbeee5;
+  --color-accent-200: #f5d9c6;
+  --color-accent-300: #eab999;
+  --color-accent-400: #dc9468;
+  --color-accent-500: #c9713d;
+  --color-accent-600: #b4531f;
+  --color-accent-700: #933f16;
+  --color-accent-800: #6d2e10;
+  --color-accent-900: #471e0a;
+
+  --color-accent-2-100: #e6f2ee;
+  --color-accent-2-200: #c7e2da;
+  --color-accent-2-300: #9ccdbf;
+  --color-accent-2-400: #6cb2a0;
+  --color-accent-2-500: #449583;
+  --color-accent-2-600: #2f7d6b;
+  --color-accent-2-700: #256556;
+  --color-accent-2-800: #1a4a3e;
+  --color-accent-2-900: #113028;
+
+  --surface-1: #fbf8f1;
+  --surface-2: #f0ebe0;
+  --surface-3: #e3dccd;
+  --surface-inverse: #2a2621;
+  --text-inverse: #fbf8f1;
+  --text-muted: #6b6355;
+  --text-faint: #948b7a;
+  --color-on-accent: #fbf8f1;
+
+  --rule-hairline: color-mix(in srgb, #2a2621 16%, transparent);
+  --rule-strong: color-mix(in srgb, #2a2621 34%, transparent);
+  --focus-ring: color-mix(in srgb, var(--color-accent) 65%, transparent);
+  --grid-line: color-mix(in srgb, #2a2621 7%, transparent);
+
+  --shadow-sm: 0 1px 2px rgb(60 48 30 / 0.12);
+  --shadow-md: 0 6px 16px -8px rgb(60 48 30 / 0.2);
+  --shadow-lg: 0 18px 40px -20px rgb(60 48 30 / 0.26);
+  --glow-accent: 0 0 0 1px color-mix(in srgb, var(--color-accent) 32%, transparent);
+  --glow-signal: none;
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 750;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-numeric: var(--font-mono);
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+
+  --chrome-opacity: 0;
+
+  --shadow-aura: #7e22ce;
+  --shadow-aura-deep: #4c1d95;
+  --shadow-ink: #2e1065;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTRAST — maximum separation, no decorative chrome.
+
+   Not a style. Near-black ground, near-white text, rules at full strength and
+   every ornamental layer switched off, for anyone who finds the other themes
+   hard to read. Accents are chosen to stay distinguishable under the common
+   forms of colour blindness rather than for looks.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root[data-theme='contrast'] {
+  color-scheme: dark;
+
+  --color-bg: #000000;
+  --color-surface: #0b0b0b;
+  --color-text: #ffffff;
+  --color-accent: #ffb000;
+  --color-accent-2: #00b7ff;
+  --color-divider: color-mix(in srgb, #ffffff 62%, transparent);
+
+  --color-neutral-100: #0b0b0b;
+  --color-neutral-200: #171717;
+  --color-neutral-300: #262626;
+  --color-neutral-400: #3d3d3d;
+  --color-neutral-500: #5c5c5c;
+  --color-neutral-600: #7d7d7d;
+  --color-neutral-700: #a3a3a3;
+  --color-neutral-800: #d0d0d0;
+  --color-neutral-900: #ffffff;
+
+  --color-accent-100: #241900;
+  --color-accent-200: #3d2a00;
+  --color-accent-300: #5e4100;
+  --color-accent-400: #8a5f00;
+  --color-accent-500: #b58000;
+  --color-accent-600: #dc9c00;
+  --color-accent-700: #ffb000;
+  --color-accent-800: #ffcb59;
+  --color-accent-900: #ffe4a8;
+
+  --color-accent-2-100: #001d2b;
+  --color-accent-2-200: #003046;
+  --color-accent-2-300: #004869;
+  --color-accent-2-400: #00658f;
+  --color-accent-2-500: #0087bd;
+  --color-accent-2-600: #00a2e0;
+  --color-accent-2-700: #00b7ff;
+  --color-accent-2-800: #6bd3ff;
+  --color-accent-2-900: #b6e9ff;
+
+  --surface-1: #0b0b0b;
+  --surface-2: #171717;
+  --surface-3: #262626;
+  --surface-inverse: #ffffff;
+  --text-inverse: #000000;
+  --text-muted: #d0d0d0;
+  --text-faint: #a3a3a3;
+  --color-on-accent: #000000;
+
+  --rule-hairline: color-mix(in srgb, #ffffff 40%, transparent);
+  --rule-strong: color-mix(in srgb, #ffffff 78%, transparent);
+  --focus-ring: #ffb000;
+  --grid-line: color-mix(in srgb, #ffffff 14%, transparent);
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --glow-accent: 0 0 0 2px var(--color-accent);
+  --glow-signal: none;
+
+  --font-heading: 'Archivo', system-ui, sans-serif;
+  --font-heading-weight: 800;
+  --font-body: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-numeric: var(--font-mono);
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+
+  /* Every decorative layer off. */
+  --chrome-opacity: 0;
+
+  --shadow-aura: #d946ef;
+  --shadow-aura-deep: #a21caf;
+  --shadow-ink: #701a75;
+}

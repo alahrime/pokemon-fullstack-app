@@ -26,8 +26,16 @@ import tailwindcss from '@tailwindcss/vite'
 const DEFAULT_BUDGET = 1100
 const BUDGETS: [prefix: string, kB: number, why: string][] = [
   ['index', 1100, 'entry: species.json (~707kB) + app code'],
-  ['synergy', 4000, 'lazy: teams.json (~3.8MB), loaded by GBL/Show 6/Cores'],
-  ['exportData', 3300, 'lazy: rankings.json (~3.1MB), loaded by Rankings/GBL/Show 6'],
+  // 4600 rather than 4000: a seventh ranking category (Pressure, §1o) means
+  // 288 team strata where there were 252, so teams.json carries 14% more of
+  // the same shape. Measured, not waved through — the growth is the category,
+  // and if it climbs again without a category being added, something else got
+  // in.
+  ['synergy', 4600, 'lazy: teams.json (~4.3MB), loaded by GBL/Show 6/Cores'],
+  // 3700 rather than 3300: rankings.json gained a per-tier Bradley-Terry
+  // strength for every entry (§1n) and the Pressure column (§1o). Both are one
+  // number per entry per tier, which is exactly the observed delta.
+  ['exportData', 3700, 'lazy: rankings.json (~3.5MB), loaded by Rankings/GBL/Show 6'],
   // 1400 rather than 1000: splitting the entry chunk pushed ~390kB of shared
   // modules down into this one, which is where almost all of the split's
   // duplication landed. Total emitted bytes rose 396kB while the entry chunk

@@ -3288,3 +3288,198 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 @media (prefers-reduced-motion: reduce) {
   .core-row { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPE-DRIVEN COLOUR — the report and the core rows take the colour of what
+   they describe.
+
+   Both use custom properties set inline from the species' own typing rather
+   than a class per type. Eighteen types would be 18 classes and a dual type
+   would have to pick one; a gradient between two custom properties blends them
+   instead, which is the honest representation of a dual type.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.report-frame { position: relative; }
+
+/* A wash keyed to the subject's typing, behind everything and inert to the
+   pointer. Deliberately faint: this is identification, not decoration, and it
+   sits under dense numeric readouts that must stay legible. */
+.report-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 60% at 0% 0%, color-mix(in oklab, var(--t1) 20%, transparent), transparent 60%),
+    radial-gradient(120% 60% at 100% 0%, color-mix(in oklab, var(--t2) 16%, transparent), transparent 62%),
+    linear-gradient(180deg, color-mix(in oklab, var(--t1) 7%, transparent), transparent 42%);
+}
+/* Light themes need less of it — the same mix reads as a stain on paper. */
+:root[data-theme='modernist'] .report-wash,
+:root[data-theme='paper'] .report-wash { opacity: 0.55; }
+/* Contrast turns decoration off entirely; the theme's whole point is
+   separation, and a tint over a readout is the opposite of that. */
+:root[data-theme='contrast'] .report-wash { display: none; }
+
+/* Core rows: a four-stop gradient across the pairing, left member into right.
+   The rail on the leading edge is the first member's primary type, so the list
+   scans as pairs of colours even before the sprites resolve. */
+.core-list > li {
+  position: relative;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--ca1, transparent) 13%, transparent),
+      color-mix(in oklab, var(--ca2, transparent) 9%, transparent) 34%,
+      color-mix(in oklab, var(--cb1, transparent) 9%, transparent) 66%,
+      color-mix(in oklab, var(--cb2, transparent) 13%, transparent)
+    );
+}
+.core-list > li .core-row { border-left-color: color-mix(in oklab, var(--ca1, transparent) 60%, transparent); }
+.core-list > li:hover .core-row {
+  background: color-mix(in oklab, var(--ca1, var(--color-accent)) 10%, transparent);
+  border-left-color: var(--ca1, var(--color-accent));
+}
+.core-list > li.is-open .core-row {
+  background: color-mix(in oklab, var(--ca1, var(--color-accent)) 14%, transparent);
+  border-left-color: var(--ca1, var(--color-accent));
+}
+:root[data-theme='modernist'] .core-list > li,
+:root[data-theme='paper'] .core-list > li { filter: saturate(0.85); }
+:root[data-theme='contrast'] .core-list > li { background: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADD-POKEMON MODAL
+
+   Overlays rather than expands, for the reason the moves panel does: a control
+   that grows inline shoves the slots and the analysis below it, and choosing a
+   build should not move the thing you are building.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  backdrop-filter: blur(3px);
+  animation: modal-in var(--dur-2) var(--ease-out) both;
+}
+@keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-panel {
+  width: min(620px, 100%);
+  /* Caps at the viewport so a long movepool scrolls inside the panel rather
+     than pushing the footer buttons off screen. */
+  max-height: min(86vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: var(--shadow-lg);
+  clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
+  outline: none;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+  flex: none;
+}
+.modal-x { padding: 2px 8px; }
+
+.modal-body {
+  padding: var(--space-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+.modal-search { position: relative; }
+.modal-hint { font-size: var(--text-xs); line-height: 1.5; margin: 0; }
+
+/* Identity block, tinted by the species' own typing — same principle as the
+   report frame and the core rows. */
+.modal-id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--t1) 16%, transparent),
+    color-mix(in oklab, var(--t2) 12%, transparent)
+  );
+}
+.modal-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--size-h4);
+  line-height: 1.1;
+}
+.modal-types { display: flex; gap: var(--space-1); margin: var(--space-1) 0; flex-wrap: wrap; }
+.modal-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--text-xs); }
+.modal-stats i {
+  font-style: normal;
+  color: var(--text-faint);
+  letter-spacing: var(--tracking-wide);
+  margin-right: 4px;
+  font-size: var(--text-2xs);
+}
+
+.modal-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.modal-moves { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.modal-move-eco { margin-left: var(--space-2); font-size: var(--text-2xs); opacity: 0.7; }
+.modal-move-eco i { font-style: normal; opacity: 0.7; }
+.modal-reset { align-self: flex-start; }
+
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+  flex: none;
+}
+.btn.is-primary {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
+}
+.btn.is-primary:disabled { opacity: 0.4; }
+
+/* The empty slot is a button now, not a decorative glyph. */
+.team-slot.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  background: none;
+  color: var(--text-faint);
+  border: var(--border-hairline) dashed var(--rule-strong);
+  font-size: var(--size-h3);
+  transition: color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.team-slot.is-empty:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.team-slot-hint {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-scrim { animation: none; }
+  .team-slot.is-empty { transition: none; }
+}

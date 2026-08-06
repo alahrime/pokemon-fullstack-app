@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor } from '../lib/engine';
+import { bestSpreadFor, getEntry } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
-import type { LeagueId } from '../lib/types';
+import type { ChargeMove, FastMove, IV, LeagueId } from '../lib/types';
 
 /**
  * One Pokemon as a card, at the exact spread and loadout the simulation used.
@@ -55,6 +55,15 @@ export function PokemonCard({
   onClick,
   title,
   dim,
+  /**
+   * Override the moves and spread the card reports.
+   *
+   * A card must show the build it is standing for. Team slots can carry a
+   * hand-picked set (see AddPokemonModal), and without this the card kept
+   * reporting the league's rated set while the analysis used the chosen one —
+   * the card would quietly contradict the simulation behind it.
+   */
+  build,
 }: {
   refId: string;
   league: LeagueId;
@@ -66,12 +75,22 @@ export function PokemonCard({
   onClick?: () => void;
   title?: string;
   dim?: boolean;
+  build?: { fast: FastMove; charges: ChargeMove[]; iv?: IV } | null;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const sp = speciesOf(refId);
   const { shadow } = parseRef(refId);
-  const spread = useMemo(() => (sp ? bestSpreadFor(refId, league, true) : null), [sp, refId, league]);
-  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const moves = build ? { fast: build.fast, charges: build.charges } : rated;
+  const spread = useMemo(
+    () =>
+      sp
+        ? build?.iv
+          ? { ...getEntry(refId, build.iv, league).entry, ...build.iv }
+          : bestSpreadFor(refId, league, true)
+        : null,
+    [sp, refId, league, build?.iv],
+  );
 
   // Pointer position as 0..1 across the card, written straight to CSS vars.
   const onMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {

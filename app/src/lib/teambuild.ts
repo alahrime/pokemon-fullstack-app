@@ -1,9 +1,9 @@
-import { bestSpreadFor, mkBattleMon } from './engine';
+import { bestSpreadFor, getEntry, mkBattleMon, selectedCharges } from './engine';
 import { conflictsOnTeam, movesFor, speciesOf } from './data';
 import { resistancesOf, sharedTypePairs, weaknessesOf } from './synergy';
 import { teamBattle, carryoverEdge } from './team';
 import { teamPool } from './rankings';
-import type { BattleMon, LeagueId } from './types';
+import type { BattleMon, IV, LeagueId } from './types';
 
 /**
  * Team analysis, run live rather than read from a table.
@@ -17,13 +17,34 @@ import type { BattleMon, LeagueId } from './types';
 
 const monCache = new Map<string, BattleMon>();
 
-export function monFor(ref: string, lg: LeagueId): BattleMon {
-  const key = `${ref}|${lg}`;
+/**
+ * A build chosen by hand, rather than the league's rated set at the rank-1 roll.
+ *
+ * §1d records that the rated set is often not the played set, and a team of
+ * three is where that matters most — so the team builder lets a slot carry its
+ * own moves and IVs. Absent, everything behaves exactly as before.
+ */
+export interface MonBuild {
+  fastIdx: number;
+  /** Empty means the league's rated charged moves. */
+  chargeIds: string[];
+  iv: IV;
+}
+
+export function monFor(ref: string, lg: LeagueId, build?: MonBuild): BattleMon {
+  const sp = speciesOf(ref)!;
+  // A custom build must not collide with the cached rated one, so the key
+  // carries it. Rated lookups keep the short key and stay a cache hit.
+  const key = build
+    ? `${ref}|${lg}|${build.fastIdx}|${build.chargeIds.join(',')}|${build.iv.a}.${build.iv.d}.${build.iv.s}`
+    : `${ref}|${lg}`;
   const hit = monCache.get(key);
   if (hit) return hit;
-  const sp = speciesOf(ref)!;
-  const { fast, charges } = movesFor(sp, lg);
-  const mon = mkBattleMon(bestSpreadFor(ref, lg, true), fast, charges, sp.types);
+  const rated = movesFor(sp, lg);
+  const fast = build ? (sp.fastMoves[Math.min(build.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast) : rated.fast;
+  const charges = build && build.chargeIds.length ? selectedCharges(sp, build.chargeIds) : rated.charges;
+  const entry = build ? getEntry(ref, build.iv, lg).entry : bestSpreadFor(ref, lg, true);
+  const mon = mkBattleMon(entry, fast, charges, sp.types);
   monCache.set(key, mon);
   return mon;
 }
@@ -94,11 +115,15 @@ export interface TeamReport {
  * because "Registeel is a problem" is actionable and "this exact trio is a
  * problem" is not.
  */
-export function analyseTeam(team: string[], lg: LeagueId, opts: { size?: number; count?: number } = {}): TeamReport {
+export function analyseTeam(
+  team: string[],
+  lg: LeagueId,
+  opts: { size?: number; count?: number; builds?: Record<string, MonBuild> } = {},
+): TeamReport {
   const size = opts.size ?? team.length;
   const count = opts.count ?? 240;
   const field = sampleFieldTeams(lg, size, count);
-  const mine = team.map((r) => monFor(r, lg));
+  const mine = team.map((r) => monFor(r, lg, opts.builds?.[r]));
 
   let wins = 0;
   let hp = 0;
@@ -173,7 +198,7 @@ export function suggestCompletions(
   partial: string[],
   lg: LeagueId,
   targetSize: number,
-  opts: { count?: number; limit?: number } = {},
+  opts: { count?: number; limit?: number; builds?: Record<string, MonBuild> } = {},
 ): Suggestion[] {
   const count = opts.count ?? 90;
   const limit = opts.limit ?? 12;
@@ -190,7 +215,7 @@ export function suggestCompletions(
   });
 
   const score = (team: string[]) => {
-    const mine = team.map((r) => monFor(r, lg));
+    const mine = team.map((r) => monFor(r, lg, opts.builds?.[r]));
     let wins = 0;
     for (const foes of field) if (teamBattle(mine, foes.map((r) => monFor(r, lg))).win) wins++;
     return wins / field.length;
@@ -252,7 +277,11 @@ export interface Show6Report {
   threats: { ref: string; lossRate: number; meanHpCost: number }[];
 }
 
-export function analyseShow6(six: string[], lg: LeagueId, opts: { count?: number } = {}): Show6Report {
+export function analyseShow6(
+  six: string[],
+  lg: LeagueId,
+  opts: { count?: number; builds?: Record<string, MonBuild> } = {},
+): Show6Report {
   const count = opts.count ?? 40;
   const field = sampleFieldTeams(lg, 6, count);
   const myLines = subteams(six);
@@ -263,7 +292,7 @@ export function analyseShow6(six: string[], lg: LeagueId, opts: { count?: number
   let naiveTotal = 0;
 
   for (const line of myLines) {
-    const mine = line.map((r) => monFor(r, lg));
+    const mine = line.map((r) => monFor(r, lg, opts.builds?.[r]));
     let floor = Infinity;
     let naive = 0;
     for (const theirSix of field) {

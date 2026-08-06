@@ -1,12 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type ThemeId = 'hud' | 'modernist';
+export type ThemeId = 'hud' | 'modernist' | 'midnight' | 'paper' | 'contrast';
 export type MotionPref = 'on' | 'off';
 
-export const THEMES: { id: ThemeId; label: string; blurb: string }[] = [
-  { id: 'hud', label: 'HUD', blurb: 'Dark tactical readout' },
-  { id: 'modernist', label: 'Swiss', blurb: 'Light editorial' },
+/**
+ * The ids are historical and deliberately unchanged.
+ *
+ * `hud` and `modernist` name a look; the labels now name what people actually
+ * pick by, which is dark or light. Renaming the ids would break every
+ * `[data-theme='hud']` selector across four stylesheets and silently reset the
+ * saved preference of anyone who already has one, for a cosmetic gain.
+ */
+export const THEMES: { id: ThemeId; label: string; blurb: string; scheme: 'dark' | 'light' }[] = [
+  { id: 'hud', label: 'Dark', blurb: 'Tactical readout — the original', scheme: 'dark' },
+  { id: 'midnight', label: 'Midnight', blurb: 'Deep indigo, softer contrast', scheme: 'dark' },
+  { id: 'modernist', label: 'Light', blurb: 'Swiss editorial', scheme: 'light' },
+  { id: 'paper', label: 'Paper', blurb: 'Warm ivory, low glare', scheme: 'light' },
+  { id: 'contrast', label: 'Contrast', blurb: 'Maximum separation, no chrome', scheme: 'dark' },
 ];
+
+const THEME_IDS = THEMES.map((t) => t.id);
 
 const THEME_KEY = 'paragon.theme';
 const MOTION_KEY = 'paragon.motion';
@@ -15,7 +28,7 @@ const MOTION_KEY = 'paragon.motion';
 function initialTheme(): ThemeId {
   if (typeof window === 'undefined') return 'hud';
   const saved = window.localStorage.getItem(THEME_KEY);
-  if (saved === 'hud' || saved === 'modernist') return saved;
+  if (saved && (THEME_IDS as string[]).includes(saved)) return saved as ThemeId;
   return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'modernist' : 'hud';
 }
 
@@ -58,7 +71,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((t: ThemeId) => setThemeState(t), []);
   const setMotion = useCallback((m: MotionPref) => setMotionState(m), []);
-  const toggleTheme = useCallback(() => setThemeState((t) => (t === 'hud' ? 'modernist' : 'hud')), []);
+  // Cycles through the list rather than flipping a pair, now that there are
+  // more than two. The keyboard shortcut and any caller that just wants "the
+  // next one" keeps working without knowing how many exist.
+  const toggleTheme = useCallback(
+    () => setThemeState((t) => THEME_IDS[(THEME_IDS.indexOf(t) + 1) % THEME_IDS.length]),
+    [],
+  );
   const toggleMotion = useCallback(() => setMotionState((m) => (m === 'on' ? 'off' : 'on')), []);
 
   const value = useMemo<ThemeContextValue>(

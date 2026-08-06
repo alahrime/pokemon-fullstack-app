@@ -20,8 +20,18 @@ function defsIn(selector){
   const body = themeCss.slice(start,end);
   return new Set([...body.matchAll(/(--[\w-]+)\s*:/g)].map(m=>m[1]));
 }
-const hud = defsIn(":root,\n:root[data-theme='hud']") ?? defsIn(":root[data-theme='hud']");
-const swiss = defsIn(":root[data-theme='modernist']");
+// Every theme block in themes.css, discovered rather than listed — adding a
+// theme should not require editing its own guard.
+const THEMES = [...themeCss.matchAll(/:root\[data-theme='([\w-]+)'\]/g)]
+  .map((m) => m[1])
+  .filter((v, i, a) => a.indexOf(v) === i);
+const defs = new Map();
+// `hud` shares its block with the bare :root default.
+defs.set('hud', defsIn(":root,\n:root[data-theme='hud']") ?? defsIn(":root[data-theme='hud']"));
+for (const t of THEMES) {
+  if (t === 'hud') continue;
+  defs.set(t, defsIn(`:root[data-theme='${t}']`) ?? new Set());
+}
 
 // Theme-independent primitives.
 const other = new Set();
@@ -54,20 +64,47 @@ const LOCAL = new Set([
 // literal scan only ever sees the prefix. Both sets live outside the themes
 // deliberately: they're game brand constants and must not differ per theme.
 const IGNORE_PREFIX = ['--type-', '--lg-'];
-const miss = { hud: [], swiss: [] };
+// The reference contract is the union of what every theme defines. A token in
+// one theme and not another is the failure this exists to catch: the value
+// falls through to the :root default and the theme is subtly wrong with
+// nothing reporting it.
+const contract = new Set();
+for (const set of defs.values()) for (const t of set) contract.add(t);
+
+const missingUsed = new Map();
 for (const [tok, where] of used) {
   if (LOCAL.has(tok) || other.has(tok)) continue;
   if (IGNORE_PREFIX.some((pre) => tok.startsWith(pre))) continue;
-  if (!hud.has(tok)) miss.hud.push(`${tok}  ← ${[...where].join(', ')}`);
-  if (!swiss.has(tok)) miss.swiss.push(`${tok}  ← ${[...where].join(', ')}`);
+  for (const [name, set] of defs) {
+    if (!set.has(tok)) {
+      if (!missingUsed.has(name)) missingUsed.set(name, []);
+      missingUsed.get(name).push(`${tok}  \u2190 ${[...where].join(', ')}`);
+    }
+  }
 }
 
-// Parity: any token defined in one theme but not the other.
-const onlyHud = [...hud].filter(t=>!swiss.has(t));
-const onlySwiss = [...swiss].filter(t=>!hud.has(t));
+const gaps = [];
+for (const [name, set] of defs) {
+  const missing = [...contract].filter((t) => !set.has(t));
+  if (missing.length) gaps.push({ name, missing });
+}
 
-console.log(`tokens used: ${used.size} | hud defines: ${hud.size} | swiss defines: ${swiss.size}`);
-console.log('\nUNDEFINED IN HUD:', miss.hud.length ? '\n  '+miss.hud.join('\n  ') : ' none');
-console.log('UNDEFINED IN SWISS:', miss.swiss.length ? '\n  '+miss.swiss.join('\n  ') : ' none');
-console.log('\nPARITY — only in hud:', onlyHud.length?onlyHud.join(', '):'none');
-console.log('PARITY — only in swiss:', onlySwiss.length?onlySwiss.join(', '):'none');
+console.log(`themes: ${[...defs.keys()].join(', ')}`);
+console.log(`contract: ${contract.size} tokens | ` +
+  [...defs].map(([n, s2]) => `${n} ${s2.size}`).join(' | '));
+
+// Tokens a stylesheet uses that a theme never defines. Reported, not fatal:
+// several are set inline per element (--t1, --tab-hue) or read with a
+// fallback, and both are legitimate.
+for (const [name, list] of missingUsed) {
+  if (list.length) console.log(`\nused but undefined in ${name}:\n  ` + list.join('\n  '));
+}
+
+if (gaps.length) {
+  console.log('\nPARITY FAILURES');
+  for (const g of gaps) console.log(`  ${g.name} is missing: ${g.missing.join(', ')}`);
+  console.log('\nEvery theme must define every token any theme defines, or the');
+  console.log('value silently falls through to the :root default.');
+  process.exit(1);
+}
+console.log('\nPARITY — every theme defines the full contract');

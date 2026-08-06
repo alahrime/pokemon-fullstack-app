@@ -673,14 +673,37 @@ that before. It is a positive argument for the Cores and Teams views, where
 cyclic structure is the subject rather than the error term, and it is *not* an
 argument that either ranking is broken.
 
-**The two rankings agree at rho 0.87–0.94 overall and disagree sharply at the
-head** — Registeel is 2nd on the composite and 92nd on Bradley-Terry, Carbink
-is 1st on both. Some of that is a genuine difference in question; some is a
-design choice worth flagging before anyone reads too much into it: **the fit
-weights every opponent equally over the whole field, with no tier and no
-relevance weighting**, so it answers "strongest against everything released"
-while the composite answers "strongest against the tier". That is not
-apples-to-apples and the Diagnostics screen says so.
+**Now fitted per tier, and that changed the finding.** The first version ran one
+fit over the whole field, which was not comparable with a composite computed
+against a tier — and worse, the Diagnostics screen's tier control moved only one
+of the two columns. Restricting the fit costs nothing: it is a closed-form row
+mean over a submatrix, no battles.
+
+Doing it per tier revealed what the single fit had hidden. Cyclic share is
+**not uniform across the field**, and every restricted pool is MORE cyclic than
+the full roster:
+
+| league | top 50 | 100 | 200 | 300 | 500 | all |
+|---|---|---|---|---|---|---|
+| great | 19.5% | 21.4% | **22.5%** | 22.2% | 22.2% | 17.8% |
+| ultra | 21.4% | 22.1% | **23.0%** | 22.6% | 21.6% | 18.3% |
+| master | 19.6% | **21.8%** | 19.4% | 17.3% | 16.0% | 16.0% |
+
+Ultra's top 200 reaches 23.0% against the 25% ceiling — 92% of the way to
+maximally cyclic. The whole-field number is *lower* because the tail is where
+the transitive Pokemon are: losing to everything is perfectly orderable, and
+several hundred such entries dilute the measurement.
+
+**So the format is least rankable exactly where it is played.** The single
+whole-field fit reported 17.8% and understated the case; the honest figure for
+the meta people actually see is 21-23%.
+
+Master behaves differently — it peaks at the top 100 and falls away to 16% —
+which fits a league decided more by raw stats than by coverage.
+
+The two rankings agree at rho 0.87–0.94 and diverge sharply at the head. At
+matching tiers the comparison is now like with like, and the head still moves:
+Tinkaton leads Bradley-Terry over the top 50, Carbink over the wider pools.
 
 Next, if this is taken further: low-rank bilinear terms are the standard
 extension for modelling the cyclic part explicitly, and would turn the residual

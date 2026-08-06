@@ -31,8 +31,9 @@ interface RawEntry {
   /** Second-derivative scores per tier, each in CATEGORIES order. */
   d2: Record<string, number[]>;
   pvpoke: { score: number; scores: number[] } | null;
-  /** Latent strength from the Bradley-Terry fit, log-odds. See btFit. */
-  bt?: number;
+  /** Latent strength per tier from the Bradley-Terry fit, log-odds. See btFit.
+   *  null where the ref is outside that tier. */
+  bt?: Record<string, number | null>;
 }
 
 /**
@@ -48,6 +49,8 @@ export interface BTFitSummary {
   rmse: number;
   cyclicPct: number;
   sampled: number;
+  /** Refs inside this tier — the population the fit was run over. */
+  n: number;
   worst: { a: string; b: string; observed: number; predicted: number }[];
 }
 
@@ -57,7 +60,7 @@ interface RawLeague {
   defaultTier: string;
   categories: CategoryId[];
   entries: RawEntry[];
-  btFit?: BTFitSummary;
+  btFit?: Record<string, BTFitSummary>;
 }
 
 const RANKINGS = rankingsRaw as unknown as Record<LeagueId, RawLeague>;
@@ -67,17 +70,37 @@ export const TIERS = (lg: LeagueId): string[] => RANKINGS[lg].tiers;
 export const DEFAULT_TIER = (lg: LeagueId): string => RANKINGS[lg].defaultTier;
 export const ENGINE_REV = (lg: LeagueId): number => RANKINGS[lg].engineRev;
 
-/** The Bradley-Terry diagnostics for a league, if the build emitted them. */
-export const btFitFor = (lg: LeagueId): BTFitSummary | undefined => RANKINGS[lg].btFit;
+/** The Bradley-Terry diagnostics for a league and tier, if the build emitted them. */
+export const btFitFor = (lg: LeagueId, tier: string): BTFitSummary | undefined =>
+  RANKINGS[lg].btFit?.[tier];
+
+/**
+ * Cyclic share at every tier, which is the finding a single whole-field fit
+ * hid: transitivity is not uniform. The head of a format is where Pokemon are
+ * picked to check each other, so it is where cycles concentrate — every tier
+ * measures MORE cyclic than the full roster, whose long transitive tail (bad
+ * Pokemon lose to everything, which is perfectly orderable) dilutes it.
+ */
+export function btCyclicByTier(lg: LeagueId): { tier: string; cyclicPct: number; n: number }[] {
+  const fit = RANKINGS[lg].btFit;
+  if (!fit) return [];
+  return RANKINGS[lg].tiers
+    .filter((t) => fit[t])
+    .map((t) => ({ tier: t, cyclicPct: fit[t].cyclicPct, n: fit[t].n }));
+}
 
 /**
  * Both rankings side by side: the composite Overall and the Bradley-Terry
  * strength, each with its own position, for the Diagnostics screen.
  */
 export function btComparison(lg: LeagueId, tier: string) {
-  const ent = RANKINGS[lg].entries.filter((e) => e.bt !== undefined && e.d2[tier]);
+  // Both sides restricted to the same tier, so the comparison is like with
+  // like. The fit is run per tier for exactly this reason.
+  const ent = RANKINGS[lg].entries.filter(
+    (e) => e.d2[tier] && e.bt?.[tier] !== undefined && e.bt?.[tier] !== null,
+  );
   const byComposite = [...ent].sort((a, b) => b.d2[tier][0] - a.d2[tier][0]);
-  const byBt = [...ent].sort((a, b) => (b.bt ?? 0) - (a.bt ?? 0));
+  const byBt = [...ent].sort((a, b) => (b.bt![tier] ?? 0) - (a.bt![tier] ?? 0));
   const cPos = new Map(byComposite.map((e, i) => [e.ref, i + 1]));
   const bPos = new Map(byBt.map((e, i) => [e.ref, i + 1]));
   const rows = byComposite.map((e) => ({
@@ -85,7 +108,7 @@ export function btComparison(lg: LeagueId, tier: string) {
     name: e.name,
     composite: e.d2[tier][0],
     compositeRank: cPos.get(e.ref)!,
-    bt: e.bt!,
+    bt: e.bt![tier] ?? 0,
     btRank: bPos.get(e.ref)!,
     delta: cPos.get(e.ref)! - bPos.get(e.ref)!,
   }));

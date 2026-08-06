@@ -583,10 +583,45 @@ async function main() {
         R[a * nF + b] = sum / (S * P);
       }
     }
-    const bt = fitBradleyTerry(R, nF);
+
+    // Fit PER TIER, not once over the whole field.
+    //
+    // The composite is computed against a tier, so a whole-field fit was not
+    // comparing like with like — and the Diagnostics screen's tier control
+    // moved only one of the two columns. Restricting the fit to a tier costs
+    // nothing: it is a closed-form row mean over a submatrix, no battles.
+    //
+    // It also answers a question the single fit could not. Transitivity is not
+    // uniform across the field: the head of a format is where Pokemon are
+    // chosen to check each other, so it is where cycles should concentrate.
+    const btTiers: Record<string, ReturnType<typeof fitBradleyTerry>> = {};
+    for (const t of TIERS) {
+      const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
+      const idx = Array.from(keep).sort((x, y) => x - y);
+      const m = idx.length;
+      const sub = new Float64Array(m * m);
+      for (let a = 0; a < m; a++) {
+        for (let b = 0; b < m; b++) {
+          if (a === b) continue;
+          sub[a * m + b] = R[idx[a] * nF + idx[b]];
+        }
+      }
+      const fit = fitBradleyTerry(sub, m);
+      // Re-expand to full-field indices so the emit step stays simple.
+      const full = new Float64Array(nF).fill(NaN);
+      idx.forEach((refI, a) => { full[refI] = fit.strength[a]; });
+      btTiers[tierLabel(t)] = {
+        ...fit,
+        strength: full,
+        worst: fit.worst.map((w) => ({ ...w, a: idx[w.a], b: idx[w.b] })),
+      };
+    }
     console.log(
-      `  ${lg}: Bradley-Terry R2 ${bt.r2.toFixed(3)}  rmse ${bt.rmse.toFixed(3)}  ` +
-        `cyclic triples ${((100 * bt.cycles.cyclic) / (bt.cycles.sampled || 1)).toFixed(1)}%`,
+      `  ${lg}: Bradley-Terry by tier — ` +
+        TIERS.map((t) => {
+          const f = btTiers[tierLabel(t)];
+          return `${tierLabel(t)}:${((100 * f.cycles.cyclic) / (f.cycles.sampled || 1)).toFixed(1)}%`;
+        }).join('  '),
     );
 
     const ref = loadReference(lg);
@@ -658,10 +693,16 @@ async function main() {
         d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)], recIdx);
       return {
         ref: r,
-        // Latent strength from the Bradley-Terry fit, on the log-odds scale.
-        // Emitted alongside the composite rather than replacing it — the two
-        // answer different questions and the Diagnostics screen compares them.
-        bt: Math.round(bt.strength[refPos.get(r)!] * 1000) / 1000,
+        // Latent strength from the Bradley-Terry fit, per tier, on the
+        // log-odds scale. Emitted alongside the composite rather than
+        // replacing it — the two answer different questions, and the
+        // Diagnostics screen compares them at a matching tier.
+        bt: Object.fromEntries(
+          TIERS.map((t) => {
+            const v = btTiers[tierLabel(t)].strength[refPos.get(r)!];
+            return [tierLabel(t), Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null];
+          }),
+        ),
         name: displayName(r),
         d2,
         // [label, overall-at-default-tier]. Index 0 is the league's rated set
@@ -683,19 +724,25 @@ async function main() {
       // The key for every `rec` / `best` array below.
       categories: CATEGORIES.map((c) => c.id),
       entries,
-      // How well ONE number can describe this format at all. See §1n.
-      btFit: {
-        r2: Math.round(bt.r2 * 1000) / 1000,
-        rmse: Math.round(bt.rmse * 1000) / 1000,
-        cyclicPct: Math.round((1000 * bt.cycles.cyclic) / (bt.cycles.sampled || 1)) / 10,
-        sampled: bt.cycles.sampled,
-        worst: bt.worst.slice(0, 12).map((w) => ({
-          a: refs[w.a],
-          b: refs[w.b],
-          observed: Math.round(w.observed * 100) / 100,
-          predicted: Math.round(w.predicted * 100) / 100,
-        })),
-      },
+      // How well ONE number can describe this format, per tier. See §1n.
+      btFit: Object.fromEntries(
+        TIERS.map((t) => {
+          const f = btTiers[tierLabel(t)];
+          return [tierLabel(t), {
+            r2: Math.round(f.r2 * 1000) / 1000,
+            rmse: Math.round(f.rmse * 1000) / 1000,
+            cyclicPct: Math.round((1000 * f.cycles.cyclic) / (f.cycles.sampled || 1)) / 10,
+            sampled: f.cycles.sampled,
+            n: f.strength.reduce((acc, v) => acc + (Number.isFinite(v) ? 1 : 0), 0),
+            worst: f.worst.slice(0, 12).map((w) => ({
+              a: refs[w.a],
+              b: refs[w.b],
+              observed: Math.round(w.observed * 100) / 100,
+              predicted: Math.round(w.predicted * 100) / 100,
+            })),
+          }];
+        }),
+      ),
     };
     matrices[lg] = { engineRev: ENGINE_REV, refs: entries.slice(0, TEAM_POOL_N).map((e) => e.ref) };
 

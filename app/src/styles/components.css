@@ -3165,3 +3165,57 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 @media (prefers-reduced-motion: reduce) {
   .diag-bar > span { animation: none; }
 }
+
+/* Cyclic share by tier. A column chart, because the shape across pools is the
+   point — the head of the format is more cyclic than the whole roster, and a
+   row of numbers hides that while bars make it immediate. */
+.diag-tiers { margin-bottom: var(--space-4); }
+.diag-tier-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-2);
+}
+.diag-tier {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: var(--border-hairline) solid transparent;
+  padding: var(--space-2) var(--space-1);
+  color: var(--text-muted);
+  transition: border-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+.diag-tier:hover { color: var(--color-text); border-color: var(--rule-hairline); }
+.diag-tier.is-active {
+  color: var(--color-text);
+  border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 8%, transparent);
+}
+.diag-tier-pct { font-size: var(--text-xs); }
+.diag-tier-bar {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 84px;
+  background: var(--color-neutral-200);
+}
+.diag-tier-bar > span {
+  display: block;
+  width: 100%;
+  background: linear-gradient(180deg, var(--color-accent-2, var(--color-accent)), var(--color-accent));
+  transition: height var(--dur-3) var(--ease-out);
+}
+/* The peak is the whole point of the chart, so it is the one that is marked. */
+.diag-tier.is-peak .diag-tier-pct { color: var(--color-accent); font-weight: 600; }
+.diag-tier.is-peak .diag-tier-bar > span {
+  background: linear-gradient(180deg, var(--color-accent), var(--color-accent));
+}
+.diag-tier-name { color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .diag-tier, .diag-tier-bar > span { transition: none; }
+}

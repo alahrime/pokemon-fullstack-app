@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
-import { DEFAULT_TIER, TIERS, btComparison, btFitFor } from '../lib/rankings';
+import { DEFAULT_TIER, TIERS, btComparison, btCyclicByTier, btFitFor } from '../lib/rankings';
 import { SegButton, SegGroup } from '../components/Seg';
 import { Sprite } from '../components/Sprite';
 import { displayName, parseRef, speciesOf } from '../lib/data';
@@ -39,8 +39,10 @@ export function DiagnosticsScreen() {
   const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
   const [limit, setLimit] = useState(25);
 
-  const fit = btFitFor(league);
+  const fit = btFitFor(league, tier);
+  const byTier = useMemo(() => btCyclicByTier(league), [league]);
   const { rows, rho } = useMemo(() => btComparison(league, tier), [league, tier]);
+  const peak = useMemo(() => byTier.reduce((m, x) => (x.cyclicPct > m.cyclicPct ? x : m), byTier[0]), [byTier]);
 
   // The pairs the fit misses worst come in both directions; one is enough.
   const worst = useMemo(() => {
@@ -87,8 +89,8 @@ export function DiagnosticsScreen() {
             <span style={{ width: `${cyclicOfMax}%` }} />
           </span>
           <span className="diag-stat-note">
-            of {fit.sampled.toLocaleString()} sampled A&gt;B&gt;C&gt;A triples. A perfectly
-            transitive format is 0%. Independent coin flips are 25%.
+            of {fit.sampled.toLocaleString()} sampled A&gt;B&gt;C&gt;A triples among this tier&rsquo;s{' '}
+            {fit.n} Pokémon. A perfectly transitive format is 0%. Independent coin flips are 25%.
           </span>
         </div>
         <div className="diag-stat">
@@ -124,6 +126,34 @@ export function DiagnosticsScreen() {
             disagree far more than this number suggests.
           </span>
         </div>
+      </section>
+
+      {/* Transitivity is not uniform across the field, and that is the finding
+          a single whole-field fit concealed. */}
+      <section className="panel diag-tiers">
+        <div className="hud-label">Cyclic share by opponent pool</div>
+        <div className="diag-tier-row">
+          {byTier.map((t) => (
+            <button
+              key={t.tier}
+              className={`diag-tier${t.tier === tier ? ' is-active' : ''}${t === peak ? ' is-peak' : ''}`}
+              onClick={() => setTier(t.tier)}
+              title={`${t.n} Pokémon in this pool`}
+            >
+              <span className="numeric diag-tier-pct">{t.cyclicPct}%</span>
+              <span className="diag-tier-bar">
+                <span style={{ height: `${Math.min(100, (t.cyclicPct / 25) * 100)}%` }} />
+              </span>
+              <span className="hud-label diag-tier-name">{t.tier === 'all' ? 'All' : t.tier}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-faint diag-sub">
+          Bars read against the 25% ceiling that independent coin flips would produce. Every
+          restricted pool is <strong>more</strong> cyclic than the full roster — the tail is where
+          the transitive Pokémon are, because losing to everything is perfectly orderable. The
+          format is least rankable exactly where it is played.
+        </p>
       </section>
 
       <p className="text-muted diag-read">

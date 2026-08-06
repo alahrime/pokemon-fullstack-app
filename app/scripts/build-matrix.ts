@@ -26,6 +26,7 @@
  */
 import { writeFileSync, readFileSync } from 'node:fs';
 import { fitBradleyTerry } from './bradley-terry';
+import { pressureScore, pressureWeight } from '../src/lib/pressure';
 import { resolve, join } from 'node:path';
 import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { cpus } from 'node:os';
@@ -310,6 +311,8 @@ interface Variant {
   recommended: boolean;
   mon: BattleMon;
   fastTurns: number;
+  /** Pressure, 0–1000. See lib/pressure.ts and BACKLOG §1o. */
+  pressure: number;
   label: string;
 }
 
@@ -332,11 +335,26 @@ function buildPool(lg: LeagueId): { variants: Variant[]; foes: BattleMon[]; refs
         recommended: l.recommended,
         mon: mkBattleMon(best, l.fast, l.charges, sp.types),
         fastTurns: l.fast.turns,
+        // Computed against a FIXED reference field — the default tier — rather
+        // than per tier. Coverage breadth is a property of a movepool against
+        // the meta, not something that should change definition when the
+        // opponent cutoff moves, and recomputing it per tier would be 150M
+        // extra type lookups for a number that means the same thing.
+        pressure: 0,
         label: `${l.fast.name} · ${l.charges.map((c) => c.name).join(' / ')}`,
       });
     });
     const rec = movesFor(sp, lg);
     foes.push(mkBattleMon(best, rec.fast, rec.charges, sp.types));
+  }
+  // Reference field for coverage breadth: the default tier's species.
+  const refField = refs
+    .slice(0, Math.min(DEFAULT_TIER, refs.length))
+    .map((r) => speciesOf(r))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  for (const v of variants) {
+    const sp = speciesOf(v.ref);
+    if (sp) v.pressure = pressureScore(v.mon.fast, v.mon.charges, refField, sp.id);
   }
   return { variants, foes, refs };
 }
@@ -464,7 +482,7 @@ function perRefBest(variants: Variant[], rows: Record<ScenarioId, number>[], ref
   const bestVariant = new Int32Array(nRefs).fill(-1);
   // Overall is normalised against this row set's own maxima, so it has to be
   // built per call — the maxima differ between tiers and between passes.
-  const overallOf = makeOverall(rows, variants.map((v) => v.fastTurns));
+  const overallOf = makeOverall(rows, variants.map((v) => v.fastTurns), variants.map((v) => v.pressure));
   for (let i = 0; i < variants.length; i++) {
     const o = overallOf(i);
     if (o > best[refIdx[i]]) {
@@ -540,6 +558,13 @@ async function main() {
       tierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
     }
 
+    // Index of each ref's rated variant, used by both the d2 opponent weight
+    // and the Bradley-Terry matrix below.
+    const ratedOf = new Int32Array(nF).fill(-1);
+    variants.forEach((v, i) => {
+      if (v.recommended && ratedOf[refIdx[i]] < 0) ratedOf[refIdx[i]] = i;
+    });
+
     // ── Second derivative ───────────────────────────────────────────────────
     // The first pass is now fixed. Feed its Overall back as the opponent
     // weight, so beating the head of the format counts for more than beating
@@ -551,7 +576,22 @@ async function main() {
     // rank. See the note on D2_RANK_POWER for why rank rather than score.
     const d1Min = Math.min(...d1);
     const d1Span = (Math.max(...d1) - d1Min) || 1;
-    const graded = Array.from(d1, (o) => ((o - d1Min) / d1Span) ** D2_POWER);
+    // Opponent pressure, at each foe's own rated loadout — the same number the
+    // Pressure category scores, reused as a weight.
+    //
+    // Beating something that cannot threaten you is worth less than beating
+    // something that can. The floor is deliberately high (PRESSURE_FLOOR) and
+    // this multiplies a weight already graded by strength: stacking two
+    // aggressive curves on one axis is exactly what made the log-rank
+    // experiment regress every league (§1l), so this is a nudge rather than a
+    // second cutoff.
+    const foePressure = new Float64Array(nF);
+    for (let b = 0; b < nF; b++) {
+      const i = ratedOf[b];
+      foePressure[b] = i >= 0 ? pressureWeight(variants[i].pressure) : 1;
+    }
+    const graded = Array.from(d1, (o, i) =>
+      ((o - d1Min) / d1Span) ** D2_POWER * foePressure[i]);
     const d2TierRows: Record<string, Record<ScenarioId, number>[]> = {};
     for (const t of TIERS) {
       const w = new Float64Array(nF);
@@ -564,10 +604,6 @@ async function main() {
     // Ref-by-ref rating matrix at each species' RATED loadout, averaged over
     // every scenario and both shield policies. This is the same data the
     // composite aggregates; the difference is entirely in what is done with it.
-    const ratedOf = new Int32Array(nF).fill(-1);
-    variants.forEach((v, i) => {
-      if (v.recommended && ratedOf[refIdx[i]] < 0) ratedOf[refIdx[i]] = i;
-    });
     const R = new Float64Array(nF * nF);
     const P = POLICIES.length;
     for (let a = 0; a < nF; a++) {
@@ -640,16 +676,18 @@ async function main() {
     // this species' own role scores after each is normalised against the pool's
     // best in that category. See makeOverall.
     const turnsOf = variants.map((v) => v.fastTurns);
+    const pressureOf = variants.map((v) => v.pressure);
     const overallFor = new Map<Record<ScenarioId, number>[], (i: number) => number>();
     const overallIn = (rws: Record<ScenarioId, number>[]) => {
       let f = overallFor.get(rws);
-      if (!f) { f = makeOverall(rws, turnsOf); overallFor.set(rws, f); }
+      if (!f) { f = makeOverall(rws, turnsOf, pressureOf); overallFor.set(rws, f); }
       return f;
     };
     const scoresOf = (rws: Record<ScenarioId, number>[], i: number) =>
       CATEGORIES.map((c) =>
         c.id === 'overall' ? overallIn(rws)(i)
           : c.id === 'consistency' ? consistencyScore(rws[i], turnsOf[i])
+          : c.id === 'pressure' ? pressureOf[i]
           : weightedScore(rws[i], c.weights),
       );
 

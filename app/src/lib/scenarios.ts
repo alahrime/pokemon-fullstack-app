@@ -168,6 +168,7 @@ export type CategoryId =
   | 'switches'
   | 'chargers'
   | 'attackers'
+  | 'pressure'
   | 'consistency';
 
 export interface Category {
@@ -243,6 +244,14 @@ export const CATEGORIES: readonly Category[] = [
     // actually happens: down one is common, down two is not, and sh12 is the
     // same one-shield deficit from the other side of the board.
     weights: { sh01: 0.45, sh12: 0.35, sh02: 0.2 },
+  },
+  {
+    id: 'pressure',
+    label: 'Pressure',
+    blurb:
+      'How reliably this Pokémon can threaten at all, independent of whether it wins: energy generated per turn, how quickly that becomes a charged move, and how much of the field its coverage is not resisted by. A Pokémon that always has a move ready is never a free switch-in.',
+    // Not a weighting — see pressureScore in lib/pressure.ts.
+    weights: {},
   },
   {
     id: 'consistency',
@@ -357,11 +366,17 @@ export function consistencyScore(
 export function makeOverall(
   perScenario: readonly Record<ScenarioId, number>[],
   fastTurns: readonly number[],
+  /** Pressure per variant, 0–1000. See lib/pressure.ts and BACKLOG §1o. */
+  pressures: readonly number[],
 ): (i: number) => number {
   const roleCats = CATEGORIES.filter((c) => c.id !== 'overall');
   const raw = perScenario.map((per, i) =>
     roleCats.map((c) =>
-      c.id === 'consistency' ? consistencyScore(per, fastTurns[i]) : weightedScore(per, c.weights),
+      c.id === 'consistency'
+        ? consistencyScore(per, fastTurns[i])
+        : c.id === 'pressure'
+          ? (pressures[i] ?? 0)
+          : weightedScore(per, c.weights),
     ),
   );
   const max = roleCats.map((_, ci) => Math.max(1, ...raw.map((r) => r[ci])));
@@ -369,12 +384,23 @@ export function makeOverall(
   return (i: number) => {
     // 0–100 per category, floored at 1 so a zero cannot annihilate the product.
     const norm = raw[i].map((v, ci) => Math.max(1, (v / max[ci]) * 100));
-    const consistency = norm[norm.length - 1];
-    const roles = norm.slice(0, -1).sort((a, b) => b - a);
+    // Pressure and consistency are both axes rather than roles, so neither
+    // competes for the 12/6/4/2 slots — they carry their own exponents. See
+    // BACKLOG §1o for why pressure is composed here rather than added to the
+    // rating: the simulator already plays energy and resistance out inside a
+    // matchup, and pricing them again there would charge twice for one thing.
+    const byId = Object.fromEntries(roleCats.map((c, ci) => [c.id, norm[ci]]));
+    const pressure = byId.pressure ?? 1;
+    const consistency = byId.consistency ?? 1;
+    const roles = roleCats
+      .filter((c) => c.id !== 'consistency' && c.id !== 'pressure')
+      .map((c) => byId[c.id])
+      .sort((a, b) => b - a);
     const [s0, s1, s2, s3] = roles;
     const composite = Math.pow(
-      Math.pow(s0, 12) * Math.pow(s1, 6) * Math.pow(s2, 4) * Math.pow(s3, 2) * Math.pow(consistency, 2),
-      1 / 26,
+      Math.pow(s0, 12) * Math.pow(s1, 6) * Math.pow(s2, 4) * Math.pow(s3, 2) *
+        Math.pow(consistency, 2) * Math.pow(pressure, 3),
+      1 / 29,
     );
     // x10 so Overall shares the 0–1000 axis the category scores are shown on.
     // Ordering is what the composite decides; the scale is presentation.

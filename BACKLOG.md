@@ -737,17 +737,58 @@ nowhere, so a Pokemon that always has a move ready and always threatens damage
 gets no credit for it — only for the win or loss that results, which averages
 away the fact that the pressure was never interruptible.
 
-A first cut at the metric: `energyGain / turns` for the rate, the cheapest
-charged move for how often that rate converts into a threat, and the share of
-the tier whose typing does not resist the best available charge. All three are
-already available without a single new battle.
+**BUILT.** `lib/pressure.ts`, and it is a category rather than a rating term.
+Three components on the 0-1000 scale the other categories use: coverage breadth
+(0.5), energy rate (0.3), turns to the cheapest charged move (0.2). Coverage
+carries the most because it is the part a matchup average genuinely cannot
+express — being resisted by a third of the field is a structural fact about a
+movepool, whereas a slow fast move at least shows up as lost tempo in results.
 
-Two cautions before building it. It must not double-count — the sim already
-plays energy and resistance out, so this has to be priced as what those results
-*fail to express* (an availability floor) rather than as a second helping of
-the same effect; §1l is a standing lesson about exactly that. And it should be
-validated against something other than PvPoke rank correlation, which §0 warns
-is not a target and which 94 editor overrides make unreliable in Great anyway.
+Used twice, as asked:
+
+- **As its own axis in the composite**, exponent 3 of 29, beside `consistency`.
+  It does not compete for the 12/6/4/2 role slots because it is not a role.
+- **As an opponent weight** on the graded pass, floored at 0.55. Beating
+  something that cannot threaten you is worth less. The floor is high on
+  purpose: this multiplies a weight already graded by strength, and stacking
+  two aggressive curves on one axis is what made log-rank regress (§1l).
+
+Measured, and it is the best rank agreement the project has recorded — up in
+all three leagues at once, which no previous change managed:
+
+| league | before | after |
+|---|---|---|
+| great | 0.8524 | **0.8718** |
+| ultra | 0.8494 | **0.8676** |
+| master | 0.9109 | **0.9189** |
+
+Target species moved as predicted: Lickilicky +34, Quagsire +40, Medicham +15,
+Empoleon +5, Forretress to #1, and Skarmory correctly demoted 61 places.
+
+**Fearow did not — it fell 11 places, and that is worth understanding rather
+than tuning away.** Its pressure score is high (861), but the opponent-weight
+half discounts *its own* wins when those wins are concentrated among
+low-pressure opponents. The two halves pull against each other for a mon that
+farms the walled part of the field. That is arguably correct behaviour rather
+than a bug, but it is the one prediction from §1o that the build refuted.
+
+The category is not degenerate: spread 260-980 with a median of 808, Carbink
+1088th and Skarmory 1058th, Lickilicky 53rd. Gigalith and Porygon2 top the raw
+category on Lock On's five energy per turn without being top overall, which is
+the right shape — pressure is one axis of seven, not a verdict.
+
+Both cautions were honoured and both still stand. It does not double-count: the
+sim plays energy and resistance out *inside* a matchup, so this is composed as
+a separate axis describing what those results fail to express — availability —
+rather than added to the rating.
+
+And the validation caveat has not gone away. **Lickilicky and Empoleon both
+carry PvPoke editor overrides**, so for those two, agreeing with PvPoke partly
+means agreeing with a person's judgement rather than a simulation. The gain
+spans 773 species in Great and cannot be explained by 94 overrides, but the
+headline should not rest on the species the metric was designed around. An
+independent check — real usage data, or tournament results — is still missing
+and would be the thing that settles it.
 
 A related measurement that did NOT support the idea, recorded so nobody repeats
 it: a plain *rating floor* (the 10th percentile of a mon's matchup ratings)

@@ -31,9 +31,10 @@ export default defineConfig({
         'src/vite-env.d.ts',
         'src/data/**',
         // A WebGL canvas has no meaningful assertions in jsdom; it is verified
-        // in the browser instead.
+        // in the browser instead. It is the only screen in this list — the
+        // sprite audit sat here too, as a convenience rather than because it
+        // resisted testing, and now has a suite of its own.
         'src/components/Heatmap3D.tsx',
-        'src/screens/SpriteAudit.tsx',
       ],
     },
   },

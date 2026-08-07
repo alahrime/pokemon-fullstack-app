@@ -26,20 +26,20 @@ making that call explicitly; two of them have caught real bugs.
 ## Tests
 
 ```bash
-npm run test          # 571 tests, ~10s
+npm run test          # 603 tests, ~10s
 npm run test:watch
 npm run coverage
 ```
 
 `npm run check` ends with the suite, so the gate covers it.
 
-98.9% of statements, 91.0% of branches, and every one of the 510 functions is
-executed at least once. Those figures are *of what is included* — `vitest.config.ts` excludes the
-generated data, the entry point, `Heatmap3D.tsx` (a WebGL canvas that cannot
-mount in jsdom) and `SpriteAudit.tsx`. The first three are genuinely untestable
-here; **SpriteAudit is excluded for convenience** — it is an ordinary React
-screen behind the `AUDIT === 'sprites'` flag and nothing about it resists a
-test.
+98.9% of statements, 91.1% of branches, and every one of the 521 functions is
+executed at least once. Those figures are *of what is included* —
+`vitest.config.ts` excludes the generated data, the entry point, and
+`Heatmap3D.tsx` (a WebGL canvas that cannot mount in jsdom). That list used to
+carry `SpriteAudit.tsx` as well, for convenience rather than necessity; it is an
+ordinary React screen behind the `AUDIT === 'sprites'` flag, and it now has a
+suite of its own.
 
 Three things about this suite that are not obvious:
 

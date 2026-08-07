@@ -363,6 +363,30 @@ export function consistencyScore(
  * property of the pool, not of one Pokemon: nothing can be scored until every
  * candidate has been scored.
  */
+/**
+ * The composite's exponents, exported so prose about it can be derived.
+ *
+ * `exportAll`'s `scale` field described Overall as "a weighted geometric mean
+ * of the five role scores, strongest weighted 12x" long after Pressure and
+ * Consistency became axes with their own exponents — and it was never quite
+ * right about the roles either, since the weakest of the five carries no slot
+ * at all. That text ships inside the JSON export, so it is documentation with
+ * a reader. Deriving it from the same constants the maths uses is the rule the
+ * README states for `QUERY_FORMS` and `UNSIMULATED_IDS`, applied here.
+ */
+export const OVERALL_EXPONENTS = {
+  /** Slots for the role scores, strongest first. Any role past the last is dropped. */
+  roles: [12, 6, 4, 2],
+  consistency: 2,
+  pressure: 3,
+} as const;
+
+/** What the geometric mean is rooted by — every exponent that is spent. */
+export const OVERALL_ROOT =
+  OVERALL_EXPONENTS.roles.reduce((a, b) => a + b, 0) +
+  OVERALL_EXPONENTS.consistency +
+  OVERALL_EXPONENTS.pressure;
+
 export function makeOverall(
   perScenario: readonly Record<ScenarioId, number>[],
   fastTurns: readonly number[],
@@ -396,11 +420,17 @@ export function makeOverall(
       .filter((c) => c.id !== 'consistency' && c.id !== 'pressure')
       .map((c) => byId[c.id])
       .sort((a, b) => b - a);
-    const [s0, s1, s2, s3] = roles;
+    // Roles past the last slot carry no weight at all — with five roles and
+    // four slots, a species' weakest role is dropped rather than diluted.
+    let product = 1;
+    OVERALL_EXPONENTS.roles.forEach((e, n) => {
+      product *= Math.pow(roles[n], e);
+    });
     const composite = Math.pow(
-      Math.pow(s0, 12) * Math.pow(s1, 6) * Math.pow(s2, 4) * Math.pow(s3, 2) *
-        Math.pow(consistency, 2) * Math.pow(pressure, 3),
-      1 / 29,
+      product *
+        Math.pow(consistency, OVERALL_EXPONENTS.consistency) *
+        Math.pow(pressure, OVERALL_EXPONENTS.pressure),
+      1 / OVERALL_ROOT,
     );
     // x10 so Overall shares the 0–1000 axis the category scores are shown on.
     // Ordering is what the composite decides; the scale is presentation.

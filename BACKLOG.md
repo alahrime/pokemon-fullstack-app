@@ -16,17 +16,25 @@ browser pane closes any open panel or dropdown between tool calls, so the
 editor and the dropdown cannot be driven from a script — the panel is gone by
 the time the next call runs. A human glance settles all three in a minute.
 
-**`exportAll`'s `scale` prose is stale.** `lib/rankings.ts` still describes the
-composite as "a weighted geometric mean of the five role scores", which predates
-Pressure and Consistency — those are axes with their own exponents (pressure³,
-consistency²) and are not among the 12/6/4/2 role slots. The text ships in the
-JSON export. Audited but deliberately left alone; fixing it is a one-line
-change, and worth doing next time that file is open.
+Still open. The suggestion panel added since is *not* on that list — it was
+driven and measured in the running app on both builder screens, since it needs
+no open dropdown to survive between calls.
 
-**`SpriteAudit.tsx` is excluded from coverage for convenience.** Unlike the
-other exclusions it is an ordinary React screen behind a flag. Either test it or
-say in `vitest.config.ts` that it is dev-only rather than untestable — the
-current comment implies the latter.
+**~~`exportAll`'s `scale` prose is stale.~~ DONE, and now derived.** It is built
+from `OVERALL_EXPONENTS`/`OVERALL_ROOT` in `lib/scenarios.ts`, the constants
+`makeOverall` composes with, so it cannot drift again. Two things the old text
+got wrong rather than one: Pressure and Consistency are axes with their own
+exponents, and the *weakest* of the five roles carries no slot at all — there
+are five roles and four slots, so it is dropped, not diluted. The refactor that
+made the exponents constants is behaviour-preserving: identical sha256 over 400
+composed rows before and after.
+
+**~~`SpriteAudit.tsx` is excluded from coverage for convenience.~~ DONE, by
+testing it.** `screens/__tests__/sprite-audit.test.tsx` covers the filter, the
+load counter, the fallback to the dex image, the once-only miss log and the
+copy button, including a browser with no `navigator.clipboard`. It is out of the
+`vitest.config.ts` exclusion list, which now holds only `Heatmap3D.tsx` — the
+one genuinely untestable screen. Functions covered 510 → 521, all executed.
 
 **Artefact staleness is now asserted at load, but only shallowly.**
 `lib/artefact.ts` checks that each league carries the top-level fields its
@@ -1050,6 +1058,64 @@ numbers are a build artefact so the cache needs no invalidation.
 `ENGINE_REV` in `build-matrix.ts` is at **5**. Bump it whenever an engine
 change would move the numbers; the UI reads it back so a stale artefact is
 visible rather than quietly wrong.
+
+## 2d. Suggested completions — the live suggester, and how it returned nothing
+
+`suggestCompletions` in `lib/teambuild.ts`, behind the **Suggest next pick**
+button on both builder screens. It had two ways of producing an empty panel and
+one of scoring the wrong game, all three from the same root: the screen asked
+for the completion to a team of **three** whatever size it was, and the rules
+were applied to the whole roster.
+
+**Measured, before and after.** Suggestions returned, by league and partial size:
+
+| | partial 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| Show 6, before | 12 | 12 | 12 | **0** | **0** |
+| Show 6, after | 12 | 12 | 12 | 12 | 12 |
+
+All three leagues, identically. On the GBL screen the same rule emptied the list
+for any two picks sharing a typing — Registeel + Skarmory, an ordinary Great
+pairing, offered nothing.
+
+**The ABC rule cannot be charged to the user's own picks.** Discovery
+*constructs* teams and may reject one that repeats a typing (`MAX_SHARED_TYPES_3
+= 0`, `_6 = 2` in `build-teams.ts`); the live builder cannot, because the
+existing members are already on the board. Five arbitrary Pokemon always share
+more than two typings, so testing the whole roster against the nominal cap
+rejected every candidate. `completionPool` now floors the cap at what the roster
+already spends — the candidate is asked not to make things worse — and relaxes
+one step at a time past that, as discovery does with an empty stratum. The
+applied allowance is printed under the list rather than left silent.
+
+**A six is scored as the matrix game, not as a longer chain.** Filling the
+fourth slot by simulating a four-Pokemon chain against sampled threes measures a
+game nobody plays. Each candidate is now valued as the mean over sampled
+opposing sixes of the best its lines can guarantee against their best answer.
+The max sits *inside* the mean, unlike `analyseShow6`, because you re-pick
+against each opponent you meet — under the stricter one-line-for-the-whole-field
+reading a sixth member is worth nothing whenever the existing five already hold
+one good line, which is exactly when the question is asked.
+
+Two cheaper scorings were measured and rejected. Best line against *unanswered*
+sampled threes saturates — 100% and all 30 candidates tied. Share of opposing
+sixes held to a positive floor is too coarse at this field size: 3 distinct
+values across 30. The mean floor separates 93 of 97. Cost is 165ms at two
+members to 1.9s at five, the same order as the Analyse button beside it, and
+only because line floors are cached across candidates.
+
+Still open here:
+
+- **The six's field is 8 opposing sixes**, chosen for latency. Their 20 lines
+  each make it 160 opposing threes, but they are drawn from 8 rosters and are
+  not independent. Worth a sensitivity check before reading small gaps between
+  adjacent candidates.
+- **A floor is a margin, not a rate**, and is routinely negative for a partial
+  roster — a four cannot answer a full six. The card labels it `floor` rather
+  than `win rate` for that reason. If it ever wants a 0–100 presentation, that
+  is a scale decision, not a formatting one.
+- **`suggest` passes `builds` now**, so a slot built through the modal is scored
+  on the moves it carries. Discovery still does not sweep movesets (§7).
 
 ## 3. Battle simulator accuracy — the Lickilicky case is CLOSED
 

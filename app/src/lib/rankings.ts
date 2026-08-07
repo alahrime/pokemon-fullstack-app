@@ -1,6 +1,12 @@
 import rankingsRaw from '../data/rankings.json';
 import matrixRaw from '../data/matrix.json';
-import { CATEGORIES, PVPOKE_SCORE_COLUMNS, type CategoryId } from './scenarios';
+import {
+  CATEGORIES,
+  OVERALL_EXPONENTS,
+  OVERALL_ROOT,
+  PVPOKE_SCORE_COLUMNS,
+  type CategoryId,
+} from './scenarios';
 import type { LeagueId } from './types';
 import { leagueArtefact } from './artefact';
 
@@ -245,6 +251,27 @@ export function rankingsFor(
 }
 
 /**
+ * What the numbers in the export mean, derived from the maths that makes them.
+ *
+ * This ships inside the JSON a reader takes away, so it is the one piece of
+ * prose here with an audience that cannot check it against the source. Built
+ * from `OVERALL_EXPONENTS` for that reason: the previous hand-written version
+ * still called Overall "a weighted geometric mean of the five role scores",
+ * which predated Pressure and Consistency becoming axes with their own
+ * exponents, and glossed over the weakest role carrying no slot at all.
+ */
+export const OVERALL_SCALE_NOTE = [
+  'Category columns are 0-1000 battle ratings (health kept + damage dealt, with PvPoke',
+  'shield-pressure credit, a soft cap on blowouts above 700 and a curve on losses below 300).',
+  'Overall is NOT a battle rating: it is a weighted geometric mean, each factor normalised',
+  'against the best in its category, rooted by the total weight',
+  `(${OVERALL_ROOT}) and shown x10. The role scores are sorted strongest first and take the`,
+  `slots ${OVERALL_EXPONENTS.roles.join('/')} — a species' remaining roles carry no weight.`,
+  `Pressure (^${OVERALL_EXPONENTS.pressure}) and Consistency (^${OVERALL_EXPONENTS.consistency})`,
+  'are axes rather than roles and do not compete for those slots. Only its order is meaningful.',
+].join(' ');
+
+/**
  * The whole league as one nested object, for export.
  *
  * Kept nested rather than flattened: the same species appears in 84 strata, so
@@ -261,7 +288,7 @@ export function exportAll(lg: LeagueId) {
     defaultTier: league.defaultTier,
     categories: league.categories,
     passes: ['d1', 'd2'] as RankOrder[],
-    scale: 'Category columns are 0-1000 battle ratings (health kept + damage dealt, with PvPoke shield-pressure credit, a soft cap on blowouts above 700 and a curve on losses below 300). Overall is NOT a battle rating: it is a weighted geometric mean of the five role scores, each normalised against the best in its category, strongest role weighted 12x, shown x10. Only its order is meaningful.',
+    scale: OVERALL_SCALE_NOTE,
     species: league.entries.map((e) => ({
       ref: e.ref,
       name: e.name,

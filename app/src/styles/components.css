@@ -1649,7 +1649,6 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* ── Team builders ──────────────────────────────────────────────────────── */
 /* The screens that are a stack of panels. */
 .team-builder, .team-report, .cores-screen { display: flex; flex-direction: column; gap: var(--space-4); }
-.team-slots { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
 .team-slot {
   display: flex;
   flex-direction: column;
@@ -1763,8 +1762,13 @@ textarea.input { min-height: 90px; resize: vertical; }
    the 15% basis, so every card grew to fill its own row and a six-team became
    six rows tall. `auto-fit` + a pixel minimum packs predictably at any width. */
 .bt-members { display: grid; flex: 1; gap: var(--space-2); min-width: 0; }
-.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+/* Minimums sized to the names, not to the sprites. At 132px the name had a
+   75px box and 29 of 150 rendered names overflowed it — "Sandslash (Alolan)
+   (Shadow)" wants 163px on one line. Names wrap to two lines now, so the
+   minimum only has to fit half of that plus the sprite; 156px keeps all six
+   members of a Show 6 on one row, which 178px did not. */
+.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }
+.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(156px, 1fr)); }
 .bt-member {
   display: flex;
   align-items: center;
@@ -2224,11 +2228,21 @@ textarea.input { min-height: 90px; resize: vertical; }
 .suggest-why { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-2xs); }
 .suggest-covers { display: flex; align-items: center; gap: 2px; color: var(--text-muted); }
 
-/* Team slots hold full cards now, so they need room rather than a fixed box. */
+/* Team slots hold full cards, so they need room rather than a fixed box — and
+   a count that divides the roster. auto-fit gave five columns at desk width,
+   so a Show 6 landed five-and-one: a five-team with an orphan. Three divides
+   both rosters: a team of three is one row, a Show 6 is 3x2, and each card
+   still has room for its stats. */
 .team-slots {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
+}
+@media (max-width: 760px) {
+  .team-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .team-slots { grid-template-columns: minmax(0, 1fr); }
 }
 .team-slot.is-empty {
   display: flex;
@@ -4219,4 +4233,21 @@ th.bt-matrix-head { text-align: center; }
 .rs-shadow-table th:first-child,
 .rs-shadow-table td:first-child {
   width: 46%;
+}
+
+/* ── Team cards: let long names wrap rather than truncate ────────────────── */
+/* A regional Shadow form is three words and two bracketed qualifiers, and no
+   card width that keeps six on a row makes that one line — "Sandslash
+   (Alolan) (Shadow)" needs three. It gets three, but every card reserves two,
+   so the common case keeps a steady height and only a row containing a very
+   long name grows. Grid stretch keeps the cards in that row equal. */
+.pc-compact .pc-name,
+.pc-full .pc-name {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  min-height: calc(2 * 1.1em);
 }

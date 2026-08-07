@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { renderApp } from '../../test/render';
@@ -204,5 +205,33 @@ describe('small components', () => {
     // a title, so announcing the species twice would be worse than not at all.
     expect(img.getAttribute('alt')).toBe('');
     expect(img.getAttribute('loading')).toBe('lazy');
+  });
+});
+
+describe('card and slot layout rules', () => {
+  const css = () => readFileSync('src/styles/components.css', 'utf8');
+
+  it('lets long names wrap on both card sizes that show one', () => {
+    // Measured in the browser: "Sandslash (Alolan) (Shadow)" wants 191px of a
+    // 109px box on a full card and 163px of 75px on a compact one. No width
+    // that keeps a roster on one row fixes that, so the name wraps.
+    const block = css().slice(css().indexOf('.pc-compact .pc-name'));
+    expect(block.slice(0, 400)).toContain('.pc-full .pc-name');
+    expect(block.slice(0, 400)).toMatch(/line-clamp:\s*3/);
+  });
+
+  it('lays the team slots out in a count that divides both rosters', () => {
+    // auto-fit gave five columns at desk width, so a Show 6 landed five-and-one.
+    const i = css().indexOf('.team-slots {');
+    expect(i).toBeGreaterThan(-1);
+    expect(css().slice(i, i + 200)).toContain('repeat(3, minmax(0, 1fr))');
+  });
+
+  it('declares .team-slots once at the top level, so the winning rule is the one you read', () => {
+    // There were two, a flex one and a grid one, and the flex one came first —
+    // which is what sent an edit to the rule that loses. The indented matches
+    // are the responsive overrides and are meant to be there.
+    const top = css().match(/^\.team-slots\s*\{/gm) ?? [];
+    expect(top).toHaveLength(1);
   });
 });

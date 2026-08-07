@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { buildPalette, customBase, type CustomChoice } from '../lib/palette';
 
 export type ThemeId =
   | 'hud' | 'modernist' | 'midnight' | 'paper' | 'contrast'
-  | 'water' | 'grass' | 'psychic' | 'electric' | 'steel' | 'ice';
+  | 'water' | 'grass' | 'psychic' | 'electric' | 'fire' | 'steel' | 'ice'
+  | 'custom';
 export type MotionPref = 'on' | 'off';
 
 /**
@@ -27,21 +29,46 @@ export const THEMES: { id: ThemeId; label: string; blurb: string; scheme: 'dark'
   { id: 'grass', label: 'Grass', blurb: 'Canopy green, citrus signal', scheme: 'dark' },
   { id: 'psychic', label: 'Psychic', blurb: 'Plum dusk, magenta signal', scheme: 'dark' },
   { id: 'electric', label: 'Electric', blurb: 'Charcoal, high-voltage signal', scheme: 'dark' },
+  { id: 'fire', label: 'Fire', blurb: 'Forge dark, ember signal', scheme: 'dark' },
   { id: 'steel', label: 'Steel', blurb: 'Brushed metal, cool ink', scheme: 'light' },
   { id: 'ice', label: 'Ice', blurb: 'Glacier white, frost signal', scheme: 'light' },
 ];
 
+/**
+ * The user's own theme, kept apart from THEMES.
+ *
+ * It has no stylesheet block — its tokens are written into a style element at
+ * runtime from the choice below — so listing it alongside the baked themes
+ * would break the guard that every listed theme has a palette.
+ */
+export const CUSTOM_THEME = { id: 'custom' as ThemeId, label: 'Yours', blurb: 'Build your own palette' };
+
 const THEME_IDS = THEMES.map((t) => t.id);
 
 const THEME_KEY = 'paragon.theme';
+const CUSTOM_KEY = 'paragon.theme.custom';
 const MOTION_KEY = 'paragon.motion';
 
 /** Read the persisted choice, falling back to the OS preference. */
 function initialTheme(): ThemeId {
   if (typeof window === 'undefined') return 'hud';
   const saved = window.localStorage.getItem(THEME_KEY);
+  // 'custom' is valid but is not in THEME_IDS — it has no stylesheet block.
+  if (saved === 'custom' && initialCustom()) return 'custom';
   if (saved && (THEME_IDS as string[]).includes(saved)) return saved as ThemeId;
   return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'modernist' : 'hud';
+}
+
+function initialCustom(): CustomChoice | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as CustomChoice;
+    return v && v.bg && v.accent && v.accent2 ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 function initialMotion(): MotionPref {
@@ -54,6 +81,9 @@ function initialMotion(): MotionPref {
 interface ThemeContextValue {
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
+  /** The user's own palette, or null until they build one. */
+  custom: CustomChoice | null;
+  setCustom: (c: CustomChoice) => void;
   toggleTheme: () => void;
   motion: MotionPref;
   setMotion: (m: MotionPref) => void;
@@ -67,7 +97,32 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(initialTheme);
+  const [custom, setCustomState] = useState<CustomChoice | null>(initialCustom);
   const [motion, setMotionState] = useState<MotionPref>(initialMotion);
+
+  /**
+   * The custom palette is written into a style element rather than a
+   * stylesheet, because it does not exist until someone builds it. Same
+   * `buildPalette` the shipped themes are baked with, so a palette that would
+   * fail the build fails here too.
+   */
+  useEffect(() => {
+    const ID = 'paragon-custom-theme';
+    let el = document.getElementById(ID) as HTMLStyleElement | null;
+    if (!custom) {
+      el?.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement('style');
+      el.id = ID;
+      document.head.appendChild(el);
+    }
+    const { tokens } = buildPalette(customBase(custom));
+    const body = Object.entries(tokens).map(([k, v]) => `  ${k}: ${v};`).join('\n');
+    el.textContent = `:root[data-theme='custom'],\n.theme-swatch-face[data-theme='custom'] {\n${body}\n}`;
+    window.localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+  }, [custom]);
 
   // Both preferences live as attributes on <html> so CSS can key off them
   // without any component knowing the current theme.
@@ -82,6 +137,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [motion]);
 
   const setTheme = useCallback((t: ThemeId) => setThemeState(t), []);
+  const setCustom = useCallback((c: CustomChoice) => setCustomState(c), []);
   const setMotion = useCallback((m: MotionPref) => setMotionState(m), []);
   // Cycles through the list rather than flipping a pair, now that there are
   // more than two. The keyboard shortcut and any caller that just wants "the
@@ -93,8 +149,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleMotion = useCallback(() => setMotionState((m) => (m === 'on' ? 'off' : 'on')), []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, setTheme, toggleTheme, motion, setMotion, toggleMotion, reduced: motion === 'off' }),
-    [theme, setTheme, toggleTheme, motion, setMotion, toggleMotion],
+    () => ({ theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion, reduced: motion === 'off' }),
+    [theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

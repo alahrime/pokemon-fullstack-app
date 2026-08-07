@@ -4251,3 +4251,95 @@ th.bt-matrix-head { text-align: center; }
   line-clamp: 3;
   min-height: calc(2 * 1.1em);
 }
+
+/* ── Custom theme editor ─────────────────────────────────────────────────── */
+.theme-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.theme-custom-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.theme-custom-count {
+  margin-left: auto;
+  color: var(--text-faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.theme-custom-steps .hud-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.theme-chips {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  margin-top: 5px;
+}
+.theme-chip {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: var(--border-hairline) solid var(--rule-hairline);
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.theme-chip:hover:not(:disabled) { transform: scale(1.12); border-color: var(--color-accent); }
+.theme-chip.is-active {
+  border-color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+  transform: scale(1.12);
+}
+/* A rejected colour stays visible rather than vanishing: which colours a
+   ground rules out is information about the ground. */
+.theme-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.18;
+  filter: grayscale(0.7);
+}
+.theme-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.theme-custom-preview {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+  padding-top: var(--space-3);
+}
+.theme-custom-face {
+  flex: none;
+  width: 62px;
+  height: 46px;
+}
+.theme-custom-checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-2xs);
+}
+.theme-custom-checks li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-faint);
+}
+.theme-custom-checks .is-ok::before { content: '✓ '; color: var(--color-accent-2); }
+.theme-custom-checks .is-bad { color: var(--color-accent); }
+.theme-custom-checks .is-bad::before { content: '✕ '; }
+
+.theme-custom-actions { display: flex; justify-content: flex-end; }
+.theme-custom-open { align-self: stretch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-chip { transition: none; }
+  .theme-chip:hover:not(:disabled), .theme-chip.is-active { transform: none; }
+}

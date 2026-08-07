@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { THEMES, useTheme } from '../state/ThemeContext';
+import { CUSTOM_THEME, THEMES, useTheme } from '../state/ThemeContext';
+import { CustomThemeEditor } from './CustomThemeEditor';
 import { MotionToggle } from './ThemeSwitch';
 
 /**
@@ -15,8 +16,9 @@ import { MotionToggle } from './ThemeSwitch';
  * tokens — the preview IS the palette, not a second copy of it that can drift.
  */
 export function ThemeMenu() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, custom } = useTheme();
   const [open, setOpen] = useState(false);
+  const [building, setBuilding] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
@@ -49,7 +51,7 @@ export function ThemeMenu() {
         aria-controls={panelId}
         aria-label={`Theme — ${active?.label ?? theme}`}
         title={`Theme — ${active?.label ?? theme}`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => !v); setBuilding(false); }}
       >
         <span className="theme-menu-bars" aria-hidden="true">
           <span />
@@ -61,7 +63,11 @@ export function ThemeMenu() {
 
       {open && (
         <div className="theme-menu-panel" id={panelId} role="dialog" aria-label="Choose a theme">
-          <div className="hud-label theme-menu-head">Theme</div>
+          <div className="hud-label theme-menu-head">{building ? 'Your theme' : 'Theme'}</div>
+          {building ? (
+            <CustomThemeEditor onDone={() => { setBuilding(false); setOpen(false); }} />
+          ) : (
+          <>
           <div className="theme-swatches">
             {THEMES.map((t) => (
               <button
@@ -84,7 +90,30 @@ export function ThemeMenu() {
                 <span className="theme-swatch-name">{t.label}</span>
               </button>
             ))}
+            {/* The user's own palette, shown alongside the baked ones once it
+                exists so it is picked the same way as any other. */}
+            {custom && (
+              <button
+                type="button"
+                className={`theme-swatch${theme === 'custom' ? ' is-active' : ''}`}
+                aria-pressed={theme === 'custom'}
+                aria-label={`${CUSTOM_THEME.label} — ${CUSTOM_THEME.blurb}`}
+                title={`${CUSTOM_THEME.label} — ${CUSTOM_THEME.blurb}`}
+                onClick={() => { setTheme('custom'); setOpen(false); }}
+              >
+                <span className="theme-swatch-face" data-theme="custom" aria-hidden="true">
+                  <span className="theme-swatch-accent" />
+                  <span className="theme-swatch-signal" />
+                </span>
+                <span className="theme-swatch-name">{CUSTOM_THEME.label}</span>
+              </button>
+            )}
           </div>
+          <button type="button" className="btn btn-sm theme-custom-open" onClick={() => setBuilding(true)}>
+            {custom ? 'Edit your theme' : 'Create your own'}
+          </button>
+          </>
+          )}
           <div className="theme-menu-foot">
             <MotionToggle className="theme-menu-motion" />
           </div>

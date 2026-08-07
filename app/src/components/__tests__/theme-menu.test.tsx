@@ -86,3 +86,94 @@ describe('theme palettes', () => {
     }
   });
 });
+
+describe('custom theme editor', () => {
+  const openEditor = () => {
+    const r = renderApp(<ThemeMenu />);
+    fireEvent.click(r.container.querySelector('.theme-menu-btn')!);
+    fireEvent.click([...r.container.querySelectorAll('button')]
+      .find((b) => /Create your own/i.test(b.textContent ?? ''))!);
+    return r;
+  };
+
+  it('opens from the picker', () => {
+    const { container } = openEditor();
+    expect(container.querySelector('.theme-custom')).toBeTruthy();
+    expect(container.querySelectorAll('.theme-custom-steps > li')).toHaveLength(3);
+  });
+
+  it('offers no signal until a ground is chosen', () => {
+    const { container } = openEditor();
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    const signals = [...steps[1].querySelectorAll('.theme-chip')] as HTMLButtonElement[];
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((b) => b.disabled)).toBe(true);
+  });
+
+  it('a ground opens the signals, and the choice differs by ground', () => {
+    const { container } = openEditor();
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    const grounds = [...steps[0].querySelectorAll('.theme-chip')] as HTMLButtonElement[];
+    const enabled = () =>
+      [...steps[1].querySelectorAll('.theme-chip')].filter((b) => !(b as HTMLButtonElement).disabled).length;
+
+    fireEvent.click(grounds[0]);            // a dark ground
+    const onDark = enabled();
+    fireEvent.click(grounds[grounds.length - 1]); // a light one
+    const onLight = enabled();
+    expect(onDark).toBeGreaterThan(0);
+    expect(onLight).toBeGreaterThan(0);
+    // The point of the restriction: the ground decides what is available.
+    expect(onDark).not.toBe(onLight);
+  });
+
+  it('narrows the second signal against the first', () => {
+    const { container } = openEditor();
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    fireEvent.click(steps[0].querySelectorAll('.theme-chip')[1]);
+    const free = [...steps[2].querySelectorAll('.theme-chip')].filter((b) => !(b as HTMLButtonElement).disabled).length;
+    const firstSignal = [...steps[1].querySelectorAll('.theme-chip')]
+      .find((b) => !(b as HTMLButtonElement).disabled)!;
+    fireEvent.click(firstSignal);
+    const after = [...steps[2].querySelectorAll('.theme-chip')].filter((b) => !(b as HTMLButtonElement).disabled).length;
+    // At minimum the chosen colour itself is now unavailable as the second.
+    expect(after).toBeLessThan(free);
+  });
+
+  it('will not apply until all three are chosen', () => {
+    const { container } = openEditor();
+    const apply = () => container.querySelector('.theme-custom-actions button') as HTMLButtonElement;
+    expect(apply().disabled).toBe(true);
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    fireEvent.click(steps[0].querySelectorAll('.theme-chip')[1]);
+    fireEvent.click([...steps[1].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+    expect(apply().disabled).toBe(true);
+    fireEvent.click([...steps[2].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+    expect(apply().disabled).toBe(false);
+  });
+
+  it('applies the palette, and every reported check passes', () => {
+    const { container } = openEditor();
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    fireEvent.click(steps[0].querySelectorAll('.theme-chip')[1]);
+    fireEvent.click([...steps[1].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+    fireEvent.click([...steps[2].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+
+    // The readout is the same check the build-time generator runs.
+    const checks = [...container.querySelectorAll('.theme-custom-checks li')];
+    expect(checks.length).toBe(7);
+    expect(checks.every((c) => c.className.includes('is-ok'))).toBe(true);
+
+    fireEvent.click(container.querySelector('.theme-custom-actions button')!);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('custom');
+    // Its tokens are written at runtime, since it has no stylesheet block.
+    const style = document.getElementById('paragon-custom-theme');
+    expect(style?.textContent).toContain("data-theme='custom'");
+    expect(style?.textContent).toContain('--color-accent');
+  });
+
+  it('keeps the built theme out of the baked list, which has no palette for it', () => {
+    // THEMES drives the guard that every listed theme has a stylesheet block.
+    expect(THEMES.some((t) => t.id === 'custom')).toBe(false);
+  });
+});

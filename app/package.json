@@ -13,12 +13,15 @@
     "matrix": "esbuild scripts/build-matrix.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/matrix.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/matrix.mjs",
     "teams": "esbuild scripts/build-teams.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/teams.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/teams.mjs",
     "verify": "esbuild scripts/verify-data.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
-    "check": "tsc -b && oxlint && npm run tokens && npm run verify && npm run audit:spreads",
+    "check": "tsc -b && oxlint && npm run tokens && npm run verify && npm run audit:spreads && npm run test",
     "preview": "vite preview",
     "audit:spreads": "esbuild scripts/audit-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/audit.mjs --log-level=warning && node node_modules/.cache/audit.mjs",
     "best-spreads": "esbuild scripts/build-best-spreads.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/best.mjs --log-level=warning && node node_modules/.cache/best.mjs",
     "splits": "esbuild scripts/analyse-splits.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/splits.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/splits.mjs",
-    "matchups": "esbuild scripts/compare-matchups.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/matchups.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/matchups.mjs"
+    "matchups": "esbuild scripts/compare-matchups.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/matchups.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/matchups.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -29,15 +32,20 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^3.2.7",
     "esbuild": "^0.28.1",
+    "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^3.2.7"
   }
 }

@@ -2,6 +2,7 @@ import teamsRaw from '../data/teams.json';
 import type { CategoryId } from './scenarios';
 import type { LeagueId } from './types';
 import type { Synergy } from './synergy';
+import { leagueArtefact } from './artefact';
 
 /**
  * The three readings of the same teams: two simulated, one structural.
@@ -118,7 +119,11 @@ interface RawLeague {
   strata: Record<string, RawStratum>;
 }
 
-const TEAMS = teamsRaw as unknown as Record<LeagueId, RawLeague>;
+const TEAMS = leagueArtefact<RawLeague>(
+  teamsRaw, 'teams.json',
+  ['teamRev', 'engineRev', 'tiers', 'categories', 'passes', 'refs', 'cores', 'pillars', 'strata'],
+  'npm run teams',
+);
 
 export const TEAM_REV = (lg: LeagueId): number => TEAMS[lg].teamRev;
 export const TEAM_ENGINE_REV = (lg: LeagueId): number => TEAMS[lg].engineRev;

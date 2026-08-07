@@ -1,6 +1,7 @@
 import speciesRaw from '../data/species.json';
 import opponentsRaw from '../data/opponents.json';
 import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesRef } from './types';
+import { artefact } from './artefact';
 
 /**
  * The roster is now the whole released game — every species and alternate
@@ -31,10 +32,10 @@ interface RawSpecies
   chargeMove2: string | null;
   leagueMoves?: Partial<Record<LeagueId, { fast: string; charge: string; charge2: string | null }>>;
 }
-const raw = speciesRaw as unknown as {
+const raw = artefact<{
   moves: Record<string, FastMove & ChargeMove>;
   species: RawSpecies[];
-};
+}>(speciesRaw, 'species.json', ['moves', 'species'], 'npm run data');
 
 export const SPECIES: Species[] = raw.species.map((s) => ({
   ...s,

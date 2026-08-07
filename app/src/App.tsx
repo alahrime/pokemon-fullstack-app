@@ -133,7 +133,7 @@ function LazyScreen({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
       fallback={
-        <div className="panel hud-frame text-muted" style={{ minHeight: 460, display: 'grid', placeItems: 'center', fontSize: 12 }}>
+        <div className="panel hud-frame text-muted lazy-fallback">
           Loading…
         </div>
       }

@@ -60,7 +60,7 @@ function Side({
   const chargeOptions = chargesOf(species.chargeMove, species.chargeMove2);
 
   return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="bt-side">
       <HudLabel>{label}</HudLabel>
       <SpeciesSearch
         id={`battle-${label}`}
@@ -77,7 +77,7 @@ function Side({
         <div className="min-w-0 flex-1">
           <div className="battle-mon-name">
             {species.name}
-            {isShadow ? <span style={{ color: 'var(--shadow-aura)' }}> ⟡</span> : null}
+            {isShadow ? <span className="bt-shadow-mark"> ⟡</span> : null}
           </div>
           <div className="my-1 flex flex-wrap gap-1">
             {species.types.map((t) => (
@@ -120,7 +120,7 @@ function Side({
             Same component the report screen uses, so the two behave alike. */}
         {species.fastMoves.length > 1 ? (
           <>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+            <div className="bt-chips">
               <ChipButton active onClick={() => undefined}>
                 {species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)].name}
               </ChipButton>
@@ -160,7 +160,7 @@ function Side({
         <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Shields
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="bt-shield-row">
           {SHIELD_LABELS.map((l, i) => (
             <ChipButton key={i} active={shields === i} onClick={() => onShields(i)}>
               {l}
@@ -173,7 +173,7 @@ function Side({
         <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Starting energy — {energy}%
         </div>
-        <input type="range" min={0} max={100} step={10} value={energy} onChange={(e) => onEnergy(Number(e.target.value))} style={{ width: '100%' }} />
+        <input type="range" min={0} max={100} step={10} value={energy} onChange={(e) => onEnergy(Number(e.target.value))} className="bt-range" />
       </div>
     </div>
   );
@@ -290,8 +290,8 @@ export function BattleScreen() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)' }}>
-        <div style={{ borderRight: 'var(--border-strong) solid var(--rule-strong)' }}>
+      <div className="bt-pair">
+        <div className="bt-pair-left">
           <Side
             label="Pokémon 1"
             speciesId={battleA}
@@ -331,23 +331,14 @@ export function BattleScreen() {
         />
       </div>
 
-      <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', borderTop: 0, padding: 20, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-        <div style={{ flex: 'none', minWidth: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="bt-result">
+        <div className="bt-verdict">
           <div>
             <HudLabel live>Outcome</HudLabel>
-            <div
-              className="anim-rise"
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                fontSize: 22,
-                color: 'var(--color-accent-700)',
-                marginTop: 4,
-              }}
-            >
+            <div className="anim-rise bt-winner">
               {winner} beats {loser}
             </div>
-            <div className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>
+            <div className="text-muted bt-margin">
               {margin.toFixed(0)}% HP margin at {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
               {current.cmpDecided ? ' · decided by CMP (simultaneous charge move, higher attack throws first)' : ''}
             </div>
@@ -355,21 +346,21 @@ export function BattleScreen() {
           <HpBar label={nameA} hp={current.hpA} maxHp={Math.round(current.maxHpA)} color="var(--color-accent)" />
           <HpBar label={nameB} hp={current.hpB} maxHp={Math.round(current.maxHpB)} color="var(--color-neutral-500)" />
           <div className="text-sm">{winner} wins {winCount} of 9 shield-count combinations.</div>
-          <div className="text-muted" style={{ fontSize: 11, maxWidth: '42ch' }}>
+          <div className="text-muted bt-rank-note">
             {verdictLine(entryA.rank)} · {verdictLine(entryB.rank)}
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 280 }}>
+        <div className="bt-matrix-col">
           <div className="panel-title">
             Every shield combination
           </div>
-          <table className="table" style={{ width: 'auto' }}>
+          <table className="table bt-matrix">
             <thead>
               <tr>
                 <th></th>
                 {SHIELD_LABELS.map((l) => (
-                  <th key={l} style={{ textAlign: 'center' }}>
+                  <th key={l} className="bt-matrix-head">
                     P2 {l}
                   </th>
                 ))}
@@ -439,7 +430,7 @@ export function BattleScreen() {
           Charge move log — {SHIELD_LABELS[shieldsA].toLowerCase()} vs {SHIELD_LABELS[shieldsB].toLowerCase()}
         </div>
         {current.log.filter((e) => e.kind === 'charge').length === 0 ? (
-          <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+          <p className="text-muted bt-no-charge">
             Neither side reaches a charge move before the fight ends at this energy/shield setting.
           </p>
         ) : (
@@ -466,11 +457,11 @@ export function BattleScreen() {
                     <td className="font-(family-name:--font-head) font-extrabold">{actorName}</td>
                     <td>{e.moveName}</td>
                     <td>
-                      {e.bait && <span className="tag tag-neutral" style={{ marginRight: 6 }}>bait</span>}
+                      {e.bait && <span className="tag tag-neutral bt-bait-tag">bait</span>}
                       {e.shielded ? (
                         <span className="text-sm">shielded — 1 dmg</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: 'var(--color-accent-700)' }}>{e.damage} dmg</span>
+                        <span className="bt-dmg">{e.damage} dmg</span>
                       )}
                     </td>
                     {/* Stage state after this throw resolved. The buff text

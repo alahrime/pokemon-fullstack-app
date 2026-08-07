@@ -138,18 +138,18 @@ export function BattleTimeline({
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 6, fontSize: 11 }}>
+      <div className="tl-legend">
         <span className="flex items-center gap-[5px]">
-          <span style={{ width: 10, height: 10, background: 'var(--color-accent)', display: 'inline-block' }} />
+          <span className="tl-key tl-key-a" />
           {nameA} HP/energy
         </span>
         <span className="flex items-center gap-[5px]">
-          <span style={{ width: 10, height: 10, background: 'var(--color-neutral-700)', display: 'inline-block' }} />
+          <span className="tl-key tl-key-b" />
           {nameB} HP/energy
         </span>
         <span className="text-muted">● filled = real hit &nbsp; ○ hollow = shielded (bait or not)</span>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${TOTAL_HEIGHT}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <svg viewBox={`0 0 ${WIDTH} ${TOTAL_HEIGHT}`} className="tl-svg">
         <defs>
           {/* Telemetry grid, drawn from the theme's grid token. */}
           <pattern id="bt-grid" width={WIDTH / 12} height={26} patternUnits="userSpaceOnUse">
@@ -181,7 +181,7 @@ export function BattleTimeline({
           </text>
         </g>
       </svg>
-      <div className="hud-ticks" style={{ marginTop: 4 }}>
+      <div className="hud-ticks tl-note">
         <span>0.0s</span>
         <span>{seconds(totalTurns / 2)}s</span>
         <span>{seconds(totalTurns)}s</span>

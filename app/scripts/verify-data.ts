@@ -660,11 +660,12 @@ console.log('\n── PvP damage bonus and sneak ──────────�
 }
 
 // ── emitted artefact shape ─────────────────────────────────────────────────
-// rankings.json is read through `as unknown as Record<...>`, so its shape is
-// never checked against the interfaces that describe it. A field renamed in the
-// build without the reader following is invisible to tsc and shows up as a
-// blank screen at runtime — which is exactly what happened when the cycle count
-// went from `sampled` to `total` in the type and the screen but not the emit.
+// rankings.json is now read through `leagueArtefact`, which asserts the
+// top-level fields per league at load. That catches a missing `entries`; it
+// does not reach a field nested inside a per-tier fit, which is exactly where
+// the cycle count broke when it went from `sampled` to `total` in the type and
+// the screen but not the emit. So the deep check stays here, where it can be as
+// thorough as it likes without costing a page load.
 console.log('\n── artefact shape ─────────────────────────────────────');
 {
   const need = ['r2', 'rmse', 'cyclicPct', 'total', 'n', 'worst'] as const;
@@ -672,6 +673,8 @@ console.log('\n── artefact shape ──────────────�
     const fit = btFitFor(lg, DEFAULT_TIER(lg));
     check(`${lg}: btFit present at the default tier`, !!fit);
     if (!fit) continue;
+    // Probing a typed object for undefined fields is the point of the check:
+    // the type says they are present, and the artefact is what decides.
     const missing = need.filter((k) => (fit as unknown as Record<string, unknown>)[k] === undefined);
     check(`${lg}: btFit carries every field the UI reads`, missing.length === 0,
       missing.length ? `missing ${missing.join(', ')}` : `${need.length} fields`);

@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { THEMES, useTheme } from '../state/ThemeContext';
 import { SegButton, SegGroup } from './Seg';
 
@@ -25,15 +24,14 @@ export function ThemeSwitch() {
  * that's where someone reaches for the switch. The setting itself is still
  * global and persisted; turning it off here also stills the battle timeline.
  */
-export function MotionToggle({ style }: { style?: CSSProperties }) {
+export function MotionToggle({ className }: { className?: string }) {
   const { motion, toggleMotion } = useTheme();
   return (
     <button
-      className="btn chip-btn"
+      className={`btn chip-btn${className ? ' ' + className : ''}`}
       onClick={toggleMotion}
       aria-pressed={motion === 'off'}
       title={motion === 'on' ? 'Disable animation (applies app-wide)' : 'Enable animation (applies app-wide)'}
-      style={style}
     >
       {motion === 'on' ? 'Motion on' : 'Motion off'}
     </button>

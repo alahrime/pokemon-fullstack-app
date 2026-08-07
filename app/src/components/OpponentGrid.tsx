@@ -77,7 +77,7 @@ export function OpponentGrid({
               style={{ ['--i' as string]: i }}
             >
               <Sprite sprite={r.info.sprite} dex={r.info.dex} size={30} shadow={r.info.shadow} bestBuddy={r.info.lvl > 50} />
-              <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+              <span className="opp-cell-body">
                 <span className="opp-name">{r.info.name}</span>
                 <span className={`opp-reason${flips ? ' is-flip' : ''}`}>{r.reason || '—'}</span>
               </span>

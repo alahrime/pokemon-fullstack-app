@@ -306,11 +306,10 @@ export function SpeciesSearch({
         <ul
           id={listboxId}
           role="listbox"
+          className="search-listbox"
+          // The rows not rendered still occupy their space, so the scrollbar
+          // and scroll position match the full result set.
           style={{
-            margin: 0,
-            listStyle: 'none',
-            // The rows not rendered still occupy their space, so the scrollbar
-            // and scroll position match the full result set.
             paddingTop: first * ROW_H,
             paddingBottom: Math.max(0, (results.length - last) * ROW_H),
           }}

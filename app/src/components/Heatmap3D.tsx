@@ -148,8 +148,7 @@ function Terrain({ cells, onPick, themeKey, reduced }: TerrainProps) {
           style={{ pointerEvents: 'none' }}
         >
           <div
-            className="panel panel-filled numeric"
-            style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '4px 8px', boxShadow: 'var(--shadow-md)' }}
+            className="panel panel-filled numeric h3d-tip"
           >
             {hoverCell.tip}
           </div>
@@ -240,8 +239,7 @@ export function Heatmap3D({
 
       {/* axis legend, DOM rather than 3D text — stays crisp and themed */}
       <div
-        className="hud-label"
-        style={{ position: 'absolute', left: 10, bottom: 8, right: 10, pointerEvents: 'none' }}
+        className="hud-label h3d-caption"
       >
         <span>height = stat product · colour = selected metric · drag to orbit</span>
       </div>

@@ -2,6 +2,7 @@ import rankingsRaw from '../data/rankings.json';
 import matrixRaw from '../data/matrix.json';
 import { CATEGORIES, PVPOKE_SCORE_COLUMNS, type CategoryId } from './scenarios';
 import type { LeagueId } from './types';
+import { leagueArtefact } from './artefact';
 
 /**
  * Reader for what scripts/build-matrix.ts emits.
@@ -63,8 +64,14 @@ interface RawLeague {
   btFit?: Record<string, BTFitSummary>;
 }
 
-const RANKINGS = rankingsRaw as unknown as Record<LeagueId, RawLeague>;
-const MATRIX = matrixRaw as unknown as Record<LeagueId, { engineRev: number; refs: string[] }>;
+const RANKINGS = leagueArtefact<RawLeague>(
+  rankingsRaw, 'rankings.json',
+  ['engineRev', 'tiers', 'defaultTier', 'categories', 'entries'],
+  'npm run matrix',
+);
+const MATRIX = leagueArtefact<{ engineRev: number; refs: string[] }>(
+  matrixRaw, 'matrix.json', ['engineRev', 'refs'], 'npm run matrix',
+);
 
 export const TIERS = (lg: LeagueId): string[] => RANKINGS[lg].tiers;
 export const DEFAULT_TIER = (lg: LeagueId): string => RANKINGS[lg].defaultTier;

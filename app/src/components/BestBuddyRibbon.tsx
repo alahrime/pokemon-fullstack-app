@@ -34,7 +34,7 @@ export function BestBuddyRibbon({
       viewBox="0 0 48 48"
       role="img"
       aria-label={title}
-      style={{ display: 'block', overflow: 'visible' }}
+      className="icon-svg-overflow"
     >
       <title>{title}</title>
       {/* Six-point rosette behind the medal: two rotated copies of the same

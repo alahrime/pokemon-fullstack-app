@@ -11,7 +11,7 @@ function FlipFace({ win, margin, back = false }: { win: boolean; margin: number;
         background: win ? 'color-mix(in srgb, var(--color-accent) 16%, transparent)' : 'var(--surface-2)',
       }}
     >
-      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
+      <div className="fv-face-body">
         <div
           style={{
             fontFamily: 'var(--font-heading)',
@@ -85,17 +85,9 @@ export function FlipView({
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0, width: 'min(520px,100%)' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(16,minmax(0,1fr))',
-              gap: 2,
-              border: 'var(--border-hairline) solid var(--rule-strong)',
-              padding: 3,
-            }}
-          >
+      <div className="fv-cols">
+        <div className="fv-grid-col">
+          <div className="fv-grid">
             {grid.results.map((o) => {
               const isYou = o.entry.a === ivA && o.entry.d === ivD;
               return (
@@ -121,15 +113,15 @@ export function FlipView({
               );
             })}
           </div>
-          <div className="text-muted" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginTop: 4 }}>
+          <div className="text-muted fv-axis">
             <span>0 · ATTACK IV · 15</span>
             <span>rows = DEF IV 15 → 0</span>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="fv-slice">
             <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">
               HP IV slice {ivS}
             </span>
-            <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} style={{ flex: 1, minWidth: 140 }} />
+            <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} className="fv-slice-range" />
           </div>
           <div
             style={{
@@ -144,7 +136,7 @@ export function FlipView({
           </div>
         </div>
         <div className="flex min-w-[280px] flex-1 flex-col gap-3">
-          <div style={{ border: 'var(--border-strong) solid var(--rule-strong)', padding: 14 }}>
+          <div className="fv-now">
             <div
               style={{
                 fontFamily: 'var(--font-heading)',
@@ -156,10 +148,10 @@ export function FlipView({
               {now.win ? 'WIN' : 'LOSS'} vs {grid.opponentInfo.name} · {now.margin >= 0 ? '+' : ''}
               {now.margin.toFixed(0)}% HP margin
             </div>
-            <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>
+            <div className="text-muted fv-now-sub">
               {grid.winners.length} of {grid.total} spreads in this HP slice win
             </div>
-            <div style={{ fontSize: 13, marginTop: 8 }}>{flipNeed}</div>
+            <div className="fv-now-need">{flipNeed}</div>
           </div>
           <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
           <table className="table">
@@ -182,14 +174,14 @@ export function FlipView({
                   <td>
                     <div className="flex items-center gap-2">
                       <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
-                      <span style={{ fontSize: 13 }}>{r.species.name}</span>
+                      <span className="fv-row-name">{r.species.name}</span>
                     </div>
                   </td>
                   {r.cells.map((c, ci) => (
                     <td key={ci}>
                       {/* The card turns over when the matchup does — the flip
                           is the concept this whole view is named for. */}
-                      <div className={`flip-card${c.win ? ' is-won' : ''}`} style={{ height: 38, width: 54 }}>
+                      <div className={`flip-card fv-flip-card${c.win ? ' is-won' : ''}`} >
                         <div className="flip-card-inner">
                           <FlipFace win={false} margin={c.margin} />
                           <FlipFace win margin={c.margin} back />
@@ -209,7 +201,7 @@ export function FlipView({
               ))}
             </tbody>
           </table>
-          <p className="text-muted" style={{ fontSize: 11, margin: 0 }}>
+          <p className="text-muted fv-note">
             {flipNote}
           </p>
         </div>

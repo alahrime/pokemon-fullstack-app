@@ -2,29 +2,22 @@ import type { RulerData } from '../../lib/engine';
 
 export function RulerView({ rulers }: { rulers: RulerData[] }) {
   return (
-    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '8px 0 0' }}>
+    <div className="stagger rv">
       {rulers.map((r, i) => (
         <div key={i} style={{ ['--i' as string]: i }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, marginBottom: 26 }}>
+          <div className="rv-head">
             <div className="min-w-0">
-              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 16 }}>{r.title}</div>
+              <div className="rv-title">{r.title}</div>
               <div className="text-muted text-sm">
                 {r.sub}
               </div>
             </div>
-            <span className="tag tag-accent" style={{ flex: 'none', whiteSpace: 'nowrap' }}>
+            <span className="tag tag-accent rv-head-aside">
               {r.badge}
             </span>
           </div>
-          <div
-            style={{
-              position: 'relative',
-              height: 74,
-              borderLeft: 'var(--border-strong) solid var(--rule-strong)',
-              borderRight: 'var(--border-strong) solid var(--rule-strong)',
-            }}
-          >
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 34, height: 2, background: 'var(--rule-strong)' }} />
+          <div className="rv-track">
+            <div className="rv-baseline" />
             {r.bands.map((b, bi) => (
               <div
                 key={bi}
@@ -75,26 +68,12 @@ export function RulerView({ rulers }: { rulers: RulerData[] }) {
                 left: `${r.youPos}%`,
               }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: -19,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  whiteSpace: 'nowrap',
-                  fontSize: 10,
-                  letterSpacing: '0.08em',
-                  background: 'var(--color-accent)',
-                  color: 'var(--color-on-accent)',
-                  padding: '1px 5px',
-                  boxShadow: 'var(--glow-accent)',
-                }}
-              >
+              <div className="rv-caption">
                 YOU {r.youLabel}
               </div>
             </div>
           </div>
-          <div className="text-muted" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginTop: 22 }}>
+          <div className="text-muted rv-scale">
             <span>
               {r.min} {r.unit}
             </span>

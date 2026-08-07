@@ -38,7 +38,7 @@ export function ShieldMatrix({
   onChange: (mine: number, theirs: number) => void;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="sm-col">
       <div className="hud-label">
         <span>Shield scenarios · your HP margin</span>
       </div>
@@ -53,7 +53,7 @@ export function ShieldMatrix({
               </span>
             ))}
             {[0, 1, 2].map((m) => (
-              <div key={m} style={{ display: 'contents' }}>
+              <div key={m} className="sm-contents">
                 <span className="shield-matrix-label">{m}</span>
                 {[0, 1, 2].map((t) => {
                   const c = cells[m]?.[t];

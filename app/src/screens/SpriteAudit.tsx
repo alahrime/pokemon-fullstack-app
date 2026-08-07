@@ -29,7 +29,7 @@ export function SpriteAudit() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="sa">
       <div>
         <h3 className="m-0">Sprite coverage</h3>
         <div className="text-muted text-sm">
@@ -37,10 +37,9 @@ export function SpriteAudit() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="sa-controls">
         <input
-          className="input"
-          style={{ width: 220 }}
+          className="input sa-input"
           placeholder="Filter by name or id…"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -57,24 +56,17 @@ export function SpriteAudit() {
       </div>
 
       {failed.length > 0 && (
-        <div className="panel" style={{ fontSize: 11, maxHeight: 140, overflowY: 'auto' }}>
+        <div className="panel sa-log">
           <div className="panel-title">Fell back to dex image</div>
-          <code style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{failed.join(', ')}</code>
+          <code className="sa-log-line">{failed.join(', ')}</code>
         </div>
       )}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))',
-          gap: 4,
-        }}
-      >
+      <div className="sa-grid">
         {rows.map((s) => (
           <figure
             key={s.id}
-            className="panel"
-            style={{ padding: 4, display: 'grid', placeItems: 'center', gap: 2 }}
+            className="panel sa-cell"
             title={`${s.id}\n${spriteUrl(s.sprite)}`}
           >
             <img
@@ -83,7 +75,7 @@ export function SpriteAudit() {
               loading="lazy"
               width={56}
               height={56}
-              style={{ width: 56, height: 56, objectFit: 'contain' }}
+              className="sa-img"
               onLoad={() => setLoaded((n) => n + 1)}
               onError={(e) => {
                 note(s.id);
@@ -96,16 +88,7 @@ export function SpriteAudit() {
                 }
               }}
             />
-            <figcaption
-              style={{
-                fontSize: 9,
-                textAlign: 'center',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 76,
-              }}
-            >
+            <figcaption className="sa-name">
               {s.name}
             </figcaption>
           </figure>

@@ -181,7 +181,7 @@ export function ReportScreen() {
         <span className="report-wash" aria-hidden="true" />
       {/* Widened from 340px to fit the larger sprite frame without crowding the
           name beside it. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,390px) minmax(0,1fr)', gap: 0, border: 'var(--border-strong) solid var(--rule-strong)', position: 'relative' }}>
+      <div className="rs-split">
         {/* Left column */}
         <div className="report-side">
           {/* Identity → form → roll. The three things you change sit together at
@@ -189,7 +189,7 @@ export function ReportScreen() {
           <SpeciesHero species={species} entry={entry} league={league} shadow={isShadow} bestBuddy={entry.lvl > 50} />
 
           <div className="side-block">
-            <div className="hud-label" style={{ marginBottom: 7 }}>
+            <div className="hud-label rs-label">
               <span>Form</span>
             </div>
             <FormToggle
@@ -204,7 +204,7 @@ export function ReportScreen() {
                 : 'No Shadow form exists for this Pokémon.'}
             </div>
 
-            <div className="hud-label" style={{ margin: '13px 0 7px' }}>
+            <div className="hud-label rs-label-mid">
               <span>Best Buddy</span>
             </div>
             <BestBuddyToggle
@@ -220,7 +220,7 @@ export function ReportScreen() {
           </div>
 
           <div className="side-block">
-            <div className="hud-label" style={{ marginBottom: 7, display: 'flex', alignItems: 'center' }}>
+            <div className="hud-label rs-label-row">
               <span className="flex-1">Adjust roll</span>
               {/* Rank 1 is a specific spread, not 15/15/15 — under a cap a low
                   attack IV usually buys enough extra level to win on stat
@@ -246,24 +246,22 @@ export function ReportScreen() {
 
           <HudFrame
             signal
-            style={{ background: 'var(--surface-inverse)', color: 'var(--text-inverse)', padding: '16px 18px' }}
+            className="rs-rank"
           >
-            <div style={{ fontSize: 10, letterSpacing: 'var(--tracking-widest)', textTransform: 'uppercase', opacity: 0.6 }}>
+            <div className="rs-rank-caption">
               Stat product rank
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <div className="rs-rank-value">
               <HudReadout value={`#${entry.rank}`} />
-              <span className="numeric" style={{ fontSize: 15, opacity: 0.55 }}>/ 4096</span>
+              <span className="numeric rs-rank-of">/ 4096</span>
             </div>
-            {/* Track tints from the current text colour, so it works on either
-                ground — the old hardcoded rgba(255,255,255,.25) vanished on light. */}
-            <div style={{ height: 2, background: 'color-mix(in srgb, currentColor 25%, transparent)', margin: '12px 0 8px' }}>
+            <div className="rs-rank-track">
               <div
                 className="ruler-band"
                 style={{ height: 2, background: 'var(--color-accent)', width: rankBarW, boxShadow: 'var(--glow-accent)' }}
               />
             </div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
+            <div className="rs-rank-note">
               {uncapped
                 ? ivFloor === 15
                   ? 'Perfect. In an uncapped league that is the only spread that matters.'
@@ -273,7 +271,7 @@ export function ReportScreen() {
           </HudFrame>
 
           {uncapped && (
-            <div className="panel" style={{ fontSize: 11, lineHeight: 1.5 }}>
+            <div className="panel rs-uncapped">
               <div className="panel-title">Master League</div>
               With no CP cap there is no trade-off to solve — nothing is gained by
               a lower attack IV, so stat product rises with every point and rank 1
@@ -464,7 +462,7 @@ export function ReportScreen() {
           />
         </div>
       </div>
-      <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>
+      <p className="text-muted rs-foot-note">
         {footnote}
       </p>
       </div>

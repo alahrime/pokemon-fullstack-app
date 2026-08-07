@@ -53,7 +53,7 @@ export function LeagueEmblem({ league, size = 30 }: { league: LeagueId; size?: n
       viewBox="0 0 100 96"
       aria-hidden
       focusable="false"
-      style={{ display: 'block', flex: 'none', overflow: 'visible' }}
+      className="icon-svg-emblem"
     >
       <defs>
         <clipPath id={clip}>

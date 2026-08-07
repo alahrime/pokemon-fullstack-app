@@ -162,7 +162,8 @@ input[type='range'] { accent-color: var(--color-accent); }
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
-.chip-btn.is-active {
+/* The accent-filled state, shared by a primary button and an active chip. */
+.chip-btn.is-active, .btn.is-primary {
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -514,7 +515,9 @@ input[type='range'] { accent-color: var(--color-accent); }
 /* Fills the chamfer so the cut corner reads as deliberate rather than clipped. */
 /* The archetype chip is the one thing that can wrap the header onto a second
    line and break the shared height, so it truncates instead. */
-.move-arch {
+/* Truncates rather than wraps: the row keeps its height whatever the movepool
+   is named, which is what keeps the list scannable. */
+.move-arch, .core-build-moves {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1607,7 +1610,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: 2px;
   overflow: hidden;
 }
-.rank-bar-fill { display: block; height: 100%; background: var(--color-accent); }
+/* Every inline bar in the app fills the same way: a block that spans its
+   track's height in the accent. Rankings, threats, Bradley-Terry, synergy and
+   cores each declared this separately; the fills that differ (the gradient on a
+   best-teams score, the cores animation) still override below. */
+.rank-bar-fill, .threat-bar-fill, .bt-score-bar-fill, .bt-syn-bar span, .core-bar-fill { display: block; height: 100%; background: var(--color-accent); }
 .rank-delta.is-up { color: var(--color-accent-2); }
 .rank-delta.is-down { color: var(--text-faint); }
 .rank-gain { color: var(--color-accent-2); font-weight: 600; }
@@ -1623,7 +1630,8 @@ textarea.input { min-height: 90px; resize: vertical; }
   font-size: var(--text-xs);
   color: var(--text-faint);
 }
-.rank-loadouts { margin: 0; padding: 0; list-style: none; }
+/* Every list of rows in the app is a bare <ul>/<ol> with its own layout. */
+.rank-loadouts, .bt-list, .core-list, .pillar-list { margin: 0; padding: 0; list-style: none; }
 .rank-loadouts li {
   display: flex;
   align-items: center;
@@ -1639,7 +1647,8 @@ textarea.input { min-height: 90px; resize: vertical; }
 .rankings-pager { margin-top: var(--space-3); }
 
 /* ── Team builders ──────────────────────────────────────────────────────── */
-.team-builder { display: flex; flex-direction: column; gap: var(--space-4); }
+/* The screens that are a stack of panels. */
+.team-builder, .team-report, .cores-screen { display: flex; flex-direction: column; gap: var(--space-4); }
 .team-slots { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
 .team-slot {
   display: flex;
@@ -1668,9 +1677,8 @@ textarea.input { min-height: 90px; resize: vertical; }
   line-height: 1.15;
 }
 .team-add { max-width: 420px; margin-bottom: var(--space-3); }
-.team-actions { display: flex; align-items: center; gap: var(--space-3); }
+.team-actions, .bt-row-main { display: flex; align-items: center; gap: var(--space-3); }
 .team-warn { margin-top: var(--space-2); font-size: var(--text-xs); }
-.team-report { display: flex; flex-direction: column; gap: var(--space-4); }
 
 .threat-list, .suggest-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .threat-list li, .suggest-list li {
@@ -1691,9 +1699,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: 3px;
   overflow: hidden;
 }
-.threat-bar-fill { display: block; height: 100%; background: var(--color-accent); }
-.threat-pct, .suggest-win { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
-.suggest-gain { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Numbers in a row's trailing column: right-aligned, tabular, and wide enough
+   that the column does not shift as values change width. */
+.threat-pct, .suggest-win, .suggest-gain { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+
 .suggest-gain.is-up { color: var(--color-accent-2); }
 .suggest-gain.is-down { color: var(--text-faint); }
 
@@ -1733,13 +1743,13 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* ── Best-teams list ────────────────────────────────────────────────────── */
 /* Rows are cards rather than table rows: each member carries a sprite, its
    spread and its rated moveset, which does not fit a single line of text. */
-.bt-list { margin: 0; padding: 0; list-style: none; }
+
 .bt-row {
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
   padding: var(--space-2) 0;
 }
 .bt-row:last-child { border-bottom: 0; }
-.bt-row-main { display: flex; align-items: center; gap: var(--space-3); }
+
 .bt-pos {
   min-width: 2.5ch;
   text-align: right;
@@ -1765,7 +1775,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: var(--radius-md);
   background: var(--color-surface-2, transparent);
 }
-.bt-member-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bt-member-body, .held-out-legend-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .bt-member-name {
   font-weight: 600;
   font-size: var(--text-sm);
@@ -1790,7 +1800,8 @@ textarea.input { min-height: 90px; resize: vertical; }
   line-height: 1.25;
 }
 .bt-move-fast { color: var(--color-accent); }
-.bt-move-charge { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A move name that truncates rather than wrapping the card. */
+.bt-move-charge, .pc-move-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .bt-metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 11ch; }
 .bt-score-main { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
@@ -1803,7 +1814,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: 3px;
   overflow: hidden;
 }
-.bt-score-bar-fill { display: block; height: 100%; background: var(--color-accent); }
+
 .bt-alt { font-size: var(--text-xs); color: var(--text-faint); }
 .bt-actions { display: flex; flex-direction: column; gap: var(--space-1); }
 
@@ -1817,15 +1828,16 @@ textarea.input { min-height: 90px; resize: vertical; }
   flex-direction: column;
   gap: var(--space-2);
 }
-.bt-syn-grid { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.bt-syn-grid, .pillar-backs { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .bt-syn-cell { flex: 1 1 110px; min-width: 110px; }
 .bt-syn-value { font-size: var(--text-md); font-variant-numeric: tabular-nums; }
 .bt-syn-bar { height: 4px; background: var(--color-neutral-200); border-radius: 2px; overflow: hidden; }
-.bt-syn-bar span { display: block; height: 100%; background: var(--color-accent); }
-.bt-line, .bt-holes { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+/* A row of sprites or chips that wraps rather than scrolls. */
+.bt-line, .bt-holes, .core-check-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 
 /* ── Cores ──────────────────────────────────────────────────────────────── */
-.cores-screen { display: flex; flex-direction: column; gap: var(--space-4); }
+
 /* Seven columns: a block per member with the "+" between them, then the four
    figures. The two member blocks share the free width equally, so neither name
    crowds the other and the numeric columns keep fixed, alignable widths.
@@ -1853,7 +1865,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-left: 3px solid transparent;
 }
 .core-head .hud-label { text-align: right; }
-.core-list, .pillar-list { margin: 0; padding: 0; list-style: none; }
+
 .core-list > li { border-bottom: var(--border-hairline) solid var(--rule-hairline); }
 .core-row {
   width: 100%;
@@ -1875,8 +1887,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   gap: var(--space-3);
   min-width: 0;
 }
-.core-side-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.core-side-name {
+/* A tight stack of secondary lines under a name — moves, spreads, builds. */
+.core-side-id, .pc-moves, .core-builds { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* A name that truncates rather than wraps, so the row keeps its height
+   whatever the Pokemon is called. */
+.core-side-name, .core-names-line {
   font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1893,9 +1908,10 @@ textarea.input { min-height: 90px; resize: vertical; }
   flex: none;
   opacity: 0.8;
 }
-.core-score { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-variant-numeric: tabular-nums; }
+/* A right-aligned numeric block at the end of a row. */
+.core-score, .pillar-cover { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-variant-numeric: tabular-nums; }
 .core-bar { display: block; width: 90px; height: 5px; background: var(--color-neutral-200); border-radius: 3px; overflow: hidden; }
-.core-bar-fill { display: block; height: 100%; background: var(--color-accent); }
+
 .core-lift, .core-appear, .core-balance { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
 .core-lift.is-up, .core-balance.is-up { color: var(--color-accent-2); }
 .core-lift.is-down { color: var(--text-faint); }
@@ -1912,7 +1928,8 @@ textarea.input { min-height: 90px; resize: vertical; }
 .core-dir-head { min-width: 22ch; }
 .core-dir-types { display: flex; gap: 2px; align-items: center; }
 .core-dir-mons { display: flex; gap: 2px; }
-.core-detail-note { margin: 0; font-size: var(--text-xs); line-height: 1.5; }
+/* Explanatory small print under a panel. */
+.core-detail-note, .modal-hint { margin: 0; font-size: var(--text-xs); line-height: 1.5; }
 
 .pillar-list > li {
   display: grid;
@@ -1922,12 +1939,12 @@ textarea.input { min-height: 90px; resize: vertical; }
   padding: var(--space-2) 0;
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
 }
-.pillar-lead, .pillar-back { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+/* Sprite beside a name, sharing a baseline and free to shrink. */
+.pillar-lead, .pillar-back, .pc-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .pillar-lead-name { font-weight: 600; font-size: var(--text-sm); }
 .pillar-back-name { font-size: var(--text-xs); color: var(--text-muted); }
 .pillar-arrow { color: var(--color-accent); text-align: center; }
-.pillar-backs { display: flex; gap: var(--space-3); flex-wrap: wrap; }
-.pillar-cover { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-variant-numeric: tabular-nums; }
+
 .pillar-losses { text-align: right; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 860px) {
@@ -1967,12 +1984,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .core-check-inputs > div { min-width: 200px; }
 .core-check-result { margin-bottom: 0; }
-.core-check-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
+
 .core-check-score {
   margin-left: auto;
   font-size: var(--text-lg);
@@ -2100,7 +2112,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   text-shadow: 0 0 6px currentColor;
 }
 
-.pc-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .pc-id { min-width: 0; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .pc-name {
   font-family: var(--font-heading);
@@ -2152,7 +2163,6 @@ textarea.input { min-height: 90px; resize: vertical; }
 @keyframes pc-fill { from { transform: scaleX(0); transform-origin: left; } }
 .pc-stat-value { font-size: var(--text-2xs); text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 
-.pc-moves { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pc-move {
   display: flex;
   justify-content: space-between;
@@ -2164,7 +2174,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-left: 2px solid color-mix(in srgb, var(--t2) 55%, transparent);
   background: color-mix(in srgb, var(--t2) 7%, transparent);
 }
-.pc-move-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .pc-move-fast { border-left-color: var(--color-accent); color: var(--color-accent); }
 .pc-move-eco { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .pc-move-eco i { font-style: normal; opacity: 0.7; margin-left: 1px; }
@@ -2892,7 +2902,8 @@ button:disabled,
   color: var(--color-text);
   margin-top: var(--space-1);
 }
-.battle-mon-stats i {
+/* The unit mark after a stat — quieter and smaller than the number. */
+.battle-mon-stats i, .modal-stats i {
   font-style: normal;
   color: var(--text-faint);
   letter-spacing: var(--tracking-wide);
@@ -3025,13 +3036,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   color: var(--color-accent);
 }
 
-.held-out-legend-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
 .held-out-legend-head {
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wider);
@@ -3080,22 +3084,9 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   gap: 3px;
   min-width: 0;
 }
-.core-names-line {
-  font-size: var(--text-md);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Two builds stacked, one per member, in the order the names read. */
-.core-builds {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
+
 .core-build {
   display: flex;
   align-items: baseline;
@@ -3109,12 +3100,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .core-build-cp i { font-style: normal; opacity: 0.65; margin-left: 1px; }
 /* Truncates rather than wraps: the row keeps its height whatever the movepool
    is named, which is what keeps the list scannable. */
-.core-build-moves {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
 
 /* Stat-stage column in the battle log. The throw that caused a change names it
    in the accent colour; the running totals under it stay quiet, because they
@@ -3272,7 +3257,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   .diag-tier, .diag-tier-bar > span { transition: none; }
 }
 
-
 /* Cores rows pick up the same approach treatment the Rankings rows use, so the
    two lists read as the same product rather than two tables that happen to
    share a stylesheet. */
@@ -3403,7 +3387,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   min-height: 0;
 }
 .modal-search { position: relative; }
-.modal-hint { font-size: var(--text-xs); line-height: 1.5; margin: 0; }
 
 /* Identity block, tinted by the species' own typing — same principle as the
    report frame and the core rows. */
@@ -3427,13 +3410,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .modal-types { display: flex; gap: var(--space-1); margin: var(--space-1) 0; flex-wrap: wrap; }
 .modal-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--text-xs); }
-.modal-stats i {
-  font-style: normal;
-  color: var(--text-faint);
-  letter-spacing: var(--tracking-wide);
-  margin-right: 4px;
-  font-size: var(--text-2xs);
-}
 
 .modal-section { display: flex; flex-direction: column; gap: var(--space-2); }
 .modal-moves { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -3449,11 +3425,7 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   border-top: var(--border-hairline) solid var(--rule-hairline);
   flex: none;
 }
-.btn.is-primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border-color: var(--color-accent);
-}
+
 .btn.is-primary:disabled { opacity: 0.4; }
 
 /* The empty slot is a button now, not a decorative glyph. */
@@ -3482,4 +3454,497 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 @media (prefers-reduced-motion: reduce) {
   .modal-scrim { animation: none; }
   .team-slot.is-empty { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEATMAP VIEW
+
+   These were inline styles. The values are unchanged — this is a move, not a
+   redesign — but they are expressed against the spacing scale where a literal
+   happened to equal a token, so the next edit has something to hold on to.
+   ═══════════════════════════════════════════════════════════════════════ */
+.hv {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.hv-cols {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+/* Reserves a strip for the viewport controls rather than floating them over
+   the plot: at 16x16 the top-right cells are the high-attack/high-defense
+   corner, the part you least want covered. */
+.hv-plot {
+  min-width: 0;
+  flex: 1 1 560px;
+  position: relative;
+  padding-top: 42px;
+}
+.hv-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.hv-motion { min-height: 38px; }
+.hv-terrain {
+  min-width: 0;
+  width: 100%;
+}
+.hv-terrain-body { margin-top: 6px; }
+.hv-terrain-fallback {
+  height: 460px;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+}
+.hv-grid-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.hv-axis-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  padding: 14px 0;
+}
+.hv-axis-y-label {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.1em;
+}
+.hv-grid {
+  min-width: 0;
+  width: min(640px, 100%);
+}
+.hv-axis-x {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  margin-top: 6px;
+  letter-spacing: 0.1em;
+}
+.hv-slice {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 620px;
+}
+.hv-slice-value {
+  font-weight: 800;
+  font-size: 18px;
+  width: 24px;
+  text-align: right;
+}
+.hv-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  padding: 2px 0;
+}
+/* The swatch colour is sampled from the live palette, so it stays inline —
+   the legend must never describe a ramp the grid is not drawing. */
+.hv-swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.hv-top-row { cursor: pointer; }
+.hv-top-rank { font-weight: 800; }
+.hv-top-pct { color: var(--color-accent-700); }
+.hv-note {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BATTLE SCREEN — moved out of inline styles, values unchanged.
+   ═══════════════════════════════════════════════════════════════════════ */
+.bt-side {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bt-shadow-mark { color: var(--shadow-aura); }
+.bt-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.bt-shield-row {
+  display: flex;
+  gap: 6px;
+}
+.bt-range { width: 100%; }
+/* Both sides in one framed pair, sharing a single rule down the middle. */
+.bt-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: var(--border-strong) solid var(--rule-strong);
+}
+.bt-pair-left { border-right: var(--border-strong) solid var(--rule-strong); }
+.bt-result {
+  border: var(--border-strong) solid var(--rule-strong);
+  border-top: 0;
+  padding: var(--space-5);
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.bt-verdict {
+  flex: none;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.bt-winner {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--color-accent-700);
+  margin-top: var(--space-1);
+}
+.bt-margin {
+  font-size: var(--text-base);
+  margin-top: 2px;
+}
+.bt-rank-note {
+  font-size: var(--text-xs);
+  max-width: 42ch;
+}
+.bt-matrix-col {
+  flex: 1;
+  min-width: 280px;
+}
+.bt-matrix { width: auto; }
+/* Only the column headers, not the empty corner cell — a descendant selector
+   would have centred that too, which it never was. Qualified with `th` to
+   match the specificity of `.table th`, which sets text-align: left and would
+   otherwise win against a bare class no matter where this sits in the file. */
+th.bt-matrix-head { text-align: center; }
+.bt-no-charge {
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.bt-bait-tag { margin-right: 6px; }
+.bt-dmg {
+  font-size: var(--text-sm);
+  color: var(--color-accent-700);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FLIP VIEW / RULER VIEW — moved out of inline styles, values unchanged.
+   ═══════════════════════════════════════════════════════════════════════ */
+.fv-face-body {
+  text-align: center;
+  line-height: 1.1;
+}
+.fv-cols {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.fv-grid-col {
+  min-width: 0;
+  width: min(520px, 100%);
+}
+.fv-grid {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 2px;
+  border: var(--border-hairline) solid var(--rule-strong);
+  padding: 3px;
+}
+.fv-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  margin-top: var(--space-1);
+}
+.fv-slice {
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fv-slice-range {
+  flex: 1;
+  min-width: 140px;
+}
+.fv-now {
+  border: var(--border-strong) solid var(--rule-strong);
+  padding: 14px;
+}
+.fv-now-sub {
+  font-size: var(--text-sm);
+  margin-top: 2px;
+}
+.fv-now-need {
+  font-size: var(--text-base);
+  margin-top: var(--space-2);
+}
+.fv-row-name { font-size: var(--text-base); }
+.fv-flip-card {
+  height: 38px;
+  width: 54px;
+}
+.fv-note {
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
+.rv {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: var(--space-2) 0 0;
+}
+.rv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-bottom: 26px;
+}
+.rv-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+}
+.rv-head-aside {
+  flex: none;
+  white-space: nowrap;
+}
+.rv-track {
+  position: relative;
+  height: 74px;
+  border-left: var(--border-strong) solid var(--rule-strong);
+  border-right: var(--border-strong) solid var(--rule-strong);
+}
+.rv-baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34px;
+  height: 2px;
+  background: var(--rule-strong);
+}
+/* The "you are here" flag under the accent marker. */
+.rv-caption {
+  position: absolute;
+  bottom: -19px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  padding: 1px 5px;
+  box-shadow: var(--glow-accent);
+}
+.rv-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  margin-top: 22px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPORT SCREEN / SMALL COMPONENTS — moved out of inline styles.
+   ═══════════════════════════════════════════════════════════════════════ */
+.rs-split {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+  gap: 0;
+  border: var(--border-strong) solid var(--rule-strong);
+}
+.rs-label { margin-bottom: 7px; }
+.rs-label-mid { margin: 13px 0 7px; }
+.rs-label-row {
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+}
+/* The rank panel is the one inverted surface on the screen. */
+.rs-rank {
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
+  padding: 16px 18px;
+}
+.rs-rank-caption {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.rs-rank-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.rs-rank-of {
+  font-size: var(--text-lg);
+  opacity: 0.55;
+}
+/* Track tints from the current text colour so it works on either ground — a
+   hardcoded rgba(255,255,255,.25) vanished on light. */
+.rs-rank-track {
+  height: 2px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+  margin: 12px 0 8px;
+}
+.rs-rank-note {
+  font-size: var(--text-sm);
+  opacity: 0.75;
+}
+.rs-uncapped {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+.rs-foot-note {
+  font-size: var(--text-xs);
+  margin-top: 10px;
+}
+
+.icon-svg {
+  display: block;
+  flex: none;
+}
+
+.tl-legend {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: var(--text-xs);
+}
+.tl-key {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+.tl-key-a { background: var(--color-accent); }
+.tl-key-b { background: var(--color-neutral-700); }
+.tl-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.tl-note { margin-top: var(--space-1); }
+
+.sm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sm-contents { display: contents; }
+
+/* ── Odds and ends that were inline ─────────────────────────────────────── */
+.lazy-fallback {
+  min-height: 460px;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+}
+/* An SVG that must not be clipped by its own box — the ribbon and the emblem
+   both draw slightly outside their viewBox. */
+.icon-svg-overflow {
+  display: block;
+  overflow: visible;
+}
+.icon-svg-emblem {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+.bb-toggle-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.opp-cell-body {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.table-scroll { overflow-x: auto; }
+.search-listbox {
+  margin: 0;
+  list-style: none;
+}
+.h3d-tip {
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  box-shadow: var(--shadow-md);
+}
+.h3d-caption {
+  position: absolute;
+  left: 10px;
+  bottom: var(--space-2);
+  right: 10px;
+  pointer-events: none;
+}
+
+/* Sprite audit — a development screen, styled to match the rest. */
+.sa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.sa-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sa-input { width: 220px; }
+.sa-log {
+  font-size: var(--text-xs);
+  max-height: 140px;
+  overflow-y: auto;
+}
+.sa-log-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.sa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--space-1);
+}
+.sa-cell {
+  padding: var(--space-1);
+  display: grid;
+  place-items: center;
+  gap: 2px;
+}
+.sa-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.sa-name {
+  font-size: 9px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 76px;
 }

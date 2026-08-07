@@ -1,6 +1,7 @@
 import summaryRaw from '../data/summary.json';
 import type { LeagueId } from './types';
 import type { LeagueSummary } from './summarySpec';
+import { leagueArtefact } from './artefact';
 
 /**
  * Reader for what scripts/build-summary.ts emits.
@@ -12,6 +13,8 @@ import type { LeagueSummary } from './summarySpec';
  * a second rankings API, or the split it exists to protect goes away quietly.
  */
 
-const SUMMARY = summaryRaw as unknown as Record<LeagueId, LeagueSummary>;
+const SUMMARY = leagueArtefact<LeagueSummary>(
+  summaryRaw, 'summary.json', ['engineRev', 'teams', 'featured'], 'npm run summary',
+);
 
 export const summaryFor = (lg: LeagueId): LeagueSummary => SUMMARY[lg];

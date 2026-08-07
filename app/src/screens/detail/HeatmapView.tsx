@@ -56,25 +56,15 @@ export function HeatmapView({
   const show3d = webgl && dim === '3d';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+    <div className="hv">
+      <div className="hv-cols">
         {/* Viewport controls are pinned to this wrapper's top-right, in a
             reserved strip rather than floating over the plot — at 16×16 the
             top-right cells are the high-attack/high-defense corner, the part
             you least want covered. */}
-        <div style={{ minWidth: 0, flex: '1 1 560px', position: 'relative', paddingTop: 42 }}>
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              zIndex: 5,
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <MotionToggle style={{ minHeight: 38 }} />
+        <div className="hv-plot">
+          <div className="hv-controls">
+            <MotionToggle className="hv-motion" />
             {webgl ? (
               <SegGroup>
                 <SegButton active={dim === '2d'} onClick={() => setDim('2d')} title="Flat grid">
@@ -87,15 +77,12 @@ export function HeatmapView({
             ) : null}
           </div>
           {show3d ? (
-            <div style={{ minWidth: 0, width: '100%' }}>
+            <div className="hv-terrain">
               <HudLabel live>Stat-product terrain</HudLabel>
-              <div style={{ marginTop: 6 }}>
+              <div className="hv-terrain-body">
                 <Suspense
                   fallback={
-                    <div
-                      className="panel hud-frame text-muted"
-                      style={{ height: 460, display: 'grid', placeItems: 'center', fontSize: 12 }}
-                    >
+                    <div className="panel hud-frame text-muted hv-terrain-fallback">
                       Loading terrain…
                     </div>
                   }
@@ -105,18 +92,15 @@ export function HeatmapView({
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div
-                className="text-muted"
-                style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, padding: '14px 0' }}
-              >
+            <div className="hv-grid-row">
+              <div className="text-muted hv-axis-y">
                 <span>15</span>
-                <span style={{ writingMode: 'vertical-rl', letterSpacing: '0.1em' }}>DEF IV</span>
+                <span className="hv-axis-y-label">DEF IV</span>
                 <span>0</span>
               </div>
-              <div style={{ minWidth: 0, width: 'min(640px,100%)' }}>
+              <div className="hv-grid">
                 <Heatmap cells={cells} onPick={onPick} />
-                <div className="text-muted" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginTop: 6, letterSpacing: '0.1em' }}>
+                <div className="text-muted hv-axis-x">
                   <span>0</span>
                   <span>ATTACK IV</span>
                   <span>15</span>
@@ -124,12 +108,12 @@ export function HeatmapView({
               </div>
             </div>
           )}
-          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 620 }}>
+          <div className="hv-slice">
             <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">
               HP IV slice
             </span>
             <input type="range" min={0} max={15} step={1} value={ivS} onChange={(e) => onIvS(Number(e.target.value))} className="flex-1" />
-            <span className="numeric" style={{ fontWeight: 800, fontSize: 18, width: 24, textAlign: 'right' }}>{ivS}</span>
+            <span className="numeric hv-slice-value">{ivS}</span>
           </div>
         </div>
         <div className="stagger flex min-w-[280px] flex-1 flex-col gap-3">
@@ -139,8 +123,8 @@ export function HeatmapView({
               const labels = LEGEND_LABELS[colorBy];
               const ramp = paletteRamp(palette, labels.length);
               return labels.map((label, i) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '2px 0' }}>
-                  <span style={{ width: 14, height: 14, flex: 'none', background: ramp[i] }} />
+                <div key={label} className="hv-legend-row">
+                  <span className="hv-swatch" style={{ background: ramp[i] }} />
                   <span>{label}</span>
                 </div>
               ));
@@ -164,22 +148,21 @@ export function HeatmapView({
                     <tr
                       key={`${r.a}-${r.d}-${r.s}`}
                       onClick={() => onPick(r.a, r.d)}
-                      className={r.a === iv.a && r.d === iv.d && r.s === iv.s ? 'is-selected' : undefined}
-                      style={{ cursor: 'pointer' }}
+                      className={`hv-top-row${r.a === iv.a && r.d === iv.d && r.s === iv.s ? ' is-selected' : ''}`}
                     >
-                      <td className="numeric" style={{ fontWeight: 800 }}>{r.rank}</td>
+                      <td className="numeric hv-top-rank">{r.rank}</td>
                       <td className="numeric">
                         {r.a}/{r.d}/{r.s}
                       </td>
                       <td className="numeric">{(r.sp / 1000).toFixed(2)}k</td>
-                      <td className="numeric" style={{ color: 'var(--color-accent-700)' }}>{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
+                      <td className="numeric hv-top-pct">{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="panel hud-frame" style={{ fontSize: 12, lineHeight: 1.5, ['--i' as string]: 1 }}>
+            <div className="panel hud-frame hv-note" style={{ ['--i' as string]: 1 }}>
               <div className="panel-title">Reading this slice</div>
               {NOTES[colorBy]}
             </div>

@@ -10,6 +10,7 @@ import {
 import { lookupPair } from '../pairLookup';
 import { summaryFor } from '../summary';
 import { stamp, toCsv } from '../exportData';
+import { artefact, leagueArtefact } from '../artefact';
 
 const LEAGUES = ['great', 'ultra', 'master'] as const;
 
@@ -163,4 +164,42 @@ describe('exportData', () => {
   });
   it('survives an empty set', () => expect(typeof toCsv([])).toBe('string'));
   it('stamps a filename-safe timestamp', () => expect(stamp()).toMatch(/^[\w-]+$/));
+});
+
+describe('artefact readers', () => {
+  it('accepts a well-formed league artefact and types it', () => {
+    const raw = {
+      great: { a: 1, b: 2 }, ultra: { a: 1, b: 2 }, master: { a: 1, b: 2 },
+    };
+    const out = leagueArtefact<{ a: number; b: number }>(raw, 'x.json', ['a', 'b'], 'npm run x');
+    expect(out.great.a).toBe(1);
+  });
+
+  it('names the missing field and the command that rebuilds it', () => {
+    const raw = { great: { a: 1 }, ultra: { a: 1, b: 2 }, master: { a: 1, b: 2 } };
+    expect(() => leagueArtefact<{ a: number; b: number }>(raw, 'x.json', ['a', 'b'], 'npm run x'))
+      .toThrow(/great is missing b.*npm run x/s);
+  });
+
+  it('rejects an artefact missing a whole league', () => {
+    expect(() => leagueArtefact({ great: {}, ultra: {} }, 'x.json', [], 'npm run x'))
+      .toThrow(/no data for the master league/);
+  });
+
+  it('rejects a non-object', () => {
+    expect(() => leagueArtefact(null, 'x.json', [], 'npm run x')).toThrow(/not an object/);
+    expect(() => artefact(42, 'x.json', [], 'npm run x')).toThrow(/not an object/);
+  });
+
+  it('checks top-level keys for artefacts with their own shape', () => {
+    expect(artefact<{ moves: number }>({ moves: 1 }, 'x.json', ['moves'], 'npm run x').moves).toBe(1);
+    expect(() => artefact<{ moves: number }>({}, 'x.json', ['moves'], 'npm run x'))
+      .toThrow(/missing moves/);
+  });
+
+  it('treats a present-but-falsy field as present', () => {
+    // 0 and '' are legitimate values; only undefined means "the build did not
+    // emit this", which is the failure being guarded.
+    expect(() => artefact({ n: 0, s: '' }, 'x.json', ['n', 's'], 'npm run x')).not.toThrow();
+  });
 });

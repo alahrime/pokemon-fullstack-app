@@ -33,12 +33,11 @@ export function BestBuddyToggle({
       </button>
       <button
         type="button"
-        className={`form-opt form-opt-buddy${on && eligible ? ' is-active' : ''}`}
+        className={`form-opt form-opt-buddy bb-toggle-face${on && eligible ? ' is-active' : ''}`}
         aria-pressed={on && eligible}
         disabled={!eligible}
         onClick={() => onChange(true)}
         title={eligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
       >
         <BestBuddyRibbon size={16} title="" detail />
         Best Buddy

@@ -85,6 +85,23 @@ export function FlipView({
 
   return (
     <>
+      {/* The result of the roll you are on, above everything it explains. It
+          used to sit at the top of the right-hand column, which pushed the
+          opponents table down out of sight — so the table you use to change
+          the matchup was not visible while reading the grid it changed. */}
+      <div className="fv-now">
+        <div
+          className="fv-now-verdict"
+          style={{ color: now.win ? 'var(--color-accent-700)' : 'var(--color-text)' }}
+        >
+          {now.win ? 'WIN' : 'LOSS'} vs {grid.opponentInfo.name} · {now.margin >= 0 ? '+' : ''}
+          {now.margin.toFixed(0)}% HP margin
+        </div>
+        <div className="text-muted fv-now-sub">
+          {grid.winners.length} of {grid.total} spreads in this HP slice win
+        </div>
+        <div className="fv-now-need">{flipNeed}</div>
+      </div>
       <div className="fv-cols">
         <div className="fv-grid-col">
           <div className="fv-grid">
@@ -135,24 +152,7 @@ export function FlipView({
             {cmpLine}
           </div>
         </div>
-        <div className="flex min-w-[280px] flex-1 flex-col gap-3">
-          <div className="fv-now">
-            <div
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                fontSize: 20,
-                color: now.win ? 'var(--color-accent-700)' : 'var(--color-text)',
-              }}
-            >
-              {now.win ? 'WIN' : 'LOSS'} vs {grid.opponentInfo.name} · {now.margin >= 0 ? '+' : ''}
-              {now.margin.toFixed(0)}% HP margin
-            </div>
-            <div className="text-muted fv-now-sub">
-              {grid.winners.length} of {grid.total} spreads in this HP slice win
-            </div>
-            <div className="fv-now-need">{flipNeed}</div>
-          </div>
+        <div className="fv-side">
           <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
           <table className="table">
             <thead>

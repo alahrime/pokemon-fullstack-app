@@ -110,3 +110,42 @@ describe('CoresScreen', () => {
     }
   });
 });
+
+describe('Matchup flips layout', () => {
+  it('puts the verdict above the grid, not at the head of the side column', async () => {
+    const { container } = renderApp(<ReportScreen />);
+    fireEvent.click(tab(container, 'Matchup flips'));
+    await waitFor(() => expect(container.querySelector('.fv-grid')).toBeTruthy());
+
+    const now = container.querySelector('.fv-now')!;
+    const cols = container.querySelector('.fv-cols')!;
+    const side = container.querySelector('.fv-side')!;
+    // The verdict is a sibling before the two columns. Inside the side column
+    // it pushed the opponents table below the grid it controls.
+    expect(now.parentElement).toBe(cols.parentElement);
+    expect(now.compareDocumentPosition(cols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(side.contains(now)).toBe(false);
+  });
+
+  it('keeps the shield matrix and the opponents table in the side column', async () => {
+    const { container } = renderApp(<ReportScreen />);
+    fireEvent.click(tab(container, 'Matchup flips'));
+    await waitFor(() => expect(container.querySelector('.fv-side')).toBeTruthy());
+    const side = container.querySelector('.fv-side')!;
+    expect(side.querySelector('table')).toBeTruthy();
+    expect(side.querySelector('.sm-col, .sm-contents')).toBeTruthy();
+  });
+
+  it('lets the grid flex rather than pinning it, so the table can sit beside it', async () => {
+    const { container } = renderApp(<ReportScreen />);
+    fireEvent.click(tab(container, 'Matchup flips'));
+    await waitFor(() => expect(container.querySelector('.fv-grid-col')).toBeTruthy());
+    // jsdom applies no stylesheet, so this asserts the contract the CSS keys
+    // off rather than the computed width: both columns are flex children of
+    // the same row.
+    const col = container.querySelector('.fv-grid-col')!;
+    const side = container.querySelector('.fv-side')!;
+    expect(col.parentElement).toBe(side.parentElement);
+    expect(col.parentElement!.className).toContain('fv-cols');
+  });
+});

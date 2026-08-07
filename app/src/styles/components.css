@@ -3659,7 +3659,12 @@ th.bt-matrix-head { text-align: center; }
 }
 .fv-grid-col {
   min-width: 0;
-  width: min(520px, 100%);
+  /* Was a fixed min(520px,100%). Inside the report's 798px panel that plus the
+     table's minimum overflowed, so the table wrapped underneath — which is the
+     layout this change exists to undo. The grid is square cells and scales, so
+     it flexes and caps instead. */
+  flex: 1 1 320px;
+  max-width: 520px;
 }
 .fv-grid {
   display: grid;
@@ -4134,4 +4139,25 @@ th.bt-matrix-head { text-align: center; }
 /* Touch has no hover, so the action must not be permanently invisible there. */
 @media (hover: none) {
   .opp-fight { opacity: 1; }
+}
+
+/* ── Matchup flips: headline over grid, controls beside it ───────────────── */
+.fv-now {
+  /* Full width above both columns rather than the head of the right one,
+     where it pushed the opponents table below the fold. */
+  margin-bottom: var(--space-3);
+}
+.fv-now-verdict {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 20px;
+}
+.fv-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Wide enough for the five-column table to read without wrapping, and free
+     to take the slack once the grid has its 520px. */
+  flex: 1 1 320px;
+  min-width: 280px;
 }

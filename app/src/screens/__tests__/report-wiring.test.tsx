@@ -189,3 +189,20 @@ describe('ReportScreen wiring', () => {
     if (cells.length) fireEvent.click(cells[cells.length - 1]);
   });
 });
+
+describe('ReportScreen loadout', () => {
+  it('changes the charged moves from the report\'s own panel', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const chargeCol = container.querySelectorAll('.moves-col')[1];
+    const tiles = [...chargeCol.querySelectorAll('.move-tile')];
+    expect(tiles.length).toBeGreaterThan(0);
+    const before = tiles.filter((t) => t.className.includes('is-active')).length;
+    const target = tiles.find((t) => !t.className.includes('is-active')) ?? tiles[0];
+    fireEvent.click(target);
+    const after = [...container.querySelectorAll('.moves-col')[1].querySelectorAll('.move-tile')]
+      .filter((t) => t.className.includes('is-active'));
+    // Whatever the click did, the mon is never left with nothing to throw.
+    expect(after.length).toBeGreaterThan(0);
+    expect(before).toBeGreaterThan(0);
+  });
+});

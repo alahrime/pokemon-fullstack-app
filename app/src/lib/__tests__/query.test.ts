@@ -150,3 +150,21 @@ describe('isStructured', () => {
     expect(isStructured('')).toBe(false);
   });
 });
+
+describe('degenerate terms', () => {
+  it('an empty segment matches everything, and `,` is or', () => {
+    // So a trailing comma widens to the whole roster rather than narrowing —
+    // an empty term is "anything", not "nothing".
+    expect(hits('water').length).toBeLessThan(SPECIES.length);
+    expect(hits('water,').length).toBe(SPECIES.length);
+    expect(hits('water,,steel').length).toBe(SPECIES.length);
+  });
+  it('a family that no Pokémon belongs to matches nobody', () => {
+    expect(hits('+zzzznotafamily')).toHaveLength(0);
+  });
+  it('a family named by any member finds the whole line', () => {
+    const line = hits('+politoed');
+    expect(line.length).toBeGreaterThan(1);
+    expect(new Set(line.map((s) => s.family)).size).toBe(1);
+  });
+});

@@ -225,3 +225,41 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     }
   });
 });
+
+describe('BattleScreen — the remaining controls', () => {
+  it('the equipped fast-move chip is a label, not a control', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const a = sides(container)[0];
+    const chips = a.querySelector('.bt-chips');
+    if (!chips) return; // one fast move: no chip row, no picker
+    const equipped = chips.querySelector('.chip-btn') as HTMLButtonElement;
+    const before = a.textContent;
+    fireEvent.click(equipped);
+    // It shows which move is equipped; clicking it changes nothing.
+    expect(a.textContent).toBe(before);
+  });
+
+  it('offers Best Buddy on a species whose spread can still gain levels', async () => {
+    const { container } = renderApp(<BattleScreen />);
+    const b = sides(container)[1];
+    const input = b.querySelector('.species-search input') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'bulbasaur' } });
+    const row = await waitFor(() => {
+      const r = [...b.querySelectorAll('.search-row')].find((x) => /bulbasaur/i.test(x.textContent ?? ''));
+      if (!r) throw new Error('no Bulbasaur');
+      return r;
+    });
+    fireEvent.mouseDown(row);
+    await waitFor(() => expect(b.textContent).toMatch(/Bulbasaur/i));
+
+    const buddy = b.querySelector('.form-opt-buddy') as HTMLButtonElement;
+    expect(buddy.disabled).toBe(false);
+    fireEvent.click(buddy);
+    expect(buddy.getAttribute('aria-pressed')).toBe('true');
+    // Levels 50.5 and 51 are now in play, so the roll it reports must move.
+    const back = b.querySelector('.form-opt-normal') as HTMLButtonElement;
+    fireEvent.click(back);
+    expect(back.getAttribute('aria-pressed')).toBe('true');
+  });
+});

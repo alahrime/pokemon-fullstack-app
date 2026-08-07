@@ -56,8 +56,14 @@ export interface AppStateShape {
    */
   bestBuddyA: boolean;
   bestBuddyB: boolean;
-  disabledChargesA: string[];
-  disabledChargesB: string[];
+  /**
+   * Selected charged moves per battle side; empty means the league's rated
+   * set. Named the same way as the report's `chargeIds` — this used to be
+   * `disabledChargesA/B`, which could only ever switch the two rated moves
+   * off and gave no way to field a third.
+   */
+  chargeIdsA: string[];
+  chargeIdsB: string[];
   shieldsA: number;
   shieldsB: number;
   energyA: number;
@@ -90,8 +96,8 @@ const initialState: AppStateShape = {
   fastB: 0,
   bestBuddyA: false,
   bestBuddyB: false,
-  disabledChargesA: [],
-  disabledChargesB: [],
+  chargeIdsA: [],
+  chargeIdsB: [],
   shieldsA: 1,
   shieldsB: 1,
   energyA: 0,

@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
-import { bestBuddyEligible, chargesOf, getEntry, mkBattleMon, shieldMatrix, verdictLine } from '../lib/engine';
+import { bestBuddyEligible, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
-import { MovePicker } from '../components/MovePicker';
+import { MovesPanel } from '../components/MovesPanel';
 import { HeldOutNote } from '../components/HeldOutNote';
 import type { IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
@@ -25,8 +25,8 @@ function Side({
   onBump,
   fastIdx,
   onFast,
-  disabledCharges,
-  onToggleCharge,
+  chargeIds,
+  onChargeIds,
   bestBuddy,
   onBestBuddy,
   shields,
@@ -42,8 +42,8 @@ function Side({
   onBump: (key: keyof IV, delta: number) => void;
   fastIdx: number;
   onFast: (i: number) => void;
-  disabledCharges: string[];
-  onToggleCharge: (moveId: string) => void;
+  chargeIds: string[];
+  onChargeIds: (ids: string[]) => void;
   bestBuddy: boolean;
   onBestBuddy: (on: boolean) => void;
   shields: number;
@@ -57,7 +57,6 @@ function Side({
   const species = SPECIES_BY_ID.get(baseId)!;
   const bbEligible = bestBuddyEligible(species, LEAGUE_BY_ID.get(league)!);
   const { entry } = getEntry(speciesId, iv, league, bestBuddy && bbEligible);
-  const chargeOptions = chargesOf(species.chargeMove, species.chargeMove2);
 
   return (
     <div className="bt-side">
@@ -110,51 +109,18 @@ function Side({
 
       <BestBuddyToggle on={bestBuddy} eligible={bbEligible} onChange={onBestBuddy} />
 
-      <div>
-        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
-          Fast move
-        </div>
-        {/* One fast move is equipped, so past one option the pool belongs in a
-            picker rather than a wall of chips — Smeargle learns 82 and Unown
-            16, which flooded this panel and pushed everything below it away.
-            Same component the report screen uses, so the two behave alike. */}
-        {species.fastMoves.length > 1 ? (
-          <>
-            <div className="bt-chips">
-              <ChipButton active onClick={() => undefined}>
-                {species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)].name}
-              </ChipButton>
-            </div>
-            <MovePicker
-              count={species.fastMoves.length}
-              moves={species.fastMoves}
-              isActive={(m) => m.id === species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)].id}
-              onPick={(m) => onFast(species.fastMoves.findIndex((x) => x.id === m.id))}
-            />
-          </>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {species.fastMoves.map((m, i) => (
-              <ChipButton key={m.id} active={fastIdx === i} onClick={() => onFast(i)}>
-                {m.name}
-              </ChipButton>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
-          Charge moves {chargeOptions.length > 1 ? '(both equipped — untoggle to test a single move)' : ''}
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {chargeOptions.map((m) => (
-            <ChipButton key={m.id} active={!disabledCharges.includes(m.id)} onClick={() => onToggleCharge(m.id)}>
-              {m.name}
-            </ChipButton>
-          ))}
-        </div>
-      </div>
+      {/* The same panel the report uses. It was two bespoke controls here: a
+          fast-move picker, and chips that could only switch the two RATED
+          charged moves off — so a non-default charged move could not be
+          fielded at all. Sharing the component also shares its rule that a
+          Pokemon is never left with nothing to throw. */}
+      <MovesPanel
+        species={species}
+        moveIdx={fastIdx}
+        onMoveIdx={onFast}
+        chargeIds={chargeIds}
+        onChargeIds={onChargeIds}
+      />
 
       <div>
         <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
@@ -204,7 +170,7 @@ const fmtStage = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
 export function BattleScreen() {
   const { state, patch } = useAppState();
-  const { league, battleA, battleB, ivA, ivB, fastA, fastB, disabledChargesA, disabledChargesB, shieldsA, shieldsB, energyA, energyB, bestBuddyA, bestBuddyB } = state;
+  const { league, battleA, battleB, ivA, ivB, fastA, fastB, chargeIdsA, chargeIdsB, shieldsA, shieldsB, energyA, energyB, bestBuddyA, bestBuddyB } = state;
 
   // battleA / battleB are refs and may be Shadow variants, so resolve the base
   // form for stats and movepool but label with the Shadow-aware display name.
@@ -222,15 +188,15 @@ export function BattleScreen() {
 
   const monA = useMemo(() => {
     const fast = speciesA.fastMoves[Math.min(fastA, speciesA.fastMoves.length - 1)];
-    const charges = chargesOf(speciesA.chargeMove, speciesA.chargeMove2).filter((c) => !disabledChargesA.includes(c.id));
+    const charges = selectedCharges(speciesA, chargeIdsA);
     return mkBattleMon(entryA, fast, charges.length ? charges : [speciesA.chargeMove], speciesA.types);
-  }, [speciesA, entryA, fastA, disabledChargesA]);
+  }, [speciesA, entryA, fastA, chargeIdsA]);
 
   const monB = useMemo(() => {
     const fast = speciesB.fastMoves[Math.min(fastB, speciesB.fastMoves.length - 1)];
-    const charges = chargesOf(speciesB.chargeMove, speciesB.chargeMove2).filter((c) => !disabledChargesB.includes(c.id));
+    const charges = selectedCharges(speciesB, chargeIdsB);
     return mkBattleMon(entryB, fast, charges.length ? charges : [speciesB.chargeMove], speciesB.types);
-  }, [speciesB, entryB, fastB, disabledChargesB]);
+  }, [speciesB, entryB, fastB, chargeIdsB]);
 
   const matrix = useMemo(
     () => shieldMatrix(monA, monB, energyA, energyB, state.optimizeTiming),
@@ -241,10 +207,8 @@ export function BattleScreen() {
 
   const bumpA = (key: keyof IV, delta: number) => patch({ ivA: { ...ivA, [key]: Math.max(0, Math.min(15, ivA[key] + delta)) } });
   const bumpB = (key: keyof IV, delta: number) => patch({ ivB: { ...ivB, [key]: Math.max(0, Math.min(15, ivB[key] + delta)) } });
-  const toggleChargeA = (moveId: string) =>
-    patch({ disabledChargesA: disabledChargesA.includes(moveId) ? disabledChargesA.filter((id) => id !== moveId) : [...disabledChargesA, moveId] });
-  const toggleChargeB = (moveId: string) =>
-    patch({ disabledChargesB: disabledChargesB.includes(moveId) ? disabledChargesB.filter((id) => id !== moveId) : [...disabledChargesB, moveId] });
+  const setChargesA = (ids: string[]) => patch({ chargeIdsA: ids });
+  const setChargesB = (ids: string[]) => patch({ chargeIdsB: ids });
 
   const winner = current.win ? nameA : nameB;
   const loser = current.win ? nameB : nameA;
@@ -295,15 +259,15 @@ export function BattleScreen() {
           <Side
             label="Pokémon 1"
             speciesId={battleA}
-            onSpecies={(id) => patch({ battleA: id, fastA: 0, disabledChargesA: [], bestBuddyA: false })}
+            onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeIdsA: [], bestBuddyA: false })}
             iv={ivA}
             onBump={bumpA}
             fastIdx={fastA}
             onFast={(i) => patch({ fastA: i })}
-            disabledCharges={disabledChargesA}
+            chargeIds={chargeIdsA}
             bestBuddy={bestBuddyA}
             onBestBuddy={(v) => patch({ bestBuddyA: v })}
-            onToggleCharge={toggleChargeA}
+            onChargeIds={setChargesA}
             shields={shieldsA}
             onShields={(n) => patch({ shieldsA: n })}
             energy={energyA}
@@ -314,15 +278,15 @@ export function BattleScreen() {
         <Side
           label="Pokémon 2"
           speciesId={battleB}
-          onSpecies={(id) => patch({ battleB: id, fastB: 0, disabledChargesB: [], bestBuddyB: false })}
+          onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeIdsB: [], bestBuddyB: false })}
           iv={ivB}
           onBump={bumpB}
           fastIdx={fastB}
           onFast={(i) => patch({ fastB: i })}
-          disabledCharges={disabledChargesB}
+          chargeIds={chargeIdsB}
           bestBuddy={bestBuddyB}
           onBestBuddy={(v) => patch({ bestBuddyB: v })}
-          onToggleCharge={toggleChargeB}
+          onChargeIds={setChargesB}
           shields={shieldsB}
           onShields={(n) => patch({ shieldsB: n })}
           energy={energyB}

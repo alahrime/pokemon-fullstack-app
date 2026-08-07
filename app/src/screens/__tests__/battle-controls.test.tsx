@@ -35,17 +35,36 @@ describe('BattleScreen — per-side controls', () => {
     expect(a.textContent).toMatch(/Starting energy — 50%/);
   });
 
-  it('toggles a charge move off and back on', () => {
+  it('fields a charged move the league does not rate', () => {
     const { container } = renderApp(<BattleScreen />);
     const [a] = sides(container);
-    const charges = [...a.querySelectorAll('.chip-btn')].filter((b) =>
-      b.className.includes('is-active') && !/shield/i.test(b.textContent ?? ''));
-    const target = charges[charges.length - 1] as HTMLButtonElement;
-    const before = target.className;
-    fireEvent.click(target);
-    expect(target.className).not.toBe(before);
-    fireEvent.click(target);
-    expect(target.className).toBe(before);
+    // The panel used to offer only the two RATED charged moves, as chips that
+    // could be switched off — a third move could not be fielded at all.
+    const chargeCol = a.querySelectorAll('.moves-col')[1];
+    fireEvent.click(chargeCol.querySelector('.move-picker-btn')!);
+    const rows = [...chargeCol.querySelectorAll('.move-picker-row')];
+    expect(rows.length).toBeGreaterThan(2);
+    const unrated = rows.find((r) => !r.className.includes('is-active'))!;
+    const name = unrated.querySelector('.move-picker-name')!.textContent!;
+    fireEvent.click(unrated);
+    const equipped = [...chargeCol.querySelectorAll('.move-tile')].map((t) => t.textContent ?? '');
+    expect(equipped.some((t) => t.includes(name))).toBe(true);
+  });
+
+  it('re-runs the fight when a side changes its charged moves', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const b = sides(container)[1];
+    const before = container.querySelector('.bt-winner')!.textContent! +
+      container.querySelector('.bt-margin')!.textContent!;
+    const chargeCol = b.querySelectorAll('.moves-col')[1];
+    fireEvent.click(chargeCol.querySelector('.move-picker-btn')!);
+    const unrated = [...chargeCol.querySelectorAll('.move-picker-row')]
+      .find((r) => !r.className.includes('is-active'));
+    if (!unrated) return;
+    fireEvent.click(unrated);
+    const after = container.querySelector('.bt-winner')!.textContent! +
+      container.querySelector('.bt-margin')!.textContent!;
+    expect(after).not.toBe(before);
   });
 
   it('picks a different fast move', () => {
@@ -164,15 +183,11 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     fireEvent.change(range, { target: { value: '30' } });
     expect(b.textContent).toMatch(/Starting energy — 30%/);
 
-    // A charge move off and back on
-    const charges = [...b.querySelectorAll('.chip-btn')].filter(
-      (x) => x.className.includes('is-active') && !/shield/i.test(x.textContent ?? ''));
-    const charge = charges[charges.length - 1] as HTMLButtonElement;
-    const was = charge.className;
-    fireEvent.click(charge);
-    expect(charge.className).not.toBe(was);
-    fireEvent.click(charge);
-    expect(charge.className).toBe(was);
+    // Charged moves come from the shared panel now, not from chips.
+    const chargeCol = b.querySelectorAll('.moves-col')[1];
+    const equipped = [...chargeCol.querySelectorAll('.move-tile')]
+      .filter((t) => t.className.includes('is-active'));
+    expect(equipped.length).toBeGreaterThan(0);
 
     // An IV step
     const before = b.textContent;

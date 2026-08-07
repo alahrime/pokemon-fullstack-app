@@ -80,24 +80,22 @@ export function ReportScreen() {
   /**
    * Open this species against one of its listed opponents in the simulator.
    *
-   * Carries the roll and the fast move across, so the fight you land on is the
-   * one you were reading about rather than the league's rated default. Charges
-   * travel as the inverse of `chargeIds`: the report names what is selected,
-   * the battle screen names what is switched off.
+   * Carries the roll, the fast move and the charged selection across, so the
+   * fight you land on is the one you were reading about rather than the
+   * league's rated default.
    */
   const openBattle = (oppId: string) => {
-    const all = species.chargeMoves.map((m) => m.id);
     patch({
       screen: 'battle',
       battleA: ref,
       battleB: oppId,
       fastA: moveIdx,
       ivA: iv,
-      disabledChargesA: chargeIds.length ? all.filter((id) => !chargeIds.includes(id)) : [],
+      chargeIdsA: chargeIds,
       // The opponent arrives on its own rated set, which is what the relevance
       // scan measured it at.
       fastB: 0,
-      disabledChargesB: [],
+      chargeIdsB: [],
     });
   };
 

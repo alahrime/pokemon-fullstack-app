@@ -3,7 +3,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { teamPool } from '../lib/rankings';
-import { analyseShow6, analyseTeam, suggestCompletions } from '../lib/teambuild';
+import { analyseShow6, analyseTeam, completionPool, suggestCompletions } from '../lib/teambuild';
 import { Sprite } from '../components/Sprite';
 import { PokemonCard } from '../components/PokemonCard';
 import { TypeBadge } from '../components/TypeBadge';
@@ -173,10 +173,23 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const suggest = () => {
     setBusy(true);
     setTimeout(() => {
-      setPicks(suggestCompletions(team, league, size === 6 ? 3 : 3));
+      // `size`, not a hard 3. Passing 3 here asked for the completion to a team
+      // of three whatever screen you were on, which on a Show 6 both scored the
+      // wrong game and applied the three's no-repeated-typing rule to a roster
+      // of five — a rule five arbitrary Pokemon always break, so the panel came
+      // back empty from the fourth pick onward in every league.
+      // `builds` for the same reason `run` passes it: a slot the modal built
+      // otherwise gets scored on moves it is not carrying.
+      setPicks(suggestCompletions(team, league, size, { builds }));
       setBusy(false);
     }, 0);
   };
+  // Cheap — a filter over the top 100, no simulation — so it is recomputed for
+  // the note rather than threaded out of the scored result.
+  const candidates = useMemo(
+    () => (picks ? completionPool(team, league, size) : null),
+    [picks, team, league, size],
+  );
 
   return (
     <div className="team-builder">
@@ -294,40 +307,70 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         <div className="panel">
           <div className="hud-label">Best completions</div>
           <p className="text-muted">
-            Every candidate tried in the open slot and the whole team re-simulated. With carryover in
-            play a candidate cannot be scored on its own matchups — its value depends on what the rest
-            of the team leaves it. The second column is win rate against the <em>median</em> candidate,
-            so it measures this pick rather than the fact that three beats two. Candidates obey the
-            same rules discovery does — no duplicate species, and no repeated typing on a three.
+            Every candidate tried in the open slot and the whole roster re-simulated. With carryover
+            in play a candidate cannot be scored on its own matchups — its value depends on what the
+            rest of the team leaves it.{' '}
+            {picks[0]?.metric === 'floor' ? (
+              <>
+                A six is scored as the matrix game, not as a longer chain: against each sampled
+                opposing six, you field whichever of your lines best survives their best answer, and
+                the headline is the mean of those guaranteed values. It is routinely negative until
+                the roster is deep — a partial six cannot answer a full one.
+              </>
+            ) : (
+              <>The headline is the share of the sampled field this chain beats.</>
+            )}{' '}
+            The second column compares that against the <em>median</em> candidate, so it measures
+            this pick rather than the fact that three beats two.
           </p>
-          <ol className="suggest-cards">
-            {picks.map((p) => (
-              <li key={p.ref}>
-                <PokemonCard
-                  refId={p.ref}
-                  league={league}
-                  size="full"
-                  metric={`${Math.round(p.winRate * 100)}%`}
-                  metricLabel="win rate"
-                  onClick={() => add(p.ref)}
-                  title="Add to the team"
-                  note={
-                    <span className="suggest-why">
-                      <span className={`numeric suggest-gain${p.gain >= 0 ? ' is-up' : ' is-down'}`}>
-                        {p.gain >= 0 ? '+' : ''}{Math.round(p.gain * 100)}
-                      </span>
-                      <span className="text-faint">vs median pick</span>
-                      {p.covers.length > 0 && (
-                        <span className="suggest-covers">
-                          shores up {p.covers.map((c) => <TypeBadge key={c} type={c} />)}
+          {picks.length === 0 ? (
+            <p className="text-muted">
+              No candidate in the top {pool.size} is legal beside this roster. Clearing a slot widens
+              the field.
+            </p>
+          ) : (
+            <ol className="suggest-cards">
+              {picks.map((p) => (
+                <li key={p.ref}>
+                  <PokemonCard
+                    refId={p.ref}
+                    league={league}
+                    size="full"
+                    metric={
+                      p.metric === 'floor'
+                        ? `${p.value >= 0 ? '+' : ''}${(p.value * 100).toFixed(0)}`
+                        : `${Math.round(p.value * 100)}%`
+                    }
+                    metricLabel={p.metric === 'floor' ? 'floor' : 'win rate'}
+                    onClick={() => add(p.ref)}
+                    title="Add to the team"
+                    note={
+                      <span className="suggest-why">
+                        <span className={`numeric suggest-gain${p.gain >= 0 ? ' is-up' : ' is-down'}`}>
+                          {p.gain >= 0 ? '+' : ''}{Math.round(p.gain * 100)}
                         </span>
-                      )}
-                    </span>
-                  }
-                />
-              </li>
-            ))}
-          </ol>
+                        <span className="text-faint">vs median pick</span>
+                        {p.covers.length > 0 && (
+                          <span className="suggest-covers">
+                            shores up {p.covers.map((c) => <TypeBadge key={c} type={c} />)}
+                          </span>
+                        )}
+                      </span>
+                    }
+                  />
+                </li>
+              ))}
+            </ol>
+          )}
+          {candidates && (
+            <p className="text-faint suggest-rule">
+              {candidates.pool.length} candidate{candidates.pool.length === 1 ? '' : 's'} obeyed the
+              rules discovery builds under: no duplicate species, and at most {candidates.typeCap}{' '}
+              pair{candidates.typeCap === 1 ? '' : 's'} of the roster sharing a typing.
+              {candidates.typeCap > candidates.nominal &&
+                ` The allowance for a ${size} is ${candidates.nominal}; this roster already spends ${candidates.shared}, and a rule that rejects every candidate says nothing.`}
+            </p>
+          )}
         </div>
       )}
 

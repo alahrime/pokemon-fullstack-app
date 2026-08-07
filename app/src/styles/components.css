@@ -2227,6 +2227,9 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .suggest-why { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-2xs); }
 .suggest-covers { display: flex; align-items: center; gap: 2px; color: var(--text-muted); }
+/* Which allowance the candidates were judged by. Below the list rather than
+   above it: it explains the list, and nobody reads a rule before the answer. */
+.suggest-rule { margin: var(--space-3) 0 0; font-size: var(--text-2xs); }
 
 /* Team slots hold full cards, so they need room rather than a fixed box — and
    a count that divides the roster. auto-fit gave five columns at desk width,

@@ -172,11 +172,29 @@ export function analyseTeam(
 
 export interface Suggestion {
   ref: string;
-  winRate: number;
+  /**
+   * What the pick is worth, on the scale `metric` names.
+   *
+   * Two different games are being played here, so one number cannot mean the
+   * same thing in both — see `suggestCompletions`.
+   */
+  value: number;
+  /**
+   * Which scale `value` and `gain` are on.
+   *
+   * `winRate` — share of the sampled field this chain beats, 0..1.
+   * `floor`   — mean guaranteed value against an opponent who answers your
+   *             best line, roughly -0.5..+0.5 and routinely negative.
+   *
+   * Carried on the row rather than left for the caller to infer from the target
+   * size, because a floor rendered as a win rate reads as a catastrophic team
+   * rather than as the wrong unit.
+   */
+  metric: 'winRate' | 'floor';
   /** Types this pick resists that the existing members are weak to. */
   covers: string[];
   /**
-   * Win rate against the median candidate's, not against the partial team's.
+   * `value` against the median candidate's, not against the partial team's.
    *
    * Measuring the gain over the incomplete team conflated "this pick is good"
    * with "three Pokemon beat two" — every candidate scored +61 to +64 and the
@@ -187,12 +205,98 @@ export interface Suggestion {
 }
 
 /**
+ * How many pairs of a roster may share a typing.
+ *
+ * Discovery's rule, from `MAX_SHARED_TYPES_3`/`_6` in `scripts/build-teams.ts`:
+ * zero for a three, which is what an ABC line means and what you actually
+ * field; two for a six, which is a menu you pick three from and may carry some
+ * overlap while still offering a clean line.
+ */
+const MAX_SHARED_TYPES: Record<number, number> = { 3: 0, 6: 2 };
+
+export interface CompletionPool {
+  /** Candidates legal in the open slot, before any simulation. */
+  pool: string[];
+  /** The shared-typing allowance actually applied. */
+  typeCap: number;
+  /** The allowance discovery would use for a roster this size. */
+  nominal: number;
+  /** Pairs of the existing members that already share a typing. */
+  shared: number;
+  /** True when even the floored allowance left nothing and had to be loosened. */
+  relaxed: boolean;
+}
+
+/**
+ * Who may be suggested for the open slot.
+ *
+ * A completion has to satisfy the rules the offline discovery pass builds
+ * under, or the builder recommends teams discovery would have thrown out: no
+ * duplicate species, and no repeated typing past the allowance for the size.
+ * Filtering here rather than after scoring keeps the gain column honest — the
+ * median it is measured against is then a median of legal picks.
+ *
+ * The one place this cannot copy discovery is the floor. Discovery
+ * *constructs* teams and may reject any that breaks the rule; here the existing
+ * members are the user's, and vetoing them is not on offer. Registeel and
+ * Skarmory is an ordinary Great pairing that already repeats Steel, and judging
+ * the whole roster against a cap of zero rejected **every** candidate and left
+ * an empty panel — as did any Show 6 past its third member, since five
+ * arbitrary Pokemon always share more than two typings. So the cap starts at
+ * whichever is larger, the size's allowance or what the roster already spends.
+ * That asks the candidate not to make things worse, and leaves the rule its
+ * teeth exactly where it can still be obeyed.
+ *
+ * Past that it relaxes one step at a time, as discovery does when a stratum
+ * comes out empty: an unexplained empty list and a silently dropped rule are
+ * both worse than saying which allowance was used.
+ */
+export function completionPool(partial: string[], lg: LeagueId, targetSize: number): CompletionPool {
+  const typesOf = (r: string) => speciesOf(r)?.types ?? [];
+  const legal = teamPool(lg).filter((r) => !partial.some((p) => p === r || conflictsOnTeam(p, r)));
+  const nominal = MAX_SHARED_TYPES[targetSize] ?? 0;
+  const shared = sharedTypePairs(partial.map(typesOf));
+  const base = Math.max(nominal, shared);
+  const under = (cap: number) =>
+    legal.filter((r) => sharedTypePairs([...partial, r].map(typesOf)) <= cap);
+  // Every pair of a full roster — the point at which the rule excludes nothing
+  // and the loop must stop.
+  const allPairs = (targetSize * (targetSize - 1)) / 2;
+  let typeCap = base;
+  let pool = under(typeCap);
+  while (pool.length === 0 && typeCap < allPairs) pool = under(++typeCap);
+  return { pool, typeCap, nominal, shared, relaxed: typeCap > base };
+}
+
+/**
  * Best completions for a partial team.
  *
- * Every candidate in the pool is tried in the open slot and the whole team
- * re-simulated. That is the only honest way to do it with carryover in play:
- * a candidate cannot be scored on its own matchups, because its value depends
- * on what the rest of the team leaves it.
+ * Every candidate in the pool is tried in the open slot and the whole roster
+ * re-simulated. That is the only honest way to do it with carryover in play: a
+ * candidate cannot be scored on its own matchups, because its value depends on
+ * what the rest of the team leaves it.
+ *
+ * **A six is not a longer three, so it is not scored as one.** Filling the
+ * fourth slot of a Show 6 by simulating a four-Pokemon chain against sampled
+ * threes measures a game nobody plays — only three of the six enter. So once
+ * the roster can field a line, the candidate is scored on the matrix game
+ * `analyseShow6` scores a finished six on: against each sampled opposing six,
+ * you play whichever of your lines best survives their best answer.
+ *
+ * It differs from `analyseShow6` in one deliberate way. That function picks a
+ * single line and asks what it guarantees across the entire field, which is the
+ * right question for "what is my strongest line". Here the max sits inside the
+ * mean over opponents, because you re-pick against each opponent you meet — and
+ * that is the whole reason to bring six. Under the stricter reading the sixth
+ * member is worth nothing whenever the existing five already hold one good
+ * line, which is precisely when the question gets asked.
+ *
+ * Two cheaper scorings were measured and rejected. Playing the roster's best
+ * line against *unanswered* sampled threes saturates: with five members you
+ * have a winning answer to 100% of them, and all 30 candidates tie. Counting
+ * the share of opposing sixes held to a positive floor is too coarse at this
+ * field size — three distinct values across 30 candidates. The mean floor
+ * separates 93 of 97.
  */
 export function suggestCompletions(
   partial: string[],
@@ -200,43 +304,109 @@ export function suggestCompletions(
   targetSize: number,
   opts: { count?: number; limit?: number; builds?: Record<string, MonBuild> } = {},
 ): Suggestion[] {
-  const count = opts.count ?? 90;
   const limit = opts.limit ?? 12;
-  const field = sampleFieldTeams(lg, targetSize, count);
-  // A completion has to satisfy every rule the offline discovery pass enforces,
-  // or the builder recommends teams that discovery would have thrown out:
-  // no duplicate species, and no repeated typing on a three (the ABC rule).
-  // Filtering here rather than after scoring keeps the gain column honest —
-  // the median it is measured against is a median of legal picks.
-  const pool = teamPool(lg).filter((r) => {
-    if (partial.some((p) => p === r || conflictsOnTeam(p, r))) return false;
-    if (targetSize === 3 && sharedTypePairs([...partial, r].map((x) => speciesOf(x)?.types ?? []))) return false;
-    return true;
-  });
+  const { pool } = completionPool(partial, lg, targetSize);
+  // A roster of fewer than three cannot field a line, so there is no matrix
+  // game to play yet and the chain is the only thing left to measure.
+  const asSix = targetSize === 6 && partial.length >= 2;
+  const score = asSix
+    ? sixScorer(lg, opts.count ?? 8, opts.builds)
+    : chainScorer(lg, opts.count ?? 90, opts.builds);
 
-  const score = (team: string[]) => {
-    const mine = team.map((r) => monFor(r, lg, opts.builds?.[r]));
-    let wins = 0;
-    for (const foes of field) if (teamBattle(mine, foes.map((r) => monFor(r, lg))).win) wins++;
-    return wins / field.length;
-  };
-
-  const scored = pool.map((ref) => ({ ref, winRate: score([...partial, ref]) }));
-  const sortedRates = scored.map((s) => s.winRate).sort((a, b) => a - b);
-  const median = sortedRates[Math.floor(sortedRates.length / 2)] ?? 0;
+  const scored = pool.map((ref) => ({ ref, value: score([...partial, ref]) }));
+  const sorted = scored.map((s) => s.value).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
   // What the pick actually shores up, so the list says why rather than only
   // how much. A weakness the existing team already answers is not a reason.
   const open = new Set(
     partial.flatMap((p) => weaknessesOf(speciesOf(p)?.types ?? []))
       .filter((w) => !partial.some((p) => resistancesOf(speciesOf(p)?.types ?? []).includes(w))),
   );
-  const out = scored.map((s) => ({
+  const out: Suggestion[] = scored.map((s) => ({
     ...s,
-    gain: s.winRate - median,
+    metric: asSix ? 'floor' : 'winRate',
+    gain: s.value - median,
     covers: resistancesOf(speciesOf(s.ref)?.types ?? []).filter((r) => open.has(r)),
   }));
-  out.sort((a, b) => b.winRate - a.winRate);
+  out.sort((a, b) => b.value - a.value);
   return out.slice(0, limit);
+}
+
+/**
+ * Share of a sampled field of threes that this roster, played as a chain, beats.
+ *
+ * Threes whatever the target size, because three is what enters. Sampling
+ * *sixes* for the six's one-member fallback scored every candidate at exactly
+ * zero — a two-Pokemon chain never beats six — which is a column of noughts
+ * rather than a ranking.
+ */
+function chainScorer(
+  lg: LeagueId,
+  count: number,
+  builds?: Record<string, MonBuild>,
+): (roster: string[]) => number {
+  const field = sampleFieldTeams(lg, 3, count);
+  return (roster) => {
+    const mine = roster.map((r) => monFor(r, lg, builds?.[r]));
+    let wins = 0;
+    for (const foes of field) if (teamBattle(mine, foes.map((r) => monFor(r, lg))).win) wins++;
+    return wins / field.length;
+  };
+}
+
+/**
+ * Mean guaranteed value of a Show 6 roster, re-picking against each opponent.
+ *
+ * Affordable only because a line's floors depend on the line and the field, not
+ * on which roster contains it: the lines the existing members already form are
+ * simulated once and reused by every candidate, so a pool of 30 costs 310
+ * distinct lines rather than 30 x 20.
+ *
+ * Measured 165ms at two members to 1.9s at five in Ultra, where nothing is
+ * filtered out and 95 candidates each contribute ten new lines. That is the
+ * same order as the Analyse button beside it, which is the bar: both are a
+ * click that says "Simulating…".
+ */
+function sixScorer(
+  lg: LeagueId,
+  count: number,
+  builds?: Record<string, MonBuild>,
+): (roster: string[]) => number {
+  const field = sampleFieldTeams(lg, 6, count);
+  // The opponent's twenty answers per six, built once. Their side runs its
+  // rated loadout, for the reason the rankings sweep only your own: letting
+  // sets nobody plays vote makes the number describe a game nobody is playing.
+  const answers = field.map((six) => subteams(six, 3).map((a) => a.map((r) => monFor(r, lg))));
+  const cache = new Map<string, Float64Array>();
+  const floorsFor = (line: string[]) => {
+    const key = [...line].sort().join('|');
+    const hit = cache.get(key);
+    if (hit) return hit;
+    const mine = line.map((r) => monFor(r, lg, builds?.[r]));
+    const floors = new Float64Array(field.length);
+    for (let i = 0; i < answers.length; i++) {
+      let worst = Infinity;
+      for (const answer of answers[i]) {
+        const r = teamBattle(mine, answer);
+        const v = r.hpFracA - r.hpFracB;
+        if (v < worst) worst = v;
+      }
+      floors[i] = worst;
+    }
+    cache.set(key, floors);
+    return floors;
+  };
+
+  return (roster) => {
+    const lines = subteams(roster, 3).map(floorsFor);
+    let total = 0;
+    for (let i = 0; i < field.length; i++) {
+      let best = -Infinity;
+      for (const floors of lines) if (floors[i] > best) best = floors[i];
+      total += best;
+    }
+    return field.length ? total / field.length : 0;
+  };
 }
 
 /**

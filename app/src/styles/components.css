@@ -4161,3 +4161,62 @@ th.bt-matrix-head { text-align: center; }
   flex: 1 1 320px;
   min-width: 280px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPORT LEFT COLUMN — the readouts below the controls
+
+   The column was labelled at the top (Form, Best Buddy, Adjust roll) and then
+   ran anonymous: a rank frame, a stat strip, a list of numbers and a table,
+   with nothing saying what any of them was. They carry the same micro-label
+   as the controls now, and the same hairline frame, so the column reads as
+   one sequence of named blocks rather than a header followed by loose numbers.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The strip already draws its own 1px grid via a background bleed; the frame
+   here is the outer edge that matches the other blocks. */
+.report-side .stat-strip {
+  border-color: var(--rule-strong);
+}
+.report-side .stat-cell {
+  padding: 9px 11px;
+}
+/* Values are compared down the column, so they line up on the same grid as
+   every other number in the report. */
+.report-side .stat-cell-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The detail list had a top border and a border under every row, which reads
+   as a table with a missing edge. Framed, it reads as a block. */
+.report-side .detail-list {
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-bottom: 0;
+  background: var(--surface-1);
+}
+.report-side .detail-row {
+  padding: 6px 11px;
+}
+.report-side .detail-row:nth-child(even) {
+  /* A whisper of banding: four rows of label-and-number are easy to misread
+     across, and this costs nothing on either ground. */
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+.report-side .detail-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The Shadow comparison is three rows of paired numbers — the point is the
+   difference between the columns, so they get equal width and the same
+   tabular grid rather than sizing to their content. */
+.rs-shadow-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.rs-shadow-table th,
+.rs-shadow-table td {
+  padding: 5px 8px;
+}
+.rs-shadow-table th:first-child,
+.rs-shadow-table td:first-child {
+  width: 46%;
+}

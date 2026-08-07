@@ -313,7 +313,11 @@ export function ReportScreen() {
 
           {/* Battle stats — these carry the Shadow multipliers, unlike the
               hero's CP/level, which don't. */}
-          <div className="stat-strip">
+          <div className="side-block">
+            <div className="hud-label rs-label">
+              <span>Battle stats</span>
+            </div>
+            <div className="stat-strip">
             {(
               [
                 ['Attack', entry.atk.toFixed(1)],
@@ -321,14 +325,19 @@ export function ReportScreen() {
                 ['Stamina', String(entry.hp)],
               ] as [string, string][]
             ).map(([label, value]) => (
-              <div key={label} className="stat-cell">
-                <span className="stat-cell-label">{label}</span>
-                <span className="stat-cell-value numeric">{value}</span>
-              </div>
-            ))}
+                <div key={label} className="stat-cell">
+                  <span className="stat-cell-label">{label}</span>
+                  <span className="stat-cell-value numeric">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="stagger detail-list">
+          <div className="side-block">
+            <div className="hud-label rs-label">
+              <span>This spread</span>
+            </div>
+            <div className="stagger detail-list">
             {(
               [
                 ['Stat product', `${(entry.sp / 1000).toFixed(2)}k`],
@@ -337,18 +346,22 @@ export function ReportScreen() {
                 ['Best league here', `${bestLeague.league.name} · #${bestLeague.rank}`],
               ] as [string, string][]
             ).map(([label, value], i) => (
-              <div key={label} className="detail-row" style={{ ['--i' as string]: i }}>
-                <span className="detail-label">{label}</span>
-                <span className="detail-value numeric">{value}</span>
-              </div>
-            ))}
+                <div key={label} className="detail-row" style={{ ['--i' as string]: i }}>
+                  <span className="detail-label">{label}</span>
+                  <span className="detail-value numeric">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Sits with the other numbers rather than beside the toggle: the
               control belongs at the top, but this is a readout of its effect. */}
-          <div>
-            {shadowCompare && (
-              <table className="table numeric text-sm">
+          {shadowCompare && (
+            <div className="side-block">
+              <div className="hud-label rs-label">
+                <span>Shadow damage</span>
+              </div>
+              <table className="table numeric text-sm rs-shadow-table">
                 <thead>
                   <tr>
                     <th className="text-left">vs {opp.name}</th>
@@ -380,8 +393,8 @@ export function ReportScreen() {
                   </tr>
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Right column. The panels here are independent readouts and which one

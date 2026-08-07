@@ -149,3 +149,38 @@ describe('Matchup flips layout', () => {
     expect(col.parentElement!.className).toContain('fv-cols');
   });
 });
+
+describe('report left column', () => {
+  it('names every readout, not just the controls', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const side = container.querySelector('.report-side')!;
+    const labels = [...side.querySelectorAll('.side-block > .hud-label')]
+      .map((l) => l.textContent!.replace(/max →.*$/, '').trim());
+    // The column used to be labelled down to "Adjust roll" and then run
+    // anonymous: a stat strip, a list of numbers and a table with nothing
+    // saying what any of them was.
+    expect(labels).toContain('Form');
+    expect(labels).toContain('Adjust roll');
+    expect(labels).toContain('Battle stats');
+    expect(labels).toContain('This spread');
+  });
+
+  it('puts the stat strip and the detail list inside named blocks', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const side = container.querySelector('.report-side')!;
+    expect(side.querySelector('.side-block .stat-strip')).toBeTruthy();
+    expect(side.querySelector('.side-block .detail-list')).toBeTruthy();
+  });
+
+  it('labels the Shadow comparison where one exists', async () => {
+    const { container } = renderApp(<With species="venusaur"><ReportScreen /></With>);
+    await waitFor(() => expect(container.querySelector('.rs-shadow-table')).toBeTruthy());
+    const block = container.querySelector('.rs-shadow-table')!.closest('.side-block')!;
+    expect(block.querySelector('.hud-label')!.textContent).toContain('Shadow damage');
+  });
+
+  it('omits the Shadow block entirely for a species with no Shadow form', () => {
+    const { container } = renderApp(<ReportScreen />);
+    expect(container.querySelector('.rs-shadow-table')).toBeFalsy();
+  });
+});

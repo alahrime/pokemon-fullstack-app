@@ -1,5 +1,6 @@
 import type { OpponentRelevance } from '../lib/engine';
 import { Sprite } from './Sprite';
+import { SwordIcon } from './Icons';
 
 /**
  * Opponent picker as an auto-fitting grid.
@@ -29,6 +30,7 @@ export function OpponentGrid({
   onSort,
   onPage,
   onSelect,
+  onBattle,
 }: {
   items: OpponentRelevance[];
   page: number;
@@ -40,6 +42,8 @@ export function OpponentGrid({
   onSort: (desc: boolean) => void;
   onPage: (page: number) => void;
   onSelect: (id: string) => void;
+  /** Open this matchup in the simulator. */
+  onBattle: (id: string) => void;
 }) {
   const first = page * items.length;
 
@@ -68,13 +72,14 @@ export function OpponentGrid({
           const active = r.info.id === activeId;
           const flips = r.flipShields.length > 0;
           return (
+            /* The cell is a button, so the fight action cannot nest inside it —
+               it sits alongside, over the cell's own corner. */
+            <span className="opp-cell-wrap" key={r.info.id} style={{ ['--i' as string]: i }}>
             <button
-              key={r.info.id}
               onClick={() => onSelect(r.info.id)}
               aria-pressed={active}
               title={r.reason || 'Selectable opponent'}
               className={`btn opp-cell${active ? ' is-active' : ''}`}
-              style={{ ['--i' as string]: i }}
             >
               <Sprite sprite={r.info.sprite} dex={r.info.dex} size={30} shadow={r.info.shadow} bestBuddy={r.info.lvl > 50} />
               <span className="opp-cell-body">
@@ -87,6 +92,16 @@ export function OpponentGrid({
                 </span>
               ) : null}
             </button>
+            <button
+              type="button"
+              className="opp-fight"
+              title={`Simulate this matchup against ${r.info.name}`}
+              aria-label={`Battle ${r.info.name}`}
+              onClick={() => onBattle(r.info.id)}
+            >
+              <SwordIcon size={13} />
+            </button>
+            </span>
           );
         })}
       </div>

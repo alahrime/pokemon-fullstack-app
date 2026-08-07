@@ -77,15 +77,48 @@ export function ReportScreen() {
   const [sortDesc, setSortDesc] = useState(true);
   const [page, setPage] = useState(0);
 
+  /**
+   * Open this species against one of its listed opponents in the simulator.
+   *
+   * Carries the roll and the fast move across, so the fight you land on is the
+   * one you were reading about rather than the league's rated default. Charges
+   * travel as the inverse of `chargeIds`: the report names what is selected,
+   * the battle screen names what is switched off.
+   */
+  const openBattle = (oppId: string) => {
+    const all = species.chargeMoves.map((m) => m.id);
+    patch({
+      screen: 'battle',
+      battleA: ref,
+      battleB: oppId,
+      fastA: moveIdx,
+      ivA: iv,
+      disabledChargesA: chargeIds.length ? all.filter((id) => !chargeIds.includes(id)) : [],
+      // The opponent arrives on its own rated set, which is what the relevance
+      // scan measured it at.
+      fastB: 0,
+      disabledChargesB: [],
+    });
+  };
+
   const sorted = useMemo(() => {
     const myFast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+    const rankOf = (r: (typeof relevance)[number]) =>
+      SPECIES_BY_ID.get(parseRef(r.info.id).id)?.leagueRank[league] ?? 9999;
     const key = (r: (typeof relevance)[number]) => {
       if (colorBy === 'break') return dmg(entry.atk, r.info.def, myFast, r.info.types);
       if (colorBy === 'bulk') return dmg(r.info.atk, entry.def, r.info.fastMove, species.types);
       // Rank: lower is better, so negate to keep "descending = strongest first".
-      return -(SPECIES_BY_ID.get(parseRef(r.info.id).id)?.leagueRank[league] ?? 9999);
+      return -rankOf(r);
     };
-    return [...relevance].sort((a, b) => (sortDesc ? key(b) - key(a) : key(a) - key(b)));
+    // Damage leads, because a breakpoint list is about the step. But damage is
+    // a small integer and almost everything ties on it — measured over three
+    // species, 30 to 38 of 40 rows shared a value, and Registeel's breakpoints
+    // put 39 of 40 in one group. Ordering those ties by league rank is what
+    // makes the list read meta-first instead of arbitrarily.
+    return [...relevance].sort(
+      (a, b) => (sortDesc ? key(b) - key(a) : key(a) - key(b)) || rankOf(a) - rankOf(b),
+    );
   }, [relevance, colorBy, sortDesc, entry.atk, entry.def, species, moveIdx, league]);
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / OPPONENT_WINDOW));
@@ -409,6 +442,7 @@ export function ReportScreen() {
                       onSort={setSortDesc}
                       onPage={setPage}
                       onSelect={(id) => set('oppId', id)}
+                      onBattle={(id) => openBattle(id)}
                     />
                   </>
                 ),

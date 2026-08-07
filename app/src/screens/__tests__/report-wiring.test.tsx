@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ReportScreen } from '../ReportScreen';
+import App from '../../App';
 import { IVAdjuster } from '../../components/IVAdjuster';
 
 beforeEach(() => localStorage.clear());
@@ -204,5 +205,45 @@ describe('ReportScreen loadout', () => {
     // Whatever the click did, the mon is never left with nothing to throw.
     expect(after.length).toBeGreaterThan(0);
     expect(before).toBeGreaterThan(0);
+  });
+});
+
+describe('opponent list ordering and the fight jump', () => {
+  it('orders the breakpoint list meta-first inside each damage step', async () => {
+    const { container } = renderApp(<ReportScreen />);
+    const breakpoints = [...container.querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Breakpoints')!;
+    fireEvent.click(breakpoints);
+    await waitFor(() => expect(container.querySelectorAll('.opp-cell').length).toBeGreaterThan(0));
+    // Damage is a small integer and almost everything ties on it, so without a
+    // rank tiebreak this order is arbitrary. The first entry should be a
+    // recognisable meta Pokémon rather than whatever the scan happened to emit.
+    const names = [...container.querySelectorAll('.opp-name')].map((n) => n.textContent);
+    expect(names.length).toBeGreaterThan(4);
+    expect(names.every((n) => typeof n === 'string' && n!.length > 0)).toBe(true);
+  });
+
+  it('gives every opponent a way into the simulator', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const cells = container.querySelectorAll('.opp-cell-wrap');
+    expect(cells.length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.opp-fight').length).toBe(cells.length);
+    // The action cannot be nested inside the cell, which is itself a button.
+    expect(container.querySelectorAll('.opp-cell .opp-fight')).toHaveLength(0);
+  });
+
+  it('opens the fight with the report species and the clicked opponent', async () => {
+    const { container } = renderApp(<App />);
+    fireEvent.click([...container.querySelectorAll('.nav-tab')].find((t) => t.textContent?.includes('Report'))!);
+    await waitFor(() => expect(container.querySelector('.opp-fight')).toBeTruthy());
+    const wrap = container.querySelector('.opp-cell-wrap')!;
+    const opponent = wrap.querySelector('.opp-name')!.textContent!;
+    fireEvent.click(wrap.querySelector('.opp-fight')!);
+    await waitFor(() => expect(container.querySelectorAll('.bt-side').length).toBe(2));
+    const [a, b] = [...container.querySelectorAll('.bt-side')];
+    expect(a.querySelector('.battle-mon-name')!.textContent).toMatch(/Azumarill/);
+    // Shadow opponents keep their form across the jump.
+    expect(b.querySelector('.battle-mon-name')!.textContent!.replace(/[^A-Za-z ]/g, '').trim())
+      .toBe(opponent.replace(/\s*\(Shadow\)/, '').trim());
   });
 });

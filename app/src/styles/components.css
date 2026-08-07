@@ -4088,3 +4088,50 @@ th.bt-matrix-head { text-align: center; }
   .theme-menu-bars span,
   .theme-swatch-face { transition: none; }
 }
+
+/* ── Opponent cell: select, and jump to the fight ────────────────────────── */
+/* The cell itself is a button, so the fight action is a sibling pinned over
+   its corner rather than a nested control. */
+.opp-cell-wrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.opp-cell-wrap > .opp-cell { width: 100%; }
+.opp-fight {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  color: var(--text-faint);
+  cursor: pointer;
+  /* Out of the way until the row is under the cursor: sixteen always-lit
+     action buttons compete with the reasons, which are the point of the list. */
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out);
+}
+.opp-cell-wrap:hover .opp-fight,
+.opp-fight:focus-visible {
+  opacity: 1;
+}
+.opp-fight:hover,
+.opp-fight:focus-visible {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.opp-fight:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .opp-fight { transition: none; }
+}
+/* Touch has no hover, so the action must not be permanently invisible there. */
+@media (hover: none) {
+  .opp-fight { opacity: 1; }
+}

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   BASE_ROSTER, OPPONENTS, ROSTER, SPECIES, SPECIES_BY_ID, UNSIMULATED_IDS,
   conflictsOnTeam, displayName, isSimulated, makeRef, movesFor, opponentCandidatesFor,
-  parseRef, pickableFor, speciesOf, teamIsLegal,
+  opponentsFor, parseRef, pickableFor, randomMatchup, speciesOf, teamIsLegal,
 } from '../data';
 
 describe('refs', () => {
@@ -83,5 +83,34 @@ describe('team legality', () => {
     expect(teamIsLegal(['azumarill','registeel','medicham'])).toBe(true);
     expect(teamIsLegal(['azumarill','registeel','registeel_shadow'])).toBe(false);
     expect(teamIsLegal([])).toBe(true);
+  });
+});
+
+describe('randomMatchup', () => {
+  it('returns two different Pokémon from the league pool', () => {
+    for (const lg of ['great', 'ultra', 'master'] as const) {
+      const pool = new Set(opponentsFor(lg).map((s) => s.id));
+      for (let i = 0; i < 50; i++) {
+        const [a, b] = randomMatchup(lg);
+        expect(a).not.toBe(b);
+        expect(pool.has(a)).toBe(true);
+        expect(pool.has(b)).toBe(true);
+      }
+    }
+  });
+
+  it('actually varies, rather than looking random and repeating', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) seen.add(randomMatchup('great').join('|'));
+    expect(seen.size).toBeGreaterThan(30);
+  });
+
+  it('draws every position, not just the head of the pool', () => {
+    // The shift-past-`a` trick keeps the draw uniform; a naive re-roll that
+    // gave up would bias toward the front.
+    const pool = opponentsFor('great');
+    const hits = new Set<string>();
+    for (let i = 0; i < 400; i++) randomMatchup('great').forEach((r) => hits.add(r));
+    expect(hits.size).toBeGreaterThan(pool.length * 0.5);
   });
 });

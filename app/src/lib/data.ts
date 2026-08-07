@@ -231,6 +231,29 @@ export function spriteFallbackUrl(dex: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dex}.png`;
 }
 
+/**
+ * A random pair to open the battle screen on, drawn from the league's own pool.
+ *
+ * The screen used to start on the same fixed pair every time, which made it
+ * feel like a saved state rather than a sandbox. Drawn from `opponentsFor`
+ * rather than the whole roster: that is already the simulated, league-relevant
+ * set, so a random pick is a matchup worth looking at instead of two Pokemon
+ * nobody brings.
+ *
+ * Falls back to the first two if a pool is somehow too small to pick from,
+ * because a battle screen with one side empty is worse than a dull matchup.
+ */
+export function randomMatchup(league: LeagueId): [string, string] {
+  const pool = opponentsFor(league);
+  if (pool.length < 2) return [pool[0]?.id ?? 'azumarill', pool[1]?.id ?? 'lickilicky'];
+  const a = Math.floor(Math.random() * pool.length);
+  let b = Math.floor(Math.random() * (pool.length - 1));
+  // Shift past `a` rather than re-rolling, so the two are never the same and
+  // the draw stays uniform over the remaining choices.
+  if (b >= a) b += 1;
+  return [pool[a].id, pool[b].id];
+}
+
 export function opponentsFor(league: LeagueId): Species[] {
   return OPPONENTS[league].filter(isSimulated).map((id) => SPECIES_BY_ID.get(id)!).filter(Boolean);
 }

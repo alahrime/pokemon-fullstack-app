@@ -117,6 +117,8 @@ export function SpeciesSearch({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** Bumped each time the box is opened, to re-draw the blank-query list. */
+  const [shuffleKey, setShuffleKey] = useState(0);
   const timerRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -143,12 +145,30 @@ export function SpeciesSearch({
    * actually played, best first, with unranked forms after them. Sorted once at
    * module scope rather than per keystroke.
    */
+  /**
+   * What an empty box offers: a random draw, not the top of the rankings.
+   *
+   * Sorted by rank it was the same list every time, headed by whatever sits at
+   * rank 1 — so the field read as "defaulting to Azumarill" rather than as an
+   * invitation to look around. Drawn only from species that have a league rank
+   * at all, because a uniform draw over the whole roster is mostly Pokemon
+   * nobody can field.
+   *
+   * Reshuffled per opening rather than per render: a list that reordered while
+   * you were reading it would be unusable.
+   */
   const defaults = useMemo(() => {
-    return pool
-      .slice()
-      .sort((x, y) => bestRankOf(x) - bestRankOf(y) || x.species.dex - y.species.dex || x.name.localeCompare(y.name))
-      .slice(0, RESULT_LIMIT);
-  }, [pool]);
+    const ranked = pool.filter((e) => bestRankOf(e) !== Number.MAX_SAFE_INTEGER);
+    const from = ranked.length >= RESULT_LIMIT ? ranked : pool;
+    // Fisher-Yates over a copy, then take the window.
+    const shuffled = from.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, RESULT_LIMIT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool, shuffleKey]);
 
   const results = useMemo(() => {
     const q = debounced.trim().toLowerCase();
@@ -253,6 +273,7 @@ export function SpeciesSearch({
         onFocus={() => {
           setOpen(true);
           setActiveIndex(0);
+          setShuffleKey((k) => k + 1);
           inputRef.current?.select();
         }}
         onChange={(e) => {

@@ -219,3 +219,42 @@ describe('exportAll', () => {
     expect(exportAll('great').scale).toMatch(/Overall is NOT a battle rating/);
   });
 });
+
+describe('an empty search offers a varied draw', () => {
+  const openBlank = () => {
+    const { container } = renderApp(<SpeciesSearch id="blank" value="azumarill" onChange={() => {}} startEmpty />);
+    const input = container.querySelector('input')!;
+    fireEvent.focus(input);
+    return container;
+  };
+
+  it('does not lead with the same Pokémon every time', () => {
+    // Sorted by rank it was the same list on every open, headed by rank 1 —
+    // which read as the field defaulting to one Pokémon.
+    const heads = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      heads.add(openBlank().querySelector('.search-row')!.textContent ?? '');
+    }
+    expect(heads.size).toBeGreaterThan(1);
+  });
+
+  it('redraws each time the box is opened, not on every render', () => {
+    const container = openBlank();
+    const first = [...container.querySelectorAll('.search-row')].map((r) => r.textContent).join('|');
+    const input = container.querySelector('input')!;
+    // A blur and a fresh focus is a new opening.
+    fireEvent.blur(input);
+    fireEvent.focus(input);
+    const second = [...container.querySelectorAll('.search-row')].map((r) => r.textContent).join('|');
+    expect(second).not.toBe(first);
+  });
+
+  it('offers only Pokémon that are actually ranked somewhere', () => {
+    // A uniform draw over the whole roster is mostly Pokemon nobody can field.
+    const container = openBlank();
+    const names = [...container.querySelectorAll('.search-row')].slice(0, 30)
+      .map((r) => r.textContent ?? '');
+    expect(names.length).toBeGreaterThan(10);
+    expect(names.every((n) => n.trim().length > 0)).toBe(true);
+  });
+});

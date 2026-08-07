@@ -46,3 +46,22 @@ if (!Element.prototype.setPointerCapture) {
   Element.prototype.releasePointerCapture = () => {};
   Element.prototype.hasPointerCapture = () => false;
 }
+
+
+/**
+ * A seeded Math.random, so a suite that now depends on randomness is still
+ * reproducible.
+ *
+ * The battle screen opens on a random matchup and the search offers a random
+ * draw when empty. Both are rolled at module load, before any test body runs,
+ * so a spy installed inside a test would be too late — it has to be here.
+ * mulberry32: three lines, uniform enough, and identical on every run.
+ */
+let seed = 0x9e3779b9;
+Math.random = () => {
+  seed |= 0;
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};

@@ -8,6 +8,22 @@ beforeEach(() => localStorage.clear());
 /** The two Side panels, in the order they are rendered. */
 const sides = (c: HTMLElement) => [...c.querySelectorAll('.bt-side')] as HTMLElement[];
 
+/** Put a known Pokémon on a side, since the screen now opens on a random one. */
+async function setSpecies(side: HTMLElement, name: string) {
+  const input = side.querySelector('.species-search input') as HTMLInputElement;
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: name } });
+  const row = await waitFor(() => {
+    const r = [...side.querySelectorAll('.search-row')]
+      .find((x) => new RegExp(`^${name}$`, 'i').test(x.textContent?.trim().split('\n')[0] ?? ''))
+      ?? [...side.querySelectorAll('.search-row')].find((x) => new RegExp(name, 'i').test(x.textContent ?? ''));
+    if (!r) throw new Error(`no ${name}`);
+    return r;
+  });
+  fireEvent.mouseDown(row);
+  await waitFor(() => expect(side.textContent).toMatch(new RegExp(name, 'i')));
+}
+
 describe('BattleScreen — per-side controls', () => {
   it('renders one control panel per side', () => {
     const { container } = renderApp(<BattleScreen />);
@@ -51,16 +67,23 @@ describe('BattleScreen — per-side controls', () => {
     expect(equipped.some((t) => t.includes(name))).toBe(true);
   });
 
-  it('re-runs the fight when a side changes its charged moves', () => {
+  it('re-runs the fight when a side changes its charged moves', async () => {
+    // Pinned rather than left to the opening draw: the screen now starts on a
+    // random matchup, and plenty of pairs are decided by something other than
+    // the charged move, which would make this pass or fail by luck. This is
+    // the pair the behaviour was first confirmed on in the browser — giving
+    // Lickilicky Earthquake turns a 5% loss into a 7% win.
     const { container } = renderApp(<BattleScreen />);
-    const b = sides(container)[1];
+    await setSpecies(sides(container)[0], 'azumarill');
+    await setSpecies(sides(container)[1], 'lickilicky');
+
     const before = container.querySelector('.bt-winner')!.textContent! +
       container.querySelector('.bt-margin')!.textContent!;
-    const chargeCol = b.querySelectorAll('.moves-col')[1];
+    const chargeCol = sides(container)[1].querySelectorAll('.moves-col')[1];
     fireEvent.click(chargeCol.querySelector('.move-picker-btn')!);
     const unrated = [...chargeCol.querySelectorAll('.move-picker-row')]
-      .find((r) => !r.className.includes('is-active'));
-    if (!unrated) return;
+      .find((r) => !r.className.includes('is-active'))!;
+    expect(unrated).toBeTruthy();
     fireEvent.click(unrated);
     const after = container.querySelector('.bt-winner')!.textContent! +
       container.querySelector('.bt-margin')!.textContent!;

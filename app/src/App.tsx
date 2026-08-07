@@ -7,7 +7,7 @@ import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { LeagueTabs } from './components/LeagueTabs';
-import { opponentsFor } from './lib/data';
+import { opponentsFor, randomMatchup } from './lib/data';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
@@ -91,7 +91,22 @@ function Nav() {
       <div className="nav-right">
         <LeagueTabs
           value={state.league}
-          onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}
+          onChange={(id) => {
+            // The battle pair is drawn from the league's own pool, so it is
+            // re-rolled here — a Great-league matchup left on the Master
+            // screen is priced at a cap it never plays under.
+            const [a, b] = randomMatchup(id);
+            patch({
+              league: id,
+              oppId: opponentsFor(id)[0]?.id ?? '',
+              battleA: a,
+              battleB: b,
+              fastA: 0,
+              fastB: 0,
+              chargeIdsA: [],
+              chargeIdsB: [],
+            });
+          }}
         />
         <ThemeMenu />
       </div>

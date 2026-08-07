@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
-import { opponentsFor } from '../lib/data';
+import { opponentsFor, randomMatchup } from '../lib/data';
 
 export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
@@ -70,6 +70,10 @@ export interface AppStateShape {
   energyB: number;
 }
 
+// Rolled once per page load, so the battle screen opens somewhere different
+// each visit instead of always on the same saved-looking pair.
+const [openingA, openingB] = randomMatchup('great');
+
 const initialState: AppStateShape = {
   // The search is the first step of every task here, so the page whose whole
   // job is the search is where you start. Choosing a species moves you on.
@@ -87,9 +91,8 @@ const initialState: AppStateShape = {
   moveIdx: 0,
   shields: 1,
   shieldsOpp: 1,
-  battleA: 'azumarill',
-  // Not Mimikyu: it is held out of the simulator (UNSIMULATED_IDS).
-  battleB: 'lickilicky',
+  battleA: openingA,
+  battleB: openingB,
   ivA: { a: 15, d: 15, s: 15 },
   ivB: { a: 15, d: 15, s: 15 },
   fastA: 0,

@@ -787,6 +787,16 @@ function probeSpreads(table: SpeciesTable, oppAtk: number, band: ProbeBand): Pro
 
 const SHIELD_SCENARIOS = [0, 1, 2];
 
+/**
+ * Rank at which an opponent's matchups are worth half what rank 1's are.
+ *
+ * Tuned against the list it produces rather than by feel: at 120 the median
+ * opponent surfaced for Azumarill moves from rank 221 to double figures, and
+ * the 500-plus tail drops out, while a genuinely knife-edge matchup against a
+ * rank-300 Pokemon can still outscore a dull one against rank 5.
+ */
+const RANK_HALF = 120;
+
 const relevanceCache = new Map<string, OpponentRelevance[]>();
 
 /**
@@ -916,7 +926,8 @@ export function rankedOpponents(
     // A knife-edge — decided in some shield scenarios but not all — is more
     // informative than one that swings everywhere, so weight it higher.
     const knifeEdge = flipShields.length > 0 && flipShields.length < SHIELD_SCENARIOS.length;
-    const score =
+    // How much this matchup teaches about your roll.
+    const informative =
       (flipShields.length > 0 ? 600 : 0) +
       (knifeEdge ? 400 : 0) +
       (cmpDecides ? 500 : 0) +
@@ -926,8 +937,19 @@ export function rankedOpponents(
       (cmpContested ? 80 : 0) +
       (hasBreak ? 60 : 0) +
       (hasBulk ? 40 : 0) +
-      (razor ? 60 : 0) -
-      rank * 0.1;
+      (razor ? 60 : 0);
+
+    // …times how likely you are to meet it. This was `- rank * 0.1`, a
+    // subtraction against bonuses of 400 to 600, so it barely counted: the
+    // median opponent surfaced for Azumarill sat at rank 221 and the tail ran
+    // to 647 — Celebi, Celesteela, Shadow Staraptor. A decidable matchup
+    // against a Pokemon nobody brings is not a relevant matchup, however
+    // decidable it is.
+    //
+    // Multiplicative rather than another additive term, so it scales the whole
+    // score instead of being outvoted by it. RANK_HALF is where a matchup is
+    // worth half as much as the same matchup against rank 1.
+    const score = informative * (1 / (1 + rank / RANK_HALF));
 
     // Nothing decidable and not even close: not worth a slot.
     if (flipShields.length === 0 && !cmpContested && !hasBreak && !hasBulk && !razor) continue;

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   PVP_BONUS, ENERGY_CAP, ENERGY_KEPT, HP_WEIGHT, SHADOW_ATK_MULT, SHADOW_DEF_MULT,
   STAGE_MIN, STAGE_MAX, buffMultiplier, dmg, battle, mkBattleMon, chargesOf, fastMoveCounts,
+  rankedOpponents,
 } from '../engine';
+import { SPECIES_BY_ID, parseRef } from '../data';
 import type { ChargeMove, FastMove } from '../types';
 
 const F = (o: Partial<FastMove> = {}): FastMove =>
@@ -167,5 +169,45 @@ describe('chargesOf and fastMoveCounts', () => {
   });
   it('returns nothing when the fast move generates no energy', () => {
     expect(fastMoveCounts(F({ energyGain: 0 }), C({ energy: 50 }), 4)).toEqual([]);
+  });
+});
+
+describe('opponent relevance is weighted by who you actually meet', () => {
+  const rankOf = (ref: string) =>
+    SPECIES_BY_ID.get(parseRef(ref).id)?.leagueRank.great ?? 9999;
+
+  it('leads with the meta and leaves the tail out', () => {
+    // The rank term used to be `- rank * 0.1` against bonuses of 400 to 600,
+    // so it barely counted: Azumarill's list had a median rank of 221 and a
+    // tail to 647 — Celebi, Celesteela, Shadow Staraptor.
+    const rel = rankedOpponents('azumarill', 'great', 0, 'break', 40);
+    const ranks = rel.map((r) => rankOf(r.info.id)).sort((a, b) => a - b);
+    const median = ranks[Math.floor(ranks.length / 2)];
+    expect(median).toBeLessThan(120);
+    expect(Math.max(...ranks.filter((r) => r < 9999))).toBeLessThan(300);
+  });
+
+  it('surfaces a top-of-meta opponent ahead of everything', () => {
+    const rel = rankedOpponents('lickilicky', 'great', 0, 'either', 40);
+    const tinkaton = rel.findIndex((r) => parseRef(r.info.id).id === 'tinkaton');
+    expect(tinkaton).toBeGreaterThanOrEqual(0);
+    expect(tinkaton).toBeLessThan(5);
+  });
+
+  it('never surfaces a Pokémon nobody brings', () => {
+    // Anorith is rank 1132 in Great. However decidable a matchup against it
+    // might be, it is not a relevant matchup.
+    for (const kind of ['break', 'bulk', 'either'] as const) {
+      const rel = rankedOpponents('lickilicky', 'great', 0, kind, 40);
+      expect(rel.some((r) => parseRef(r.info.id).id === 'anorith')).toBe(false);
+    }
+  });
+
+  it('still lets a knife-edge matchup outrank a dull one against a better mon', () => {
+    // The weight scales relevance, it does not replace it — otherwise the list
+    // would just be the rankings again.
+    const rel = rankedOpponents('azumarill', 'great', 0, 'either', 40);
+    const ranks = rel.map((r) => rankOf(r.info.id));
+    expect(ranks).not.toEqual([...ranks].sort((a, b) => a - b));
   });
 });

@@ -10,7 +10,11 @@ const files = [];
 }})(SRC);
 
 // Definitions, per theme block.
-const themeCss = fs.readFileSync(path.join(SRC,'styles/themes.css'),'utf8');
+// Both files: the hand-written themes and the generated type ones. A theme
+// that is missing a token is exactly what this catches, and the generated set
+// is no more exempt from that than the rest.
+const themeCss = fs.readFileSync(path.join(SRC,'styles/themes.css'),'utf8')
+  + '\n' + fs.readFileSync(path.join(SRC,'styles/types-themes.css'),'utf8');
 function defsIn(selector){
   const i = themeCss.indexOf(selector);
   if (i < 0) return null;

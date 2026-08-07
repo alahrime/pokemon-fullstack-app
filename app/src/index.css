@@ -37,6 +37,7 @@
 @import 'tailwindcss';
 @import './styles/tokens.css' layer(components);
 @import './styles/themes.css' layer(components);
+@import './styles/types-themes.css' layer(components);
 @import './styles/components.css' layer(components);
 @import './styles/motion.css' layer(components);
 @import './styles/hud.css' layer(components);

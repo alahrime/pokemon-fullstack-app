@@ -3,7 +3,7 @@ import { AppStateProvider, useAppState } from './state/AppState';
 import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
 import { SpeciesSearch } from './components/SpeciesSearch';
-import { ThemeSwitch } from './components/ThemeSwitch';
+import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { LeagueTabs } from './components/LeagueTabs';
@@ -85,11 +85,16 @@ function Nav() {
           </button>
         ))}
       </nav>
-      <LeagueTabs
-        value={state.league}
-        onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}
-      />
-      <ThemeSwitch />
+      {/* League and theme travel together on the right. Left loose in the
+          wrapping nav, the theme trigger was small enough to be the only item
+          pushed onto a second row, where its panel then opened off-screen. */}
+      <div className="nav-right">
+        <LeagueTabs
+          value={state.league}
+          onChange={(id) => patch({ league: id, oppId: opponentsFor(id)[0]?.id ?? '' })}
+        />
+        <ThemeMenu />
+      </div>
     </div>
   );
 }

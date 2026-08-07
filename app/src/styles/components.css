@@ -3948,3 +3948,143 @@ th.bt-matrix-head { text-align: center; }
   white-space: nowrap;
   max-width: 76px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME MENU
+
+   Eleven themes do not fit the nav as a row, and a control that grows inline
+   pushes the header down every time it opens. This overlays instead.
+   ═══════════════════════════════════════════════════════════════════════ */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.theme-menu {
+  position: relative;
+  flex: none;
+}
+.theme-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+}
+.theme-menu-bars {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  width: 14px;
+}
+.theme-menu-bars span {
+  display: block;
+  height: 2px;
+  background: currentColor;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+/* The middle bar retracts on open — the trigger says which state it is in
+   without needing a second glyph. */
+.theme-menu-btn.is-open .theme-menu-bars span:nth-child(2) { transform: scaleX(0.4); }
+
+/* The current theme, previewed in its own tokens. */
+.theme-menu-current {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  background: var(--color-bg);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: inset -5px 0 0 var(--color-accent);
+}
+
+.theme-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 268px;
+  /* Never wider than the viewport it hangs off, however narrow that gets. */
+  max-width: min(320px, calc(100vw - var(--space-6)));
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: var(--border-strong) solid var(--rule-strong);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.theme-menu-head { margin-bottom: 2px; }
+
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+/* The button keeps the ACTIVE theme's colours so its label stays readable; only
+   the tile inside it switches palette. */
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-muted);
+}
+.theme-swatch-face {
+  position: relative;
+  display: block;
+  height: 34px;
+  background: var(--color-bg);
+  border: var(--border-hairline) solid var(--rule-strong);
+  overflow: hidden;
+  transition: border-color var(--dur-2) var(--ease-out);
+}
+.theme-swatch-accent,
+.theme-swatch-signal {
+  position: absolute;
+  bottom: 0;
+  height: 9px;
+}
+.theme-swatch-accent {
+  left: 0;
+  right: 40%;
+  background: var(--color-accent);
+}
+.theme-swatch-signal {
+  right: 0;
+  left: 62%;
+  background: var(--color-accent-2);
+}
+.theme-swatch-name {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: center;
+  /* The active theme's muted text — the label is chrome around the preview,
+     not part of it. */
+  color: inherit;
+}
+.theme-swatch:hover .theme-swatch-face { border-color: var(--color-accent); }
+.theme-swatch.is-active .theme-swatch-face {
+  border-color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+.theme-swatch:focus-visible .theme-swatch-face { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.theme-menu-foot {
+  display: flex;
+  justify-content: flex-end;
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+  padding-top: var(--space-2);
+}
+.theme-menu-motion { min-height: 30px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-menu-bars span,
+  .theme-swatch-face { transition: none; }
+}

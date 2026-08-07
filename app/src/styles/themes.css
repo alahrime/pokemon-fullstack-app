@@ -24,7 +24,8 @@
    Deep blue-black ground, brand red as the primary signal, cyan as telemetry.
    ─────────────────────────────────────────────────────────────────────── */
 :root,
-:root[data-theme='hud'] {
+:root[data-theme='hud'],
+.theme-swatch-face[data-theme='hud'] {
   color-scheme: dark;
 
   --color-bg: #06090d;
@@ -116,7 +117,8 @@
    MODERNIST — the original light Swiss design. Preserved verbatim in value;
    only reorganised to satisfy the ramp contract and the semantic aliases.
    ─────────────────────────────────────────────────────────────────────── */
-:root[data-theme='modernist'] {
+:root[data-theme='modernist'],
+.theme-swatch-face[data-theme='modernist'] {
   color-scheme: light;
 
   --color-bg: #f3f2f2;
@@ -203,7 +205,8 @@
    be listed here, or the value falls through to the :root default and the
    theme is subtly wrong in a way nothing reports. token-parity.mjs checks it.
    ═══════════════════════════════════════════════════════════════════════ */
-:root[data-theme='midnight'] {
+:root[data-theme='midnight'],
+.theme-swatch-face[data-theme='midnight'] {
   color-scheme: dark;
 
   --color-bg: #0b0f1a;
@@ -285,7 +288,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    PAPER — light, warm, low glare. For long reading sessions.
    ═══════════════════════════════════════════════════════════════════════ */
-:root[data-theme='paper'] {
+:root[data-theme='paper'],
+.theme-swatch-face[data-theme='paper'] {
   color-scheme: light;
 
   --color-bg: #f7f3ea;
@@ -370,7 +374,8 @@
    hard to read. Accents are chosen to stay distinguishable under the common
    forms of colour blindness rather than for looks.
    ═══════════════════════════════════════════════════════════════════════ */
-:root[data-theme='contrast'] {
+:root[data-theme='contrast'],
+.theme-swatch-face[data-theme='contrast'] {
   color-scheme: dark;
 
   --color-bg: #000000;

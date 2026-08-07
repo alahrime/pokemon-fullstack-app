@@ -5,6 +5,44 @@ the next one can start without re-deriving context.
 
 ---
 
+## Start here — open threads from the last session
+
+Small, specific, and each one has the evidence already gathered.
+
+**Three things are unverified visually.** All three are measured and tested, but
+nobody has looked at them rendered: the custom-theme editor, the report's left
+column below "Adjust roll", and the randomised empty-search dropdown. The
+browser pane closes any open panel or dropdown between tool calls, so the
+editor and the dropdown cannot be driven from a script — the panel is gone by
+the time the next call runs. A human glance settles all three in a minute.
+
+**`exportAll`'s `scale` prose is stale.** `lib/rankings.ts` still describes the
+composite as "a weighted geometric mean of the five role scores", which predates
+Pressure and Consistency — those are axes with their own exponents (pressure³,
+consistency²) and are not among the 12/6/4/2 role slots. The text ships in the
+JSON export. Audited but deliberately left alone; fixing it is a one-line
+change, and worth doing next time that file is open.
+
+**`SpriteAudit.tsx` is excluded from coverage for convenience.** Unlike the
+other exclusions it is an ordinary React screen behind a flag. Either test it or
+say in `vitest.config.ts` that it is dev-only rather than untestable — the
+current comment implies the latter.
+
+**Artefact staleness is now asserted at load, but only shallowly.**
+`lib/artefact.ts` checks that each league carries the top-level fields its
+reader needs and names the rebuild command when it does not. It does not reach
+a field nested inside a per-tier fit, which is exactly where the Diagnostics
+white-screen came from — that deeper check stays in `verify-data`, where it can
+be thorough without costing a page load.
+
+**Audit result, for the record.** The shipped artefacts are consistent: all at
+`engineRev 13`, and the top-100 pool in `matrix.json` matches the current
+rankings order positionally, 100/100, in all three leagues. Pressure is wired
+through `build-matrix` → `scenarios` → the composite, and `typePressure`
+through the cores build. Nothing needed regenerating.
+
+---
+
 ## 0. Ground rules — read before changing rankings
 
 Four decisions that took a long time to reach and are easy to undo by accident.

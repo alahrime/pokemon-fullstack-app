@@ -82,9 +82,6 @@ export function ensureContrast(colour: string, ground: string, target: number, t
 export const AA_TEXT = 4.5;
 export const AA_LARGE = 3;
 
-/** Is this colour usable as an accent on that ground? */
-export const readableOn = (colour: string, ground: string) => contrast(colour, ground) >= AA_TEXT;
-
 /**
  * Two signal colours have to be told apart, not just read.
  *

@@ -61,6 +61,20 @@ when the permission classifier is unavailable; clicks and `javascript_exec` do
 not. If interaction is gated, say the verification is incomplete rather than
 inferring from a screenshot.
 
+**Two pane limitations, both hit repeatedly.** Anything that closes on an
+outside click — the theme panel, the search dropdown, the move picker — is
+*gone by the next tool call*, so it cannot be opened in one call and measured
+in another. Open and measure in a single `javascript_exec`, or accept that it
+is only covered by unit tests and say so. And `screenshot` returns blank frames
+at scrolled positions; it is reliable at scroll 0 and not otherwise, so a
+section below the fold usually cannot be seen at all.
+
+**A styling refactor has a harness.** `app/tools/layout-snapshot.js` records the
+computed style of every rendered element on every screen, keyed by DOM position
+so a renamed class is not a diff. Copy it to `app/public/__snap.js` to serve it.
+Establish the noise floor first — two runs of unmodified code — or a nonzero
+diff afterwards means nothing. Here that floor is 0 of 12,060.
+
 ## Layout pitfalls that have actually bitten
 
 - **`align-items` does not centre vertically on a flex _column_.** There the
@@ -79,6 +93,45 @@ inferring from a screenshot.
 - **Careful with string-replacing CSS.** Matching the tail of a grouped
   selector (`.a,\n.b { … }`) leaves the head dangling on the new rule. Re-read
   the block after editing.
+
+## Tests
+
+`npm run test` is part of `npm run check`. 571 tests; every function in the
+app is executed at least once, which is worth keeping — the last three gaps
+turned out to be one dead export and two handlers on a code path the random
+opening matchup had stopped reaching.
+
+**jsdom applies no stylesheet**, so any assertion about computed layout there is
+meaningless. Assert structure in tests and measure geometry in the browser. A
+few CSS rules are guarded by reading `components.css` as text, which is worth
+doing when the rule itself is the invariant — `.team-slots` had two conflicting
+declarations with the dead one first, and that is what sent an edit to the rule
+that loses.
+
+**Randomness is seeded in `src/test/setup.ts`.** The battle screen's opening
+matchup and the empty search's draw are rolled at module load, so a spy inside
+a test body is too late. A test that depends on which species was drawn must
+pin it.
+
+**Read the signature before writing the test.** This is the single most
+repeated mistake in this codebase's history: assumed APIs, not broken ones.
+`,` is the query language's *or* and `&` its *and*; `fastMoveCounts` cycles
+rather than decreasing; `toCsv` emits a BOM and CRLF deliberately; `rescue`
+divides by the whole field, not by the losses. When a new test disagrees with
+the code here, the code has usually been right.
+
+## Themes
+
+Generated. `scripts/build-themes.ts` derives every ramp from five colours and
+refuses to emit a palette that misses AA; `npm run check` regenerates and
+re-checks, so hand-editing `styles/types-themes.css` cannot ship. The maths is
+in `lib/palette.ts`, shared with the runtime custom-theme editor so both are
+judged by the same code.
+
+Adding a theme is two edits — the generator's `THEMES` list and the one in
+`state/ThemeContext.tsx` — and the guards catch a missed one: `token-parity`
+reads both stylesheets and fails if the new theme lacks any token another theme
+defines, and a test asserts every theme in the picker has a stylesheet block.
 
 ## State
 

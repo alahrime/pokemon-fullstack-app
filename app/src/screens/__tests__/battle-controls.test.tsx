@@ -237,14 +237,16 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     expect(a.querySelector('.battle-mon-name')!.textContent).toBe(aName);
   });
 
-  it('toggles Best Buddy where a spread can exceed level 50', () => {
+  it('toggles Best Buddy on either side, where a spread can exceed level 50', async () => {
     const { container } = renderApp(<BattleScreen />);
+    // Pinned: the screen opens on a random pair now, and whether the toggle is
+    // even enabled depends on the species drawn.
     for (const side of sides(container)) {
+      await setSpecies(side, 'bulbasaur');
       const buddy = side.querySelector('.form-opt-buddy') as HTMLButtonElement;
-      if (buddy && !buddy.disabled) {
-        fireEvent.click(buddy);
-        expect(buddy.getAttribute('aria-pressed')).toBe('true');
-      }
+      expect(buddy.disabled).toBe(false);
+      fireEvent.click(buddy);
+      expect(buddy.getAttribute('aria-pressed')).toBe('true');
     }
   });
 

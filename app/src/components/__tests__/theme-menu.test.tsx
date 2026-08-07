@@ -172,6 +172,28 @@ describe('custom theme editor', () => {
     expect(style?.textContent).toContain('--color-accent');
   });
 
+  it('offers the built theme alongside the baked ones, and re-selects it', () => {
+    const { container } = openEditor();
+    const steps = container.querySelectorAll('.theme-custom-steps > li');
+    fireEvent.click(steps[0].querySelectorAll('.theme-chip')[1]);
+    fireEvent.click([...steps[1].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+    fireEvent.click([...steps[2].querySelectorAll('.theme-chip')].find((b) => !(b as HTMLButtonElement).disabled)!);
+    fireEvent.click(container.querySelector('.theme-custom-actions button')!);
+
+    // Reopen: the palette is now a swatch like any other, and picking it works
+    // the same way.
+    fireEvent.click(container.querySelector('.theme-menu-btn')!);
+    const mine = [...container.querySelectorAll('.theme-swatch')]
+      .find((sw) => sw.querySelector('.theme-swatch-face')?.getAttribute('data-theme') === 'custom')!;
+    expect(mine).toBeTruthy();
+    fireEvent.click(container.querySelector('.theme-menu-btn')!);   // close
+    fireEvent.click(container.querySelector('.theme-menu-btn')!);   // reopen
+    const again = [...container.querySelectorAll('.theme-swatch')]
+      .find((sw) => sw.querySelector('.theme-swatch-face')?.getAttribute('data-theme') === 'custom')!;
+    fireEvent.click(again);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('custom');
+  });
+
   it('keeps the built theme out of the baked list, which has no palette for it', () => {
     // THEMES drives the guard that every listed theme has a stylesheet block.
     expect(THEMES.some((t) => t.id === 'custom')).toBe(false);

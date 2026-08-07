@@ -23,6 +23,46 @@ assertions encode rules that were deliberately replaced later, so a failure
 sometimes means the fixture is stale. Don't relax one to go green without
 making that call explicitly; two of them have caught real bugs.
 
+## Tests
+
+```bash
+npm run test          # 571 tests, ~10s
+npm run test:watch
+npm run coverage
+```
+
+`npm run check` ends with the suite, so the gate covers it.
+
+98.9% of statements, 91.0% of branches, and every one of the 510 functions is
+executed at least once. Those figures are *of what is included* — `vitest.config.ts` excludes the
+generated data, the entry point, `Heatmap3D.tsx` (a WebGL canvas that cannot
+mount in jsdom) and `SpriteAudit.tsx`. The first three are genuinely untestable
+here; **SpriteAudit is excluded for convenience** — it is an ordinary React
+screen behind the `AUDIT === 'sprites'` flag and nothing about it resists a
+test.
+
+Three things about this suite that are not obvious:
+
+**Randomness is seeded.** The battle screen opens on a random matchup and the
+empty search offers a random draw, both rolled at module load — before any test
+body runs, so a `vi.spyOn(Math, 'random')` inside a test is too late. `src/test/
+setup.ts` installs a seeded PRNG instead, which is what makes the suite
+reproducible. A test that depends on *which* Pokemon was drawn must pin the
+species itself; one battle test does, and says why.
+
+**jsdom applies no stylesheet.** Any assertion about computed layout is
+therefore worthless there. Tests assert structure (which element is inside
+which, what classes exist); geometry is measured in the browser instead, and
+a few rules are asserted by reading `components.css` as text — see the
+`.team-slots` guard, which exists because two rules for that selector once
+disagreed and the dead one came first in the file.
+
+**Read the signature before writing the test.** Nearly every failure while
+building this suite was an assumed API rather than a broken one — `,` is the
+query language's *or* and `&` its *and*; `fastMoveCounts` cycles rather than
+decreasing; `toCsv` deliberately emits a BOM and CRLF. If a test disagrees with
+the code here, the code has usually been right.
+
 ## Layout
 
 ```
@@ -32,12 +72,17 @@ src/
     data.ts     species loading, refs, roster filtering
     query.ts    search query language
     cpm.ts      CP multipliers, level 1–51
+    palette.ts  colour derivation + WCAG rules, shared with scripts/
+    artefact.ts checked reads of the generated JSON
+    pressure.ts energy rate, coverage breadth, turns-to-threat
   components/   presentational; state comes from props
   screens/      Report (analysis) and Battle (head-to-head)
   state/        AppState — one store, no per-screen state
   styles/       tokens.css first, then components/leagues
   data/         GENERATED — see below
-scripts/        data generation and verification
+  test/         setup (jsdom stubs, seeded PRNG) and the render helper
+scripts/        data generation, theme generation, verification
+tools/          layout-snapshot.js — the styling-refactor harness
 ```
 
 ## Generated data
@@ -94,10 +139,36 @@ holding a move or spread selection has to clear in the same `patch` that
 changes the species — a carried-over selection silently renders moves the new
 species doesn't have.
 
+**Themes are generated, not hand-written.** `scripts/build-themes.ts` bakes the
+type themes into `styles/types-themes.css`, deriving every ramp from five
+colours and refusing to emit a palette that misses WCAG AA — 4.5:1 for body
+text, 3:1 for the faint tier. `npm run check` regenerates and re-checks, so a
+hand-edit to that file cannot ship. The derivation lives in `lib/palette.ts`,
+shared with the runtime custom-theme editor, so the code deciding whether a
+shipped theme is readable is the code deciding it for a user's own.
+
+Two details that look odd until you know why. Each theme block also matches
+`.theme-swatch-face[data-theme='…']`, which is how the picker previews a
+palette in the palette itself rather than a copy that can drift — and it is on
+the *tile* rather than the button because on the button it recoloured the label
+too, making every light theme's name unreadable. And `token-parity` reads both
+theme stylesheets: it exists to catch a theme missing a token, and the
+generated set is no more exempt than the hand-written one.
+
 **Verify by measuring.** For engine changes, diff a wide output surface by hash
 before and after. For layout, measure the DOM rather than judging from a
 screenshot; several alignment bugs here were under 5px, invisible at screenshot
 scale and obvious on the page. See `.claude/skills/paragon-frontend/SKILL.md`.
+
+`tools/layout-snapshot.js` is the harness for styling refactors: it records the
+computed style of every rendered element on every screen, keyed by position in
+the DOM so a renamed class does not register as a change. Copy it to
+`public/__snap.js` to use it — it is kept out of `public/` so it never ships.
+Establish the noise floor first by diffing two runs of *unmodified* code; on
+this app that is 0 of 12,060 elements, which is what makes a later number mean
+anything. It caught a real regression during the inline-style refactor: table
+headers lost their centring because `.table th` has specificity (0,1,1) and
+beats a bare class wherever it sits in the file.
 
 ## Known gaps
 

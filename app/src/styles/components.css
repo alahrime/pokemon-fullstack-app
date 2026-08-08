@@ -2357,6 +2357,39 @@ textarea.input { min-height: 90px; resize: vertical; }
    which is why this block is short for the amount of page it describes.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* The strongest-in-league leaderboard.
+
+   A grid of six built cards is the Show 6 roster everywhere else in this app,
+   and this section was read as a team because of it — which mattered, because
+   it lists Forretress and Forretress (Shadow) and no legal team may hold both.
+   The ordinal is the fix: a numbered list is a ranking, and six unnumbered
+   cards are a roster. It sits on the card rather than beside it so the row
+   keeps its shape at every width. */
+.landing-featured {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.landing-featured > li { position: relative; min-width: 0; }
+.landing-featured-pos {
+  position: absolute;
+  top: -9px;
+  left: -7px;
+  z-index: 2;
+  min-width: 22px;
+  padding: 1px 5px;
+  text-align: center;
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--color-bg);
+  background: var(--color-text);
+  /* Same chamfer language as the cards it marks. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
 .landing-hero {
   position: relative;
   /* Deliberately NOT `overflow: hidden`. It used to be, to contain the aurora,

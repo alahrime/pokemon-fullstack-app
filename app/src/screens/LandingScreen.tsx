@@ -135,30 +135,44 @@ export function LandingScreen() {
       </section>
 
       {/* ── Featured ─────────────────────────────────────────────────────── */}
+      {/* A leaderboard, and it has to look like one.
+
+          Six built cards in a row is the Show 6 roster elsewhere in this app,
+          so this section read as a team — and it was reported as a bug, because
+          the list contains Forretress and Forretress (Shadow) and no legal team
+          may hold both. The teams themselves were never wrong; this was. It is
+          an ordered list now, numbered, and the subtitle says these are ranked
+          individually rather than picked to play together. */}
       <section className="mx-auto w-full max-w-(--shell-max) px-6 py-14">
         <header className="mb-6 flex flex-wrap items-baseline justify-between gap-3 border-b border-(--rule-hairline) pb-3">
           <h2 className="font-(family-name:--font-head) text-2xl tracking-tight">
             Strongest in {league.name}
           </h2>
-          <span className="text-sm text-(--text-muted)">By Overall against the top 100</span>
+          <span className="text-sm text-(--text-muted)">
+            Ranked individually by Overall against the top 100 — not a team
+          </span>
         </header>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4">
+        <ol className="landing-featured">
           {featured.map((ref, i) => (
-            <PokemonCard
-              key={ref}
-              refId={ref}
-              league={state.league}
-              size="compact"
-              rank={i}
-              onClick={() => open(ref)}
-              note={
-                <span className="text-(--text-faint)">
-                  {speciesOf(ref)?.types.join(' / ')}
-                </span>
-              }
-            />
+            <li key={ref}>
+              <span className="numeric landing-featured-pos" aria-hidden="true">
+                {i + 1}
+              </span>
+              <PokemonCard
+                refId={ref}
+                league={state.league}
+                size="compact"
+                rank={i}
+                onClick={() => open(ref)}
+                note={
+                  <span className="text-(--text-faint)">
+                    {speciesOf(ref)?.types.join(' / ')}
+                  </span>
+                }
+              />
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       {/* ── Routes ───────────────────────────────────────────────────────── */}

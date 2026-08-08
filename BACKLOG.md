@@ -990,6 +990,22 @@ are generated and while the field is sampled, never on the output: filtering
 afterwards would leave the top ten short *and* leave every score measured
 against a field of teams nobody could bring.
 
+**Checked end to end, after a report that it had been broken.** The artefact is
+clean: 0 illegal pairs across 127,042 team rows (all sizes, tiers, categories,
+passes, three leagues), 0 across the sixes' 
+best-lines, 0 across 900 cores and 600 pillars. Enforcement sits at every
+generation and sampling site; two `combos` calls omit the predicate and are
+safe by construction, since they take subsets of a six already sampled legal.
+`lib/__tests__/team-legality.test.ts` now asserts this against the shipped
+artefact, which nothing did before.
+
+What prompted the report was the landing page, not a team: "Strongest in Great
+League" lists Forretress and Forretress (Shadow), and as six built cards in an
+unnumbered grid it read as a Show 6 roster. It is a leaderboard of individuals
+and may legitimately hold both forms. It is a numbered `<ol>` now and says so —
+the data was right and the presentation was not. See
+`screens/__tests__/landing-featured.test.tsx`.
+
 That rule also sets the candidate cut. Taking the top 24 *rows* spent 3.6 of
 them on average — 8 in the worst Master stratum — on a second form of a species
 already listed, which can never join it. So the list widens until it holds 24

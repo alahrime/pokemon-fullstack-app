@@ -26,14 +26,14 @@ making that call explicitly; two of them have caught real bugs.
 ## Tests
 
 ```bash
-npm run test          # 603 tests, ~10s
+npm run test          # 623 tests, ~10s
 npm run test:watch
 npm run coverage
 ```
 
 `npm run check` ends with the suite, so the gate covers it.
 
-98.9% of statements, 91.1% of branches, and every one of the 521 functions is
+99.0% of statements, 91.0% of branches, and every one of the 523 functions is
 executed at least once. Those figures are *of what is included* —
 `vitest.config.ts` excludes the generated data, the entry point, and
 `Heatmap3D.tsx` (a WebGL canvas that cannot mount in jsdom). That list used to
@@ -159,6 +159,32 @@ generated set is no more exempt than the hand-written one.
 before and after. For layout, measure the DOM rather than judging from a
 screenshot; several alignment bugs here were under 5px, invisible at screenshot
 scale and obvious on the page. See `.claude/skills/paragon-frontend/SKILL.md`.
+
+**A length that is a floor must be able to stop being one.** Every screen used
+to scroll sideways on a phone, and every cause was the same shape: a fixed
+length a narrow container could not honour — `minmax(360px, 1fr)` in a 327px
+column, `min-width: 280px` in a 272px one, three league tabs measuring 410px on
+a 375px screen. The rule is `min(Npx, 100%)` for anything acting as a floor;
+small floors on numeric cells are left alone deliberately, because the narrowest
+column this app produces is ~272px and they can always be honoured.
+
+Past that, two shapes: layouts that **stack** (`.rs-split` at 820px, `.bt-pair`
+at 680px — and the rule between a stacked pair has to turn with it) and controls
+that **scroll** (`.seg-group`, every wide table inside `.table-scroll`). A
+segmented control scrolls rather than wraps because it reads as one switch.
+Breakpoints are where *this content* stops fitting, not where a device is.
+
+Heights matter as much as widths, and less obviously. `SpeciesSearch` measures
+the room below itself and fits its list to it — the ceiling passed as
+`listHeight` is a maximum, not a height — and opens upward when the field sits
+too low for any list beneath it. CSS cannot do this: it does not know where on
+the page the field is. It fits inside the nearest clipping ancestor rather than
+the window, which is what keeps the modal's list off its own footer.
+
+`src/components/__tests__/responsive.test.tsx` holds the shape of each of those
+as a text property of the stylesheet. jsdom lays none of it out, so the widths
+themselves were measured in the browser, screen by screen, at 320, 375, 768,
+1280, 1440 and 1920.
 
 `tools/layout-snapshot.js` is the harness for styling refactors: it records the
 computed style of every rendered element on every screen, keyed by position in

@@ -116,7 +116,10 @@ export function HeatmapView({
             <span className="numeric hv-slice-value">{ivS}</span>
           </div>
         </div>
-        <div className="stagger flex min-w-[280px] flex-1 flex-col gap-3">
+        {/* The min-width is wrapped in a `min(…, 100%)` for the reason every
+            other floor in this app is: a flat 280px is one a 272px column
+            cannot honour, and the legend hung off the side of the page. */}
+        <div className="stagger flex min-w-[min(280px,100%)] flex-1 flex-col gap-3">
           <div className="panel hud-frame" style={{ ['--i' as string]: 0 }}>
             <div className="panel-title">Legend — {colorByLabel}</div>
             {(() => {
@@ -134,32 +137,34 @@ export function HeatmapView({
           {colorBy === 'rank' ? (
             <div className="panel hud-frame" style={{ ['--i' as string]: 1 }}>
               <div className="panel-title">Top of the space</div>
-              <table className="table text-sm">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>IV</th>
-                    <th>SP</th>
-                    <th>%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topRows.map((r) => (
-                    <tr
-                      key={`${r.a}-${r.d}-${r.s}`}
-                      onClick={() => onPick(r.a, r.d)}
-                      className={`hv-top-row${r.a === iv.a && r.d === iv.d && r.s === iv.s ? ' is-selected' : ''}`}
-                    >
-                      <td className="numeric hv-top-rank">{r.rank}</td>
-                      <td className="numeric">
-                        {r.a}/{r.d}/{r.s}
-                      </td>
-                      <td className="numeric">{(r.sp / 1000).toFixed(2)}k</td>
-                      <td className="numeric hv-top-pct">{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
+              <div className="table-scroll">
+                <table className="table text-sm">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>IV</th>
+                      <th>SP</th>
+                      <th>%</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {topRows.map((r) => (
+                      <tr
+                        key={`${r.a}-${r.d}-${r.s}`}
+                        onClick={() => onPick(r.a, r.d)}
+                        className={`hv-top-row${r.a === iv.a && r.d === iv.d && r.s === iv.s ? ' is-selected' : ''}`}
+                      >
+                        <td className="numeric hv-top-rank">{r.rank}</td>
+                        <td className="numeric">
+                          {r.a}/{r.d}/{r.s}
+                        </td>
+                        <td className="numeric">{(r.sp / 1000).toFixed(2)}k</td>
+                        <td className="numeric hv-top-pct">{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="panel hud-frame hv-note" style={{ ['--i' as string]: 1 }}>

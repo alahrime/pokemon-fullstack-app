@@ -319,55 +319,57 @@ export function BattleScreen() {
           <div className="panel-title">
             Every shield combination
           </div>
-          <table className="table bt-matrix">
-            <thead>
-              <tr>
-                <th></th>
-                {SHIELD_LABELS.map((l) => (
-                  <th key={l} className="bt-matrix-head">
-                    P2 {l}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.map((row, sA) => (
-                <tr key={sA}>
-                  <th className="text-left">P1 {SHIELD_LABELS[sA]}</th>
-                  {row.map((r, sB) => {
-                    const active = sA === shieldsA && sB === shieldsB;
-                    return (
-                      <td
-                        key={sB}
-                        onClick={() => patch({ shieldsA: sA, shieldsB: sB })}
-                        style={{
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          background: active ? 'color-mix(in srgb, var(--color-accent) 14%, transparent)' : undefined,
-                          outline: active ? '2px solid var(--color-accent)' : undefined,
-                          outlineOffset: -2,
-                        }}
-                      >
-                        <div
+          <div className="table-scroll">
+            <table className="table bt-matrix">
+              <thead>
+                <tr>
+                  <th></th>
+                  {SHIELD_LABELS.map((l) => (
+                    <th key={l} className="bt-matrix-head">
+                      P2 {l}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {matrix.map((row, sA) => (
+                  <tr key={sA}>
+                    <th className="text-left">P1 {SHIELD_LABELS[sA]}</th>
+                    {row.map((r, sB) => {
+                      const active = sA === shieldsA && sB === shieldsB;
+                      return (
+                        <td
+                          key={sB}
+                          onClick={() => patch({ shieldsA: sA, shieldsB: sB })}
                           style={{
-                            fontFamily: 'var(--font-heading)',
-                            fontWeight: 800,
-                            fontSize: 13,
-                            color: r.win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            background: active ? 'color-mix(in srgb, var(--color-accent) 14%, transparent)' : undefined,
+                            outline: active ? '2px solid var(--color-accent)' : undefined,
+                            outlineOffset: -2,
                           }}
                         >
-                          {r.win ? 'P1' : 'P2'}
-                        </div>
-                        <div className="text-muted text-2xs">
-                          {Math.abs(r.margin).toFixed(0)}%
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 800,
+                              fontSize: 13,
+                              color: r.win ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
+                            }}
+                          >
+                            {r.win ? 'P1' : 'P2'}
+                          </div>
+                          <div className="text-muted text-2xs">
+                            {Math.abs(r.margin).toFixed(0)}%
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-muted text-xs mt-2.5">
             Click any cell to load that shield scenario. Rows are Pokémon 1's shields, columns are Pokémon 2's.
           </p>
@@ -398,54 +400,56 @@ export function BattleScreen() {
             Neither side reaches a charge move before the fight ends at this energy/shield setting.
           </p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Pokémon</th>
-                <th>Move</th>
-                <th>Outcome</th>
-                <th>Stat stages</th>
-                <th>{nameA} HP</th>
-                <th>{nameB} HP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {current.log
-                .filter((e) => e.kind === 'charge')
-                .map((e, i) => {
-                const actorName = e.actor === 'A' ? nameA : nameB;
-                return (
-                  <tr key={i}>
-                    <td className="text-muted">{(e.turn * 0.5).toFixed(1)}s</td>
-                    <td className="font-(family-name:--font-head) font-extrabold">{actorName}</td>
-                    <td>{e.moveName}</td>
-                    <td>
-                      {e.bait && <span className="tag tag-neutral bt-bait-tag">bait</span>}
-                      {e.shielded ? (
-                        <span className="text-sm">shielded — 1 dmg</span>
-                      ) : (
-                        <span className="bt-dmg">{e.damage} dmg</span>
-                      )}
-                    </td>
-                    {/* Stage state after this throw resolved. The buff text
-                        appears on the throw that caused it; the running totals
-                        below say where both sides stand from then on. */}
-                    <td className="numeric battle-stages">
-                      {e.buffText && <span className="battle-stage-hit">{e.buffText}</span>}
-                      <span className="text-faint">
-                        {nameA} {fmtStage(e.atkStageA)}/{fmtStage(e.defStageA)}
-                        {' · '}
-                        {nameB} {fmtStage(e.atkStageB)}/{fmtStage(e.defStageB)}
-                      </span>
-                    </td>
-                    <td>{Math.round(e.hpA)}</td>
-                    <td>{Math.round(e.hpB)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Pokémon</th>
+                  <th>Move</th>
+                  <th>Outcome</th>
+                  <th>Stat stages</th>
+                  <th>{nameA} HP</th>
+                  <th>{nameB} HP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {current.log
+                  .filter((e) => e.kind === 'charge')
+                  .map((e, i) => {
+                  const actorName = e.actor === 'A' ? nameA : nameB;
+                  return (
+                    <tr key={i}>
+                      <td className="text-muted">{(e.turn * 0.5).toFixed(1)}s</td>
+                      <td className="font-(family-name:--font-head) font-extrabold">{actorName}</td>
+                      <td>{e.moveName}</td>
+                      <td>
+                        {e.bait && <span className="tag tag-neutral bt-bait-tag">bait</span>}
+                        {e.shielded ? (
+                          <span className="text-sm">shielded — 1 dmg</span>
+                        ) : (
+                          <span className="bt-dmg">{e.damage} dmg</span>
+                        )}
+                      </td>
+                      {/* Stage state after this throw resolved. The buff text
+                          appears on the throw that caused it; the running totals
+                          below say where both sides stand from then on. */}
+                      <td className="numeric battle-stages">
+                        {e.buffText && <span className="battle-stage-hit">{e.buffText}</span>}
+                        <span className="text-faint">
+                          {nameA} {fmtStage(e.atkStageA)}/{fmtStage(e.defStageA)}
+                          {' · '}
+                          {nameB} {fmtStage(e.atkStageB)}/{fmtStage(e.defStageB)}
+                        </span>
+                      </td>
+                      <td>{Math.round(e.hpA)}</td>
+                      <td>{Math.round(e.hpB)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className="text-muted text-xs mt-2.5">
           A shielded charge move always deals 1 damage regardless of which move is thrown, so a mon with two charge moves of

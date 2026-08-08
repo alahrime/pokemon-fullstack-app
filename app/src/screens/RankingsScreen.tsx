@@ -275,33 +275,35 @@ export function RankingsScreen() {
 
       <HeldOutNote />
 
-      <table className="table rankings-table">
-        <thead>
-          <tr>
-            <th className="numeric">#</th>
-            <th>Pokémon</th>
-            <th className="numeric">{category.label}</th>
-            <th className="numeric" title="Where PvPoke ranks it in the same category">PvPoke #</th>
-            <th className="numeric" title="Places higher (+) or lower (-) than PvPoke ranks it">Δ rank</th>
-            <th className="numeric" title="Gain from switching to the strongest swept loadout">
-              Best set
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {slice.map((r, n) => (
-            <Row
-              key={r.ref}
-              row={r}
-              i={page * PAGE + n + 1}
-              max={max}
-              league={league}
-              expanded={open === r.ref}
-              onToggle={() => setOpen(open === r.ref ? null : r.ref)}
-            />
-          ))}
-        </tbody>
-      </table>
+      <div className="table-scroll">
+        <table className="table rankings-table">
+          <thead>
+            <tr>
+              <th className="numeric">#</th>
+              <th>Pokémon</th>
+              <th className="numeric">{category.label}</th>
+              <th className="numeric" title="Where PvPoke ranks it in the same category">PvPoke #</th>
+              <th className="numeric" title="Places higher (+) or lower (-) than PvPoke ranks it">Δ rank</th>
+              <th className="numeric" title="Gain from switching to the strongest swept loadout">
+                Best set
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((r, n) => (
+              <Row
+                key={r.ref}
+                row={r}
+                i={page * PAGE + n + 1}
+                max={max}
+                league={league}
+                expanded={open === r.ref}
+                onToggle={() => setOpen(open === r.ref ? null : r.ref)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="opp-pager rankings-pager">
         <button className="btn opp-page-step" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>

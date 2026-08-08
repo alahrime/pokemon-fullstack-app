@@ -21,6 +21,19 @@ import type { IV, LeagueId } from '../lib/types';
  * to be touched for the fast path to stay fast.
  */
 
+/**
+ * How tall the results list may be inside this panel.
+ *
+ * Nine rows at the 52px the search uses, against the eight the default 420
+ * gives every other caller. Derived from the panel's guaranteed floor rather
+ * than picked: `.modal-panel` stands at least `min(660px, 88vh)`, which on the
+ * shortest viewport that matters (720) is 634 — less the head, the foot and the
+ * 58px the search box occupies at the top of the body, that leaves 482 for a
+ * dropdown that spends 2 on its own border. Raising it past that would put the
+ * last rows back under the footer, which is the bug this whole change is about.
+ */
+export const MODAL_LIST_H = 468;
+
 export interface AddPokemonChoice {
   ref: string;
   /** Empty means the league's rated set. */
@@ -111,6 +124,7 @@ export function AddPokemonModal({
             includeShadow
             restrictTo={restrictTo}
             className="modal-search"
+            listHeight={MODAL_LIST_H}
           />
 
           {!sp && (

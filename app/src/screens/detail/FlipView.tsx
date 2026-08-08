@@ -154,53 +154,55 @@ export function FlipView({
         </div>
         <div className="fv-side">
           <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Opponent</th>
-                <th title={`your 0 shields vs their ${shieldsTheirs}`}>0s</th>
-                <th title={`your 1 shield vs their ${shieldsTheirs}`}>1s</th>
-                <th title={`your 2 shields vs their ${shieldsTheirs}`}>2s</th>
-                <th>CMP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr
-                  key={r.species.id}
-                  style={i === activeOppIdx ? { background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)' } : undefined}
-                  onClick={() => onSelectOpponent(i)}
-                >
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
-                      <span className="fv-row-name">{r.species.name}</span>
-                    </div>
-                  </td>
-                  {r.cells.map((c, ci) => (
-                    <td key={ci}>
-                      {/* The card turns over when the matchup does — the flip
-                          is the concept this whole view is named for. */}
-                      <div className={`flip-card fv-flip-card${c.win ? ' is-won' : ''}`} >
-                        <div className="flip-card-inner">
-                          <FlipFace win={false} margin={c.margin} />
-                          <FlipFace win margin={c.margin} back />
-                        </div>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Opponent</th>
+                  <th title={`your 0 shields vs their ${shieldsTheirs}`}>0s</th>
+                  <th title={`your 1 shield vs their ${shieldsTheirs}`}>1s</th>
+                  <th title={`your 2 shields vs their ${shieldsTheirs}`}>2s</th>
+                  <th>CMP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr
+                    key={r.species.id}
+                    style={i === activeOppIdx ? { background: 'color-mix(in srgb, var(--color-accent) 6%, transparent)' } : undefined}
+                    onClick={() => onSelectOpponent(i)}
+                  >
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <Sprite sprite={r.species.sprite} dex={r.species.dex} size={26} />
+                        <span className="fv-row-name">{r.species.name}</span>
                       </div>
                     </td>
-                  ))}
-                  <td
-                    style={{
-                      fontSize: 11,
-                      color: r.cmpWin ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
-                    }}
-                  >
-                    {r.cmpWin ? 'you' : 'them'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {r.cells.map((c, ci) => (
+                      <td key={ci}>
+                        {/* The card turns over when the matchup does — the flip
+                            is the concept this whole view is named for. */}
+                        <div className={`flip-card fv-flip-card${c.win ? ' is-won' : ''}`} >
+                          <div className="flip-card-inner">
+                            <FlipFace win={false} margin={c.margin} />
+                            <FlipFace win margin={c.margin} back />
+                          </div>
+                        </div>
+                      </td>
+                    ))}
+                    <td
+                      style={{
+                        fontSize: 11,
+                        color: r.cmpWin ? 'var(--color-accent-700)' : 'var(--color-neutral-600)',
+                      }}
+                    >
+                      {r.cmpWin ? 'you' : 'them'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-muted fv-note">
             {flipNote}
           </p>

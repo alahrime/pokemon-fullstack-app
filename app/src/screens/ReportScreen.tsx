@@ -361,38 +361,40 @@ export function ReportScreen() {
               <div className="hud-label rs-label">
                 <span>Shadow damage</span>
               </div>
-              <table className="table numeric text-sm rs-shadow-table">
-                <thead>
-                  <tr>
-                    <th className="text-left">vs {opp.name}</th>
-                    <th className="text-right">Normal</th>
-                    <th className="text-right">Shadow</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{mv.name} dealt</td>
-                    <td className="text-right">{shadowCompare.dealtN}</td>
-                    <td style={{ textAlign: 'right', color: shadowCompare.dealtS > shadowCompare.dealtN ? 'var(--color-accent-700)' : undefined }}>
-                      {shadowCompare.dealtS}
-                      {shadowCompare.dealtS > shadowCompare.dealtN ? ` (+${shadowCompare.dealtS - shadowCompare.dealtN})` : ''}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>{opp.fastMove.name} taken</td>
-                    <td className="text-right">{shadowCompare.takenN}</td>
-                    <td style={{ textAlign: 'right', color: shadowCompare.takenS > shadowCompare.takenN ? 'var(--color-accent-700)' : undefined }}>
-                      {shadowCompare.takenS}
-                      {shadowCompare.takenS > shadowCompare.takenN ? ` (+${shadowCompare.takenS - shadowCompare.takenN})` : ''}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="text-muted">PvPoke rank</td>
-                    <td className="text-right">{shadowCompare.rankN ?? '—'}</td>
-                    <td className="text-right">{shadowCompare.rankS ?? '—'}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table className="table numeric text-sm rs-shadow-table">
+                  <thead>
+                    <tr>
+                      <th className="text-left">vs {opp.name}</th>
+                      <th className="text-right">Normal</th>
+                      <th className="text-right">Shadow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>{mv.name} dealt</td>
+                      <td className="text-right">{shadowCompare.dealtN}</td>
+                      <td style={{ textAlign: 'right', color: shadowCompare.dealtS > shadowCompare.dealtN ? 'var(--color-accent-700)' : undefined }}>
+                        {shadowCompare.dealtS}
+                        {shadowCompare.dealtS > shadowCompare.dealtN ? ` (+${shadowCompare.dealtS - shadowCompare.dealtN})` : ''}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{opp.fastMove.name} taken</td>
+                      <td className="text-right">{shadowCompare.takenN}</td>
+                      <td style={{ textAlign: 'right', color: shadowCompare.takenS > shadowCompare.takenN ? 'var(--color-accent-700)' : undefined }}>
+                        {shadowCompare.takenS}
+                        {shadowCompare.takenS > shadowCompare.takenN ? ` (+${shadowCompare.takenS - shadowCompare.takenN})` : ''}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="text-muted">PvPoke rank</td>
+                      <td className="text-right">{shadowCompare.rankN ?? '—'}</td>
+                      <td className="text-right">{shadowCompare.rankS ?? '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

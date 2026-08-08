@@ -83,11 +83,19 @@ describe('Diagnostics screen', () => {
 
 describe('TeamBuilder screen', () => {
   for (const size of [3, 6] as const) {
+    /**
+     * Sixteen clicks, each re-reading the discovery artefact and re-rendering
+     * twelve teams of six with their sprites. Alone that is ~2.7s; inside the
+     * full suite under coverage it is ~6.4s, so the 5s default failed it while
+     * the same test passed on its own. The work is real and the assertions are
+     * worth keeping, so it gets a timeout that reflects it rather than a
+     * thinner test — its neighbours in team-builder.test.tsx already do.
+     */
     it(`size ${size}: renders slots and responds to its controls`, () => {
       const { container } = renderApp(<TeamBuilderScreen size={size} />);
       expect(container.textContent!.length).toBeGreaterThan(50);
       clickAll(container, '.seg-btn', 16);
-    });
+    }, 30000);
     it(`size ${size}: opens the add modal from the plus control`, () => {
       const { container } = renderApp(<TeamBuilderScreen size={size} />);
       const plus = [...container.querySelectorAll('button')]

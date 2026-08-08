@@ -36,6 +36,10 @@ const RESULT_LIMIT = 250;
 const ROW_H = 52;
 const LIST_H = 420;
 const OVERSCAN = 6;
+/** Breathing room between the bottom of the list and the bottom of the window. */
+const LIST_EDGE_GAP = 16;
+/** Three rows. Below this the list stops being usable, so it overhangs instead. */
+const MIN_LIST_H = ROW_H * 3;
 const DEBOUNCE_MS = 120;
 
 /**
@@ -52,6 +56,22 @@ function bestRankOf(e: RosterEntry): number {
   const r = e.species.leagueRank;
   const ranks = [r.great, r.ultra, r.master].filter((n): n is number => n !== undefined);
   return ranks.length ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * The nearest ancestor that would clip an overlay, if any.
+ *
+ * Anything other than `visible` on either axis establishes a clip, and CSS
+ * computes a non-visible value on one axis to non-visible on the other — so
+ * checking one is enough.
+ */
+function clippingAncestor(from: HTMLElement): HTMLElement | null {
+  let n = from.parentElement;
+  while (n && n !== document.body) {
+    if (getComputedStyle(n).overflowY !== 'visible') return n;
+    n = n.parentElement;
+  }
+  return null;
 }
 
 function score(entry: RosterEntry, q: string): number {
@@ -93,6 +113,16 @@ export function SpeciesSearch({
    * is the whole point.
    */
   startEmpty = false,
+  /**
+   * How tall the results list may be, in px.
+   *
+   * One number, because it drives two things that must agree: the box's own
+   * max-height and the arithmetic deciding which rows to render. Set the box
+   * taller than the window believes and the rows past it are simply never
+   * mounted — blank space at the bottom of a list that says it has 250 results.
+   * Callers with room to spare raise it; the add-to-team modal does.
+   */
+  listHeight = LIST_H,
 }: {
   value: string;
   onChange: (ref: string) => void;
@@ -103,6 +133,7 @@ export function SpeciesSearch({
   includeShadow?: boolean;
   restrictTo?: ReadonlySet<string>;
   startEmpty?: boolean;
+  listHeight?: number;
 }) {
   const base = includeShadow ? ROSTER : BASE_ROSTER;
   const pool = useMemo(
@@ -122,6 +153,8 @@ export function SpeciesSearch({
   const timerRef = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  /** The field itself — the stable anchor the dropdown is measured against. */
+  const wrapRef = useRef<HTMLDivElement>(null);
   const listboxId = `${id}-listbox`;
 
   useEffect(() => {
@@ -198,7 +231,7 @@ export function SpeciesSearch({
   // keeps its full height in padding.
   const [scrollTop, setScrollTop] = useState(0);
   const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-  const last = Math.min(results.length, Math.ceil((scrollTop + LIST_H) / ROW_H) + OVERSCAN);
+  const last = Math.min(results.length, Math.ceil((scrollTop + listHeight) / ROW_H) + OVERSCAN);
   const windowed = results.slice(first, last);
 
   /**
@@ -246,6 +279,76 @@ export function SpeciesSearch({
     setScrollTop(next);
   }, [activeIndex]);
 
+  /**
+   * The list, fitted to the room actually below it.
+   *
+   * `listHeight` is a ceiling, not a height. How much of it the box may use
+   * depends on where the input sits on the page and how tall the window is,
+   * and CSS cannot see the first of those — so a flat 420px box hung 252px
+   * below the fold of a 560px-tall window, with twelve of its rows off screen
+   * and unreachable. Measured on open, and again while it is open, because a
+   * resize or a scroll moves the anchor under it.
+   *
+   * Never above `listHeight`: the windowing arithmetic renders rows for that
+   * ceiling, so a taller box would end in blank space. Never below
+   * `MIN_LIST_H` either — a two-row list is worse than one that overhangs.
+   */
+  const [boxH, setBoxH] = useState(listHeight);
+  const [dropUp, setDropUp] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const fit = () => {
+      // Measured from the field, not from the list. The list's own top moves
+      // when it flips, which would make this chase itself; the field does not.
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const r = wrap.getBoundingClientRect();
+      // The panel is taller than its list: borders, and the held-out note when
+      // a query hits one. Measured rather than assumed, because that note is
+      // conditional — unaccounted for, a flipped panel started 31px above the
+      // top of the window.
+      const list = listRef.current;
+      const chrome = list?.parentElement ? list.parentElement.offsetHeight - list.offsetHeight : 0;
+      // The window is not always the edge that matters. Inside the add-to-team
+      // modal the panel is: fitted to the window instead, the list cleared the
+      // bottom of the screen and still sat 64px over the Cancel/Add buttons.
+      // The nearest ancestor that clips is the honest boundary, and on a plain
+      // page there is none, so this falls back to the viewport.
+      const clip = clippingAncestor(wrap);
+      const cb = clip ? clip.getBoundingClientRect() : null;
+      const floor = Math.min(cb ? cb.bottom : Infinity, window.innerHeight);
+      const ceiling = Math.max(cb ? cb.top : 0, 0);
+      const below = floor - r.bottom - LIST_EDGE_GAP - chrome;
+      const above = r.top - ceiling - LIST_EDGE_GAP - chrome;
+      // With the field near the bottom of a short window there is no honest
+      // way to show a list underneath it — at 1280x560 the team picker had
+      // 63px of room and hung 95px below the fold. Open upward instead, which
+      // is what every other combobox does and what the space allows.
+      const flip = below < MIN_LIST_H && above > below;
+      setDropUp(flip);
+      setBoxH(Math.max(MIN_LIST_H, Math.min(listHeight, flip ? above : below)));
+    };
+    fit();
+    // Again after the browser has settled. Opening the box can move the field
+    // under it — focus scrolls a partly-visible input into view, and the list
+    // changes the page's height — and neither of those arrives as a scroll or
+    // resize event, so a single measurement at open read a position the field
+    // had already left by 70px.
+    const raf = requestAnimationFrame(fit);
+    window.addEventListener('resize', fit);
+    // Capture: the anchor moves when any scroller between it and the page
+    // scrolls, not only the page.
+    window.addEventListener('scroll', fit, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('scroll', fit, true);
+    };
+    // `debounced` and the result count are in here because a new query changes
+    // the panel's own chrome — the held-out note appears and disappears — and
+    // the field above it can grow or shrink with it.
+  }, [open, listHeight, debounced, results.length]);
+
   const commit = (ref: string) => {
     onChange(ref);
     setOpen(false);
@@ -255,7 +358,7 @@ export function SpeciesSearch({
   return (
     // `species-search` is the stable hook every variant is styled from, so the
     // field does not depend on whichever class the caller happened to pass.
-    <div className={`species-search${className ? ' ' + className : ''}`} style={{ position: 'relative', ...style }}>
+    <div ref={wrapRef} className={`species-search${className ? ' ' + className : ''}`} style={{ position: 'relative', ...style }}>
       <span className="nav-search-glyph" aria-hidden>
         ⌕
       </span>
@@ -315,14 +418,14 @@ export function SpeciesSearch({
           one explanation that mattered with it. The note could only ever
           appear alongside results it had nothing to do with. */}
       {open && (results.length > 0 || debounced.trim().length > 0) && (
-        <div className="search-dropdown">
+        <div className={`search-dropdown${dropUp ? ' is-up' : ''}`}>
         {/* The scroll box is this wrapper, not the list. Padding on the list
             would sit outside its own max-height and the box would grow to the
-            full 5,500px instead of clipping at 420. */}
+            full 5,500px instead of clipping at `listHeight`. */}
         <div
           ref={listRef}
           onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
-          style={{ maxHeight: LIST_H, overflowY: 'auto' }}
+          style={{ maxHeight: boxH, overflowY: 'auto' }}
         >
         <ul
           id={listboxId}

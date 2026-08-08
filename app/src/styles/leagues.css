@@ -235,6 +235,27 @@
 .league-tab svg { transition: transform var(--dur-2) var(--ease-spring); }
 .league-tab:not(.is-active) svg { transform: scale(0.86); }
 
+/* Narrow: the tabs give up their padding first, then the CP line.
+
+   Three tabs measure 344px, which is wider than a 375px phone once the nav's
+   own padding is taken — so this row is what pushed every screen in the app
+   into a horizontal scroll. The order of sacrifice is deliberate: spacing is
+   worth nothing, the cap figure is a reminder, and the emblem plus the name
+   are what tell the three leagues apart. Those two survive to the bottom.
+
+   Breakpoints are where this content stops fitting, not where a device is —
+   the two tiers below are measured against the three tabs, nothing else. */
+@media (max-width: 560px) {
+  .league-tab { padding: 6px 10px 6px 7px; gap: 6px; }
+  .league-tab-cap { font-size: 8px; }
+}
+@media (max-width: 420px) {
+  .league-tab-cap { display: none; }
+  .league-tab-name { font-size: var(--text-xs); }
+  .league-tab { padding: 5px 8px 5px 5px; gap: 4px; }
+  .league-tabs { gap: 2px; }
+}
+
 /* Stat meters under the vitals.
    Read as instrument gauges: a hairline track, a league-tinted fill, and the
    figure kept in mono beside it. The percentage is of the league's strongest

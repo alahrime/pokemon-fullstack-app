@@ -237,8 +237,10 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
     for (let d = 0; d < 16; d++) {
       for (let s = 0; s < 16; s++) {
         const r = bestAt(species, { a, d, s }, league, maxIdx);
-        // sp / cp / lvl stay on the unadjusted stats; only the battle stats scale.
-        all.push({ a, d, s, ...r, atk: r.atk * aMult, def: r.def * dMult, rank: 0 });
+        // sp / cp / lvl stay on the unadjusted stats; only the battle stats
+        // scale. `statAtk` is the Attack stat itself, kept because charge-move
+        // priority compares stats rather than damage — see BattleMon.cmpAtk.
+        all.push({ a, d, s, ...r, atk: r.atk * aMult, statAtk: r.atk, def: r.def * dMult, rank: 0 });
       }
     }
   }
@@ -264,12 +266,16 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
   const map = new Map<number, RankedEntry>();
   let atkLo = Infinity;
   let atkHi = -Infinity;
+  let statAtkLo = Infinity;
+  let statAtkHi = -Infinity;
   let defLo = Infinity;
   let defHi = -Infinity;
   sorted.forEach((e) => {
     map.set(ivKey(e), e);
     if (e.atk < atkLo) atkLo = e.atk;
     if (e.atk > atkHi) atkHi = e.atk;
+    if (e.statAtk < statAtkLo) statAtkLo = e.statAtk;
+    if (e.statAtk > statAtkHi) statAtkHi = e.statAtk;
     if (e.def < defLo) defLo = e.def;
     if (e.def > defHi) defHi = e.def;
   });
@@ -282,6 +288,8 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
     species,
     atkLo,
     atkHi,
+    statAtkLo,
+    statAtkHi,
     defLo,
     defHi,
   };
@@ -332,6 +340,8 @@ export interface OpponentInfo {
   shadow: boolean;
   types: string[];
   atk: number;
+  /** Attack stat, i.e. `atk` without Shadow's damage multiplier. See BattleMon.cmpAtk. */
+  statAtk: number;
   def: number;
   hp: number;
   fastMove: FastMove;
@@ -474,9 +484,13 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
  *
  * Same search, same tie-break as getTable, no retained structures.
  */
-const bestCache = new Map<string, StatLine & { a: number; d: number; s: number }>();
+const bestCache = new Map<string, StatLine & { a: number; d: number; s: number; statAtk: number }>();
 
-export function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false) {
+export function bestSpreadFor(
+  ref: string,
+  leagueId: LeagueId,
+  bestBuddy = false,
+): StatLine & { a: number; d: number; s: number; statAtk: number } {
   const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const hit = bestCache.get(key);
   if (hit) return hit;
@@ -520,9 +534,10 @@ export function bestSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false
     }
   }
 
+  // `statAtk` is the Attack stat, so it is the unmultiplied figure either way.
   const out = shadow
-    ? { ...best!, atk: best!.atk * SHADOW_ATK_MULT, def: best!.def * SHADOW_DEF_MULT }
-    : best!;
+    ? { ...best!, atk: best!.atk * SHADOW_ATK_MULT, statAtk: best!.atk, def: best!.def * SHADOW_DEF_MULT }
+    : { ...best!, statAtk: best!.atk };
   bestCache.set(key, out);
   return out;
 }
@@ -553,6 +568,7 @@ export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
     shadow,
     types: species.types,
     atk: best.atk,
+    statAtk: best.statAtk,
     def: best.def,
     hp: best.hp,
     // Resolved per league: an opponent runs the set that league rates, not
@@ -756,8 +772,8 @@ function probeSpreads(table: SpeciesTable, oppAtk: number, band: ProbeBand): Pro
   let cmpWinner: RankedEntry | null = null;
   let cmpLoser: RankedEntry | null = null;
   for (const e of table.all) {
-    if (!cmpWinner && e.atk >= oppAtk) cmpWinner = e;
-    else if (!cmpLoser && e.atk < oppAtk) cmpLoser = e;
+    if (!cmpWinner && e.statAtk >= oppAtk) cmpWinner = e;
+    else if (!cmpLoser && e.statAtk < oppAtk) cmpLoser = e;
     if (cmpWinner && cmpLoser) break;
   }
 
@@ -844,7 +860,12 @@ export function rankedOpponents(
   // a real opponent with different thresholds, so only the mirror drops out.
   const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== ref);
 
-  const { atkLo, atkHi } = table;
+  // The CMP band is the Attack-stat band, not the damage-attack one. Reading
+  // atkLo/atkHi here compared a Shadow's inflated attack against a plain
+  // opponent's stat, so `murkrow` and `murkrow_shadow` — identical rolls,
+  // identical CP, identical rank — disagreed about whether Zapdos contests
+  // priority with them. 27% of subject/Shadow-opponent pairs in Great.
+  const { statAtkLo, statAtkHi } = table;
 
   const scored: OpponentRelevance[] = [];
 
@@ -871,10 +892,10 @@ export function rankedOpponents(
     const hasBulk = hasBulkpoint(table, info.atk, info.fastMove, species.types);
     // Contested only if a spread you'd keep wins priority and one loses it —
     // a CMP win that costs rank 3800 is not a decision anyone makes.
-    const cmpContested = info.atk > atkLo && info.atk <= atkHi;
+    const cmpContested = info.statAtk > statAtkLo && info.statAtk <= statAtkHi;
 
     const foe = foeMonFor(c, leagueId, info);
-    const { probes, cmpCost } = probeSpreads(table, info.atk, band);
+    const { probes, cmpCost } = probeSpreads(table, info.statAtk, band);
 
     const flipShields: number[] = [];
     let closest = Infinity;
@@ -1777,7 +1798,13 @@ export function battle(
     // move registering *this* turn qualifies; one still mid-animation does not.
     const snipe = (registersA && fA >= hpB) || (registersB && fB >= hpA);
     if ((moveA || moveB) && !snipe) {
-      const order: ('A' | 'B')[] = moveA && moveB ? (atkA >= atkB ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
+      // Priority is decided on the Attack *stat*, so this reads `cmpAtk` and
+      // not `atkA`/`atkB`: those carry Shadow's x6/5 damage multiplier, which
+      // is not part of the stat. Stat stages *are* part of it, and stay.
+      // Only computed when both sides are actually throwing, which is the only
+      // case the comparison is read in.
+      const priorityA = () => a.cmpAtk * buffMultiplier(stA.atk) >= b.cmpAtk * buffMultiplier(stB.atk);
+      const order: ('A' | 'B')[] = moveA && moveB ? (priorityA() ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
       if (moveA && moveB) cmpDecided = true;
       for (const who of order) {
         if (who === 'A' && hpA > 0 && moveA) {
@@ -1939,7 +1966,7 @@ export function battle(
   const finalHpB = Math.max(0, hpB);
   const mine = finalHpA / a.hp;
   const theirs = finalHpB / b.hp;
-  const win = hpA <= 0 && hpB <= 0 ? a.atk >= b.atk : mine > theirs;
+  const win = hpA <= 0 && hpB <= 0 ? a.cmpAtk >= b.cmpAtk : mine > theirs;
   return {
     win,
     mine,
@@ -1959,12 +1986,22 @@ export function battle(
 }
 
 export function mkBattleMon(
-  entry: { atk: number; def: number; hp: number },
+  entry: { atk: number; def: number; hp: number; statAtk?: number },
   fast: FastMove,
   charges: ChargeMove[],
   types: readonly string[],
 ): BattleMon {
-  return { atk: entry.atk, def: entry.def, hp: entry.hp, fast, charges, types };
+  // `statAtk` is optional so a hand-built entry in a test can omit it; absent,
+  // the mon is not a Shadow and the two are the same number by definition.
+  return {
+    atk: entry.atk,
+    cmpAtk: entry.statAtk ?? entry.atk,
+    def: entry.def,
+    hp: entry.hp,
+    fast,
+    charges,
+    types,
+  };
 }
 
 // ── Verdict copy ──
@@ -2142,7 +2179,7 @@ export function flipMatchupRows(
     return {
       species: opp,
       cells,
-      cmpWin: entry.atk >= foe.atk,
+      cmpWin: entry.statAtk >= foe.cmpAtk,
       flips: cells.filter((c) => c.win).length,
     };
   });

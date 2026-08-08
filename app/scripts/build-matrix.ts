@@ -85,8 +85,16 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *      Also: opponent weighting by log of rank rather than normalised score,
  *      the turn penalty and baitSwing dropped from consistency, and the
  *      attackers category reweighted off the rare sh02 state.
+ *  14  charge-move priority decided on the Attack *stat* rather than on the
+ *      damage attack. Shadow's x6/5 is a damage multiplier, not a stat change
+ *      — which is why a Shadow shares its plain form's CP and rank — so it has
+ *      no business in a CMP comparison. It was inflating one side of every
+ *      priority test involving a Shadow, on either side of the matchup.
+ *      Measured at the fix: 1.5% of Shadow-involving battles change, 0.4% of
+ *      them changing the winner outright, and 10% of board rows change their
+ *      CMP verdict. Stat stages still count, because those are stat changes.
  */
-const ENGINE_REV = 13;
+const ENGINE_REV = 14;
 
 /**
  * Loadouts considered per species.
@@ -530,13 +538,28 @@ async function main() {
     let rows: Record<ScenarioId, number>[] = [];
     let prevOrder: string | null = null;
     let rounds = 0;
+    // How far the order is still moving when the guard bites. "Never settled"
+    // on its own cannot distinguish two refs trading places forever from a
+    // list genuinely churning, and those call for opposite responses.
+    let moved = 0;
+    let worstJump = 0;
     for (; rounds < WEIGHT_ROUNDS_MAX; rounds++) {
       rows = scoreAgainst(variants, nF, matrix, weights, selfIdx, -1);
       const { best } = perRefBest(variants, rows, refIdx, nF);
-      const ord = Array.from({ length: nF }, (_, i) => i)
-        .sort((a, b) => best[b] - best[a])
-        .join(',');
+      const ranked = Array.from({ length: nF }, (_, i) => i).sort((a, b) => best[b] - best[a]);
+      const ord = ranked.join(',');
       if (ord === prevOrder) break;
+      if (prevOrder !== null) {
+        const prev = prevOrder.split(',').map(Number);
+        const wasAt = new Map(prev.map((r, i) => [r, i]));
+        moved = 0;
+        worstJump = 0;
+        ranked.forEach((r, i) => {
+          const d = Math.abs(i - wasAt.get(r)!);
+          if (d > 0) moved++;
+          if (d > worstJump) worstJump = d;
+        });
+      }
       prevOrder = ord;
       const max = Math.max(...best);
       const min = Math.min(...best);
@@ -544,7 +567,10 @@ async function main() {
       weights = new Float64Array(Array.from(best, (o) => ((o - min) / span) ** 2));
     }
     if (rounds >= WEIGHT_ROUNDS_MAX) {
-      console.log(`  ${lg}: WARNING seed order never settled in ${WEIGHT_ROUNDS_MAX} rounds`);
+      console.log(
+        `  ${lg}: WARNING seed order never settled in ${WEIGHT_ROUNDS_MAX} rounds` +
+          ` — last round moved ${moved} of ${nF} refs, largest jump ${worstJump}`,
+      );
     }
     const seeded = perRefBest(variants, rows, refIdx, nF);
     const order = Array.from({ length: nF }, (_, i) => i).sort((a, b) => seeded.best[b] - seeded.best[a]);

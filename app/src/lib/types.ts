@@ -133,6 +133,8 @@ export interface RankedEntry extends StatLine {
   d: number;
   s: number;
   rank: number;
+  /** The Attack stat, i.e. `atk` before the Shadow multiplier. See BattleMon. */
+  statAtk: number;
 }
 
 export interface SpeciesTable {
@@ -149,6 +151,15 @@ export interface SpeciesTable {
    */
   atkLo: number;
   atkHi: number;
+  /**
+   * The same extremes for the Attack *stat*, which is what charge-move
+   * priority is decided on. Identical to atkLo/atkHi unless this is a Shadow,
+   * where they differ by exactly the x6/5 damage multiplier — and comparing a
+   * Shadow's inflated `atk` against an opponent's stat is what made the two
+   * forms of one species disagree about CMP. See BattleMon.cmpAtk.
+   */
+  statAtkLo: number;
+  statAtkHi: number;
   defLo: number;
   defHi: number;
 }
@@ -170,6 +181,18 @@ export type ShieldPolicy = 'always' | 'read';
 
 export interface BattleMon {
   atk: number;
+  /**
+   * The Attack *stat*, which is `atk` without the Shadow damage multiplier.
+   *
+   * Shadow's x6/5 attack and x5/6 defence are combat modifiers applied in the
+   * damage formula, not changes to the stats themselves — which is why a
+   * Shadow has exactly its plain form's CP and stat-product rank, as `getTable`
+   * already relies on. Charge-move priority is a comparison of Attack *stats*,
+   * so it reads this and not `atk`; every damage figure reads `atk`.
+   *
+   * Equal to `atk` for everything that is not a Shadow.
+   */
+  cmpAtk: number;
   def: number;
   hp: number;
   /** Defender typing, for the effectiveness term in dmg(). */

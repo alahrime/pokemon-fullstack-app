@@ -118,8 +118,9 @@ describe('grids', () => {
   });
   it('shieldMatrix runs the nine states', () => {
     const m = shieldMatrix(
-      { atk: 100, def: 100, hp: 150, types: ['normal'], fast: movesFor(SPECIES_BY_ID.get('registeel')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('registeel')!, LG).charges },
-      { atk: 100, def: 100, hp: 150, types: ['water'], fast: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).charges },
+      // cmpAtk equals atk for anything that is not a Shadow, which these are not.
+      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['normal'], fast: movesFor(SPECIES_BY_ID.get('registeel')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('registeel')!, LG).charges },
+      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['water'], fast: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).charges },
     );
     expect(m).toHaveLength(3);
   });

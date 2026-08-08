@@ -26,7 +26,7 @@ making that call explicitly; two of them have caught real bugs.
 ## Tests
 
 ```bash
-npm run test          # 623 tests, ~10s
+npm run test          # 630 tests, ~10s
 npm run test:watch
 npm run coverage
 ```
@@ -93,14 +93,17 @@ tools/          layout-snapshot.js — the styling-refactor harness
 npm run data
 ```
 
-Four passes, slowest last:
+Five passes, slowest last. The last one is an hour, not "minutes" — measured
+at 524M/547M/423M chains for great/ultra/master — so plan around it rather than
+starting it to see what happens:
 
 | step | writes | cost |
 |---|---|---|
 | `build-data.mjs` | `species.json` | seconds |
 | `build-best-spreads.ts` | best IV roll per league | seconds |
-| `build-matrix.ts` (`npm run matrix`) | `rankings.json`, `matrix.json` | ~165s |
-| `build-teams.ts` (`npm run teams`) | `teams.json` | minutes |
+| `build-matrix.ts` (`npm run matrix`) | `rankings.json`, `matrix.json` | ~5 min |
+| `build-teams.ts` (`npm run teams`) | `teams.json` | **~1 hour** |
+| `build-summary.ts` (`npm run summary`) | `summary.json` | seconds |
 
 `build-best-spreads.ts` is bundled through esbuild so it uses the real `bestAt`
 rather than a copy. That makes **esbuild a build dependency of the data**, not
@@ -126,6 +129,15 @@ Shadows are not separate rows — they share stats, typing and movepool, so
 `parseRef`/`makeRef` carry the flag and the engine applies ×6/5 attack and
 ×5/6 defence. Those cancel exactly, so Shadow never moves rank or CP; it moves
 every damage threshold.
+
+**And nothing but damage thresholds.** Those multipliers are combat modifiers,
+not stat changes — the reason a Shadow has its plain form's CP at all. So
+anything comparing *stats* rather than computing damage must not see them, and
+charge-move priority is exactly that: `BattleMon.cmpAtk` and
+`RankedEntry.statAtk` carry the Attack stat, `atk` carries the damage attack,
+and the four CMP decision sites read the former. Stat stages are genuine stat
+changes and do still count. Reading `atk` there made a Shadow contest priority
+its plain form could not, on 10% of board rows — see BACKLOG §1p.
 
 **Two different exclusion mechanisms.** `data-src/pool-exclusions.json`
 controls league membership at build time and affects who is an *opponent*.

@@ -842,6 +842,84 @@ does not separate these species. Fearow's floor is poor — 21.3% of its top-100
 matchups score under 300, against Lickilicky's 5.0% and Registeel's 2.5%. The
 mechanism is pressure availability, not the absence of bad matchups.
 
+## 1p. Shadow was inflating charge-move priority — FIXED, engine rev 14
+
+Reported from play: on Zapdos' board, `murkrow` and `murkrow_shadow` disagreed
+about CMP. Same roll, same CP, same rank, different priority verdict.
+
+**They were being compared on different quantities.** Shadow's x6/5 attack and
+x5/6 defence are damage multipliers, not stat changes — which is precisely why
+a Shadow carries its plain form's CP and its plain form's stat-product rank,
+something `getTable` had always done on purpose ("sp / cp / lvl stay on the
+unadjusted stats"). Charge-move priority is a comparison of Attack *stats*. It
+was reading the damage attack, so every Shadow entered a priority test 20%
+high, on either side of the matchup.
+
+The internal argument is the one that settles it, independent of any outside
+source: CP is a function of the Attack stat, and a Shadow's CP is its plain
+form's. So the Attack stat is unchanged, and a stat comparison must not see the
+multiplier. Stat *stages* are a different thing — those are genuine stat
+changes and still count, so the fix strips only the Shadow component and leaves
+`buffMultiplier` in place.
+
+`BattleMon.cmpAtk`, `RankedEntry.statAtk`, `SpeciesTable.statAtkLo/Hi` and
+`OpponentInfo.statAtk` carry the stat alongside the damage attack. Four
+decision sites read it: the simultaneous-charge ordering in `battle()`, the
+mutual-KO tiebreak, `probeSpreads`' straddle, and `flipMatchupRows`' `cmpWin`.
+Everything that computes damage still reads `atk`.
+
+**Measured, before and after, on the same surface:**
+
+| surface | change |
+|---|---|
+| board rows, keyed by (league, subject, opponent) | 480 of 4693 change `cmpContested` (10.2%) |
+| — of those | 211 are Shadow opponents, 269 are Shadow *subjects* |
+| relevance ordering | 707 rows enter or leave a top-60 board |
+| Shadow-involving battles | 217 of 14,400 differ (1.5%); 64 change the winner |
+| `cmpContested` over the full pool | 27.0% of subject/Shadow pairs in Great, 21.3% Ultra, 9.9% Master |
+
+So it was not cosmetic, and the artefacts were rebuilt: `ENGINE_REV` 13 → 14,
+`npm run matrix`, `npm run teams` and `npm run summary` re-run.
+
+**The rankings moved, and moved in the direction that confirms the fix.**
+Comparing the committed rev-13 `rankings.json` against the rebuilt rev-14 one,
+at each league's default tier under Overall:
+
+| league | mean rank move | max | Shadows | plain |
+|---|---|---|---|---|
+| great | 32.9 places | 189 | **36.1** | 31.4 |
+| ultra | 20.2 | 153 | **25.2** | 18.1 |
+| master | 6.4 | 43 | **9.6** | 5.2 |
+
+Shadows move further than plain forms in all three, which is the signature of
+an advantage being removed rather than of numbers merely churning — a Shadow
+had been winning priority ties it should have lost. Great's top changes hands,
+Umbreon → Tinkaton; Ultra drops `registeel_shadow` out of the top six; Master's
+top six is unchanged, as expected where the pool is smallest and least Shadowed.
+
+Plain forms move too, and should: their *opponents* include Shadows whose
+priority changed, so their win rates move with them.
+
+**It is surgical, and that was checked rather than assumed.** 31,860 battles
+between two non-Shadows, across all three leagues and all three symmetric
+shield counts, hash identically before and after — `cmpAtk` is `atk` when there
+is no Shadow multiplier to remove, so two-thirds of the format is untouched to
+the last bit. Stat stages still move priority: the comparison multiplies
+`cmpAtk` by `buffMultiplier` exactly as the old one multiplied `atk`.
+
+**One consequence worth knowing.** Great's seed-order fixed point now
+oscillates instead of converging — the build prints `seed order never settled
+in 40 rounds`, which the old engine did not. Checked directly by re-running the
+old engine: the warning is new. Quantified rather than left as a bare warning:
+the last round moves **7 of 1140 refs, largest jump 6 places**. Compare §1m,
+where round 4 of the unconverged version moved 325 refs by up to 9. So the
+order is well defined to within a handful of refs shifting a few places deep in
+the list, and tier boundaries at 50/100/200/300/500 are coarse relative to
+that. The guard was left alone deliberately — loosening the comparison until it
+goes green is the §0 trap, and the warning is the guard doing its job. If it
+ever matters, the fix is a convergence criterion with a stated tolerance, not a
+wider round budget.
+
 ## 2. How the rankings pipeline works
 
 Worth reading before touching any of it; it is four commits of structure.

@@ -27,9 +27,11 @@ function Bar({ value, max }: { value: number; max: number }) {
   );
 }
 
-function Row({ row, i, max, league, expanded, onToggle }: {
+function Row({ row, i, n, max, league, expanded, onToggle }: {
   row: RankRow;
   i: number;
+  /** Position within the page, which staggers this row's arrival. */
+  n: number;
   max: number;
   league: LeagueId;
   expanded: boolean;
@@ -44,7 +46,11 @@ function Row({ row, i, max, league, expanded, onToggle }: {
   const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   return (
     <>
-      <tr className={`rank-row${expanded ? ' is-open' : ''}`} onClick={onToggle}>
+      <tr
+        className={`rank-row${expanded ? ' is-open' : ''}`}
+        onClick={onToggle}
+        style={{ ['--row-i' as string]: n }}
+      >
         <td className="numeric rank-pos">{i}</td>
         <td>
           {/* The row had a 30px sprite and nothing but a name beside it, which
@@ -334,11 +340,15 @@ export function RankingsScreen() {
               </th>
             </tr>
           </thead>
-          <tbody>
+          {/* Keyed on everything that changes the contents, so React remounts
+              these rows and the arrival replays: a new page, a new category or
+              a new pool is dealt, not swapped. */}
+          <tbody className="stagger-drop-rows" key={`${cat}-${tier}-${order}-${page}-${pageSize}`}>
             {slice.map((r, n) => (
               <Row
                 key={r.ref}
                 row={r}
+                n={n}
                 i={page * pageSize + n + 1}
                 max={max}
                 league={league}

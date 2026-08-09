@@ -109,7 +109,9 @@ input[type='range'] { accent-color: var(--color-accent); }
 }
 .btn svg { display: block; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn:active:not(:disabled) { transform: translateY(1px); }
+/* A press is felt, not just registered: the dip tracks the finger and the
+   recovery (a longer ease, set in motion.css) is the control settling back. */
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
 
 .btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
 .btn-primary:hover { background: var(--color-accent-600); box-shadow: var(--glow-accent); }

@@ -41,7 +41,7 @@ const SYN_FIELDS = [
   ['bulk', 'Bulk', 'Mean stat product against the tier best'],
 ] as const;
 
-function TeamRow({ t, i, max, league, size, pass, onLoad }: {
+function TeamRow({ t, i, max, league, size, pass, onLoad, n }: {
   t: BestTeam;
   i: number;
   max: number;
@@ -49,10 +49,12 @@ function TeamRow({ t, i, max, league, size, pass, onLoad }: {
   size: 3 | 6;
   pass: TeamPass;
   onLoad: (refs: string[]) => void;
+  /** Position within the page, which staggers this row's arrival. */
+  n: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className={`bt-row${open ? ' is-open' : ''}`}>
+    <li className={`bt-row${open ? ' is-open' : ''}`} style={{ ['--i' as string]: n }}>
       <div className="bt-row-main">
         <span className={`numeric bt-pos${i < 3 ? ' is-podium' : ''}`}>{i + 1}</span>
         <div className={`bt-members bt-members-${size}`}>
@@ -167,9 +169,12 @@ export function BestTeams({ league, size, onLoad }: {
     [league, tier, cat, pass, size],
   );
   const pages = Math.max(1, Math.ceil(total / pageSize));
+  // pageSize belongs in these deps: the slice is computed from it. Without it,
+  // changing the size while already on page 1 left the previous slice on
+  // screen — 25 teams under a pager reading "1–50 of 117".
   const teams = useMemo(
     () => bestTeams(league, tier, cat, pass, size, page * pageSize, (page + 1) * pageSize),
-    [league, tier, cat, pass, size, page],
+    [league, tier, cat, pass, size, page, pageSize],
   );
   const head = useMemo(
     () => bestTeams(league, tier, cat, pass, size, 0, 1),
@@ -323,10 +328,11 @@ export function BestTeams({ league, size, onLoad }: {
       {teams.length === 0 ? (
         <p className="text-muted">No teams recorded for this stratum.</p>
       ) : (
-        <ol className="bt-list">
+        <ol className="bt-list stagger-drop" key={`${tier}-${cat}-${pass}-${page}-${pageSize}`}>
           {teams.map((t, i) => (
             <TeamRow
               key={t.refs.join('|')}
+              n={i}
               t={t}
               i={page * pageSize + i}
               max={max}

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useSlidingMarker } from '../lib/useSlidingMarker';
 
 /**
  * One pager for every paged list in the app.
@@ -84,6 +85,9 @@ export function Pager({
   className?: string;
 }) {
   const numbers = useMemo(() => pageList(page, pages), [page, pages]);
+  // The lit rail travels to the page you picked instead of blinking out under
+  // one number and in under another.
+  const { ref: numsRef, box } = useSlidingMarker<HTMLOListElement>('.pager-num.is-on');
   // A caller may start at a size of its own — the opponent board opens at 16,
   // which suits its grid. Without this the select has no matching option and
   // renders the first one, so the control sits there claiming 10 while 16 rows
@@ -111,7 +115,16 @@ export function Pager({
           ‹
         </button>
 
-        <ol className="pager-nums">
+        <ol className={`pager-nums${box ? ' has-marker' : ''}`} ref={numsRef}>
+          {/* An <li>, not a <span>: only list items may be children of <ol>.
+              Absolutely positioned, so it leaves the flex row undisturbed. */}
+          {box && (
+            <li
+              className="pager-rail"
+              aria-hidden="true"
+              style={{ transform: `translateX(${box.x}px)`, width: `${box.w}px` }}
+            />
+          )}
           {numbers.map((n, i) =>
             n === null ? (
               <li key={`gap-${i}`} className="pager-gap" aria-hidden="true">

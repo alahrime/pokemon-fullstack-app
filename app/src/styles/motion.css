@@ -173,3 +173,89 @@
 /* Numeric readouts that change value. */
 .tick-value { transition: color var(--dur-2) var(--ease-out); }
 .tick-value.is-changing { color: var(--color-accent); }
+
+/* ── travelling markers ────────────────────────────────────────────────────
+   The engaged state of a group — the accent fill on a segment, the lit rail
+   under a page number — is one element that slides between options rather
+   than a background switched off one box and on to another. Snapping made
+   changing page or category read as a readout updating; travelling makes it
+   read as a control responding.
+
+   Geometry comes from the DOM (useSlidingMarker), because the options are
+   content-sized: a two-digit page is narrower than a three-digit one. Until
+   that measurement exists the marker is not rendered and the active option
+   paints itself, so the engaged state is never missing — which is also what
+   keeps it correct in jsdom, where nothing has a width. */
+.seg-group { position: relative; }
+.seg-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  background: var(--color-accent);
+  pointer-events: none;
+  /* `.seg-group > *` makes every child a snap target, and these groups scroll
+     sideways on a narrow screen. An out-of-flow element has no business being
+     one — it would let the control snap to the marker rather than a button. */
+  scroll-snap-align: none;
+  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out);
+}
+.seg-group.has-marker .seg-btn { z-index: 1; }
+/* The marker is the fill now, so the button must stop painting its own or the
+   old block sits under the travelling one and nothing appears to move. */
+.seg-group.has-marker .seg-btn.is-active { background: transparent; }
+
+.pager-nums { position: relative; }
+.pager-rail {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--color-accent);
+  box-shadow: var(--glow-accent);
+  pointer-events: none;
+  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out);
+}
+.pager-nums.has-marker .pager-num.is-on::after { opacity: 0; }
+
+/* ── arrival ───────────────────────────────────────────────────────────────
+   Rows settle down into place from just above, so a new page of results reads
+   as having been dealt rather than swapped. Downward because the control that
+   caused it sits above the list: the motion runs the same direction as the eye
+   travelling from the pager to the first row.
+
+   Keyed on the page in the JSX so React remounts the rows and replays it. */
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.stagger-drop > * {
+  animation: drop-in var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0) * 18ms, 320ms) * var(--motion-scale));
+}
+
+/* A table row cannot carry a transform on itself in every engine, but its
+   cells can — so the row animates through its own children. */
+.stagger-drop-rows > tr > * {
+  animation: drop-in var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(min(var(--row-i, 0) * 18ms, 320ms) * var(--motion-scale));
+}
+
+/* ── press ─────────────────────────────────────────────────────────────────
+   A press should be felt before the result arrives. Deliberately faster going
+   down than coming back up: the dip tracks the finger, the recovery is the
+   control settling after it. */
+.pager-num,
+.info-pop-mark {
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.btn:active:not(:disabled),
+.pager-num:active,
+.info-pop-mark:active {
+  transition-duration: 40ms;
+}
+.pager-num:active { transform: translateY(1px) scale(0.96); }
+.info-pop-mark:active { transform: scale(0.9); }

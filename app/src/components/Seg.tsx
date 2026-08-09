@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { useSlidingMarker } from '../lib/useSlidingMarker';
 
 /**
  * Segmented and chip controls.
@@ -9,8 +10,19 @@ import type { CSSProperties, ReactNode } from 'react';
  */
 
 export function SegGroup({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  // The accent fill is one element that travels, rather than a background
+  // switched off one button and on to another. Every segmented control in the
+  // app is this component, so category, pass, pool and league all gain it here.
+  const { ref, box } = useSlidingMarker<HTMLDivElement>('.seg-btn.is-active');
   return (
-    <div className="seg-group" style={style}>
+    <div className={`seg-group${box ? ' has-marker' : ''}`} style={style} ref={ref}>
+      {box && (
+        <span
+          className="seg-marker"
+          aria-hidden="true"
+          style={{ transform: `translateX(${box.x}px)`, width: `${box.w}px` }}
+        />
+      )}
       {children}
     </div>
   );

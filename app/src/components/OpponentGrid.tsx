@@ -81,7 +81,9 @@ export function OpponentGrid({
         className="pager-top"
       />
 
-      <div className="opp-board">
+      {/* Keyed on the window so a new page of opponents arrives rather than
+          appearing. --i on each cell is what staggers it. */}
+      <div className="opp-board stagger-drop" key={`${page}-${pageSize}`}>
         {items.map((r, i) => {
           const active = r.info.id === activeId;
           const flips = r.flipShields.length > 0;

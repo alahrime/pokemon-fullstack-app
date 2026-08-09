@@ -59,6 +59,30 @@ describe('no fixed length can outgrow its container', () => {
     expect(rule, 'flex: none would pin it to its content width').not.toMatch(/flex:\s*none/);
   });
 
+  it('floors a popover against the viewport, not its trigger', () => {
+    // `min(268px, 100%)` is the shrinkable-floor idiom used all over this
+    // file, and on an absolutely positioned element it is a trap: the
+    // percentage resolves against the containing block, which here is the
+    // 54px theme button. The floor evaluated to 54px, so the panel was purely
+    // content-sized — 96px, with the custom editor's colour chips collapsed to
+    // 3.98px tracks inside it.
+    const rule = ruleBody(components, '.theme-menu-panel');
+    expect(rule).toMatch(/min-width:\s*min\(/);
+    expect(rule, 'a percentage floor here measures the trigger, not the screen')
+      .not.toMatch(/min-width:\s*min\([^)]*100%/);
+    expect(rule).toMatch(/min-width:\s*min\([^;]*100vw/);
+  });
+
+  it('keeps the theme swatch grid on tracks that have an intrinsic floor', () => {
+    // `repeat(4, 1fr)` is `minmax(auto, 1fr)` — floored at min-content. The
+    // Tailwind utility `grid-cols-4` emits `minmax(0, 1fr)`, which has no
+    // floor; inside a content-sized popover the swatches collapsed to 9.96px.
+    const rule = ruleBody(components, '.theme-swatches');
+    expect(rule).toMatch(/grid-template-columns:\s*repeat\(4,\s*1fr\)/);
+    expect(rule, 'minmax(0, 1fr) removes the floor this grid depends on')
+      .not.toMatch(/minmax\(\s*0/);
+  });
+
   it('does not set flex properties on the children of a grid', () => {
     // `.bt-members-3 > *, .bt-members-6 > * { flex: 1 1 100% }` stood in the
     // 860px query for a long time doing nothing at all: those containers are

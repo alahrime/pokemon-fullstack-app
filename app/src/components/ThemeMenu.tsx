@@ -68,7 +68,7 @@ export function ThemeMenu() {
             <CustomThemeEditor onDone={() => { setBuilding(false); setOpen(false); }} />
           ) : (
           <>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="theme-swatches">
             {THEMES.map((t) => (
               <button
                 key={t.id}

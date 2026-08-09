@@ -4658,7 +4658,16 @@ th.bt-matrix-head { text-align: center; }
   top: calc(100% + 6px);
   right: 0;
   z-index: 60;
-  min-width: min(268px, 100%);
+  /* The floor is measured against the viewport, not the parent.
+     `min(268px, 100%)` looks like the shrinkable floor used everywhere else in
+     this file, but the percentage resolves against the containing block — and
+     for an absolutely positioned popover that is the 54px trigger, so the
+     floor evaluated to 54px and never applied. The panel was then purely
+     content-sized, which the theme list survived only because its swatch names
+     have a min-content width: the custom editor's colour chips are empty
+     buttons, so its grid collapsed to 3.98px tracks and the panel to 96px.
+     100vw is the measurement that means what was intended here. */
+  min-width: min(268px, calc(100vw - var(--space-6)));
   /* Never wider than the viewport it hangs off, however narrow that gets. */
   max-width: min(320px, calc(100vw - var(--space-6)));
   padding: var(--space-3);
@@ -4667,6 +4676,23 @@ th.bt-matrix-head { text-align: center; }
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Four columns, and `1fr` rather than Tailwind's `grid-cols-4`.
+
+   They are not the same track: `grid-cols-4` emits `minmax(0, 1fr)`, while a
+   bare `1fr` is `minmax(auto, 1fr)` — floored at the content's min-content
+   width. The panel is a popover that sizes to its own content, so nothing else
+   holds it open; with the `minmax(0, …)` form the tracks had no floor, the
+   swatches collapsed to 9.96px each and the panel to 92px. Measured, after
+   this rule was briefly replaced by that utility.
+
+   So this stays a class: the intrinsic floor is the whole behaviour, and the
+   utility cannot express it. */
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-2);
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { InfoPopover } from './InfoPopover';
 
 /**
  * The title block every screen opens with.
@@ -15,10 +16,20 @@ import type { ReactNode } from 'react';
 export function ScreenHeader({
   title,
   blurb,
+  info,
   aside,
 }: {
   title: string;
   blurb?: ReactNode;
+  /**
+   * The long version, folded behind a mark beside the title.
+   *
+   * Methodology belongs on the page and not at the top of it: several hundred
+   * words above the first Pokémon pushed the content below the fold on every
+   * league change. `blurb` says what the screen is in a line; this holds the
+   * rest.
+   */
+  info?: ReactNode;
   aside?: ReactNode;
 }) {
   return (
@@ -28,6 +39,11 @@ export function ScreenHeader({
           {/* The accent bar reads as a cursor: this is where the page begins. */}
           <span className="mr-3 inline-block h-[0.7em] w-1 translate-y-[0.04em] bg-(--color-accent) align-middle" aria-hidden="true" />
           {title}
+          {info && (
+            <InfoPopover label={`How ${title} is measured`} align="start">
+              {info}
+            </InfoPopover>
+          )}
         </h1>
         {blurb && (
           <p className="mt-2 max-w-[70ch] text-sm/relaxed text-(--text-muted)">{blurb}</p>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
-import { CATEGORIES, type CategoryId } from '../lib/scenarios';
+import { CATEGORIES, CATEGORY_MARK, type CategoryId } from '../lib/scenarios';
 import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import { LEAGUE_BY_ID, movesFor, parseRef, speciesOf } from '../lib/data';
@@ -155,7 +155,50 @@ export function RankingsScreen() {
     <div className="rankings">
       <ScreenHeader
         title="Rankings"
-        blurb="Every league-legal form scored in seven roles, at five opponent-pool depths. The pass decides how the score is read: a raw simulated result, a weighted regression against the field, or the second derivative that finds who is quietly rising."
+        info={
+          <>
+            <p className="info-pop-lead">{category.blurb}</p>
+
+        <strong>Category scores are mean battle ratings</strong>, on PvPoke's 0–1000 scale — every
+        pool member played against every other, at each of the nine shield states and both shield
+        policies, with each species swept across up to 12 loadouts. Ranked on the league's rated set
+        so the column is comparable; the best swept set is the right-hand column.
+        <br />
+        A rating is <em>health kept plus damage dealt</em>, then three adjustments taken from
+        PvPoke's own ranker: a win earns <strong>+100 per shield it forced and per shield it kept</strong>,
+        wins above 700 are <strong>soft-capped</strong> so a blowout is worth barely more than a
+        clean win, and losses under 300 are <strong>curved down</strong> so failing to trade costs
+        more than losing gracefully. Their editor override — which replaces 75% of a published score
+        with a hand-set value — is deliberately <em>not</em> reproduced here.
+        <br />
+        <strong>Overall is not a battle rating.</strong> It is a weighted geometric mean of this
+        Pokémon's own five role scores, each first normalised against the best in that category, with
+        its strongest role weighted 12× and consistency 2×. That asks how strong a Pokémon is at what
+        it does rather than how it averages, so a specialist outranks a generalist. It is shown ×10
+        to share an axis with the other columns, but only its <em>order</em> is meaningful.
+        <br />
+        {order === 'd1' ? (
+          <>
+            <strong>Even field:</strong> every swept loadout, scored against a top-N opponent
+            cutoff where everyone inside it counts the same — beating rank 98 is worth beating rank 2.
+          </>
+        ) : (
+          <>
+            <strong>Graded field:</strong> the same opponent pool, but graded — each opponent
+            weighted by the first pass's own Overall, so beating the head of the format counts for
+            more than beating its shoulder. Both sides are restricted to their rated loadout, which
+            makes it a measure of the matchup rather than of the movepool.
+          </>
+        )}
+        <br />
+        PvPoke's <em>position</em> is shown alongside, not their score. Their number is a 0–100 index
+        topping out near 93; ours is a mean battle rating where 500 is even. Rescaling one onto the
+        other would produce a difference that looks like an error term and is nothing of the kind, so
+        only rank order — the part that genuinely compares — is shown. Both columns are ranked over
+        the species PvPoke publishes, which excludes Shadows. Engine rev {ENGINE_REV(league)}.
+          </>
+        }
+        blurb="Every league-legal form, scored in seven roles at five opponent-pool depths."
       />
       <div className="panel panel-strong rankings-controls">
         <div>
@@ -163,6 +206,9 @@ export function RankingsScreen() {
           <SegGroup>
             {CATEGORIES.map((c) => (
               <SegButton key={c.id} active={cat === c.id} onClick={() => reset(() => setCat(c.id))} title={c.blurb}>
+                {/* A mark per role, so eight words of similar length read as a
+                    set rather than as a paragraph in a row. */}
+                <span className="cat-mark" aria-hidden="true">{CATEGORY_MARK[c.id]}</span>
                 {c.label}
               </SegButton>
             ))}
@@ -174,16 +220,16 @@ export function RankingsScreen() {
             <SegButton
               active={order === 'd1'}
               onClick={() => reset(() => setOrder('d1'))}
-              title="Every swept loadout, scored against a hard top-N opponent cutoff"
+              title="Every swept loadout, scored against a hard top-N opponent cutoff — every opponent inside it counts the same"
             >
-              First derivative
+              Even field
             </SegButton>
             <SegButton
               active={order === 'd2'}
               onClick={() => reset(() => setOrder('d2'))}
-              title="Opponents weighted continuously by their first-pass Overall; rated loadout only"
+              title="The same cutoff, but each opponent weighted by its own Overall; rated loadout only"
             >
-              Weighted regression
+              Graded field
             </SegButton>
           </SegGroup>
         </div>
@@ -240,48 +286,6 @@ export function RankingsScreen() {
             </button>
           </div>
         </div>
-      </div>
-
-      <p className="rankings-blurb">{category.blurb}</p>
-
-      <div className="panel rankings-note">
-        <strong>Category scores are mean battle ratings</strong>, on PvPoke's 0–1000 scale — every
-        pool member played against every other, at each of the nine shield states and both shield
-        policies, with each species swept across up to 12 loadouts. Ranked on the league's rated set
-        so the column is comparable; the best swept set is the right-hand column.
-        <br />
-        A rating is <em>health kept plus damage dealt</em>, then three adjustments taken from
-        PvPoke's own ranker: a win earns <strong>+100 per shield it forced and per shield it kept</strong>,
-        wins above 700 are <strong>soft-capped</strong> so a blowout is worth barely more than a
-        clean win, and losses under 300 are <strong>curved down</strong> so failing to trade costs
-        more than losing gracefully. Their editor override — which replaces 75% of a published score
-        with a hand-set value — is deliberately <em>not</em> reproduced here.
-        <br />
-        <strong>Overall is not a battle rating.</strong> It is a weighted geometric mean of this
-        Pokémon's own five role scores, each first normalised against the best in that category, with
-        its strongest role weighted 12× and consistency 2×. That asks how strong a Pokémon is at what
-        it does rather than how it averages, so a specialist outranks a generalist. It is shown ×10
-        to share an axis with the other columns, but only its <em>order</em> is meaningful.
-        <br />
-        {order === 'd1' ? (
-          <>
-            <strong>First derivative:</strong> every swept loadout, scored against a top-N opponent
-            cutoff where everyone inside it counts the same — beating rank 98 is worth beating rank 2.
-          </>
-        ) : (
-          <>
-            <strong>Weighted regression:</strong> the same opponent pool, but graded — each opponent
-            weighted by the first pass's own Overall, so beating the head of the format counts for
-            more than beating its shoulder. Both sides are restricted to their rated loadout, which
-            makes it a measure of the matchup rather than of the movepool.
-          </>
-        )}
-        <br />
-        PvPoke's <em>position</em> is shown alongside, not their score. Their number is a 0–100 index
-        topping out near 93; ours is a mean battle rating where 500 is even. Rescaling one onto the
-        other would produce a difference that looks like an error term and is nothing of the kind, so
-        only rank order — the part that genuinely compares — is shown. Both columns are ranked over
-        the species PvPoke publishes, which excludes Shadows. Engine rev {ENGINE_REV(league)}.
       </div>
 
       <HeldOutNote />

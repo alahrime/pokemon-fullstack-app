@@ -10,6 +10,7 @@ import { TypeBadge } from '../components/TypeBadge';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { AddPokemonModal, movesForChoice, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { BestTeams } from '../components/BestTeams';
+import { InfoPopover } from '../components/InfoPopover';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import type { LeagueId } from '../lib/types';
 
@@ -195,14 +196,36 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     <div className="team-builder">
       <ScreenHeader
         title={size === 3 ? 'GBL Teams' : 'Show 6'}
-        blurb={
-          size === 3
-            ? 'Build a team of three, or take one the discovery pass already found. Every legal team from the stratum was played as one continuous chain — HP, energy and shields all carrying across matchups — rather than as three independent fights.'
-            : 'Build a Show 6, or take one the discovery pass found. A six is scored as the matrix game it really is: against each opposing six you pick your best of twenty lines and they answer with theirs.'
+        blurb={size === 3 ? 'Build a team of three, or take one discovery found.' : 'Build a Show 6, or take one discovery found.'}
+        info={
+          size === 3 ? (
+            <p className="info-pop-lead">
+              Every legal team from the stratum was played as one continuous chain — HP, energy and
+              shields all carrying across matchups — rather than as three independent fights. That is
+              the part a matchup table cannot express: the value of a lead is not whether it wins its
+              own fight but what it leaves behind for the next one.
+            </p>
+          ) : (
+            <p className="info-pop-lead">
+              A six is scored as the matrix game it really is: against each opposing six you pick
+              your best of twenty lines and they answer with theirs. Bringing six only helps if you
+              have an answer to everything, not one strong line — so the number is what you can
+              guarantee when the opponent picks their best reply to whatever you pick.
+            </p>
+          )
         }
       />
       <div className="panel panel-strong">
-        <div className="hud-label">{size === 3 ? 'Your team of 3' : 'Your Show 6'}</div>
+        <div className="hud-label">
+          {size === 3 ? 'Your team of 3' : 'Your Show 6'}
+          <InfoPopover label="What you may pick, and what you are measured against">
+
+          Pick any of the {selectable.size.toLocaleString()} Pokémon GBL allows in{' '}
+          {LEAGUE_BY_ID.get(league)!.label} — ranked or not. The sampled opposing field and the
+          suggested completions come from the top {pool.size} by Overall, which caps who you are{' '}
+          <em>measured against</em> rather than what you may bring.
+          </InfoPopover>
+        </div>
         <div className="team-slots">
           {Array.from({ length: size }, (_, i) => (
             <Slot
@@ -293,12 +316,6 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             </>
           )}
         </div>
-        <p className="text-muted team-warn">
-          Pick any of the {selectable.size.toLocaleString()} Pokémon GBL allows in{' '}
-          {LEAGUE_BY_ID.get(league)!.label} — ranked or not. The sampled opposing field and the
-          suggested completions come from the top {pool.size} by Overall, which caps who you are{' '}
-          <em>measured against</em> rather than what you may bring.
-        </p>
       </div>
 
       <BestTeams league={league} size={size} onLoad={load} />

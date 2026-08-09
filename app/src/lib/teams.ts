@@ -14,8 +14,14 @@ import { leagueArtefact } from './artefact';
 export type TeamPass = 'd1' | 'd2' | 'syn';
 
 export const TEAM_PASSES: { id: TeamPass; label: string; blurb: string }[] = [
-  { id: 'd1', label: 'First derivative', blurb: 'Simulated chain result, every opponent team inside the cutoff counting the same.' },
-  { id: 'd2', label: 'Weighted regression', blurb: "Simulated chain result, opponent teams graded by their own members' Overall." },
+  // "First derivative" and "Weighted regression" named techniques neither pass
+  // uses — nothing here differentiates anything, and there is no regression
+  // model. Both are the same simulated chain against the same cutoff; the only
+  // difference is whether opponents inside it are weighted, so that is what
+  // the labels say now. The ids stay `d1`/`d2` because the artefacts key on
+  // them.
+  { id: 'd1', label: 'Even field', blurb: 'Simulated chain result, every opponent team inside the cutoff counting the same.' },
+  { id: 'd2', label: 'Graded field', blurb: "Simulated chain result, opponent teams graded by their own members' Overall." },
   { id: 'syn', label: 'Synergy', blurb: 'Ranked by how well the team covers itself: coverage, redundancy, swap safety, type complement and bulk. Not blended with the simulated passes — a different question, asked of the same teams.' },
 ];
 

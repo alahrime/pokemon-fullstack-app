@@ -145,6 +145,16 @@ input[type='range'] { accent-color: var(--color-accent); }
   scroll-snap-type: x proximity;
 }
 .seg-group > * { flex: none; scroll-snap-align: start; }
+/* The role mark on a category button. Set apart from the word rather than
+   crowding it, and dimmed until the button is the active one — a row of eight
+   full-strength glyphs competes with the labels they are meant to index. */
+.cat-mark {
+  margin-right: 6px;
+  font-size: var(--text-2xs);
+  opacity: 0.55;
+  vertical-align: baseline;
+}
+.seg-btn.is-active .cat-mark { opacity: 1; }
 /* The row holding a segmented control has to be allowed to shrink, or the
    control never gets the chance to scroll: a flex item's default
    `min-width: auto` is its content, so the seven-wide Category switch pushed
@@ -3794,6 +3804,72 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   gap: 6px;
 }
 .bt-range { width: 100%; min-width: 0; }
+
+/* ── The information mark, and what it folds away ──────────────────────────
+   Several hundred words of methodology used to sit above the first Pokémon on
+   four screens. It is all worth saying and none of it worth saying first, so
+   it lives behind this. Hover for a pointer, click or Enter for everything
+   else; Escape or an outside click closes it. */
+.info-pop { position: relative; display: inline-flex; vertical-align: middle; margin-left: var(--space-2); }
+.info-pop-mark {
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: var(--border-hairline) solid var(--rule-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-style: italic;
+  line-height: 1;
+  cursor: help;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.info-pop-mark:hover,
+.info-pop-mark:focus-visible,
+.info-pop-mark.is-open { color: var(--color-accent); border-color: var(--color-accent); }
+
+/* Paragraphs, so it is a panel rather than a tooltip: readable at length,
+   selectable, and scrollable when the content runs long. */
+.info-pop-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  z-index: 60;
+  width: min(560px, 78vw);
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: var(--space-4);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-muted);
+  background: var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: var(--shadow-lg);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  animation: info-pop-in var(--dur-2) var(--ease-out) both;
+}
+/* Hangs from whichever edge keeps it on screen: `end` for a mark sitting at
+   the right of a row, `start` for one just after a title. */
+.info-pop-end { right: 0; }
+.info-pop-start { left: 0; }
+.info-pop-panel strong { color: var(--color-text); }
+.info-pop-lead { margin: 0 0 var(--space-3); color: var(--color-text); }
+.info-pop-panel br { content: ''; display: block; margin-top: var(--space-2); }
+
+@keyframes info-pop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .info-pop-panel { animation: none; }
+}
 
 /* ── The roll, and the way back to the best one ────────────────────────────
    The button sits under the adjuster with the rank beside it, so the number

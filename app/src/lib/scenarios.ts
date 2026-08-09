@@ -264,6 +264,26 @@ export const CATEGORIES: readonly Category[] = [
   },
 ] as const;
 
+/**
+ * A mark per category, so the row reads as a set of roles rather than eight
+ * words of similar length.
+ *
+ * Kept beside `CATEGORIES` rather than in whichever screen draws the buttons,
+ * because two screens draw them — the rankings and the discovered-teams panel
+ * — and a mark that means "lead" on one and nothing on the other is worse than
+ * no mark at all. Geometric, matching the nav's own vocabulary.
+ */
+export const CATEGORY_MARK: Record<CategoryId, string> = {
+  overall: '\u25c8',      // ◈  the composite of the rest
+  leads: '\u25b6',        // ▶  goes first
+  closers: '\u25a0',      // ■  ends it
+  switches: '\u21c4',     // ⇄  comes in on someone else's turn
+  chargers: '\u26a1',     // ⚡ arrives holding energy
+  attackers: '\u2726',    // ✦  raw offence
+  pressure: '\u25d1',     // ◑  how fast it forces the issue
+  consistency: '\u2261',  // ≡  the same whatever the shields
+};
+
 export const CATEGORY_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 /**

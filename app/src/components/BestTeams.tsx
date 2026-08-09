@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CATEGORIES, type CategoryId } from '../lib/scenarios';
+import { CATEGORIES, type CategoryId, CATEGORY_MARK } from '../lib/scenarios';
 import { DEFAULT_TIER, ENGINE_REV, TIERS } from '../lib/rankings';
 import {
   TEAM_ENGINE_REV,
@@ -12,6 +12,7 @@ import {
 } from '../lib/teams';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { PokemonCard } from './PokemonCard';
+import { InfoPopover } from './InfoPopover';
 import { Sprite } from './Sprite';
 import { SegButton, SegGroup } from './Seg';
 import { downloadCsv, stamp } from '../lib/exportData';
@@ -182,7 +183,34 @@ export function BestTeams({ league, size, onLoad }: {
   return (
     <div className="panel best-teams">
       <div className="best-teams-head">
-        <div className="hud-label">Best {size === 3 ? 'teams of 3' : 'Show 6s'}</div>
+        <div className="hud-label">
+          Best {size === 3 ? 'teams of 3' : 'Show 6s'}
+          <InfoPopover label="How these teams were found">
+
+        {passDef.blurb}{' '}
+        {pass === 'syn' ? (
+          <>
+            Weighted for <strong>{category.label}</strong>, which decides the shield and energy
+            states coverage is measured in. Expand a row for the component breakdown and the
+            opponents nothing on the team answers.
+          </>
+        ) : size === 3 ? (
+          <>
+            Every legal team of three from this stratum's 24 strongest species, played as a
+            continuous chain — HP, energy and shields all carrying across matchups — at all nine
+            shield parities and both energy states, then weighted for <strong>{category.label}</strong>.
+          </>
+        ) : (
+          <>
+            Every legal six from this stratum's 16 strongest, scored as the matrix game it is:
+            against each opposing six you pick your best of twenty lines and they answer with their
+            best of twenty.
+          </>
+        )}{' '}
+        No two members share a Pokédex number, so regional forms, Megas and a Pokémon's own Shadow
+        never appear together.
+          </InfoPopover>
+        </div>
         <div className="best-teams-export">
           <button
             className="btn btn-sm"
@@ -236,6 +264,9 @@ export function BestTeams({ league, size, onLoad }: {
           <SegGroup>
             {CATEGORIES.map((c) => (
               <SegButton key={c.id} active={cat === c.id} onClick={() => { setCat(c.id); setPage(0); }} title={c.blurb}>
+                {/* A mark per role, so eight words of similar length read as a
+                    set rather than as a paragraph in a row. */}
+                <span className="cat-mark" aria-hidden="true">{CATEGORY_MARK[c.id]}</span>
                 {c.label}
               </SegButton>
             ))}
@@ -268,30 +299,6 @@ export function BestTeams({ league, size, onLoad }: {
         </div>
       </div>
 
-      <p className="text-muted best-teams-blurb">
-        {passDef.blurb}{' '}
-        {pass === 'syn' ? (
-          <>
-            Weighted for <strong>{category.label}</strong>, which decides the shield and energy
-            states coverage is measured in. Expand a row for the component breakdown and the
-            opponents nothing on the team answers.
-          </>
-        ) : size === 3 ? (
-          <>
-            Every legal team of three from this stratum's 24 strongest species, played as a
-            continuous chain — HP, energy and shields all carrying across matchups — at all nine
-            shield parities and both energy states, then weighted for <strong>{category.label}</strong>.
-          </>
-        ) : (
-          <>
-            Every legal six from this stratum's 16 strongest, scored as the matrix game it is:
-            against each opposing six you pick your best of twenty lines and they answer with their
-            best of twenty.
-          </>
-        )}{' '}
-        No two members share a Pokédex number, so regional forms, Megas and a Pokémon's own Shadow
-        never appear together.
-      </p>
 
       {stale && (
         <p className="text-muted best-teams-stale">

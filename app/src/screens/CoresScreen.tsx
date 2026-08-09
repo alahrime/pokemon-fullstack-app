@@ -6,6 +6,7 @@ import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/
 import { bestSpreadFor } from '../lib/engine';
 import { moveTypeStyle } from '../lib/pokemonTypes';
 import { MoveCounts } from '../components/MoveCounts';
+import { InfoPopover } from '../components/InfoPopover';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -318,11 +319,42 @@ export function CoresScreen() {
     <div className="cores-screen">
       <ScreenHeader
         title="Cores"
-        blurb="Pairs that answer what the other cannot, ranked by how much the partnership adds over the two Pokémon alone. Lift is the whole point: a core is only a core if it beats its own halves."
+        blurb="Pairs that answer what the other cannot."
+        info={
+          <p className="info-pop-lead">
+            Ranked by how much the partnership adds over the two Pokémon alone. Lift is the whole
+            point: a core is only a core if it beats its own halves, so a strong Pokémon carrying a
+            passenger scores near zero however strong it is.
+          </p>
+        }
       />
       <div className="panel panel-strong">
         <div className="best-teams-head">
-          <div className="hud-label">Cores</div>
+          <div className="hud-label">
+            Cores
+            <InfoPopover label="How a core is scored">
+
+          {tab === 'cores' ? (
+            <>
+              A core is a pair where each is strong exactly where the other fails. Scored as the
+              geometric mean of both rescue directions, so a strong Pokémon carrying a passenger
+              scores near zero however strong it is — mutual is the whole point. Click a row for the
+              evidence: the opponents each one answers, and the types it resists on the other's
+              behalf. <strong>Lift</strong> is how often the pair actually appeared together in top
+              teams against what independence predicts, so it separates real partnership from two
+              good Pokémon that turn up everywhere.
+            </>
+          ) : (
+            <>
+              A lead with a narrow weakness that <strong>two</strong> teammates independently answer.
+              When the bad lead happens there are two separate ways to flip it and realign the front
+              onto the rest of the field — one answer is a plan, two is a plan that survives the
+              opponent having a read. The percentage is the share of the lead's losing matchups that
+              both backs cover, not either.
+            </>
+          )}
+            </InfoPopover>
+          </div>
           <div className="best-teams-export">
             <button
               className="btn btn-sm"
@@ -398,27 +430,6 @@ export function CoresScreen() {
           </div>
         )}
 
-        <p className="text-muted best-teams-blurb">
-          {tab === 'cores' ? (
-            <>
-              A core is a pair where each is strong exactly where the other fails. Scored as the
-              geometric mean of both rescue directions, so a strong Pokémon carrying a passenger
-              scores near zero however strong it is — mutual is the whole point. Click a row for the
-              evidence: the opponents each one answers, and the types it resists on the other's
-              behalf. <strong>Lift</strong> is how often the pair actually appeared together in top
-              teams against what independence predicts, so it separates real partnership from two
-              good Pokémon that turn up everywhere.
-            </>
-          ) : (
-            <>
-              A lead with a narrow weakness that <strong>two</strong> teammates independently answer.
-              When the bad lead happens there are two separate ways to flip it and realign the front
-              onto the rest of the field — one answer is a plan, two is a plan that survives the
-              opponent having a read. The percentage is the share of the lead's losing matchups that
-              both backs cover, not either.
-            </>
-          )}
-        </p>
       </div>
 
       {tab === 'check' ? (

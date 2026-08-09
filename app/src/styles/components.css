@@ -547,16 +547,14 @@ input[type='range'] { accent-color: var(--color-accent); }
     border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out),
     opacity var(--dur-1) var(--ease-out), filter var(--dur-1) var(--ease-out);
 }
-/* Fills the chamfer so the cut corner reads as deliberate rather than clipped. */
 /* The archetype chip is the one thing that can wrap the header onto a second
-   line and break the shared height, so it truncates instead. */
-/* Truncates rather than wraps: the row keeps its height whatever the movepool
-   is named, which is what keeps the list scannable. */
+   line and break the shared height, so it truncates instead: the row keeps its
+   height whatever the movepool is named, which is what keeps the list
+   scannable. (nowrap comes with the chip styling further down.) */
 .move-arch {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .move-head { flex-wrap: nowrap; }
 
@@ -571,7 +569,7 @@ input[type='range'] { accent-color: var(--color-accent); }
    together. Matching them per row rather than pinning the tile means the head
    and stats rows still size themselves. */
 .move-tile { --move-footer-h: 39px; }
-.move-head { min-height: 18px; align-items: center; }
+.move-head { min-height: 18px; }
 .move-stats { min-height: 24px; align-items: center; }
 /* Both footers occupy the same fixed height and centre their content in it,
    so the two tile types read level even though one carries value-over-label

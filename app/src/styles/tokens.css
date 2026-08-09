@@ -74,7 +74,6 @@
 
   /* — layout — */
   --shell-max: 1440px;
-  --nav-height: 60px;
 }
 
 /* Reduced motion: collapse every duration to zero at the source rather than

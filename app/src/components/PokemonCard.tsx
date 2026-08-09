@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor, getEntry } from '../lib/engine';
+import { bestSpreadFor, fastMoveCounts, getEntry } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
 import { moveTypeStyle } from '../lib/pokemonTypes';
@@ -39,7 +39,10 @@ import type { ChargeMove, FastMove, IV, LeagueId } from '../lib/types';
 
 export type CardSize = 'mini' | 'compact' | 'full';
 
-const SPRITE: Record<CardSize, number> = { mini: 40, compact: 56, full: 88 };
+// Full-size cards carry the most information — the roll, the bars, the moves
+// and now each charged move's count sequence — so the identity gets more room
+// to hold its own against it.
+const SPRITE: Record<CardSize, number> = { mini: 40, compact: 56, full: 104 };
 
 /** Podium treatment for the first three of any ordered list. */
 const RANK_CLASS = ['is-gold', 'is-silver', 'is-bronze'];
@@ -189,21 +192,46 @@ export function PokemonCard({
             <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
               <span className="pc-move-name">{moves.fast.name}</span>
               {size === 'full' && (
-                <span className="numeric pc-move-eco">
-                  {(moves.fast.energyGain / moves.fast.turns).toFixed(1)}<i>e/t</i>
-                </span>
+                <>
+                  {/* Names the unit the counts below are in — they are
+                      meaningless without knowing which move is throwing. */}
+                  <span className="pc-move-denom">to charge ↓</span>
+                  <span className="numeric pc-move-eco">
+                    {(moves.fast.energyGain / moves.fast.turns).toFixed(1)}<i>e/t</i>
+                  </span>
+                </>
               )}
             </span>
-            {moves.charges.map((c) => (
-              <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
-                <span className="pc-move-name">{c.name}</span>
-                {size === 'full' && (
-                  <span className="numeric pc-move-eco">
-                    {(c.power / c.energy).toFixed(2)}<i>dpe</i>
-                  </span>
-                )}
-              </span>
-            ))}
+            {moves.charges.map((c) => {
+              // How many fast moves each successive throw costs. Not a
+              // constant: the first starts from empty and every one after
+              // begins with whatever overflowed the last, so it drifts down
+              // and cycles. Only at full size — a compact card has no room,
+              // and a mini card shows no moves at all.
+              const counts = size === 'full' ? fastMoveCounts(moves.fast, c) : [];
+              return (
+                <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
+                  <span className="pc-move-name">{c.name}</span>
+                  {counts.length > 0 && (
+                    <span
+                      className="numeric pc-move-counts"
+                      title={`Fast moves needed for each successive ${c.name}, throwing ${moves.fast.name}. Later throws start with leftover energy, so the count drifts down.`}
+                    >
+                      {counts.map((n, i) => (
+                        <span className="pc-move-count" key={i}>
+                          {n}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {size === 'full' && (
+                    <span className="numeric pc-move-eco">
+                      {(c.power / c.energy).toFixed(2)}<i>dpe</i>
+                    </span>
+                  )}
+                </span>
+              );
+            })}
           </div>
         )}
 

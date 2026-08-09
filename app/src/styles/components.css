@@ -2246,7 +2246,36 @@ textarea.input { min-height: 90px; resize: vertical; }
   color: var(--color-text);
   background: color-mix(in srgb, var(--move-tint) 14%, transparent);
 }
+.pc-move-name { flex: 1 1 auto; min-width: 0; }
 .pc-move-eco { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+
+/* How many fast moves each successive throw costs.
+   
+   Sits between the name and the ratio because it is read against both: the
+   sequence says how long the move takes, the ratio says what it is worth when
+   it lands. One cell per throw, so the drift down the sequence — 3-3-3-2 — is
+   a shape rather than four numbers to be read. */
+.pc-move-counts { display: flex; gap: 2px; flex: 0 0 auto; }
+.pc-move-count {
+  min-width: 17px;
+  padding: 0 3px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--move-tint) 22%, transparent);
+  border-top: var(--border-hairline) solid color-mix(in srgb, var(--move-tint) 45%, transparent);
+}
+/* The fast move is the denominator, so it says so rather than carrying a
+   count of its own. */
+.pc-move-denom {
+  flex: 0 0 auto;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
 .pc-move-eco i { font-style: normal; opacity: 0.7; margin-left: 1px; }
 .pc-note { margin-top: var(--space-1); padding-top: var(--space-1); border-top: var(--border-hairline) solid var(--rule-hairline); }
 
@@ -2364,7 +2393,9 @@ textarea.input { min-height: 90px; resize: vertical; }
 .bt-metrics { min-width: 13ch; }
 
 /* Suggestions get a wider minimum now that the card carries stat bars. */
-.suggest-cards { grid-template-columns: repeat(auto-fill, minmax(min(268px, 100%), 1fr)); }
+/* Wider now that each charged move carries its count sequence as well as its
+   ratio. 268 fitted a name and one figure; three parts need the room. */
+.suggest-cards { grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); }
 
 @media (prefers-reduced-motion: reduce) {
   .bt-score-bar-fill { animation: none; }

@@ -187,7 +187,11 @@ export function FlipView({
                       <td key={ci}>
                         {/* The card turns over when the matchup does — the flip
                             is the concept this whole view is named for. */}
-                        <div className={`flip-card h-[38px] w-[54px]${c.win ? ' is-won' : ''}`} >
+                        {/* The space before ${} is load-bearing: Tailwind scans the source for
+                            candidates, and a utility butted against an interpolation is
+                            not extracted — `w-[54px]` was never generated, so the card
+                            fell back to auto width and measured 32.8px instead of 54. */}
+                        <div className={`flip-card h-[38px] w-[54px] ${c.win ? 'is-won' : ''}`} >
                           <div className="flip-card-inner">
                             <FlipFace win={false} margin={c.margin} />
                             <FlipFace win margin={c.margin} back />

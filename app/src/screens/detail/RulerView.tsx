@@ -26,10 +26,10 @@ import type { RulerData } from '../../lib/engine';
  */
 export function RulerView({ rulers }: { rulers: RulerData[] }) {
   return (
-    <div className="stagger rv">
+    <div className="stagger flex flex-col gap-6 pt-2 pr-0 pb-0 pl-0">
       {rulers.map((r, i) => (
         <section key={i} className="rv-cell" style={{ ['--i' as string]: i }} data-flat={r.flat || undefined}>
-          <header className="rv-head">
+          <header className="flex justify-between items-baseline gap-3 mb-5">
             <div className="min-w-0">
               <h4 className="rv-title">{r.title}</h4>
               <div className="rv-sub">{r.sub}</div>

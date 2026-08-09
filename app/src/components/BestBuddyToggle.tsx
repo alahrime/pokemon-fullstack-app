@@ -33,7 +33,7 @@ export function BestBuddyToggle({
       </button>
       <button
         type="button"
-        className={`form-opt form-opt-buddy bb-toggle-face${on && eligible ? ' is-active' : ''}`}
+        className={`form-opt form-opt-buddy flex items-center justify-center gap-[5px]${on && eligible ? ' is-active' : ''}`}
         aria-pressed={on && eligible}
         disabled={!eligible}
         onClick={() => onChange(true)}

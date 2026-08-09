@@ -76,14 +76,6 @@ figcaption {
 
 input[type='range'] { accent-color: var(--color-accent); }
 
-/* — rules — */
-.hr {
-  height: var(--border-strong);
-  border: 0;
-  margin: var(--space-4) 0;
-  background: var(--rule-strong);
-}
-
 /* — buttons — */
 .btn {
   display: inline-flex;
@@ -124,9 +116,6 @@ input[type='range'] { accent-color: var(--color-accent); }
 .btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
 .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
-
-.btn-icon { width: 36px; height: 36px; padding: 0; }
-.btn-block { width: 100%; margin-top: var(--space-2); justify-content: flex-start; text-align: left; }
 
 /* — segmented / chip controls (was inline in components/Seg.tsx) — */
 .seg-group {
@@ -472,7 +461,6 @@ input[type='range'] { accent-color: var(--color-accent); }
   transition: color var(--dur-2) var(--ease-out);
 }
 .iv-value.is-changing { color: var(--iv-fill-max); }
-.iv-buttons { display: flex; gap: 3px; }
 .iv-step {
   display: grid;
   place-items: center;
@@ -564,7 +552,7 @@ input[type='range'] { accent-color: var(--color-accent); }
    line and break the shared height, so it truncates instead. */
 /* Truncates rather than wraps: the row keeps its height whatever the movepool
    is named, which is what keeps the list scannable. */
-.move-arch, .core-build-moves {
+.move-arch {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -729,11 +717,6 @@ input[type='range'] { accent-color: var(--color-accent); }
 .move-stats-ratio {
   padding-top: 4px;
   border-top: var(--border-hairline) solid var(--rule-hairline);
-}
-.move-stat {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 }
 .move-stat-value {
   font-size: var(--text-base);
@@ -910,19 +893,6 @@ input[type='range'] { accent-color: var(--color-accent); }
 .seg-btn svg { opacity: 0.85; }
 .seg-btn.is-active svg { opacity: 1; }
 
-/* — opponent board — */
-.opp-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: 6px;
-}
-.opp-count {
-  font-size: var(--text-2xs);
-  letter-spacing: 0.08em;
-  color: var(--text-faint);
-  white-space: nowrap;
-}
 .opp-sort {
   min-height: 26px;
   font-size: var(--text-2xs);
@@ -962,7 +932,6 @@ input[type='range'] { accent-color: var(--color-accent); }
    order to change what you are reading. */
 .pager-top { margin-top: 0; margin-bottom: var(--space-3); }
 
-.pager-steps { display: flex; align-items: center; gap: var(--space-1); }
 .pager-step {
   min-height: 28px;
   width: 28px;
@@ -1044,49 +1013,12 @@ input[type='range'] { accent-color: var(--color-accent); }
   .pager-size { margin-left: 0; }
 }
 
-/* — pager — */
-.opp-pager {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: 8px;
-}
 .opp-page-step {
   min-height: 24px;
   width: 26px;
   padding: 0;
   font-size: var(--text-md);
   line-height: 1;
-}
-.opp-dots { display: flex; gap: 4px; align-items: center; }
-/* Dots, not numbers: pages carry no meaning of their own, they're windows
-   onto one ordered list. */
-.opp-dot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: var(--border-hairline) solid var(--rule-strong);
-  background: transparent;
-  cursor: pointer;
-  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
-}
-.opp-dot:hover { border-color: var(--color-accent); }
-.opp-dot.is-on {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow: var(--glow-accent);
-}
-
-/* Past the dot threshold: a slider plus a numeric readout, so hundreds of
-   pages stay reachable without a wall of indicators. */
-.opp-page-range { flex: 1; min-width: 90px; max-width: 220px; }
-.opp-page-num {
-  font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  white-space: nowrap;
-  min-width: 52px;
-  text-align: center;
 }
 
 /* — opponent grid cell — */
@@ -1173,7 +1105,7 @@ input[type='range'] { accent-color: var(--color-accent); }
 textarea.input { min-height: 90px; resize: vertical; }
 
 .radio { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-size: var(--text-md); }
-.radio input, .seg-opt input {
+.radio input {
   position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
 .radio .dot {
@@ -1192,34 +1124,12 @@ textarea.input { min-height: 90px; resize: vertical; }
   display: inline-flex; overflow: hidden;
   border: var(--border-hairline) solid var(--rule-strong); border-radius: var(--radius-md);
 }
-.seg-opt {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px var(--space-3); font-size: var(--text-base); cursor: pointer;
-  transition: background-color var(--dur-1) var(--ease-out);
-}
-.seg-opt + .seg-opt { border-left: var(--border-hairline) solid var(--rule-strong); }
-.seg-opt:has(input:checked) { background: var(--color-accent); color: var(--color-on-accent); }
-.seg-opt:not(:has(input:checked)):hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
-.seg-opt:has(input:focus-visible) { outline: var(--ring-width) solid var(--focus-ring); outline-offset: -2px; }
 
 /* — panels & cards — */
 .card {
   display: flex; flex-direction: column; gap: var(--space-2);
   padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-2);
 }
-.card-kicker { font-size: var(--text-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
-.card-title {
-  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: var(--text-xl); line-height: 1.2;
-}
-.card-body { margin: 0; font-size: var(--text-base); opacity: 0.8; flex: 1; }
-.card-meta {
-  display: flex; align-items: center; gap: 6px; font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-.elev-sm { box-shadow: var(--shadow-sm); }
-.elev-md { box-shadow: var(--shadow-md); }
-.elev-lg { box-shadow: var(--shadow-lg); }
 
 /* Generic bordered panel — replaces the repeated inline
    `border: 1px solid var(--color-divider); padding: 12px` across the screens. */
@@ -1246,7 +1156,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-radius: calc(var(--radius-md) * 0.75);
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
-.tag-accent-2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
 .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
 .tag-outline { border: var(--border-hairline) solid var(--color-accent); color: var(--color-accent); }
 
@@ -1279,26 +1188,11 @@ textarea.input { min-height: 90px; resize: vertical; }
 .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 .table tbody tr.is-selected { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
 
-/* — dialog — */
-.dialog-backdrop {
-  position: fixed; inset: 0; display: grid; place-items: center;
-  padding: var(--space-4);
-  background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
-}
 .dialog {
   width: min(440px, 100%); display: flex; flex-direction: column; gap: var(--space-3);
   padding: var(--space-4); border-radius: var(--radius-lg);
   background: var(--surface-2); box-shadow: var(--shadow-lg);
 }
-.dialog-title {
-  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: var(--size-h4);
-}
-.dialog-body { font-size: var(--text-md); opacity: 0.85; }
-.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
-
-/* — misc — */
-.grayscale { filter: grayscale(1) contrast(1.08); }
 
 /* ── Control surface: chamfered, lit ───────────────────────────────────────
    The controls were flat rectangles borrowed from ordinary form UI, which sat
@@ -1374,35 +1268,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   box-shadow:
     inset 0 0 14px color-mix(in srgb, #fff 45%, transparent),
     0 0 16px color-mix(in srgb, #f5c518 45%, transparent);
-}
-
-/* Held-out species notice. Reads as a machine annotation rather than an error:
-   nothing is broken, the roster is deliberately short. */
-.held-out-note {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin: 10px 0 0;
-  padding: 8px 10px;
-  font-size: var(--text-xs);
-  line-height: 1.45;
-  color: var(--text-muted);
-  background: color-mix(in srgb, var(--color-text) 4%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
-}
-.held-out-note strong { color: var(--color-text); font-weight: 600; }
-.held-out-mark {
-  font-family: var(--font-mono);
-  color: var(--color-accent);
-  line-height: 1.3;
-  flex: none;
-}
-.held-out-note.is-compact {
-  margin: 0;
-  border-left: 0;
-  border-top: var(--border-hairline) solid var(--rule-hairline);
-  background: transparent;
-  font-size: var(--text-2xs);
 }
 
 /* Primary search: the first control anyone reaches for, so it takes the space
@@ -1714,30 +1579,6 @@ textarea.input { min-height: 90px; resize: vertical; }
 .site-footer a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
 .site-footer a:hover { color: var(--color-accent); }
 
-/* ── Rankings ─────────────────────────────────────────────────────────────
-   A dense table is the right shape here: the point is comparing hundreds of
-   rows on one number, and anything card-shaped would fit a dozen on screen. */
-.rankings-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5);
-  margin-bottom: var(--space-4);
-}
-.rankings-blurb {
-  margin: 0 0 var(--space-3);
-  max-width: 90ch;
-  font-size: var(--text-sm);
-  line-height: 1.55;
-  color: var(--text-muted);
-}
-.rankings-note {
-  margin-bottom: var(--space-4);
-  font-size: var(--text-xs);
-  line-height: 1.6;
-  color: var(--text-faint);
-}
-.rankings-note strong { color: var(--text-muted); }
-
 /* Fixed layout, so the columns are what this file says they are.
    
    Under auto layout the table shared spare width in proportion to content,
@@ -1747,7 +1588,6 @@ textarea.input { min-height: 90px; resize: vertical; }
    to the unsized columns, all of which are numeric and one of which draws a
    bar that is better for being longer. */
 .rankings-table { width: 100%; table-layout: fixed; }
-.rank-col-pos { width: 3rem; }
 /* Sprite, identity and the capped move chips, plus their two 12px gaps. */
 .rank-col-mon { width: 30rem; }
 .rankings-table th { white-space: nowrap; }
@@ -1821,9 +1661,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .rank-loadouts li:last-child { border-bottom: 0; }
 .rank-loadouts li.is-rated { font-weight: 600; }
-.rank-loadout-name { flex: 1; }
 .rank-loadout-score { font-variant-numeric: tabular-nums; }
-.rankings-pager { margin-top: var(--space-3); }
 
 /* ── Team builders ──────────────────────────────────────────────────────── */
 /* The screens that are a stack of panels. */
@@ -1849,17 +1687,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   cursor: default;
   font-size: 20px;
 }
-.team-slot-name {
-  font-size: var(--text-2xs);
-  text-align: center;
-  line-height: 1.15;
-}
 .team-add { max-width: 420px; margin-bottom: var(--space-3); }
 .team-actions, .bt-row-main { display: flex; align-items: center; gap: var(--space-3); }
-.team-warn { margin-top: var(--space-2); font-size: var(--text-xs); }
 
-.threat-list, .suggest-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
-.threat-list li, .suggest-list li {
+.threat-list {
+.threat-list li {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1867,9 +1699,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
   font-size: var(--text-sm);
 }
-.suggest-list li { cursor: pointer; }
-.suggest-list li:hover { background: var(--color-accent-100); }
-.threat-name, .suggest-name { flex: 1; }
+.threat-name {
 .threat-bar {
   width: 140px;
   height: 5px;
@@ -1880,7 +1710,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* Numbers in a row's trailing column: right-aligned, tabular, and wide enough
    that the column does not shift as values change width. */
-.threat-pct, .suggest-win, .suggest-gain { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.threat-pct, .suggest-gain {
 
 .suggest-gain.is-up { color: var(--color-accent-2); }
 .suggest-gain.is-down { color: var(--text-faint); }
@@ -1903,19 +1733,12 @@ textarea.input { min-height: 90px; resize: vertical; }
   flex-wrap: wrap;
 }
 .best-teams-export { display: flex; gap: var(--space-2); }
-.best-teams-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5);
-  margin: var(--space-3) 0 var(--space-3);
-}
-.best-teams-blurb, .best-teams-foot {
+.best-teams-blurb {
   margin: 0 0 var(--space-3);
   max-width: 90ch;
   font-size: var(--text-sm);
   line-height: 1.55;
 }
-.best-teams-foot { margin: var(--space-2) 0 0; }
 .best-teams-stale { color: var(--color-warn, var(--text-muted)); font-size: var(--text-sm); }
 
 /* ── Best-teams list ────────────────────────────────────────────────────── */
@@ -1980,46 +1803,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   .bt-members-3,
   .bt-members-6 { grid-template-columns: minmax(0, 1fr); }
 }
-.bt-member {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--rule-hairline);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-2, transparent);
-}
-.bt-member-body, .held-out-legend-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.bt-member-name {
-  font-weight: 600;
-  font-size: var(--text-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bt-member-types { display: flex; gap: 2px; }
-.bt-member-iv {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  gap: var(--space-2);
-}
-.bt-member-cp { color: var(--text-faint); }
-.bt-member-moves {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--text-xs);
-  color: var(--text-faint);
-  line-height: 1.25;
-}
-.bt-move-fast { color: var(--color-accent); }
+.held-out-legend-body {
 /* A move name that truncates rather than wrapping the card. */
-.bt-move-charge, .pc-move-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-move-name {
 
 .bt-metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 11ch; }
-.bt-score-main { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .bt-score { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
 .bt-score-bar {
   display: block;
@@ -2031,7 +1819,6 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 
 .bt-alt { font-size: var(--text-xs); color: var(--text-faint); }
-.bt-actions { display: flex; flex-direction: column; gap: var(--space-1); }
 
 .bt-detail {
   margin: var(--space-2) 0 var(--space-1) calc(2.5ch + var(--space-3));
@@ -2103,10 +1890,10 @@ textarea.input { min-height: 90px; resize: vertical; }
   min-width: 0;
 }
 /* A tight stack of secondary lines under a name — moves, spreads, builds. */
-.core-side-id, .pc-moves, .core-builds { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.core-side-id, .pc-moves {
 /* A name that truncates rather than wraps, so the row keeps its height
    whatever the Pokemon is called. */
-.core-side-name, .core-names-line {
+.core-side-name {
   font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -2140,9 +1927,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   margin-bottom: var(--space-2);
 }
 .core-dir { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-sm); }
-.core-dir-head { min-width: 22ch; }
-.core-dir-types { display: flex; gap: 2px; align-items: center; }
-.core-dir-mons { display: flex; gap: 2px; }
 /* Explanatory small print under a panel. */
 .core-detail-note, .modal-hint { margin: 0; font-size: var(--text-xs); line-height: 1.5; }
 
@@ -2186,15 +1970,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   .pillar-list > li { grid-template-columns: 1fr 1fr; }
 }
 
-/* Core controls and the live pair checker. */
-.core-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-  flex-wrap: wrap;
-}
-.core-filter { max-width: 220px; }
 .core-check-inputs {
   display: flex;
   align-items: center;
@@ -2337,7 +2112,6 @@ textarea.input { min-height: 90px; resize: vertical; }
   text-shadow: 0 0 6px currentColor;
 }
 
-.pc-id { min-width: 0; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .pc-name {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
@@ -2990,22 +2764,6 @@ button:disabled,
   border-left-color: var(--color-accent);
 }
 
-.search-row-art {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-}
-
-.search-row-id {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .search-row-name {
   /* Tight line box. The inherited 1.55 gave a 14px name a 21.7px line, which
      put the two-line block's optical weight above its geometric centre — every
@@ -3089,13 +2847,6 @@ button:disabled,
    carries the hue of its landing card, so a section is recognisable by colour
    before its label is read, and the active one lights its rail.
    ═══════════════════════════════════════════════════════════════════════ */
-
-.nav-tabs {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
 
 .nav-tab {
   position: relative;
@@ -3279,12 +3030,6 @@ button:disabled,
   font-size: var(--text-2xs);
 }
 
-.battle-mon-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: var(--space-2);
-}
 .battle-mon-bar {
   display: grid;
   grid-template-columns: 28px 1fr 34px;
@@ -3319,9 +3064,6 @@ button:disabled,
   color: var(--text-muted);
   text-align: right;
 }
-
-/* The held-out notice, when it sits in a screen header rather than in flow. */
-.screen-head-note .held-out-note.is-compact { margin: 0; max-width: 46ch; }
 
 @media (prefers-reduced-motion: reduce) {
   .battle-mon-art { transition: none; }
@@ -3522,13 +3264,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   background: color-mix(in oklab, var(--color-accent) 6%, transparent);
 }
 
-.diag-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-5);
-  margin-bottom: var(--space-4);
-}
 .diag-export { margin-left: auto; }
 
 /* Two columns that stack rather than scroll sideways on a narrow screen. */
@@ -3553,7 +3288,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .diag-list > li:first-child { border-top: 0; }
 .diag-pos { width: 30px; text-align: right; color: var(--text-faint); font-size: var(--text-xs); flex: none; }
-.diag-mon { flex: none; display: inline-grid; place-items: center; }
 .diag-name {
   flex: 1;
   min-width: 0;
@@ -3571,16 +3305,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   .diag-bar > span { animation: none; }
 }
 
-/* Cyclic share by tier. A column chart, because the shape across pools is the
-   point — the head of the format is more cyclic than the whole roster, and a
-   row of numbers hides that while bars make it immediate. */
-.diag-tiers { margin-bottom: var(--space-4); }
-.diag-tier-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 var(--space-2);
-}
 .diag-tier {
   flex: 1;
   min-width: 0;
@@ -3755,7 +3479,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
   flex: none;
 }
-.modal-x { padding: 2px 8px; }
 
 .modal-body {
   padding: var(--space-4);
@@ -3796,7 +3519,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   font-size: var(--size-h4);
   line-height: 1.1;
 }
-.modal-types { display: flex; gap: var(--space-1); margin: var(--space-1) 0; flex-wrap: wrap; }
 .modal-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--text-xs); }
 
 .modal-section { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -3851,17 +3573,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    redesign — but they are expressed against the spacing scale where a literal
    happened to equal a token, so the next edit has something to hold on to.
    ═══════════════════════════════════════════════════════════════════════ */
-.hv {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.hv-cols {
-  display: flex;
-  gap: var(--space-6);
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
 /* Reserves a strip for the viewport controls rather than floating them over
    the plot: at 16x16 the top-right cells are the high-attack/high-defense
    corner, the part you least want covered. */
@@ -3880,21 +3591,15 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   gap: var(--space-2);
   align-items: center;
 }
-.hv-motion { min-height: 38px; }
 .hv-terrain {
   min-width: 0;
   width: 100%;
 }
-.hv-terrain-body { margin-top: 6px; }
 .hv-terrain-fallback {
   height: 460px;
   display: grid;
   place-items: center;
   font-size: var(--text-sm);
-}
-.hv-grid-row {
-  display: flex;
-  gap: var(--space-2);
 }
 .hv-axis-y {
   display: flex;
@@ -3969,10 +3674,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   flex-wrap: wrap;
   margin-bottom: 6px;
 }
-.bt-shield-row {
-  display: flex;
-  gap: 6px;
-}
 .bt-range { width: 100%; min-width: 0; }
 
 /* ── The information mark, and what it folds away ──────────────────────────
@@ -4041,19 +3742,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   .info-pop-panel { animation: none; }
 }
 
-/* ── The roll, and the way back to the best one ────────────────────────────
-   The button sits under the adjuster with the rank beside it, so the number
-   it is aiming at and the number you are on are read together. It disables on
-   arrival rather than disappearing: a control that vanishes when it succeeds
-   leaves you wondering whether you clicked it. */
-.bt-iv { display: flex; flex-direction: column; gap: var(--space-2); }
-.bt-iv-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
 .bt-iv-best:disabled { opacity: 0.4; cursor: default; }
 .bt-iv-rank {
   font-family: var(--font-mono);
@@ -4067,12 +3755,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    free hand and the steppers move by one real throw, so the readout carries
    both: the raw figure against the cap, and what that is in throws. */
 .bt-energy { display: flex; flex-direction: column; gap: var(--space-2); }
-.bt-energy-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
 .bt-energy-read {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -4080,11 +3762,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .bt-energy-read i { font-style: normal; font-size: var(--text-2xs); color: var(--text-faint); }
 
-.bt-energy-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 /* Square, so the pair reads as one stepper rather than two buttons that
    happen to be adjacent. */
 .bt-energy-step {
@@ -4190,7 +3867,6 @@ th.bt-matrix-head { text-align: center; }
   font-size: var(--text-sm);
   margin: 0;
 }
-.bt-bait-tag { margin-right: 6px; }
 .bt-dmg {
   font-size: var(--text-sm);
   color: var(--color-accent-700);
@@ -4231,12 +3907,6 @@ th.bt-matrix-head { text-align: center; }
   font-size: 9px;
   margin-top: var(--space-1);
 }
-.fv-slice {
-  margin-top: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .fv-slice-range {
   flex: 1;
   min-width: 140px;
@@ -4254,10 +3924,6 @@ th.bt-matrix-head { text-align: center; }
   margin-top: var(--space-2);
 }
 .fv-row-name { font-size: var(--text-base); }
-.fv-flip-card {
-  height: 38px;
-  width: 54px;
-}
 .fv-note {
   font-size: var(--text-xs);
   margin: 0;
@@ -4290,7 +3956,6 @@ th.bt-matrix-head { text-align: center; }
   color: var(--color-accent);
 }
 .core-timing-fast i { font-style: normal; opacity: 0.6; margin-left: 5px; }
-.core-timing-list { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
 .core-timing-row {
   display: flex;
   align-items: baseline;
@@ -4305,7 +3970,6 @@ th.bt-matrix-head { text-align: center; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    THRESHOLD TABLE — every breakpoint, and how far the roll is from it.
@@ -4381,8 +4045,6 @@ th.bt-matrix-head { text-align: center; }
   white-space: nowrap;
 }
 
-/* Three IVs, read as three. */
-.thr-spread { display: inline-flex; gap: 2px; }
 .thr-iv {
   min-width: 22px;
   padding: 1px 3px;
@@ -4511,13 +4173,6 @@ th.bt-matrix-head { text-align: center; }
    under prefers-reduced-motion.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.rv {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-2) 0 0;
-}
-
 .rv-cell {
   --rv-field-h: 40px;
   --rv-chamfer: 7px;
@@ -4532,13 +4187,6 @@ th.bt-matrix-head { text-align: center; }
 }
 .rv-cell:hover { border-color: var(--rule-strong); }
 
-.rv-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
-}
 .rv-title {
   margin: 0;
   font-family: var(--font-heading);
@@ -4775,12 +4423,6 @@ th.bt-matrix-head { text-align: center; }
   .rs-split { grid-template-columns: minmax(0, 1fr); }
 }
 .rs-label { margin-bottom: 7px; }
-.rs-label-mid { margin: 13px 0 7px; }
-.rs-label-row {
-  margin-bottom: 7px;
-  display: flex;
-  align-items: center;
-}
 /* The rank panel is the one inverted surface on the screen. */
 .rs-rank {
   background: var(--surface-inverse);
@@ -4792,11 +4434,6 @@ th.bt-matrix-head { text-align: center; }
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
   opacity: 0.6;
-}
-.rs-rank-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
 }
 .rs-rank-of {
   font-size: var(--text-lg);
@@ -4841,12 +4478,6 @@ th.bt-matrix-head { text-align: center; }
 }
 .tl-key-a { background: var(--color-accent); }
 .tl-key-b { background: var(--color-neutral-700); }
-.tl-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-.tl-note { margin-top: var(--space-1); }
 
 .sm-col {
   display: flex;
@@ -4872,12 +4503,6 @@ th.bt-matrix-head { text-align: center; }
   display: block;
   flex: none;
   overflow: visible;
-}
-.bb-toggle-face {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
 }
 .opp-cell-body {
   min-width: 0;
@@ -4923,12 +4548,6 @@ th.bt-matrix-head { text-align: center; }
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-.sa-controls {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
 }
 .sa-input { width: 220px; }
 .sa-log {
@@ -5038,13 +4657,7 @@ th.bt-matrix-head { text-align: center; }
   flex-direction: column;
   gap: var(--space-2);
 }
-.theme-menu-head { margin-bottom: 2px; }
 
-.theme-swatches {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
-}
 /* The button keeps the ACTIVE theme's colours so its label stays readable; only
    the tile inside it switches palette. */
 .theme-swatch {
@@ -5318,11 +4931,6 @@ th.bt-matrix-head { text-align: center; }
   border-top: var(--border-hairline) solid var(--rule-hairline);
   padding-top: var(--space-3);
 }
-.theme-custom-face {
-  flex: none;
-  width: 62px;
-  height: 46px;
-}
 .theme-custom-checks {
   list-style: none;
   margin: 0;
@@ -5342,7 +4950,6 @@ th.bt-matrix-head { text-align: center; }
 .theme-custom-checks .is-bad::before { content: '✕ '; }
 
 .theme-custom-actions { display: flex; justify-content: flex-end; }
-.theme-custom-open { align-self: stretch; }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-chip { transition: none; }

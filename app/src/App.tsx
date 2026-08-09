@@ -70,7 +70,7 @@ function Nav() {
           rendering them as the same control used for a sort order made them
           read as a minor setting. Each carries its own hue and glyph, matching
           the landing page's card for the same screen. */}
-      <nav className="nav-tabs" aria-label="Sections">
+      <nav className="flex items-stretch gap-1 flex-wrap" aria-label="Sections">
         {SCREEN_DEFS.map((d) => (
           <button
             key={d.id}

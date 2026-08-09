@@ -61,7 +61,7 @@ export function ThresholdTable({ rows }: { rows: ThresholdRow[] }) {
                 <td>
                   {/* Three values, read as three, rather than as one string
                       with slashes in it. */}
-                  <span className="thr-spread numeric" title={`attack / defense / stamina ${r.spread}`}>
+                  <span className="inline-flex gap-0.5 numeric" title={`attack / defense / stamina ${r.spread}`}>
                     {r.spread.split('/').map((v, n) => (
                       <span key={n} className="thr-iv">
                         {v}

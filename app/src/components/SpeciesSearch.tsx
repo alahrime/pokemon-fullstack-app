@@ -458,10 +458,10 @@ export function SpeciesSearch({
               // drift in a stylesheet.
               style={{ height: ROW_H }}
             >
-              <span className="search-row-art">
+              <span className="flex-none grid place-items-center w-[38px] h-[38px]">
                 <Sprite sprite={r.species.sprite} dex={r.species.dex} size={38} shadow={r.shadow} />
               </span>
-              <span className="search-row-id">
+              <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <span className="search-row-name">{r.name}</span>
                 {/* Typing is the fastest way to tell near-identical forms apart
                     while scanning; icons carry it without stealing name width. */}

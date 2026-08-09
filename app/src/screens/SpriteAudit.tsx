@@ -37,7 +37,7 @@ export function SpriteAudit() {
         </div>
       </div>
 
-      <div className="sa-controls">
+      <div className="flex gap-2 items-center flex-wrap">
         <input
           className="input sa-input"
           placeholder="Filter by name or id…"

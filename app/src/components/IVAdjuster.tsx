@@ -151,7 +151,7 @@ function StatRow({
 
       <span className={`iv-value numeric${changed ? ' is-changing' : ''}`}>{value}</span>
 
-      <span className="iv-buttons">
+      <span className="flex gap-[3px]">
         <button
           type="button"
           className="iv-step"

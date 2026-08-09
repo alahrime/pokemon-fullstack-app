@@ -73,7 +73,7 @@ function TeamRow({ t, i, max, league, size, pass, onLoad, n }: {
           ))}
         </div>
         <div className="bt-metrics">
-          <div className="bt-score-main">
+          <div className="flex flex-col items-end gap-[3px]">
             <span className="numeric bt-score">{t.score}</span>
             <span className="bt-score-bar">
               <span className="bt-score-bar-fill" style={{ width: `${(t.score / max) * 100}%` }} />
@@ -92,7 +92,7 @@ function TeamRow({ t, i, max, league, size, pass, onLoad, n }: {
             </span>
           )}
         </div>
-        <div className="bt-actions">
+        <div className="flex flex-col gap-1">
           <button className="btn btn-sm" onClick={() => onLoad(t.refs)} title="Load into the slots above">
             Load
           </button>
@@ -265,7 +265,7 @@ export function BestTeams({ league, size, onLoad }: {
         </div>
       </div>
 
-      <div className="best-teams-controls">
+      <div className="flex flex-wrap gap-5 my-3 mx-0">
         <div>
           <div className="hud-label">Category</div>
           <SegGroup>

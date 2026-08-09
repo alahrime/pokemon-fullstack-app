@@ -104,7 +104,7 @@ export function Pager({
 
   return (
     <nav className={`pager${className ? ' ' + className : ''}`} aria-label="Pagination">
-      <div className="pager-steps">
+      <div className="flex items-center gap-1">
         <button
           type="button"
           className="btn pager-step"

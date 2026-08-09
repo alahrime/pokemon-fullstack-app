@@ -149,7 +149,7 @@ export function BattleTimeline({
         </span>
         <span className="text-muted">● filled = real hit &nbsp; ○ hollow = shielded (bait or not)</span>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${TOTAL_HEIGHT}`} className="tl-svg">
+      <svg viewBox={`0 0 ${WIDTH} ${TOTAL_HEIGHT}`} className="w-full h-auto block">
         <defs>
           {/* Telemetry grid, drawn from the theme's grid token. */}
           <pattern id="bt-grid" width={WIDTH / 12} height={26} patternUnits="userSpaceOnUse">
@@ -181,7 +181,7 @@ export function BattleTimeline({
           </text>
         </g>
       </svg>
-      <div className="hud-ticks tl-note">
+      <div className="hud-ticks mt-1">
         <span>0.0s</span>
         <span>{seconds(totalTurns / 2)}s</span>
         <span>{seconds(totalTurns)}s</span>

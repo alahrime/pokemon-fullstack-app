@@ -27,7 +27,7 @@ function Mon({ refId, size = 28 }: { refId: string; size?: number }) {
   const sp = speciesOf(refId);
   if (!sp) return null;
   return (
-    <span className="diag-mon" title={displayName(refId)}>
+    <span className="flex-none inline-grid place-items-center" title={displayName(refId)}>
       <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(refId).shadow} />
     </span>
   );
@@ -138,9 +138,9 @@ export function DiagnosticsScreen() {
 
       {/* Transitivity is not uniform across the field, and that is the finding
           a single whole-field fit concealed. */}
-      <section className="panel diag-tiers">
+      <section className="panel mb-4">
         <div className="hud-label">Cyclic share by opponent pool</div>
-        <div className="diag-tier-row">
+        <div className="flex items-end gap-2 mt-3 mr-0 mb-2 ml-0">
           {byTier.map((t) => (
             <button
               key={t.tier}
@@ -172,7 +172,7 @@ export function DiagnosticsScreen() {
         subject rather than the error term. It is not an argument that either ranking is broken.
       </p>
 
-      <div className="panel diag-controls">
+      <div className="panel flex flex-wrap items-end gap-5 mb-4">
         <div>
           <div className="hud-label">Opponent pool</div>
           <SegGroup>

@@ -100,7 +100,7 @@ function Side({
             <span><i>LVL</i>{entry.lvl}</span>
             <span><i>RANK</i>{entry.rank}</span>
           </div>
-          <div className="battle-mon-bars">
+          <div className="flex flex-col gap-[3px] mt-2">
             {([['ATK', entry.atk, 200], ['DEF', entry.def, 200], ['HP', entry.hp, 250]] as const).map(
               ([lab, v, ceil]) => (
                 <span className="battle-mon-bar" key={lab} title={`${lab} ${v.toFixed(1)}`}>
@@ -114,9 +114,9 @@ function Side({
         </div>
       </div>
 
-      <div className="bt-iv">
+      <div className="flex flex-col gap-2">
         <IVAdjuster iv={iv} onBump={onBump} size={30} />
-        <div className="bt-iv-foot">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           {/* Rank is of stat product within the 4096, so "rank 1" is the
               bulkiest legal roll under this league's cap — which in Great and
               Ultra is usually a *low* attack IV, and in Master is 15/15/15
@@ -161,7 +161,7 @@ function Side({
         <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
           Shields
         </div>
-        <div className="bt-shield-row">
+        <div className="flex gap-1.5">
           {SHIELD_LABELS.map((l, i) => (
             <ChipButton key={i} active={shields === i} onClick={() => onShields(i)}>
               {l}
@@ -214,7 +214,7 @@ export function EnergyControl({
 
   return (
     <div className="bt-energy">
-      <div className="bt-energy-head">
+      <div className="flex items-baseline justify-between gap-2">
         <HudLabel>Starting energy</HudLabel>
         <span className="numeric bt-energy-read">
           {Math.round(energy)}
@@ -222,7 +222,7 @@ export function EnergyControl({
         </span>
       </div>
 
-      <div className="bt-energy-row">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           className="btn btn-sm bt-energy-step"
@@ -554,7 +554,7 @@ export function BattleScreen() {
                       <td className="font-(family-name:--font-head) font-extrabold">{actorName}</td>
                       <td>{e.moveName}</td>
                       <td>
-                        {e.bait && <span className="tag tag-neutral bt-bait-tag">bait</span>}
+                        {e.bait && <span className="tag tag-neutral mr-1.5">bait</span>}
                         {e.shielded ? (
                           <span className="text-sm">shielded — 1 dmg</span>
                         ) : (

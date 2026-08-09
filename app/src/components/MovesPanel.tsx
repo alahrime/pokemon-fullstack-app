@@ -44,7 +44,7 @@ function PickMark({ on, shape }: { on: boolean; shape: 'radio' | 'check' }) {
 
 function Stat({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="move-stat">
+    <div className="flex flex-col min-w-0">
       <span className={`move-stat-value numeric${strong ? ' is-strong' : ''}`}>{value}</span>
       <span className="move-stat-label">{label}</span>
     </div>

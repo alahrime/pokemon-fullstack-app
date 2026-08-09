@@ -63,12 +63,12 @@ export function ThemeMenu() {
 
       {open && (
         <div className="theme-menu-panel" id={panelId} role="dialog" aria-label="Choose a theme">
-          <div className="hud-label theme-menu-head">{building ? 'Your theme' : 'Theme'}</div>
+          <div className="hud-label mb-0.5">{building ? 'Your theme' : 'Theme'}</div>
           {building ? (
             <CustomThemeEditor onDone={() => { setBuilding(false); setOpen(false); }} />
           ) : (
           <>
-          <div className="theme-swatches">
+          <div className="grid grid-cols-4 gap-2">
             {THEMES.map((t) => (
               <button
                 key={t.id}
@@ -109,7 +109,7 @@ export function ThemeMenu() {
               </button>
             )}
           </div>
-          <button type="button" className="btn btn-sm theme-custom-open" onClick={() => setBuilding(true)}>
+          <button type="button" className="btn btn-sm self-stretch" onClick={() => setBuilding(true)}>
             {custom ? 'Edit your theme' : 'Create your own'}
           </button>
           </>

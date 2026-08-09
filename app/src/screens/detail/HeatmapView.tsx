@@ -56,15 +56,15 @@ export function HeatmapView({
   const show3d = webgl && dim === '3d';
 
   return (
-    <div className="hv">
-      <div className="hv-cols">
+    <div className="flex flex-col gap-3.5">
+      <div className="flex gap-6 flex-wrap items-start">
         {/* Viewport controls are pinned to this wrapper's top-right, in a
             reserved strip rather than floating over the plot — at 16×16 the
             top-right cells are the high-attack/high-defense corner, the part
             you least want covered. */}
         <div className="hv-plot">
           <div className="hv-controls">
-            <MotionToggle className="hv-motion" />
+            <MotionToggle className="min-h-[38px]" />
             {webgl ? (
               <SegGroup>
                 <SegButton active={dim === '2d'} onClick={() => setDim('2d')} title="Flat grid">
@@ -79,7 +79,7 @@ export function HeatmapView({
           {show3d ? (
             <div className="hv-terrain">
               <HudLabel live>Stat-product terrain</HudLabel>
-              <div className="hv-terrain-body">
+              <div className="mt-1.5">
                 <Suspense
                   fallback={
                     <div className="panel hud-frame text-muted hv-terrain-fallback">
@@ -92,7 +92,7 @@ export function HeatmapView({
               </div>
             </div>
           ) : (
-            <div className="hv-grid-row">
+            <div className="flex gap-2">
               <div className="text-muted hv-axis-y">
                 <span>15</span>
                 <span className="hv-axis-y-label">DEF IV</span>

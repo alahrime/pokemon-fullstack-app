@@ -139,7 +139,7 @@ export function CustomThemeEditor({ onDone }: { onDone: () => void }) {
       {preview && choice && (
         <div className="theme-custom-preview">
           <span
-            className="theme-swatch-face theme-custom-face"
+            className="theme-swatch-face flex-none w-[62px] h-[46px]"
             aria-hidden="true"
             style={{ background: preview.tokens['--color-bg'] }}
           >

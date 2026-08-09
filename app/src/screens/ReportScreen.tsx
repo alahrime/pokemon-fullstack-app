@@ -237,7 +237,7 @@ export function ReportScreen() {
                 : 'No Shadow form exists for this Pokémon.'}
             </div>
 
-            <div className="hud-label rs-label-mid">
+            <div className="hud-label mt-[13px] mr-0 mb-[7px] ml-0">
               <span>Best Buddy</span>
             </div>
             <BestBuddyToggle
@@ -253,7 +253,7 @@ export function ReportScreen() {
           </div>
 
           <div className="side-block">
-            <div className="hud-label rs-label-row">
+            <div className="hud-label mb-[7px] flex items-center">
               <span className="flex-1">Adjust roll</span>
               {/* Rank 1 is a specific spread, not 15/15/15 — under a cap a low
                   attack IV usually buys enough extra level to win on stat
@@ -284,7 +284,7 @@ export function ReportScreen() {
             <div className="rs-rank-caption">
               Stat product rank
             </div>
-            <div className="rs-rank-value">
+            <div className="flex items-baseline gap-1.5">
               <HudReadout value={`#${entry.rank}`} />
               <span className="numeric rs-rank-of">/ 4096</span>
             </div>

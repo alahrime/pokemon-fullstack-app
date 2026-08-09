@@ -158,7 +158,7 @@ export function PokemonCard({
             <Sprite sprite={sp.sprite} dex={sp.dex} size={SPRITE[size]} shadow={shadow} />
             {shadow && <span className="pc-shadow" title="Shadow">◆</span>}
           </div>
-          <div className="pc-id">
+          <div className="min-w-0 flex flex-col gap-[3px] flex-1">
             <div className="pc-name">{displayName(refId)}</div>
             <div className="pc-types">{sp.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
             {size !== 'mini' && (

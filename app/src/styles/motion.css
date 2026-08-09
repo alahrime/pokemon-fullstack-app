@@ -82,7 +82,6 @@
 
 .anim-fade { animation: fade-in var(--dur-3) var(--ease-out) both; }
 .anim-rise { animation: rise-in var(--dur-4) var(--ease-out) both; }
-.anim-slide { animation: slide-in-right var(--dur-3) var(--ease-out) both; }
 
 /* Screen transition. Keyed on the screen name in App.tsx so React remounts
    and replays it. */
@@ -169,10 +168,6 @@
 @media (prefers-reduced-motion: reduce) {
   .flip-card-inner { transition: none; }
 }
-
-/* Numeric readouts that change value. */
-.tick-value { transition: color var(--dur-2) var(--ease-out); }
-.tick-value.is-changing { color: var(--color-accent); }
 
 /* ── travelling markers ────────────────────────────────────────────────────
    The engaged state of a group — the accent fill on a segment, the lit rail

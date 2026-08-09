@@ -50,16 +50,16 @@ function Direction({ from, to, covers, types }: {
   if (!covers.length && !types.length) return null;
   return (
     <div className="core-dir">
-      <span className="core-dir-head">
+      <span className="min-w-[22ch]">
         <strong>{displayName(from)}</strong> answers for <strong>{displayName(to)}</strong>
       </span>
       {types.length > 0 && (
-        <span className="core-dir-types">
+        <span className="flex gap-0.5 items-center">
           resists {types.map((t) => <TypeBadge key={t} type={t} />)}
         </span>
       )}
       {covers.length > 0 && (
-        <span className="core-dir-mons">
+        <span className="flex gap-0.5">
           {covers.map((c) => <Mon key={c} ref={c} size={30} />)}
         </span>
       )}
@@ -134,7 +134,7 @@ function CoreTiming({ ref: r, league }: { ref: string; league: LeagueId }) {
         {moves.fast.name}
         <i>{(moves.fast.energyGain / moves.fast.turns).toFixed(1)}e/t</i>
       </span>
-      <span className="core-timing-list">
+      <span className="flex flex-col gap-0.5 mt-[3px]">
         {moves.charges.map((m) => (
           <span className="core-timing-row" key={m.id}>
             <span className="core-timing-move">{m.name}</span>
@@ -396,9 +396,9 @@ export function CoresScreen() {
         </SegGroup>
 
         {tab === 'cores' && (
-          <div className="core-controls">
+          <div className="flex items-center gap-3 mt-3 mr-0 mb-0 ml-0 flex-wrap">
             <input
-              className="input core-filter"
+              className="input max-w-55"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter by name…"

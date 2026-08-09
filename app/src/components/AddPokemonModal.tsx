@@ -112,7 +112,7 @@ export function AddPokemonModal({
       >
         <div className="modal-head">
           <span className="hud-label">Add a Pokémon</span>
-          <button className="btn btn-sm modal-x" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn btn-sm py-0.5 px-2" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div className="modal-body">
@@ -143,7 +143,7 @@ export function AddPokemonModal({
                 <Sprite sprite={sp.sprite} dex={sp.dex} size={72} shadow={parseRef(ref).shadow} />
                 <div className="min-w-0">
                   <div className="modal-name">{displayName(ref)}</div>
-                  <div className="modal-types">{sp.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
+                  <div className="flex gap-1 my-1 mx-0 flex-wrap">{sp.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
                   <div className="numeric modal-stats">
                     <span><i>CP</i>{entry.cp}</span>
                     <span><i>LVL</i>{entry.lvl}</span>

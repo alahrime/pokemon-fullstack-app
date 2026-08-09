@@ -128,7 +128,7 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
                   .sort((a, b) => b.score - a.score)
                   .map((l) => (
                     <li key={l.idx} className={l.idx === 0 ? 'is-rated' : ''}>
-                      <span className="rank-loadout-name">{l.label}</span>
+                      <span className="flex-1">{l.label}</span>
                       {l.idx === 0 && <span className="tag tag-outline">rated</span>}
                       <span className="numeric rank-loadout-score">{l.score}</span>
                     </li>
@@ -214,7 +214,7 @@ export function RankingsScreen() {
         blurb="Every league-legal form, scored in seven roles at five opponent-pool depths."
         aside={<HeldOutNote />}
       />
-      <div className="panel panel-strong rankings-controls">
+      <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
         <div>
           <div className="hud-label">Category</div>
           <SegGroup>
@@ -321,7 +321,7 @@ export function RankingsScreen() {
               to the numeric columns instead, and the score column's bar gets
               longer with it. */}
           <colgroup>
-            <col className="rank-col-pos" />
+            <col className="w-[3rem]" />
             <col className="rank-col-mon" />
             <col />
             <col />

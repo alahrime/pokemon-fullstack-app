@@ -134,7 +134,7 @@ export function FlipView({
             <span>0 · ATTACK IV · 15</span>
             <span>rows = DEF IV 15 → 0</span>
           </div>
-          <div className="fv-slice">
+          <div className="mt-3 flex items-center gap-2.5">
             <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">
               HP IV slice {ivS}
             </span>
@@ -182,7 +182,7 @@ export function FlipView({
                       <td key={ci}>
                         {/* The card turns over when the matchup does — the flip
                             is the concept this whole view is named for. */}
-                        <div className={`flip-card fv-flip-card${c.win ? ' is-won' : ''}`} >
+                        <div className={`flip-card h-[38px] w-[54px]${c.win ? ' is-won' : ''}`} >
                           <div className="flip-card-inner">
                             <FlipFace win={false} margin={c.margin} />
                             <FlipFace win margin={c.margin} back />

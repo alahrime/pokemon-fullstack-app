@@ -1,5 +1,6 @@
 import type { OpponentRelevance } from '../lib/engine';
 import { Sprite } from './Sprite';
+import { Pager } from './Pager';
 import { SwordIcon } from './Icons';
 
 /**
@@ -16,9 +17,6 @@ import { SwordIcon } from './Icons';
  * these are numbers people read carefully.
  */
 
-/** Beyond this many pages, dots stop being a usable control. */
-const MAX_DOTS = 12;
-
 export function OpponentGrid({
   items,
   page,
@@ -29,6 +27,8 @@ export function OpponentGrid({
   sortDesc,
   onSort,
   onPage,
+  pageSize,
+  onPageSize,
   onSelect,
   onBattle,
 }: {
@@ -41,12 +41,12 @@ export function OpponentGrid({
   sortDesc: boolean;
   onSort: (desc: boolean) => void;
   onPage: (page: number) => void;
+  pageSize: number;
+  onPageSize: (n: number) => void;
   onSelect: (id: string) => void;
   /** Open this matchup in the simulator. */
   onBattle: (id: string) => void;
 }) {
-  const first = page * items.length;
-
   return (
     <div>
       <div className="opp-bar">
@@ -66,6 +66,17 @@ export function OpponentGrid({
           {sortLabel}
         </button>
       </div>
+
+      <Pager
+        page={page}
+        pages={pageCount}
+        total={total}
+        size={pageSize}
+        onPage={onPage}
+        onSize={onPageSize}
+        unit="matchups"
+        className="pager-top"
+      />
 
       <div className="opp-board">
         {items.map((r, i) => {
@@ -106,67 +117,15 @@ export function OpponentGrid({
         })}
       </div>
 
-      {pageCount > 1 && (
-        <div className="opp-pager">
-          <button
-            type="button"
-            className="btn chip-btn opp-page-step"
-            onClick={() => onPage(page - 1)}
-            disabled={page === 0}
-            aria-label="Previous page"
-          >
-            ‹
-          </button>
-
-          {/* Dots only while they stay countable. The CP-based pool runs to
-              several hundred matchups — 50-odd dots is a smear, not a control —
-              so past the threshold it becomes a numeric readout with a slider. */}
-          {pageCount <= MAX_DOTS ? (
-            <span className="opp-dots">
-              {Array.from({ length: pageCount }, (_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`opp-dot${i === page ? ' is-on' : ''}`}
-                  onClick={() => onPage(i)}
-                  aria-label={`Page ${i + 1}`}
-                  aria-current={i === page}
-                />
-              ))}
-            </span>
-          ) : (
-            <>
-              <input
-                className="opp-page-range"
-                type="range"
-                min={0}
-                max={pageCount - 1}
-                step={1}
-                value={page}
-                onChange={(e) => onPage(Number(e.target.value))}
-                aria-label="Page"
-              />
-              <span className="opp-page-num numeric">
-                {page + 1} / {pageCount}
-              </span>
-            </>
-          )}
-
-          <button
-            type="button"
-            className="btn chip-btn opp-page-step"
-            onClick={() => onPage(page + 1)}
-            disabled={page === pageCount - 1}
-            aria-label="Next page"
-          >
-            ›
-          </button>
-
-          <span className="opp-count numeric">
-            {first + 1}–{Math.min(first + items.length, total)} of {total}
-          </span>
-        </div>
-      )}
+      <Pager
+        page={page}
+        pages={pageCount}
+        total={total}
+        size={pageSize}
+        onPage={onPage}
+        onSize={onPageSize}
+        unit="matchups"
+      />
 
     </div>
   );

@@ -40,6 +40,7 @@ import { FlipView } from './detail/FlipView';
  * runs to several hundred, so the board pages through them rather than
  * truncating at an arbitrary depth.
  */
+/** The board's default window. The pager can widen it; this is where it starts. */
 const OPPONENT_WINDOW = 16;
 
 /** Storage key for the right column's panel order. */
@@ -76,6 +77,7 @@ export function ReportScreen() {
   const [boardNonce, setBoardNonce] = useState(0);
   const [sortDesc, setSortDesc] = useState(true);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(OPPONENT_WINDOW);
 
   /**
    * Open this species against one of its listed opponents in the simulator.
@@ -119,13 +121,13 @@ export function ReportScreen() {
     );
   }, [relevance, colorBy, sortDesc, entry.atk, entry.def, species, moveIdx, league]);
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / OPPONENT_WINDOW));
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
   // Reset to the first page whenever the ordering or the slate changes, or the
   // board can land on a page that no longer exists.
   useEffect(() => setPage(0), [ref, league, moveIdx, relevanceKind, chargeIds, colorBy, sortDesc, bestBuddy]);
   const visible = useMemo(
-    () => sorted.slice(page * OPPONENT_WINDOW, page * OPPONENT_WINDOW + OPPONENT_WINDOW),
-    [sorted, page],
+    () => sorted.slice(page * pageSize, page * pageSize + pageSize),
+    [sorted, page, pageSize],
   );
 
   const effectiveOppId = opponents.some((o) => o.id === oppId) ? oppId : (opponents[0]?.id ?? oppId);
@@ -454,6 +456,8 @@ export function ReportScreen() {
                       sortDesc={sortDesc}
                       onSort={setSortDesc}
                       onPage={setPage}
+                      pageSize={pageSize}
+                      onPageSize={(n) => { setPageSize(n); setPage(0); }}
                       onSelect={(id) => set('oppId', id)}
                       onBattle={(id) => openBattle(id)}
                     />

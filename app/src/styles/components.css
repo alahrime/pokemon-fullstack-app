@@ -936,6 +936,112 @@ input[type='range'] { accent-color: var(--color-accent); }
   gap: 6px;
 }
 
+/* ── Pager ─────────────────────────────────────────────────────────────────
+   One control for every paged list. It replaced three hand-rolled prev/next
+   pairs, which is why it carries more than they did: numbered pages, a size
+   control and a readout of the window.
+
+   Drawn as a machined strip — a chamfered rail, hairline cells that brighten
+   on approach, and a lit rail under the page you are on, which is the same
+   engaged state the segmented controls and league tabs use. */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+/* Above the list as well as below it. A pager that only exists at the bottom
+   of a 25-row table asks you to scroll past everything you were reading in
+   order to change what you are reading. */
+.pager-top { margin-top: 0; margin-bottom: var(--space-3); }
+
+.pager-steps { display: flex; align-items: center; gap: var(--space-1); }
+.pager-step {
+  min-height: 28px;
+  width: 28px;
+  padding: 0;
+  font-size: var(--text-md);
+  line-height: 1;
+}
+.pager-step:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.pager-nums {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 var(--space-1);
+  padding: 0;
+  list-style: none;
+}
+.pager-num {
+  position: relative;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: var(--border-hairline) solid transparent;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.pager-num:hover { color: var(--color-text); border-color: var(--rule-hairline); }
+/* The lit rail, as on a selected tab: the page you are on is a state, not a
+   pressed button. */
+.pager-num.is-on {
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.pager-num.is-on::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+.pager-gap {
+  padding: 0 2px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 1px;
+}
+
+.pager-range {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.pager-range i { font-style: normal; opacity: 0.55; }
+
+.pager-size { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.pager-size-input {
+  min-height: 26px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-text);
+  background: var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+}
+
+@media (max-width: 560px) {
+  /* The numbers are the first thing to go: the arrows and the readout still
+     move and still say where you are. */
+  .pager-nums { display: none; }
+  .pager-size { margin-left: 0; }
+}
+
 /* — pager — */
 .opp-pager {
   display: flex;

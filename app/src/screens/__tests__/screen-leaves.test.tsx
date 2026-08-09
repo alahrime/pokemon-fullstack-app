@@ -161,28 +161,32 @@ describe('CoresScreen — the rest of its controls', () => {
 describe('RankingsScreen paging', () => {
   it('steps forward and back through the pages', () => {
     const { container } = renderApp(<RankingsScreen />);
-    const pager = container.querySelector('.rankings-pager')!;
-    const [prev, next] = [...pager.querySelectorAll('button')];
-    expect((prev as HTMLButtonElement).disabled).toBe(true);
-    const before = pager.querySelector('.opp-page-num')!.textContent;
+    // Two pagers now — one above the table, one below — so this drives the
+    // first and reads the window off it.
+    const pager = container.querySelector('.pager')!;
+    const prev = pager.querySelector('[aria-label="Previous page"]') as HTMLButtonElement;
+    const next = pager.querySelector('[aria-label="Next page"]') as HTMLButtonElement;
+    expect(prev.disabled).toBe(true);
+    const before = pager.querySelector('.pager-range')!.textContent;
     fireEvent.click(next);
-    expect(pager.querySelector('.opp-page-num')!.textContent).not.toBe(before);
+    expect(pager.querySelector('.pager-range')!.textContent).not.toBe(before);
     fireEvent.click(prev);
-    expect(pager.querySelector('.opp-page-num')!.textContent).toBe(before);
+    expect(pager.querySelector('.pager-range')!.textContent).toBe(before);
   });
 });
 
 describe('BestTeams paging', () => {
   it('steps through the stratum a page at a time', () => {
     const { container } = renderApp(<BestTeams league="great" size={3} onLoad={() => {}} />);
-    const pager = container.querySelector('.opp-pager');
+    const pager = container.querySelector('.pager');
     if (!pager) return; // fewer teams than a page
-    const [prev, next] = [...pager.querySelectorAll('button')];
-    const before = pager.querySelector('.opp-page-num')!.textContent;
+    const prev = pager.querySelector('[aria-label="Previous page"]') as HTMLButtonElement;
+    const next = pager.querySelector('[aria-label="Next page"]') as HTMLButtonElement;
+    const before = pager.querySelector('.pager-range')!.textContent;
     fireEvent.click(next);
-    expect(pager.querySelector('.opp-page-num')!.textContent).not.toBe(before);
+    expect(pager.querySelector('.pager-range')!.textContent).not.toBe(before);
     fireEvent.click(prev);
-    expect(pager.querySelector('.opp-page-num')!.textContent).toBe(before);
+    expect(pager.querySelector('.pager-range')!.textContent).toBe(before);
   });
 });
 

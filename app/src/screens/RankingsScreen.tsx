@@ -13,9 +13,10 @@ import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
 import { SegButton, SegGroup } from '../components/Seg';
 import { HeldOutNote } from '../components/HeldOutNote';
+import { Pager } from '../components/Pager';
 
 /** Rows per page. The full pool runs to 1140 in Great. */
-const PAGE = 25;
+
 
 function Bar({ value, max }: { value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -142,12 +143,13 @@ export function RankingsScreen() {
   const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
   const [order, setOrder] = useState<RankOrder>('d1');
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [open, setOpen] = useState<string | null>(null);
 
   const rows = useMemo(() => rankingsFor(league, tier, cat, order), [league, tier, cat, order]);
   const max = rows[0]?.score ?? 1000;
-  const pages = Math.ceil(rows.length / PAGE);
-  const slice = rows.slice(page * PAGE, page * PAGE + PAGE);
+  const pages = Math.ceil(rows.length / pageSize);
+  const slice = rows.slice(page * pageSize, page * pageSize + pageSize);
   const category = CATEGORIES.find((c) => c.id === cat)!;
 
   const reset = (fn: () => void) => {
@@ -294,6 +296,17 @@ export function RankingsScreen() {
         </div>
       </div>
 
+      <Pager
+        page={page}
+        pages={pages}
+        total={rows.length}
+        size={pageSize}
+        onPage={setPage}
+        onSize={(n) => { setPageSize(n); setPage(0); }}
+        unit={`in ${LEAGUE_BY_ID.get(league)!.name}`}
+        className="pager-top"
+      />
+
       <div className="table-scroll">
         <table className="table rankings-table">
           {/* Explicit columns, because auto layout kept handing the surplus to
@@ -326,7 +339,7 @@ export function RankingsScreen() {
               <Row
                 key={r.ref}
                 row={r}
-                i={page * PAGE + n + 1}
+                i={page * pageSize + n + 1}
                 max={max}
                 league={league}
                 expanded={open === r.ref}
@@ -337,21 +350,15 @@ export function RankingsScreen() {
         </table>
       </div>
 
-      <div className="opp-pager rankings-pager">
-        <button className="btn opp-page-step" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-          ‹
-        </button>
-        <span className="opp-page-num">
-          {page + 1} / {pages}
-        </span>
-        <button className="btn opp-page-step" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)}>
-          ›
-        </button>
-        <span className="opp-page-range">
-          {page * PAGE + 1}–{Math.min(rows.length, (page + 1) * PAGE)} of {rows.length} in{' '}
-          {LEAGUE_BY_ID.get(league)!.name}
-        </span>
-      </div>
+      <Pager
+        page={page}
+        pages={pages}
+        total={rows.length}
+        size={pageSize}
+        onPage={setPage}
+        onSize={(n) => { setPageSize(n); setPage(0); }}
+        unit={`in ${LEAGUE_BY_ID.get(league)!.name}`}
+      />
     </div>
   );
 }

@@ -1797,8 +1797,11 @@ textarea.input { min-height: 90px; resize: vertical; }
    (Shadow)" wants 163px on one line. Names wrap to two lines now, so the
    minimum only has to fit half of that plus the sprite; 156px keeps all six
    members of a Show 6 on one row, which 178px did not. */
-.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(min(196px, 100%), 1fr)); }
-.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(min(156px, 100%), 1fr)); }
+/* Widened once each member began carrying its charged moves' count runs.
+   156px fitted a name; a name and `13 - 13 - 13 - 13` needs the room, and the
+   chip wraps rather than overflowing when it still does not get it. */
+.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(min(232px, 100%), 1fr)); }
+.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(min(196px, 100%), 1fr)); }
 .bt-member {
   display: flex;
   align-items: center;
@@ -1983,7 +1986,14 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 @media (max-width: 860px) {
   .bt-row-main { flex-wrap: wrap; }
-  .bt-members-3 > *, .bt-members-6 > * { flex: 1 1 100%; }
+  /* Two mistakes stood here as `.bt-members-3 > *, .bt-members-6 > * { flex:
+     1 1 100% }`. Those containers are grids, so flex properties on their
+     children did nothing; and the element that has to take a full line is the
+     members block itself, which is the flex item — starved to 79px by its
+     siblings while the row wrapped around it. Both fixed: the block claims its
+     own line, and the members inside it are laid out as the grid they are. */
+  .bt-members { flex-basis: 100%; }
+  .bt-members-3, .bt-members-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* Four columns for seven children would wrap them onto extra rows, which is
      what the old 70px/1fr/90px/52px template did once the row became two
      member blocks plus a separator. Members stack instead: each takes the full
@@ -2215,6 +2225,12 @@ textarea.input { min-height: 90px; resize: vertical; }
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  /* Wraps, because the same chip has to hold a name, a count run and a ratio
+     in a 393px team slot and in a 156px member of a discovered six. Where all
+     three do not fit, the run drops onto its own line rather than being cut
+     off or forcing the grid wider. */
+  flex-wrap: wrap;
+  row-gap: 0;
   gap: var(--space-2);
   font-size: var(--text-2xs);
   color: var(--text-muted);
@@ -2326,6 +2342,11 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 @media (max-width: 480px) {
   .team-slots { grid-template-columns: minmax(0, 1fr); }
+}
+/* A discovered team's members go single file before they get too narrow to
+   carry a move name and its count run side by side. */
+@media (max-width: 560px) {
+  .bt-members-3, .bt-members-6 { grid-template-columns: minmax(0, 1fr); }
 }
 .team-slot.is-empty {
   display: flex;

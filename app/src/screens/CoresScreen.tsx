@@ -89,6 +89,7 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
         <span className="pc-moves">
           <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
             <span className="pc-move-name">{moves.fast.name}</span>
+            <span className="pc-move-denom">to charge ↓</span>
             <span className="numeric pc-move-eco">
               {(moves.fast.energyGain / moves.fast.turns).toFixed(1)}<i>e/t</i>
             </span>
@@ -96,6 +97,7 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
           {moves.charges.map((m) => (
             <span className="pc-move" key={m.id} style={moveTypeStyle(m.type)}>
               <span className="pc-move-name">{m.name}</span>
+              <MoveCounts fast={moves.fast} charge={m} />
               <span className="numeric pc-move-eco">
                 {(m.power / m.energy).toFixed(2)}<i>dpe</i>
               </span>

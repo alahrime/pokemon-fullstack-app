@@ -18,6 +18,15 @@ const components = readFileSync('src/styles/components.css', 'utf8');
 const leagues = readFileSync('src/styles/leagues.css', 'utf8');
 
 /**
+ * The stylesheet with every comment removed.
+ *
+ * For assertions that a declaration is *absent*. This file explains its fixes
+ * by quoting what was wrong, so the note describing a dead rule contains that
+ * dead rule — and a search of the raw text finds it. Twice now.
+ */
+const declarations = components.replace(/\/\*[\s\S]*?\*\//g, '');
+
+/**
  * A top-level rule's declarations, with comments removed.
  *
  * Stripping matters: these rules are heavily commented, and a comment
@@ -48,6 +57,18 @@ describe('no fixed length can outgrow its container', () => {
     const rule = ruleBody(components, '.bt-verdict');
     expect(rule).toMatch(/min-width:\s*min\(/);
     expect(rule, 'flex: none would pin it to its content width').not.toMatch(/flex:\s*none/);
+  });
+
+  it('does not set flex properties on the children of a grid', () => {
+    // `.bt-members-3 > *, .bt-members-6 > * { flex: 1 1 100% }` stood in the
+    // 860px query for a long time doing nothing at all: those containers are
+    // grids, and flex properties on a grid item are inert. Six members stayed
+    // packed into one row at 79px each, which is narrower than a move name.
+    const grids = ['.bt-members-3', '.bt-members-6', '.team-slots', '.landing-featured'];
+    for (const g of grids) {
+      const child = new RegExp(`\\${g}\\s*>\\s*\\*\\s*\\{[^}]*flex:`, 'm');
+      expect(declarations, `${g} children given flex properties`).not.toMatch(child);
+    }
   });
 
   it('no min-width large enough to overflow is stated as a bare length', () => {

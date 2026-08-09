@@ -87,8 +87,11 @@ export function PokemonCard({
   const { shadow } = parseRef(refId);
   const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   const moves = build ? { fast: build.fast, charges: build.charges } : rated;
-  // Only a full card has room for the timing; mini shows no moves at all.
-  const showCounts = size === 'full';
+  // Anything that shows moves at all shows their timing. Compact is what the
+  // discovered-teams lists on both team screens render, so gating this to
+  // `full` left the counts off the very lists they were asked for; the chip
+  // wraps the run onto its own line when the column is too narrow for both.
+  const showCounts = size !== 'mini';
   const spread = useMemo(
     () =>
       sp

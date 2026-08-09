@@ -76,12 +76,19 @@ describe('a full card states how long each charged move takes', () => {
     expect(row.counts).not.toEqual(fastMoveCounts(rated.fast, rated.charges[0]));
   });
 
-  it('omits them where there is no room for them', () => {
-    // Compact cards carry names and nothing else; mini cards carry no moves.
-    for (const size of ['compact', 'mini'] as const) {
-      const { container } = renderApp(<PokemonCard refId="registeel" league="great" size={size} />);
-      expect(container.querySelectorAll('.move-counts-run'), size).toHaveLength(0);
-    }
+  it('shows them wherever moves are shown at all', () => {
+    // Compact is what the discovered-teams lists on both team screens render,
+    // so gating the counts to `full` left them off the very lists they are
+    // wanted on. The chip wraps the run onto its own line when a column is too
+    // narrow for the name and the run together.
+    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great');
+    const compact = renderApp(<PokemonCard refId="registeel" league="great" size="compact" />).container;
+    expect(compact.querySelectorAll('.move-counts-run')).toHaveLength(rated.charges.length);
+
+    // Mini shows no moves at all, so there is nothing to time.
+    const mini = renderApp(<PokemonCard refId="registeel" league="great" size="mini" />).container;
+    expect(mini.querySelectorAll('.pc-move')).toHaveLength(0);
+    expect(mini.querySelectorAll('.move-counts-run')).toHaveLength(0);
   });
 
   it('labels the run with both ends of the ratio', () => {

@@ -75,12 +75,22 @@ describe('every screen that lists a moveset uses it', () => {
     expect(container.querySelector('.rank-move')).toBeNull();
   });
 
-  it('the team builders do, at both sizes', () => {
+  it('the team builders do — on the discovered lists, which is what they show', () => {
+    // These render `compact` cards. Gating the counts to `full` put them on the
+    // team slots, which are empty until you pick something, and left them off
+    // the lists that are on screen from the moment the page loads.
     for (const size of [3, 6] as const) {
       const { container } = renderApp(<TeamBuilderScreen size={size} />);
-      // Slots are empty until picked; the discovered-teams panel carries cards.
-      expect(container.querySelectorAll('.pc').length).toBeGreaterThan(0);
+      const member = container.querySelector('.bt-members .pc');
+      expect(member, `size ${size}: no discovered member card`).toBeTruthy();
+      expect(runsIn(member as HTMLElement).length, `size ${size}`).toBeGreaterThan(0);
     }
+  });
+
+  it('the cores rows do, without needing to be opened', () => {
+    const { container } = renderApp(<CoresScreen />);
+    const side = container.querySelector('.core-side')!;
+    expect(runsIn(side as HTMLElement).length).toBeGreaterThan(0);
   });
 
   it('the battle screen does', () => {

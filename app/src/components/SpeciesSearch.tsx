@@ -503,7 +503,7 @@ export function SpeciesSearch({
           </p>
         )}
         {/* Only when the query was actually reaching for a held-out species. */}
-        {heldOutHits.length > 0 && <HeldOutNote compact only={heldOutHits} />}
+        {heldOutHits.length > 0 && <HeldOutNote only={heldOutHits} />}
         </div>
       )}
       <button

@@ -8,12 +8,18 @@ import { SPECIES_BY_ID, UNSIMULATED_IDS } from '../lib/data';
  * nothing has every reason to assume the roster is broken rather than that we
  * left it out on purpose.
  *
+ * A legend, not a paragraph: a boxed swatch of the shape a chart legend uses,
+ * sized to the names it carries and nothing more. There was a four-line prose
+ * version alongside it, which is what the rankings and the report used to
+ * render — a screenful of caveat above the content it was a caveat about. The
+ * full explanation lives in the `title`, one hover away, and the names alone
+ * carry the point.
+ *
  * Reads UNSIMULATED_IDS directly, so it lists whatever is actually held out
  * and renders nothing once the set is empty. There is no second list to keep
  * in step, and restoring the species removes this note on its own.
  */
 export function HeldOutNote({
-  compact = false,
   /**
    * Restrict the note to specific held-out species.
    *
@@ -26,7 +32,6 @@ export function HeldOutNote({
    */
   only,
 }: {
-  compact?: boolean;
   only?: readonly string[];
 }) {
   const ids = only ? only.filter((id) => UNSIMULATED_IDS.has(id)) : [...UNSIMULATED_IDS];
@@ -36,12 +41,7 @@ export function HeldOutNote({
   const list =
     names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
 
-  // Compact is a legend, not a paragraph: a boxed swatch of the same shape a
-  // chart legend uses, sized to the names it carries and nothing more. The
-  // full explanation lives in the title attribute, where it is one hover away
-  // rather than four lines of prose in the layout.
-  if (compact) {
-    return (
+  return (
       <p
         className="held-out-legend"
         title={`${list} ${names.length > 1 ? 'are' : 'is'} temporarily unavailable. Each has a battle mechanic the simulator does not model yet — a built-in shield, a form change, a stance change — so any number shown ${names.length > 1 ? 'for them' : 'for it'} would be wrong rather than merely imprecise. Returning once ${names.length > 1 ? 'those are' : 'that is'} implemented.`}
@@ -60,21 +60,6 @@ export function HeldOutNote({
           </span>
         </span>
       </p>
-    );
-  }
-
-  return (
-    <p className="held-out-note">
-      <span className="held-out-mark" aria-hidden>
-        ⌁
-      </span>
-      <span>
-        <strong>{list}</strong> {names.length > 1 ? 'are' : 'is'} temporarily unavailable. Each has a
-        battle mechanic the simulator does not model yet — a built-in shield, a form change, a
-        stance change — so any number shown for {names.length > 1 ? 'them' : 'it'} would be wrong
-        rather than merely imprecise.{' '}
-        {names.length > 1 ? 'Returning once those are implemented.' : 'Returning once that is implemented.'}
-      </span>
-    </p>
   );
 }
+

@@ -178,16 +178,16 @@ describe('SpeciesSearch', () => {
 
 describe('HeldOutNote', () => {
   it('names only the species asked for', () => {
-    const { container } = renderApp(<HeldOutNote compact only={['mimikyu']} />);
+    const { container } = renderApp(<HeldOutNote only={['mimikyu']} />);
     expect(container.textContent).toContain('Mimikyu');
     expect(container.textContent).not.toContain('Aegislash');
   });
   it('renders nothing when the filter matches nothing', () => {
-    const { container } = renderApp(<HeldOutNote compact only={['azumarill']} />);
+    const { container } = renderApp(<HeldOutNote only={['azumarill']} />);
     expect(container.textContent).toBe('');
   });
-  it('keeps the full explanation available on hover in compact form', () => {
-    const { container } = renderApp(<HeldOutNote compact only={['mimikyu']} />);
+  it('keeps the full explanation one hover away', () => {
+    const { container } = renderApp(<HeldOutNote only={['mimikyu']} />);
     expect(container.querySelector('.held-out-legend')!.getAttribute('title')!.length).toBeGreaterThan(60);
   });
 });

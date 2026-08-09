@@ -101,15 +101,12 @@ describe('the screens kept their explanations', () => {
       ['cores', <CoresScreen key="c" />],
     ] as const) {
       const { container } = renderApp(ui);
-      // `.held-out-note` stays on the page deliberately. It is not
-      // methodology — it names three species missing from the list you are
-      // looking at, which is a fact about the content rather than about how
-      // the content was computed, and folding it away would hide an absence.
+      // No exemptions any more. The held-out notice used to need one — it was
+      // four lines of prose about three missing species — and is now the same
+      // one-line legend the battle screen carries, with its explanation in a
+      // title attribute.
       const loose = [...container.querySelectorAll('p')].filter(
-        (p) =>
-          !p.closest('.info-pop-panel') &&
-          !p.classList.contains('held-out-note') &&
-          (p.textContent ?? '').trim().length > 260,
+        (p) => !p.closest('.info-pop-panel') && (p.textContent ?? '').trim().length > 260,
       );
       expect(loose.map((p) => p.className), name).toEqual([]);
     }

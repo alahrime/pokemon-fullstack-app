@@ -199,6 +199,7 @@ export function RankingsScreen() {
           </>
         }
         blurb="Every league-legal form, scored in seven roles at five opponent-pool depths."
+        aside={<HeldOutNote />}
       />
       <div className="panel panel-strong rankings-controls">
         <div>
@@ -287,8 +288,6 @@ export function RankingsScreen() {
           </div>
         </div>
       </div>
-
-      <HeldOutNote />
 
       <div className="table-scroll">
         <table className="table rankings-table">

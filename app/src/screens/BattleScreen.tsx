@@ -347,7 +347,7 @@ export function BattleScreen() {
       <ScreenHeader
         title="Battle"
         blurb="Head-to-head PvP simulation: independent movesets, starting energy and shield counts per side, with selective baiting when a mon carries two charge moves of different costs."
-        aside={<HeldOutNote compact />}
+        aside={<HeldOutNote />}
       />
       {/* One strip rather than a stacked column. Label, control and the
           consequence of the choice sit on a single baseline, so the setting

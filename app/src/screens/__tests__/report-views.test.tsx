@@ -127,13 +127,28 @@ describe('Matchup flips layout', () => {
     expect(side.contains(now)).toBe(false);
   });
 
-  it('keeps the shield matrix and the opponents table in the side column', async () => {
+  it('stacks the shield matrix above the grid, leaving the side column to the opponents', async () => {
+    // The matrix used to head the side column, which split the width between
+    // two stacked controls and left the opponents table short. Picking a
+    // shield column is what the grid below is drawn for, so the two now read
+    // top-to-bottom as one control and its result, and the table gets the
+    // whole right-hand side.
     const { container } = renderApp(<ReportScreen />);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.fv-side')).toBeTruthy());
+    const col = container.querySelector('.fv-grid-col')!;
     const side = container.querySelector('.fv-side')!;
+
+    const matrix = col.querySelector('.sm-col, .sm-contents');
+    expect(matrix, 'the shield matrix belongs in the grid column now').toBeTruthy();
+    expect(side.querySelector('.sm-col, .sm-contents')).toBeNull();
+
+    // Above the grid, not below it.
+    const grid = col.querySelector('.fv-grid')!;
+    expect(matrix!.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // And the opponents table is what the side column now holds.
     expect(side.querySelector('table')).toBeTruthy();
-    expect(side.querySelector('.sm-col, .sm-contents')).toBeTruthy();
   });
 
   it('lets the grid flex rather than pinning it, so the table can sit beside it', async () => {

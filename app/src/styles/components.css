@@ -1688,7 +1688,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .team-add { max-width: 420px; margin-bottom: var(--space-3); }
 .team-actions, .bt-row-main { display: flex; align-items: center; gap: var(--space-3); }
 
-.threat-list {
+.threat-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .threat-list li {
   display: flex;
   align-items: center;
@@ -1697,7 +1697,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
   font-size: var(--text-sm);
 }
-.threat-name {
+.threat-name { flex: 1; }
 .threat-bar {
   width: 140px;
   height: 5px;
@@ -1708,7 +1708,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* Numbers in a row's trailing column: right-aligned, tabular, and wide enough
    that the column does not shift as values change width. */
-.threat-pct, .suggest-gain {
+.threat-pct, .suggest-gain { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
 
 .suggest-gain.is-up { color: var(--color-accent-2); }
 .suggest-gain.is-down { color: var(--text-faint); }
@@ -1801,9 +1801,9 @@ textarea.input { min-height: 90px; resize: vertical; }
   .bt-members-3,
   .bt-members-6 { grid-template-columns: minmax(0, 1fr); }
 }
-.held-out-legend-body {
+.held-out-legend-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 /* A move name that truncates rather than wrapping the card. */
-.pc-move-name {
+.pc-move-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .bt-metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 11ch; }
 .bt-score { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
@@ -1888,7 +1888,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   min-width: 0;
 }
 /* A tight stack of secondary lines under a name — moves, spreads, builds. */
-.core-side-id, .pc-moves {
+.core-side-id, .pc-moves { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* A name that truncates rather than wraps, so the row keeps its height
    whatever the Pokemon is called. */
 .core-side-name {
@@ -3881,7 +3881,10 @@ th.bt-matrix-head { text-align: center; }
   display: flex;
   gap: var(--space-5);
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* Stretch, not flex-start: the opponents table is the right-hand column and
+     should run the full height of the shield matrix and grid stacked beside
+     it, rather than stopping wherever its rows happen to end. */
+  align-items: stretch;
 }
 .fv-grid-col {
   min-width: 0;
@@ -4790,6 +4793,19 @@ th.bt-matrix-head { text-align: center; }
      to take the slack once the grid has its 520px. */
   flex: 1 1 320px;
   min-width: min(280px, 100%);
+}
+/* The table takes whatever height the column has and scrolls inside it, so a
+   long opponent list cannot push the page taller than the grid it sits beside
+   — the point of putting it here. `min-height: 0` is what lets a flex child
+   scroll at all: its default `auto` floors it at content height, and the
+   overflow never engages.
+
+   On a narrow screen the columns wrap, the column has no imposed height, and
+   this simply grows to its content instead. */
+.fv-opp-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

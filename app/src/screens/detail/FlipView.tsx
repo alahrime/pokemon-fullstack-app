@@ -104,6 +104,12 @@ export function FlipView({
       </div>
       <div className="fv-cols">
         <div className="fv-grid-col">
+          {/* Shield scenarios sit above the grid they govern: picking a column
+              here is what the grid below is then drawn for, so the two read
+              top-to-bottom as one control and its result. That also frees the
+              whole right-hand side for the opponents table, which is the list
+              you use to change the matchup and wants the height. */}
+          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
           <div className="fv-grid">
             {grid.results.map((o) => {
               const isYou = o.entry.a === ivA && o.entry.d === ivD;
@@ -153,8 +159,7 @@ export function FlipView({
           </div>
         </div>
         <div className="fv-side">
-          <ShieldMatrix mine={shieldsMine} theirs={shieldsTheirs} cells={scenarios} onChange={onShields} />
-          <div className="table-scroll">
+          <div className="table-scroll fv-opp-scroll">
             <table className="table">
               <thead>
                 <tr>

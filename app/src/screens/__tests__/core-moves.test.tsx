@@ -83,7 +83,8 @@ describe('the cores screen states a build the way the team screens do', () => {
     const first = card.querySelector('.core-timing-row')!;
     const move = first.querySelector('.core-timing-move')!.textContent!.trim();
     const charge = sp!.chargeMoves.find((c) => c.name === move)!;
-    const shown = [...first.querySelectorAll('.core-timing-n')].map((n) => Number(n.textContent));
+    const shown = (first.querySelector('.move-counts-run')!.textContent ?? '')
+      .split('-').map((n) => Number(n.trim())).filter((n) => !Number.isNaN(n));
     expect(shown).toEqual(fastMoveCounts(rated.fast, charge));
   });
 

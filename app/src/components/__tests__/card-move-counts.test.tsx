@@ -18,10 +18,17 @@ import { SPECIES_BY_ID, movesFor } from '../../lib/data';
  * different fast move would be another Pokemon's number.
  */
 
+/** The sequence a chip shows, read back off the rendered run. */
+const seqOf = (chip: Element): number[] => {
+  const run = chip.querySelector('.move-counts-run');
+  if (!run) return [];
+  return (run.textContent ?? '').split('-').map((n) => Number(n.trim())).filter((n) => !Number.isNaN(n));
+};
+
 const countsOn = (container: HTMLElement) =>
   [...container.querySelectorAll('.pc-move')].map((chip) => ({
     name: chip.querySelector('.pc-move-name')?.textContent ?? '',
-    counts: [...chip.querySelectorAll('.pc-move-count')].map((n) => Number(n.textContent)),
+    counts: seqOf(chip),
   }));
 
 describe('a full card states how long each charged move takes', () => {
@@ -42,7 +49,7 @@ describe('a full card states how long each charged move takes', () => {
   it('leaves the fast move as the denominator rather than counting it', () => {
     const { container } = renderApp(<PokemonCard refId="registeel" league="great" size="full" />);
     const fast = container.querySelector('.pc-move-fast')!;
-    expect(fast.querySelectorAll('.pc-move-count')).toHaveLength(0);
+    expect(fast.querySelectorAll('.move-counts-run')).toHaveLength(0);
     // And says so, since a bare sequence is meaningless without the unit.
     expect(fast.querySelector('.pc-move-denom')).toBeTruthy();
   });
@@ -73,16 +80,20 @@ describe('a full card states how long each charged move takes', () => {
     // Compact cards carry names and nothing else; mini cards carry no moves.
     for (const size of ['compact', 'mini'] as const) {
       const { container } = renderApp(<PokemonCard refId="registeel" league="great" size={size} />);
-      expect(container.querySelectorAll('.pc-move-count'), size).toHaveLength(0);
+      expect(container.querySelectorAll('.move-counts-run'), size).toHaveLength(0);
     }
   });
 
-  it('gives every cell a label a reader can act on', () => {
+  it('labels the run with both ends of the ratio', () => {
     const { container } = renderApp(<PokemonCard refId="registeel" league="great" size="full" />);
-    const seq = container.querySelector('.pc-move-counts')!;
-    const title = seq.getAttribute('title') ?? '';
-    expect(title).toMatch(/fast moves needed/i);
-    // Names both ends of the ratio: which charged move, and what is throwing.
-    expect(title).toContain(movesFor(SPECIES_BY_ID.get('registeel')!, 'great').fast.name);
+    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great');
+    const chip = [...container.querySelectorAll('.pc-move')].find((c) =>
+      c.querySelector('.pc-move-name')?.textContent === rated.charges[0].name,
+    )!;
+    const title = chip.querySelector('.move-counts-run')!.getAttribute('title') ?? '';
+    // Which charged move, and what is throwing it — a bare sequence is
+    // meaningless without the second half.
+    expect(title).toContain(rated.fast.name);
+    expect(title).toContain(rated.charges[0].name);
   });
 });

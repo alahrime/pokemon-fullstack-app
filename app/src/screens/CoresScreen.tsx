@@ -3,8 +3,9 @@ import { useAppState } from '../state/AppState';
 import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../lib/teams';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
-import { fastMoveCounts, bestSpreadFor } from '../lib/engine';
+import { bestSpreadFor } from '../lib/engine';
 import { moveTypeStyle } from '../lib/pokemonTypes';
+import { MoveCounts } from '../components/MoveCounts';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -131,33 +132,12 @@ function CoreTiming({ ref: r, league }: { ref: string; league: LeagueId }) {
         <i>{(moves.fast.energyGain / moves.fast.turns).toFixed(1)}e/t</i>
       </span>
       <span className="core-timing-list">
-        {moves.charges.map((m) => {
-          const counts = fastMoveCounts(moves.fast, m);
-          return (
-            <span
-              className="core-timing-row"
-              key={m.id}
-              title={
-                counts.length
-                  ? `Fast moves needed for each successive ${m.name}. Later throws start with leftover energy, so the count drifts down.`
-                  : `${moves.fast.name} generates no energy, so it cannot charge this move.`
-              }
-            >
-              <span className="core-timing-move">{m.name}</span>
-              <span className="core-timing-seq numeric">
-                {counts.length ? (
-                  counts.map((n, i) => (
-                    <span className="core-timing-n" key={i}>
-                      {n}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-faint">no energy gain</span>
-                )}
-              </span>
-            </span>
-          );
-        })}
+        {moves.charges.map((m) => (
+          <span className="core-timing-row" key={m.id}>
+            <span className="core-timing-move">{m.name}</span>
+            <MoveCounts fast={moves.fast} charge={m} />
+          </span>
+        ))}
       </span>
     </div>
   );

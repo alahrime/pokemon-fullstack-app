@@ -5,6 +5,8 @@ import { CATEGORIES, type CategoryId } from '../lib/scenarios';
 import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import { LEAGUE_BY_ID, movesFor, parseRef, speciesOf } from '../lib/data';
+import { moveTypeStyle } from '../lib/pokemonTypes';
+import { MoveCounts } from '../components/MoveCounts';
 import { bestSpreadFor } from '../lib/engine';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
@@ -64,10 +66,19 @@ function Row({ row, i, max, league, expanded, onToggle }: {
                 </div>
               )}
               {moves && (
-                <div className="rank-moves">
-                  <span className="rank-move is-fast">{moves.fast.name}</span>
+                // The card language, so a build reads the same here as it does
+                // on a team slot or a core row: the move's own type on the
+                // rail, and how many fast moves each charged throw costs.
+                <div className="pc-moves rank-moves">
+                  <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
+                    <span className="pc-move-name">{moves.fast.name}</span>
+                    <span className="pc-move-denom">to charge ↓</span>
+                  </span>
                   {moves.charges.map((c) => (
-                    <span className="rank-move" key={c.id}>{c.name}</span>
+                    <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
+                      <span className="pc-move-name">{c.name}</span>
+                      <MoveCounts fast={moves.fast} charge={c} />
+                    </span>
                   ))}
                 </div>
               )}

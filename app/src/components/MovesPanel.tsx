@@ -1,5 +1,6 @@
 import { chargeMoveStats, fastMoveCounts, fastMoveStats } from '../lib/engine';
 import { MovePicker } from './MovePicker';
+import { MoveCounts } from './MoveCounts';
 import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
 import type { ChargeMove, FastMove, Species } from '../lib/types';
 
@@ -126,13 +127,7 @@ function ChargeTile({
         }
       >
         <span className="move-counts-label">{counts.length ? `${fast.name} to charge` : 'no energy gain'}</span>
-        <span className="move-counts-seq numeric">
-          {counts.map((n, i) => (
-            <span key={i} className="move-count">
-              {n}
-            </span>
-          ))}
-        </span>
+        <MoveCounts fast={fast} charge={move} />
       </div>
     </button>
   );

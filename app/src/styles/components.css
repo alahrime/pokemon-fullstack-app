@@ -758,20 +758,6 @@ input[type='range'] { accent-color: var(--color-accent); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.move-counts-seq {
-  display: flex;
-  gap: 3px;
-}
-.move-count {
-  min-width: 18px;
-  padding: 1px 0;
-  text-align: center;
-  font-size: var(--text-sm);
-  font-weight: 800;
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--type, var(--color-text)) 20%, transparent);
-  border: var(--border-hairline) solid color-mix(in srgb, var(--type, var(--color-text)) 30%, transparent);
-}
 
 /* — shield-scenario matrix: picker and readout in one — */
 .shield-matrix {
@@ -2249,24 +2235,23 @@ textarea.input { min-height: 90px; resize: vertical; }
 .pc-move-name { flex: 1 1 auto; min-width: 0; }
 .pc-move-eco { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 
-/* How many fast moves each successive throw costs.
+/* The count sequence, one rule for every screen that shows one.
    
-   Sits between the name and the ratio because it is read against both: the
-   sequence says how long the move takes, the ratio says what it is worth when
-   it lands. One cell per throw, so the drift down the sequence — 3-3-3-2 — is
-   a shape rather than four numbers to be read. */
-.pc-move-counts { display: flex; gap: 2px; flex: 0 0 auto; }
-.pc-move-count {
-  min-width: 17px;
-  padding: 0 3px;
-  text-align: center;
+   `5 - 5 - 5 - 5`, as a run rather than as four boxed cells. The sequence is a
+   single reading — "five, every time" for Florges into Chilling Water — and
+   boxing each number turned one fact into four. Sits between the name and the
+   ratio because it is read against both: how long the move takes, and what it
+   is worth when it lands. */
+.move-counts-run {
+  flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  line-height: 1.5;
   color: var(--color-text);
-  background: color-mix(in srgb, var(--move-tint) 22%, transparent);
-  border-top: var(--border-hairline) solid color-mix(in srgb, var(--move-tint) 45%, transparent);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
+.move-counts-sep { margin: 0 3px; color: var(--text-faint); }
+.move-counts-run.is-empty { color: var(--text-faint); }
 /* The fast move is the denominator, so it says so rather than carrying a
    count of its own. */
 .pc-move-denom {
@@ -2420,11 +2405,22 @@ textarea.input { min-height: 90px; resize: vertical; }
    keeps its shape at every width. */
 .landing-featured {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  /* Three, so six cards land as an even 3x2 rather than as one thin strip.
+     `auto-fit` at 190px gave six columns of ~192px at desk width — a row of
+     slivers next to the 393px cards the team screens use for the same
+     component. Three divides six the way `.team-slots` divides a roster, and
+     the cards get the width to carry what is on them. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+@media (max-width: 900px) {
+  .landing-featured { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .landing-featured { grid-template-columns: minmax(0, 1fr); }
 }
 .landing-featured > li { position: relative; min-width: 0; }
 .landing-featured-pos {
@@ -2962,23 +2958,11 @@ button:disabled,
 .rank-cp { color: var(--color-accent); }
 .rank-cp i, .rank-lvl { font-style: normal; opacity: 0.7; }
 
-.rank-moves {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-top: 4px;
-}
-.rank-move {
-  font-size: var(--text-2xs);
-  padding: 1px var(--space-2);
-  border: var(--border-hairline) solid var(--rule-hairline);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.rank-move.is-fast {
-  border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
-  color: var(--color-accent);
-}
+/* Layout comes from `.pc-moves`, which this element also carries — the
+   rankings row shows a build in the same language as a team slot. All that is
+   left here is the gap to the spread above it. `.rank-move` is gone with the
+   pill chips it styled. */
+.rank-moves { margin-top: 4px; max-width: 46ch; }
 
 /* Rows lift very slightly on approach — enough to say "this is clickable"
    without the table appearing to breathe. */
@@ -3997,18 +3981,7 @@ th.bt-matrix-head { text-align: center; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.core-timing-seq { display: flex; gap: 2px; flex: none; }
-/* One cell per throw, so the drift down the sequence is visible as a shape
-   rather than as four numbers that have to be read. */
-.core-timing-n {
-  min-width: 18px;
-  padding: 0 3px;
-  text-align: center;
-  font-family: var(--font-mono);
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--color-text) 8%, transparent);
-  border-top: var(--border-hairline) solid var(--rule-hairline);
-}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    THRESHOLD TABLE — every breakpoint, and how far the roll is from it.

@@ -53,9 +53,9 @@ function Row({ row, i, max, league, expanded, onToggle }: {
               computed from — bestSpreadFor and movesFor, not a second guess. */}
           <div className="rank-name">
             <span className="rank-art">
-              {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={56} shadow={shadow} />}
+              {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={84} shadow={shadow} />}
             </span>
-            <div className="min-w-0">
+            <div className="rank-id">
               <div className="rank-name-text">{row.name}</div>
               <div className="rank-types">{sp?.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
               {spread && (
@@ -65,24 +65,29 @@ function Row({ row, i, max, league, expanded, onToggle }: {
                   <span className="rank-lvl">L{spread.lvl}</span>
                 </div>
               )}
-              {moves && (
-                // The card language, so a build reads the same here as it does
-                // on a team slot or a core row: the move's own type on the
-                // rail, and how many fast moves each charged throw costs.
-                <div className="pc-moves rank-moves">
-                  <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
-                    <span className="pc-move-name">{moves.fast.name}</span>
-                    <span className="pc-move-denom">to charge ↓</span>
-                  </span>
-                  {moves.charges.map((c) => (
-                    <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
-                      <span className="pc-move-name">{c.name}</span>
-                      <MoveCounts fast={moves.fast} charge={c} />
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
+            {moves && (
+              // A column of its own, beside the identity rather than stacked
+              // under it. The name cell is 585px wide and the stacked version
+              // used 156 of them, so the row carried 357px of nothing between
+              // a cramped Pokemon and its score.
+              //
+              // The card language, so a build reads the same here as it does
+              // on a team slot or a core row: the move's own type on the rail,
+              // and how many fast moves each charged throw costs.
+              <div className="pc-moves rank-moves">
+                <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
+                  <span className="pc-move-name">{moves.fast.name}</span>
+                  <span className="pc-move-denom">to charge ↓</span>
+                </span>
+                {moves.charges.map((c) => (
+                  <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
+                    <span className="pc-move-name">{c.name}</span>
+                    <MoveCounts fast={moves.fast} charge={c} />
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </td>
         <td className="numeric rank-score">

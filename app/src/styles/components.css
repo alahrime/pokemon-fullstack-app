@@ -1636,7 +1636,17 @@ textarea.input { min-height: 90px; resize: vertical; }
 .rank-row:hover { background: var(--color-accent-100); }
 .rank-row.is-open { background: var(--color-accent-100); }
 .rank-pos { width: 3.5ch; color: var(--text-faint); }
-.rank-name { display: flex; align-items: center; gap: var(--space-2); }
+/* Sprite, identity, moves — three columns across the cell rather than a
+   156px stack in a 585px box with 357px of nothing after it. The moves take
+   the larger share because they are the widest content: a name, a count run
+   and a ratio on one line. */
+.rank-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.35fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+.rank-id { min-width: 0; }
 .rank-name-text { font-weight: 600; line-height: 1.2; }
 .rank-types { display: flex; gap: 3px; margin-top: 2px; }
 
@@ -2096,6 +2106,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   --my: 0.5;
   position: relative;
   isolation: isolate;
+  /* Sized against its own width, not the window's. The same card is a 393px
+     team slot, a 323px member of a discovered three and a 184px member of a
+     six, all at one viewport — so a media query cannot tell them apart and
+     this has to ask how much room *this* card has. */
+  container-type: inline-size;
   display: flex;
   min-width: 0;
   border: var(--border-hairline) solid var(--rule-hairline);
@@ -2330,6 +2345,27 @@ textarea.input { min-height: 90px; resize: vertical; }
   width: 22px; height: 22px;
   background: linear-gradient(225deg, var(--pc-medal) 0%, transparent 62%);
   pointer-events: none;
+}
+
+/* Wide enough for two columns: identity and its stats on the left, the moves
+   beside them rather than stacked underneath.
+
+   420px is where it starts paying. A move chip needs ~165px for a name, its
+   count run and its ratio, and the identity needs ~200 for a name, two type
+   badges and the roll — under that the split just cramps both, so the card
+   stays a stack. At 1280 a team slot is 393px and stays stacked; past ~1500
+   it crosses over, which is the width the wasted space was showing at. */
+@container (min-width: 420px) {
+  .pc-full .pc-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'head moves' 'stats moves';
+    align-content: start;
+    column-gap: var(--space-3);
+  }
+  .pc-full .pc-head { grid-area: head; }
+  .pc-full .pc-stats { grid-area: stats; }
+  .pc-full .pc-moves { grid-area: moves; align-self: center; }
 }
 
 /* Densities. Mini is identity only; full is the slot and suggestion card. */
@@ -2994,8 +3030,8 @@ button:disabled,
   flex: none;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
   position: relative;
   transition: transform var(--dur-3) var(--ease-spring);
 }
@@ -3029,7 +3065,7 @@ button:disabled,
    rankings row shows a build in the same language as a team slot. All that is
    left here is the gap to the spread above it. `.rank-move` is gone with the
    pill chips it styled. */
-.rank-moves { margin-top: 4px; max-width: 46ch; }
+.rank-moves { min-width: 0; }
 
 /* Rows lift very slightly on approach — enough to say "this is clickable"
    without the table appearing to breathe. */

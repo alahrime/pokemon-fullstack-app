@@ -77,10 +77,11 @@ describe('no fixed length can outgrow its container', () => {
     // content column this app produces is ~272px, so a 110px or 140px floor on
     // a numeric cell is a floor it can always honour, and wrapping those in a
     // `min()` would be noise claiming to be a fix.
-    // Media conditions are not declarations: `@media (min-width: 1700px)` is a
-    // breakpoint, not a floor on a box, and matching it here was a false
-    // positive the moment one was added.
-    const withoutQueries = declarations.replace(/@media[^{]*/g, '');
+    // A query condition is not a declaration: `@media (min-width: 1700px)` and
+    // `@container (min-width: 420px)` are breakpoints, not floors on a box.
+    // Both produced a false positive here the moment they were added, so both
+    // at-rules are stripped rather than just the one that bit first.
+    const withoutQueries = declarations.replace(/@(?:media|container)[^{]*/g, '');
     const bare = (withoutQueries.match(/min-width:\s*(\d+)px/g) ?? [])
       .filter((d) => Number(d.match(/(\d+)px/)![1]) >= 200);
     expect(bare).toEqual([]);

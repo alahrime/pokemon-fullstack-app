@@ -12,7 +12,6 @@ import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
 import { SegButton, SegGroup } from '../components/Seg';
-import { HeldOutNote } from '../components/HeldOutNote';
 import { Pager } from '../components/Pager';
 
 /** Rows per page. The full pool runs to 1140 in Great. */
@@ -212,7 +211,6 @@ export function RankingsScreen() {
           </>
         }
         blurb="Every league-legal form, scored in seven roles at five opponent-pool depths."
-        aside={<HeldOutNote />}
       />
       <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
         <div>

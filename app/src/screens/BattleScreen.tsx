@@ -5,7 +5,6 @@ import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data'
 import { ENERGY_CAP, bestBuddyEligible, bestSpreadFor, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
-import { HeldOutNote } from '../components/HeldOutNote';
 import type { FastMove, IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
@@ -347,7 +346,6 @@ export function BattleScreen() {
       <ScreenHeader
         title="Battle"
         blurb="Head-to-head PvP simulation: independent movesets, starting energy and shield counts per side, with selective baiting when a mon carries two charge moves of different costs."
-        aside={<HeldOutNote />}
       />
       {/* One strip rather than a stacked column. Label, control and the
           consequence of the choice sit on a single baseline, so the setting

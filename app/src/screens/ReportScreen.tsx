@@ -26,7 +26,6 @@ import { MovesPanel } from '../components/MovesPanel';
 import { Board, BoardControls } from '../components/Board';
 import { VizTabs } from '../components/VizTabs';
 import { FormToggle } from '../components/FormToggle';
-import { HeldOutNote } from '../components/HeldOutNote';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { SpeciesHero } from '../components/SpeciesHero';
 import { HeatmapView } from './detail/HeatmapView';
@@ -445,7 +444,6 @@ export function ReportScreen() {
                 label: 'Opponents',
                 node: (
                   <>
-                    <HeldOutNote />
                     <OpponentGrid
                       items={visible}
                       page={page}

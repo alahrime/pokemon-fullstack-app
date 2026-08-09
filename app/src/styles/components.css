@@ -3123,6 +3123,17 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    explanation is now on hover, where it costs no layout at all.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* In the header the notice sits beside the league it qualifies, but it only
+   earns that place while it can share the row: note, league tabs and theme
+   button need ~538px between them, and below that it takes a row of its own —
+   54px of a 299px nav on a 375px phone, for an advisory box.
+
+   So it is dropped there rather than shrunk. Nothing is lost where it counts:
+   the search box renders its own copy scoped to what was typed, which is what
+   fires on the day someone actually looks for Mimikyu and finds nothing. */
+@media (max-width: 900px) {
+  .nav-right .held-out-legend { display: none; }
+}
 .held-out-legend {
   display: inline-flex;
   align-items: center;

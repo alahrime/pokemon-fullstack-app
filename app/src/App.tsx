@@ -7,6 +7,7 @@ import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { LeagueTabs } from './components/LeagueTabs';
+import { HeldOutNote } from './components/HeldOutNote';
 import { opponentsFor, randomMatchup } from './lib/data';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
@@ -89,6 +90,12 @@ function Nav() {
           wrapping nav, the theme trigger was small enough to be the only item
           pushed onto a second row, where its panel then opened off-screen. */}
       <div className="nav-right">
+        {/* One notice for the whole app, beside the league it qualifies.
+            It used to be repeated on Report, Rankings and Battle — three
+            copies of the same caveat, each competing with the content it was
+            a caveat about. The search box keeps its own, because that one is
+            scoped to what you actually typed. */}
+        <HeldOutNote />
         <LeagueTabs
           value={state.league}
           onChange={(id) => {

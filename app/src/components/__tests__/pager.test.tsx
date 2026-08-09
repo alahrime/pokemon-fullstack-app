@@ -17,19 +17,28 @@ import { BestTeams } from '../BestTeams';
 describe('which page numbers are drawn', () => {
   it('keeps a fixed width by eliding the middle', () => {
     // 46 pages of rankings as 46 buttons is a smear, not a control.
-    expect(pageList(0, 46)).toEqual([0, 1, 2, null, 45]);
-    expect(pageList(22, 46)).toEqual([0, null, 20, 21, 22, 23, 24, null, 45]);
-    expect(pageList(45, 46)).toEqual([0, null, 43, 44, 45]);
+    expect(pageList(22, 46)).toEqual([0, null, 19, 20, 21, 22, 23, 24, 25, null, 45]);
+  });
+
+  it('slides the run inward at the ends rather than clipping it', () => {
+    // From page 1 a run of three offers barely more reach than the next arrow.
+    expect(pageList(0, 46)).toEqual([0, 1, 2, 3, 4, 5, 6, null, 45]);
+    expect(pageList(45, 46)).toEqual([0, null, 39, 40, 41, 42, 43, 44, 45]);
+    // Same length wherever it sits, so the strip does not change height as you
+    // page — at nine the widest arrangement folded the size control onto a
+    // second line and stepped the list below it down by 38px.
+    const run = (p: number) => pageList(p, 46).filter((n) => n !== null).length;
+    expect([run(0), run(4), run(22), run(41), run(45)].every((n) => n <= 9)).toBe(true);
   });
 
   it('spells out a gap of exactly one rather than eliding it', () => {
     // An ellipsis hiding a single page is wider than the page it hides, so
     // page 4 is drawn rather than replaced by "···".
-    expect(pageList(0, 5)).toEqual([0, 1, 2, 3, 4]);
-    // Two or more hidden pages do elide — asserting otherwise was my mistake,
-    // not the function's.
-    expect(pageList(0, 6)).toEqual([0, 1, 2, null, 5]);
-    expect(pageList(3, 7)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    // A run of seven centred on 5 leaves exactly one page clear at each end.
+    expect(pageList(5, 11)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    // Two or more hidden pages do elide.
+    expect(pageList(0, 11)).toEqual([0, 1, 2, 3, 4, 5, 6, null, 10]);
+    expect(pageList(0, 9)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it('handles the degenerate counts without inventing pages', () => {

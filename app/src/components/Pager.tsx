@@ -14,23 +14,42 @@ import { useMemo } from 'react';
  * scroll past everything you were reading to change what you are reading.
  */
 
-/** How many numbered buttons to show around the current page. */
-const WINDOW = 2;
+/**
+ * How many pages the contiguous run covers.
+ *
+ * Odd, so the current page sits in the middle of it. Seven rather than three
+ * because a run of three offers barely more reach than the next arrow: from
+ * page 1 you want to see a stretch of what follows, not pages 2 and 3 and an
+ * ellipsis. The run is a fixed length wherever it sits, so it holds its width
+ * as you page through — at either end it simply butts up against the end
+ * rather than hanging off it.
+ *
+ * Not larger: at nine, the widest arrangement (a run flanked by two gaps and
+ * both ends) overran the strip at 1280px and folded the size control onto a
+ * second line, so the list below stepped down 38px as you paged from 1 to 9.
+ * A control that moves the thing it controls is worse than a shorter run.
+ */
+const SPAN = 7;
 
 export const PAGE_SIZES = [10, 25, 50, 100] as const;
 
 /**
  * The page numbers to draw, with gaps marked.
  *
- * Always the first and last page, plus a window around the current one, so the
- * control keeps a fixed width whatever the page count — 46 pages of rankings
- * would otherwise be 46 buttons, which is a smear rather than a control.
- * `null` is a gap.
+ * Always the first and last page, plus a run of `SPAN` around the current one,
+ * so the control keeps a fixed width whatever the page count — 46 pages of
+ * rankings would otherwise be 46 buttons, which is a smear rather than a
+ * control. `null` is a gap.
  */
 export function pageList(page: number, pages: number): (number | null)[] {
   if (pages <= 1) return [0];
   const wanted = new Set<number>([0, pages - 1]);
-  for (let i = page - WINDOW; i <= page + WINDOW; i++) if (i >= 0 && i < pages) wanted.add(i);
+  // Slide the run rather than clip it: near an end it shifts inward to keep its
+  // full length, so page 1 offers a run forward and the last page a run back.
+  let lo = Math.max(0, Math.min(page - (SPAN >> 1), pages - SPAN));
+  const hi = Math.min(pages - 1, lo + SPAN - 1);
+  lo = Math.max(0, hi - SPAN + 1);
+  for (let i = lo; i <= hi; i++) wanted.add(i);
   const sorted = [...wanted].sort((a, b) => a - b);
   const out: (number | null)[] = [];
   sorted.forEach((n, i) => {

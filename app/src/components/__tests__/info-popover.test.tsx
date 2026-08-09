@@ -33,10 +33,24 @@ describe('the information mark', () => {
     expect(mark.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('opens on hover, for a pointer', () => {
+  it('does not open on hover alone', () => {
+    // Hover is the one gesture a keyboard, a screen reader and a touch screen
+    // cannot make, and hover-only content also fails WCAG 1.4.13. A press is
+    // available to every input — and does not fire as a pointer crosses the
+    // header on its way somewhere else.
     const { container } = renderApp(<InfoPopover>hovered</InfoPopover>);
     fireEvent.mouseEnter(container.querySelector('.info-pop') as HTMLElement);
-    expect(container.querySelector('.info-pop-panel')).toBeTruthy();
+    fireEvent.mouseOver(container.querySelector('.info-pop-mark') as HTMLElement);
+    expect(container.querySelector('.info-pop-panel')).toBeNull();
+  });
+
+  it('opens from the keyboard, since that is the same press', () => {
+    const { container } = renderApp(<InfoPopover>typed</InfoPopover>);
+    const mark = container.querySelector('.info-pop-mark') as HTMLButtonElement;
+    mark.focus();
+    // Enter and Space on a focused <button> both dispatch a click.
+    fireEvent.click(mark, { detail: 0 });
+    expect(container.querySelector('.info-pop-panel')!.textContent).toContain('typed');
   });
 
   it('closes on Escape and on an outside click', () => {

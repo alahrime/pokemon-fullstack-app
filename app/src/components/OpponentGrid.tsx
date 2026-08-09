@@ -67,6 +67,9 @@ export function OpponentGrid({
         </button>
       </div>
 
+      {/* One pager only, above the board. The board is a few rows tall — its
+          foot is on screen alongside its head, so a second copy below would be
+          two controls visible at once doing the same job. */}
       <Pager
         page={page}
         pages={pageCount}
@@ -116,16 +119,6 @@ export function OpponentGrid({
           );
         })}
       </div>
-
-      <Pager
-        page={page}
-        pages={pageCount}
-        total={total}
-        size={pageSize}
-        onPage={onPage}
-        onSize={onPageSize}
-        unit="matchups"
-      />
 
     </div>
   );

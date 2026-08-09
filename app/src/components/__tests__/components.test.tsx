@@ -9,6 +9,9 @@ import { SpeciesSearch } from '../SpeciesSearch';
 import { HeldOutNote } from '../HeldOutNote';
 import { TypeBadge } from '../TypeBadge';
 import { Sprite } from '../Sprite';
+import { SpeciesHero } from '../SpeciesHero';
+import { SPECIES_BY_ID } from '../../lib/data';
+import { getEntry } from '../../lib/engine';
 import type { IV } from '../../lib/types';
 import { loadOrder } from '../../lib/layout';
 
@@ -197,6 +200,40 @@ describe('small components', () => {
     const { container } = renderApp(<TypeBadge type="water" />);
     expect(container.textContent!.toLowerCase()).toContain('water');
   });
+  it('pins the Best Buddy ribbon to the sprite top-left, not the bottom-right', () => {
+    // It used to hang off the bottom-right at -20%/-14%: a 42px rosette 21px
+    // clear of a 104px sprite, straight through the ATK and DEF labels of the
+    // battle card's stat block. Measured after the move: 0 overlaps with any
+    // text on Report or Battle.
+    const { container } = renderApp(<Sprite sprite="" dex={184} size={100} bestBuddy />);
+    const badge = [...container.querySelectorAll('span')].find(
+      (s) => s.style.position === 'absolute' && s.querySelector('svg'),
+    )!;
+    expect(badge, 'no ribbon rendered').toBeTruthy();
+    expect(badge.style.left).toBe('-15px');
+    expect(badge.style.top).toBe('-10px');
+    expect(badge.style.right, 'bottom-right pinning is what overlapped the stats').toBe('');
+    expect(badge.style.bottom).toBe('');
+  });
+
+  it('gives the Report hero the same ribbon, from the same component', () => {
+    // Consistency is the point: one badge in one place, rather than a stage
+    // corner mark here and a sprite badge in Battle.
+    const species = SPECIES_BY_ID.get('azumarill')!;
+    const { entry } = getEntry('azumarill', { a: 10, d: 10, s: 10 }, 'great');
+    const { container } = renderApp(
+      <SpeciesHero species={species} entry={entry} league="great" shadow={false} bestBuddy />,
+    );
+    expect(container.querySelector('.hero-buddy'), 'the stage-corner ribbon is gone').toBeNull();
+    const stage = container.querySelector('.hero-stage')!;
+    const badge = [...stage.querySelectorAll('span')].find(
+      (s) => s.style.position === 'absolute' && s.querySelector('svg'),
+    );
+    expect(badge, 'the hero must carry the sprite-level ribbon').toBeTruthy();
+    expect(badge!.style.left).toBe('-22.5px');
+    expect(badge!.style.top).toBe('-15px');
+  });
+
   it('Sprite renders a decorative image — empty alt, name carried by its label', () => {
     const { container } = renderApp(<Sprite sprite="azumarill" dex={184} size={40} />);
     const img = container.querySelector('img')!;

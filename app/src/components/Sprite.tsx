@@ -79,9 +79,18 @@ export function Sprite({
         </span>
       )}
 
-      {/* Pinned off the bottom-right corner. Sat mostly *on* the artwork at a
-          smaller offset; hanging it further out keeps the sprite readable and
-          reads as a tag attached to the frame rather than part of the render.
+      {/* Pinned to the top-left, tucked against the corner rather than hung off
+          it. It used to hang off the bottom-right at -20%/-14%, which put a
+          42px rosette 21px clear of a 104px sprite — straight through the ATK
+          and DEF labels of the stat block beside it on the battle card.
+
+          Top-left is the corner nothing else competes for: sprites are drawn
+          with their mass low and centre-right, and every layout in the app
+          puts a mon's readouts to its right or below it. It hangs mostly
+          outside that corner — at -15%/-10% of the box it clears the artwork
+          rather than sitting on it, which at a tighter inset put it against
+          Lickitung's face.
+
           Always the full rosette, at every size and in every control, so the
           mark is recognisably one thing wherever it appears — a lone gold disc
           reads as a different badge entirely. */}
@@ -89,14 +98,14 @@ export function Sprite({
         <span
           style={{
             position: 'absolute',
-            right: -size * 0.2,
-            bottom: -size * 0.14,
+            left: -size * 0.15,
+            top: -size * 0.1,
             lineHeight: 0,
             pointerEvents: 'none',
             filter: 'drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45))',
           }}
         >
-          <BestBuddyRibbon size={Math.max(15, Math.round(size * 0.4))} detail />
+          <BestBuddyRibbon size={Math.max(14, Math.round(size * 0.34))} detail />
         </span>
       )}
     </div>

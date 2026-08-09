@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { leagueStatRange } from '../lib/engine';
-import { BestBuddyRibbon } from './BestBuddyRibbon';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
 import { LeagueEmblem } from './LeagueEmblem';
@@ -50,18 +49,20 @@ export function SpeciesHero({
         <span className="hero-league" title={`${league} league`}>
           <LeagueEmblem league={league} size={22} />
         </span>
-        <Sprite sprite={species.sprite} dex={species.dex} size={150} shadow={shadow} className="sprite-holo" />
-
-        {/* Pinned to the stage, not the sprite. The sprite box is 150px inside
-            a ~346px stage, so a badge on its corner sits ~98px shy of the
-            stage edge and reads as floating in the middle. The stage already
-            marks its corners this way — dex top-left, league top-right — so
-            the ribbon takes the remaining one. */}
-        {bestBuddy && (
-          <span className="hero-buddy" title="Best Buddy required">
-            <BestBuddyRibbon size={26} detail />
-          </span>
-        )}
+        {/* The ribbon comes from Sprite, pinned to the sprite's own top-left,
+            rather than being a fourth mark on the stage corner as it was.
+            It reads as attached to the Pokemon at the cost of no longer
+            completing the corner set with the dex and the league emblem —
+            worth it for one badge that sits in the same place on every screen
+            instead of one position here and another in Battle. */}
+        <Sprite
+          sprite={species.sprite}
+          dex={species.dex}
+          size={150}
+          shadow={shadow}
+          bestBuddy={bestBuddy}
+          className="sprite-holo"
+        />
       </div>
 
       <div className="hero-body">

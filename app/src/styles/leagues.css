@@ -321,15 +321,3 @@
 
 .hero-vital.is-lead .hero-vital-value { color: var(--lg-accent); }
 
-/* Best Buddy ribbon, fourth corner mark on the hero stage.
-   Inset matches .hero-dex / .hero-league so the four corners agree, and stays
-   inside the stage rather than overhanging it — the sprite-level badge hung
-   ~8px past the bottom edge. */
-.hero-buddy {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  line-height: 0;
-  pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
-}

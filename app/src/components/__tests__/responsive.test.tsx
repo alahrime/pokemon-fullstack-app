@@ -77,7 +77,11 @@ describe('no fixed length can outgrow its container', () => {
     // content column this app produces is ~272px, so a 110px or 140px floor on
     // a numeric cell is a floor it can always honour, and wrapping those in a
     // `min()` would be noise claiming to be a fix.
-    const bare = (components.match(/min-width:\s*(\d+)px/g) ?? [])
+    // Media conditions are not declarations: `@media (min-width: 1700px)` is a
+    // breakpoint, not a floor on a box, and matching it here was a false
+    // positive the moment one was added.
+    const withoutQueries = declarations.replace(/@media[^{]*/g, '');
+    const bare = (withoutQueries.match(/min-width:\s*(\d+)px/g) ?? [])
       .filter((d) => Number(d.match(/(\d+)px/)![1]) >= 200);
     expect(bare).toEqual([]);
   });
@@ -138,6 +142,30 @@ describe('the layouts that have to stack', () => {
     const q = components.slice(at, at + 260);
     expect(q).toMatch(/\.detail-row\s*\{[^}]*flex-wrap:\s*wrap/);
     expect(q).toMatch(/\.detail-row::before\s*\{[^}]*display:\s*none/);
+  });
+});
+
+describe('a team is laid out in whole rows', () => {
+  it('states its column counts rather than packing with auto-fit', () => {
+    // `auto-fit` took four columns of the 984px block at 1280, so a six read
+    // as 4 + 2 — a leftover row that is a fragment of a team. Every count
+    // declared for these grids has to divide both a three and a six.
+    const decls = declarations.match(/\.bt-members-[36][^{]*\{[^}]*grid-template-columns:[^;]+;/g) ?? [];
+    expect(decls.length, 'no column rules found for the member grids').toBeGreaterThan(2);
+    for (const d of decls) {
+      expect(d, `auto-fit leaves a ragged row: ${d}`).not.toMatch(/auto-fit|auto-fill/);
+      const n = d.match(/repeat\((\d+)/);
+      const cols = n ? Number(n[1]) : 1;
+      expect([1, 3, 6], `${cols} columns leaves a partial row`).toContain(cols);
+    }
+  });
+
+  it('only widens to six where six columns are not slivers', () => {
+    // 6 across is 157px at 1280 and 184px once the shell stops growing; a
+    // member needs ~165px for a move name beside its count run.
+    const at = declarations.indexOf('@media (min-width: 1700px)');
+    expect(at, 'the one-row-of-six rule should be behind a wide breakpoint').toBeGreaterThan(-1);
+    expect(declarations.slice(at, at + 160)).toMatch(/\.bt-members-6[^}]*repeat\(6/);
   });
 });
 

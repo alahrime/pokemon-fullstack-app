@@ -1797,11 +1797,40 @@ textarea.input { min-height: 90px; resize: vertical; }
    (Shadow)" wants 163px on one line. Names wrap to two lines now, so the
    minimum only has to fit half of that plus the sprite; 156px keeps all six
    members of a Show 6 on one row, which 178px did not. */
-/* Widened once each member began carrying its charged moves' count runs.
-   156px fitted a name; a name and `13 - 13 - 13 - 13` needs the room, and the
-   chip wraps rather than overflowing when it still does not get it. */
-.bt-members-3 { grid-template-columns: repeat(auto-fit, minmax(min(232px, 100%), 1fr)); }
-.bt-members-6 { grid-template-columns: repeat(auto-fit, minmax(min(196px, 100%), 1fr)); }
+/* A team is laid out in whole rows, never a ragged one.
+
+   `auto-fit` packed as many members as would fit and left the remainder
+   stranded: at 1280 the block is 984px, which took four columns, so a six read
+   as 4 + 2. That is the same "five-and-one" fault `.team-slots` documents, and
+   it is worse here because the leftover row is a fragment of a team.
+
+   So the counts are stated, and only ones that divide both rosters: three, or
+   six, or one. Never two, four or five.
+
+   Where the sizes come from — a member needs ~165px for a move name beside its
+   count run, and the block is 984px at 1280 and caps near 1144 once the shell
+   stops growing:
+
+     6 across   157px at 1280, 184px past the cap — only fits at the top end
+     3 across   323px at 1280, 215px at 700, 170px at 560 — comfortable
+     1 across   the phone case, and already even
+
+   So a six is two rows of three for almost every width, one row of six only
+   where there is genuinely room, and a single column on a phone. */
+.bt-members-3,
+.bt-members-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* One row of six, past the width where six columns stop being slivers. */
+@media (min-width: 1700px) {
+  .bt-members-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* Below three comfortable columns, straight to one — two would put a three
+   back into the ragged shape this exists to avoid. */
+@media (max-width: 700px) {
+  .bt-members-3,
+  .bt-members-6 { grid-template-columns: minmax(0, 1fr); }
+}
 .bt-member {
   display: flex;
   align-items: center;
@@ -1986,14 +2015,12 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 @media (max-width: 860px) {
   .bt-row-main { flex-wrap: wrap; }
-  /* Two mistakes stood here as `.bt-members-3 > *, .bt-members-6 > * { flex:
-     1 1 100% }`. Those containers are grids, so flex properties on their
-     children did nothing; and the element that has to take a full line is the
-     members block itself, which is the flex item — starved to 79px by its
-     siblings while the row wrapped around it. Both fixed: the block claims its
-     own line, and the members inside it are laid out as the grid they are. */
+  /* `.bt-members-3 > *, .bt-members-6 > * { flex: 1 1 100% }` stood here and
+     did nothing twice over: those containers are grids, where flex properties
+     on a child are inert, and the element that has to take a full line is the
+     members block itself — a flex item starved to 79px by its siblings while
+     the row wrapped around it. The column counts live with the grids above. */
   .bt-members { flex-basis: 100%; }
-  .bt-members-3, .bt-members-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* Four columns for seven children would wrap them onto extra rows, which is
      what the old 70px/1fr/90px/52px template did once the row became two
      member blocks plus a separator. Members stack instead: each takes the full
@@ -2343,11 +2370,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 @media (max-width: 480px) {
   .team-slots { grid-template-columns: minmax(0, 1fr); }
 }
-/* A discovered team's members go single file before they get too narrow to
-   carry a move name and its count run side by side. */
-@media (max-width: 560px) {
-  .bt-members-3, .bt-members-6 { grid-template-columns: minmax(0, 1fr); }
-}
+
 .team-slot.is-empty {
   display: flex;
   align-items: center;

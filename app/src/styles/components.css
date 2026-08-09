@@ -3838,62 +3838,452 @@ th.bt-matrix-head { text-align: center; }
   margin: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   THRESHOLD TABLE — every breakpoint, and how far the roll is from it.
+
+   The row's job is the last column: a gauge pinned at the threshold, short to
+   the left and surplus to the right. Everything before it is identification,
+   so it is set quietly and the gauge carries the weight.
+
+   Symbols where a word was doing a symbol's work: sword for damage dealt,
+   shield for damage taken, and a state mark that fills as the threshold is
+   met. The IV spread is three values rather than one slash-separated string.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.thr {
+  --thr-gauge-w: 108px;
+  font-variant-numeric: tabular-nums;
+}
+.thr th {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+.thr-margin-head { text-align: left; }
+.thr-row {
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+/* The met row is tinted, not shouted at — several rows are met at once and a
+   loud fill on each turns the table into a block of colour. */
+.thr-row[data-state='met'] {
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+.thr-row[data-state='near'] {
+  background: color-mix(in srgb, var(--color-accent-2, var(--color-accent)) 5%, transparent);
+}
+
+/* Kind: outgoing or incoming, told by the glyph before the word. */
+.thr-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+.thr-kind.is-bulk { color: var(--text-muted); }
+.thr-kind .icon-svg { flex: none; opacity: 0.9; }
+
+.thr-move { font-size: var(--text-sm); }
+
+/* The outcome, chipped so it reads as a value rather than as prose. */
+.thr-result {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-left: var(--border-strong) solid color-mix(in srgb, var(--color-text) 35%, transparent);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+}
+.thr-row[data-state='met'] .thr-result {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border-left-color: var(--color-accent);
+}
+
+.thr-need {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Three IVs, read as three. */
+.thr-spread { display: inline-flex; gap: 2px; }
+.thr-iv {
+  min-width: 22px;
+  padding: 1px 3px;
+  text-align: center;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+
+/* ── The gauge ─────────────────────────────────────────────────────────── */
+.thr-margin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.thr-gauge {
+  position: relative;
+  flex: none;
+  width: var(--thr-gauge-w);
+  height: 14px;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  overflow: hidden;
+}
+/* The axis the deviation is read against, and the threshold itself at centre. */
+.thr-gauge-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--border-hairline);
+  background: color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+.thr-gauge-pin {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: var(--border-strong);
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+/* Deviation grows out of the centre, in the direction of its sign. */
+.thr-gauge-fill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: var(--mag);
+  transform-origin: left center;
+  animation: grow-x var(--dur-3) var(--ease-out) both;
+}
+.thr-gauge-fill[data-dir='over'] {
+  left: 50%;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    color-mix(in srgb, var(--color-accent) 35%, transparent)
+  );
+}
+.thr-gauge-fill[data-dir='short'] {
+  right: 50%;
+  transform-origin: right center;
+  background: linear-gradient(
+    270deg,
+    var(--text-muted),
+    color-mix(in srgb, var(--text-muted) 30%, transparent)
+  );
+}
+.thr-row[data-state='near'] .thr-gauge-fill[data-dir='short'] {
+  background: linear-gradient(
+    270deg,
+    var(--color-accent-2, var(--color-accent)),
+    color-mix(in srgb, var(--color-accent-2, var(--color-accent)) 30%, transparent)
+  );
+}
+
+.thr-gap {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  min-width: 8ch;
+}
+.thr-gap i { font-style: normal; opacity: 0.55; margin-left: 3px; }
+.thr-row[data-state='met'] .thr-gap { color: var(--color-accent); }
+
+/* The state mark: filled when the threshold is met, half when it is within
+   reach, hollow when it is not. Chamfered to match everything else. */
+.thr-state {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border: var(--border-strong) solid var(--text-faint);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%);
+}
+.thr-row[data-state='met'] .thr-state {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+.thr-row[data-state='near'] .thr-state {
+  border-color: var(--color-accent-2, var(--color-accent));
+  background: linear-gradient(
+    90deg,
+    var(--color-accent-2, var(--color-accent)) 50%,
+    transparent 50%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thr-gauge-fill { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DAMAGE RULER — a two-level system.
+
+   Attack is continuous across the 4096; damage is an integer. Measured over
+   the real roster that step function has one or two levels and never more, so
+   this is drawn as what it is: two states, one occupied, a transition at a
+   definite point on the axis. The flat single-level case is the common one and
+   has its own treatment rather than being a full-width grey bar.
+
+   Nothing idles. The field is static; the only motion is the levels resolving
+   once when the ruler changes, which is the "collapse" and is dropped whole
+   under prefers-reduced-motion.
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .rv {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--space-6);
   padding: var(--space-2) 0 0;
 }
+
+.rv-cell {
+  --rv-field-h: 40px;
+  --rv-chamfer: 7px;
+  position: relative;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: var(--surface-2);
+  clip-path: polygon(
+    9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px
+  );
+  transition: border-color var(--dur-2) var(--ease-out);
+}
+.rv-cell:hover { border-color: var(--rule-strong); }
+
 .rv-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: var(--space-4);
-  margin-bottom: 26px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 .rv-title {
+  margin: 0;
   font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 16px;
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
 }
-.rv-head-aside {
+.rv-sub {
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+/* The count of transitions reached. Reads as an instrument readout, and goes
+   quiet when there is no transition to reach. */
+.rv-badge {
   flex: none;
   white-space: nowrap;
+  padding: 2px var(--space-2);
+  color: var(--color-accent);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
+.rv-cell[data-flat] .rv-badge {
+  color: var(--text-faint);
+  border-color: var(--rule-hairline);
+  background: none;
+}
+
 .rv-track {
   position: relative;
-  height: 74px;
-  border-left: var(--border-strong) solid var(--rule-strong);
-  border-right: var(--border-strong) solid var(--rule-strong);
+  height: calc(var(--rv-field-h) + 30px);
+}
+
+/* The field the levels sit in: a quantised ground, ruled at a fixed interval
+   so the axis reads as discrete rather than as a continuous bar. The interval
+   is decorative — the real divisions are the ticks — so it is kept faint
+   enough not to be mistaken for data. */
+.rv-field {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--rv-field-h);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-text) 7%, transparent) 0 1px,
+    transparent 1px 14px
+  );
+  clip-path: polygon(
+    var(--rv-chamfer) 0, 100% 0, 100% calc(100% - var(--rv-chamfer)),
+    calc(100% - var(--rv-chamfer)) 100%, 0 100%, 0 var(--rv-chamfer)
+  );
 }
 .rv-baseline {
   position: absolute;
   left: 0;
   right: 0;
-  top: 34px;
-  height: 2px;
+  top: var(--rv-field-h);
+  height: var(--border-strong);
   background: var(--rule-strong);
 }
-/* The "you are here" flag under the accent marker. */
+
+/* A level. Unoccupied ones are potential, not a dimmer copy of the occupied
+   one: hatched, unfilled, label dropped back. */
+.rv-band {
+  position: absolute;
+  top: 0;
+  height: var(--rv-field-h);
+  left: var(--start);
+  width: var(--w);
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+  overflow: hidden;
+  white-space: nowrap;
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-text) 9%, transparent) 0 1px,
+    transparent 1px 6px
+  );
+  border-right: var(--border-hairline) solid var(--rule-hairline);
+}
+.rv-band:last-of-type { border-right: 0; }
+.rv-band-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Occupied: solid, lit, and rail-marked on its leading edge. */
+.rv-band[data-active] {
+  background-image: none;
+  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-bg));
+  box-shadow: var(--glow-accent);
+  border-left: var(--border-strong) solid var(--color-accent);
+}
+.rv-band[data-active] .rv-band-label {
+  color: var(--color-on-accent);
+  font-weight: 700;
+}
+
+/* The transition. A hairline through the field with a node on the baseline —
+   the single position on this axis where the answer changes. */
+.rv-tick {
+  position: absolute;
+  top: 0;
+  left: var(--pos);
+  width: var(--border-strong);
+  height: calc(var(--rv-field-h) + 6px);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-text) 55%, transparent),
+    var(--color-text)
+  );
+}
+.rv-tick::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--color-text);
+}
+
+/* Where this roll sits. Full height so it reads against the levels rather
+   than as another tick. */
+.rv-you {
+  position: absolute;
+  top: -5px;
+  bottom: 20px;
+  left: var(--pos);
+  width: var(--border-strong);
+  background: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
 .rv-caption {
   position: absolute;
   bottom: -19px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   white-space: nowrap;
   font-size: var(--text-2xs);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-wide);
+  padding: 1px var(--space-2);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  padding: 1px 5px;
   box-shadow: var(--glow-accent);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
 }
+.rv-caption-key { opacity: 0.75; }
+
 .rv-scale {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
   font-size: var(--text-2xs);
-  margin-top: 22px;
+  color: var(--text-muted);
 }
+.rv-bound { color: var(--text-faint); }
+.rv-bound i { font-style: normal; opacity: 0.6; margin-left: 2px; }
+.rv-note { text-align: right; }
+
+/* Degenerate: one level, no transition in reach — and this is the *common*
+   case, so it has to be the quietest thing here rather than the loudest.
+
+   The lone band still carries `data-active`, because it is genuinely the state
+   you occupy, but occupying the only available state is not a result. Painting
+   it in full accent made a solid slab the width of the section shouting a
+   finding that does not exist, so the accent is withdrawn and the level is
+   drawn as plain ground. The marker keeps its position; there is simply
+   nothing to be lit about. */
+.rv-cell[data-flat] .rv-field {
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-text) 4%, transparent) 0 1px,
+    transparent 1px 14px
+  );
+  border-style: dashed;
+}
+.rv-cell[data-flat] .rv-band[data-active] {
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-text) 7%, transparent) 0 1px,
+    transparent 1px 6px
+  );
+  box-shadow: none;
+  border-left: 0;
+}
+.rv-cell[data-flat] .rv-band[data-active] .rv-band-label {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.rv-cell[data-flat] .rv-you { background: var(--text-muted); box-shadow: none; }
+.rv-cell[data-flat] .rv-caption {
+  background: var(--text-muted);
+  color: var(--color-bg);
+  box-shadow: none;
+}
+
+/* The marker's flag is centred on the marker, so at either extreme of the axis
+   it hangs off the side — "YOU 101.68" was cut in half at 0%. Anchored to the
+   edge it is nearest instead. */
+.rv-you[data-edge='start'] .rv-caption { left: 0; transform: none; }
+.rv-you[data-edge='end'] .rv-caption { left: auto; right: 0; transform: none; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    REPORT SCREEN / SMALL COMPONENTS — moved out of inline styles.

@@ -169,6 +169,23 @@ describe('a team is laid out in whole rows', () => {
   });
 });
 
+describe('one team is told from the next', () => {
+  it('divides them with the strong rule, not a hairline', () => {
+    // These rows are tall — six cards in two banks, each with its moves and
+    // their count runs — so a hairline was doing nothing at that scale and two
+    // teams ran together.
+    const rule = ruleBody(components, '.bt-row');
+    expect(rule).toMatch(/border-bottom:\s*var\(--border-strong\)\s+solid\s+var\(--rule-strong\)/);
+    expect(rule).not.toMatch(/--border-hairline/);
+  });
+
+  it('declares the row once, so an edit cannot land on the losing copy', () => {
+    // It was two rules — a border and `--space-2` in one, `--space-3` in the
+    // other — which is the `.team-slots` trap the suite already guards.
+    expect(components.match(/^\.bt-row\s*\{/gm) ?? []).toHaveLength(1);
+  });
+});
+
 describe('what scrolls instead of stacking', () => {
   it('a segmented control scrolls sideways, because it reads as one switch', () => {
     const rule = ruleBody(components, '.seg-group');

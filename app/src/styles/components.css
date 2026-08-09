@@ -1773,11 +1773,10 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* Rows are cards rather than table rows: each member carries a sprite, its
    spread and its rated moveset, which does not fit a single line of text. */
 
-.bt-row {
-  border-bottom: var(--border-hairline) solid var(--rule-hairline);
-  padding: var(--space-2) 0;
-}
-.bt-row:last-child { border-bottom: 0; }
+/* `.bt-row` is declared once, further down with the rest of the card-era row
+   styling. It was two rules — a hairline border and `--space-2` here, a
+   `--space-3` padding there — so an edit to the padding landed on whichever
+   one you happened to read. Same trap as `.team-slots`. */
 
 .bt-pos {
   min-width: 2.5ch;
@@ -1790,7 +1789,8 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* Grid, not flex-wrap. Percentage flex bases collapsed to one card per line
    at ~820px — a card's own min-content width (type badges, the CP strip) beat
    the 15% basis, so every card grew to fill its own row and a six-team became
-   six rows tall. `auto-fit` + a pixel minimum packs predictably at any width. */
+   six rows tall. The column counts are stated below; `auto-fit` used to pack
+   them and left a six reading as 4 + 2. */
 .bt-members { display: grid; flex: 1; gap: var(--space-2); min-width: 0; }
 /* Minimums sized to the names, not to the sprites. At 132px the name had a
    75px box and 29 of 150 rendered names overflowed it — "Sandslash (Alolan)
@@ -2391,7 +2391,20 @@ textarea.input { min-height: 90px; resize: vertical; }
 /* ── Team row, restyled around the cards ────────────────────────────────── */
 /* The row is now a frame for three or six cards, so its own chrome recedes:
    the rank numeral and the score carry it, everything else is the cards. */
-.bt-row { padding: var(--space-3) 0; }
+/* One team, and the rule that ends it.
+
+   These rows are tall — six cards in two banks, each with its moves and their
+   count runs — so a hairline between them was doing nothing at that scale and
+   two teams ran together. The divider is the strong one, at the strong width,
+   and the padding is generous enough that the border reads as the end of a
+   block rather than as another line inside it. */
+.bt-row {
+  padding: var(--space-5) 0;
+  border-bottom: var(--border-strong) solid var(--rule-strong);
+}
+.bt-row:first-child { padding-top: var(--space-2); }
+/* Nothing to divide after the last team. */
+.bt-row:last-child { border-bottom: 0; padding-bottom: var(--space-2); }
 .bt-pos {
   font-family: var(--font-heading);
   font-size: var(--size-h4);

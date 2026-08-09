@@ -1630,19 +1630,40 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .rankings-note strong { color: var(--text-muted); }
 
-.rankings-table { width: 100%; }
+/* Fixed layout, so the columns are what this file says they are.
+   
+   Under auto layout the table shared spare width in proportion to content,
+   which meant the Pokemon column — much the widest — absorbed most of it: at
+   1900 it was 848px holding 470px of build, and the difference sat between a
+   Pokemon and its score. Fixed takes the widths below and gives the remainder
+   to the unsized columns, all of which are numeric and one of which draws a
+   bar that is better for being longer. */
+.rankings-table { width: 100%; table-layout: fixed; }
+.rank-col-pos { width: 3rem; }
+/* Sprite, identity and the capped move chips, plus their two 12px gaps. */
+.rank-col-mon { width: 30rem; }
 .rankings-table th { white-space: nowrap; }
 .rank-row { cursor: pointer; }
 .rank-row:hover { background: var(--color-accent-100); }
 .rank-row.is-open { background: var(--color-accent-100); }
 .rank-pos { width: 3.5ch; color: var(--text-faint); }
-/* Sprite, identity, moves — three columns across the cell rather than a
-   156px stack in a 585px box with 357px of nothing after it. The moves take
-   the larger share because they are the widest content: a name, a count run
-   and a ratio on one line. */
+/* Sprite, identity, moves — three columns across the cell rather than a 156px
+   stack in a 585px box with 357px of nothing after it.
+
+   Sized to their content, not to a share of the cell. Fractional tracks read
+   fine at 1280 and came apart as the window grew: at 1900 the moves track was
+   450px holding 173px of chip, so `space-between` pushed each count run 328px
+   off its own move name, and the identity text sat hard against the sprite
+   with all the slack piled up after it. Content-sized tracks keep both gaps at
+   12px whatever the width, and the surplus stays outside the grid where the
+   table hands it to the score columns instead. */
 .rank-name {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.35fr);
+  /* Identity hugs its text; the moves take the rest, so the cell is filled and
+     no void opens between a build and its score. What stops the moves column
+     stretching its chips apart is the cap on the chip itself, below — the
+     track may be wide, the chip may not. */
+  grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
 }
@@ -3066,6 +3087,11 @@ button:disabled,
    left here is the gap to the spread above it. `.rank-move` is gone with the
    pill chips it styled. */
 .rank-moves { min-width: 0; }
+/* A chip is `space-between`, so its width decides how far a count run sits
+   from its own move name. Unbounded that was 328px at 1900 — the name at one
+   end of the row and its number at the other. Capped, the pair reads as one
+   line whatever the window is doing. */
+.rank-moves .pc-move { max-width: 13rem; }
 
 /* Rows lift very slightly on approach — enough to say "this is clickable"
    without the table appearing to breathe. */

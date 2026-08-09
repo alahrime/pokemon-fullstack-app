@@ -296,6 +296,19 @@ export function RankingsScreen() {
 
       <div className="table-scroll">
         <table className="table rankings-table">
+          {/* Explicit columns, because auto layout kept handing the surplus to
+              the widest column — the Pokemon one — where it read as a void
+              between a build and its score. Stated here, the spare width goes
+              to the numeric columns instead, and the score column's bar gets
+              longer with it. */}
+          <colgroup>
+            <col className="rank-col-pos" />
+            <col className="rank-col-mon" />
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
           <thead>
             <tr>
               <th className="numeric">#</th>

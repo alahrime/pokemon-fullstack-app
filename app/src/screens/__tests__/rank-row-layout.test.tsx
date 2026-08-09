@@ -60,7 +60,26 @@ describe('the rankings row', () => {
     const i = css.search(/^\.rank-name\s*\{/m);
     const rule = css.slice(i, css.indexOf('}', i)).replace(/\/\*[\s\S]*?\*\//g, '');
     expect(rule).toMatch(/display:\s*grid/);
-    expect(rule).toMatch(/grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+minmax\(0,\s*[\d.]+fr\)/);
+    // Identity hugs its text so both gaps around it are the same 12px; the
+    // moves take what is left so the cell is filled.
+    expect(rule).toMatch(/grid-template-columns:\s*auto\s+minmax\(0,\s*max-content\)\s+minmax\(0,\s*1fr\)/);
+  });
+
+  it('caps the move chip, so a count run stays beside its own move name', () => {
+    // A chip is `space-between`: its width is the distance between a name and
+    // its numbers. Unbounded that was 328px at 1900 — the name at one end of
+    // the row and its count at the other. Capped it is 50-98px.
+    expect(css).toMatch(/\.rank-moves \.pc-move \{ max-width: \d+rem; \}/);
+  });
+
+  it('states its column widths instead of letting the table guess', () => {
+    // Auto layout shares spare width in proportion to content, so the widest
+    // column — the Pokemon one — absorbed most of it: 848px holding 470px of
+    // build at 1900, with the difference sitting before the score.
+    const i = css.search(/^\.rankings-table\s*\{/m);
+    const rule = css.slice(i, css.indexOf('}', i));
+    expect(rule).toMatch(/table-layout:\s*fixed/);
+    expect(css).toMatch(/\.rank-col-mon \{ width: \d+rem; \}/);
   });
 
   it('gives the sprite the room the wider cell freed', () => {

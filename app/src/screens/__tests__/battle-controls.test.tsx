@@ -48,7 +48,10 @@ describe('BattleScreen — per-side controls', () => {
     const [a] = sides(container);
     const range = a.querySelector('input[type="range"]') as HTMLInputElement;
     fireEvent.change(range, { target: { value: '50' } });
-    expect(a.textContent).toMatch(/Starting energy — 50%/);
+    // The readout is the raw figure against the cap now, with the fast-move
+    // count under it — a percentage was never the unit energy arrives in.
+    expect(a.querySelector('.bt-energy-read')!.textContent).toBe('50/100');
+    expect(range.value).toBe('50');
   });
 
   it('fields a charged move the league does not rate', () => {
@@ -204,7 +207,7 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     // Starting energy
     const range = b.querySelector('input[type="range"]') as HTMLInputElement;
     fireEvent.change(range, { target: { value: '30' } });
-    expect(b.textContent).toMatch(/Starting energy — 30%/);
+    expect(b.querySelector('.bt-energy-read')!.textContent).toBe('30/100');
 
     // Charged moves come from the shared panel now, not from chips.
     const chargeCol = b.querySelectorAll('.moves-col')[1];

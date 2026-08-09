@@ -2,11 +2,11 @@ import { useMemo } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
-import { bestBuddyEligible, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
+import { ENERGY_CAP, bestBuddyEligible, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
 import { HeldOutNote } from '../components/HeldOutNote';
-import type { IV, LeagueId } from '../lib/types';
+import type { FastMove, IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
@@ -57,6 +57,9 @@ function Side({
   const species = SPECIES_BY_ID.get(baseId)!;
   const bbEligible = bestBuddyEligible(species, LEAGUE_BY_ID.get(league)!);
   const { entry } = getEntry(speciesId, iv, league, bestBuddy && bbEligible);
+  // The move the energy stepper counts in. Same clamp the simulation uses, so
+  // the two never disagree about which move this side is throwing.
+  const fast = species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)];
 
   return (
     <div className="bt-side">
@@ -135,12 +138,105 @@ function Side({
         </div>
       </div>
 
-      <div>
-        <div className="text-muted text-xs tracking-[0.08em] uppercase mb-1.5">
-          Starting energy — {energy}%
-        </div>
-        <input type="range" min={0} max={100} step={10} value={energy} onChange={(e) => onEnergy(Number(e.target.value))} className="bt-range" />
+      <EnergyControl energy={energy} onEnergy={onEnergy} fast={fast} />
+    </div>
+  );
+}
+
+/**
+ * Starting energy, counted in fast moves.
+ *
+ * A percentage is the wrong unit for this. Energy is not spent or gained
+ * continuously — it arrives one fast move at a time, and what a player knows
+ * is "two Counters in" rather than "24%". The slider stays for a free hand,
+ * but the steppers move by exactly one throw of the move this side is
+ * actually carrying, so the values they land on are the ones reachable in a
+ * real fight.
+ *
+ * Stepping snaps as well as moves: from an off-grid value the buttons go to
+ * the nearest whole throw in that direction, so a slider drag followed by a
+ * click lands somewhere real. The ceiling is the last whole throw at or below
+ * the 100 cap — a thirteenth 8-energy Counter would overflow it, so twelve is
+ * where the button stops even though the slider can still reach 100.
+ */
+export function EnergyControl({
+  energy,
+  onEnergy,
+  fast,
+}: {
+  energy: number;
+  onEnergy: (n: number) => void;
+  fast: FastMove;
+}) {
+  const gain = fast.energyGain;
+  const countable = gain > 0;
+  const moves = countable ? energy / gain : 0;
+  const maxMoves = countable ? Math.floor(ENERGY_CAP / gain) : 0;
+  const step = (dir: 1 | -1) => {
+    if (!countable) return;
+    // The epsilon keeps an exact multiple from being treated as off-grid by
+    // floating-point noise — energy/gain is rarely clean.
+    const next = dir > 0 ? Math.floor(moves + 1e-9) + 1 : Math.ceil(moves - 1e-9) - 1;
+    onEnergy(Math.max(0, Math.min(maxMoves, next)) * gain);
+  };
+
+  return (
+    <div className="bt-energy">
+      <div className="bt-energy-head">
+        <HudLabel>Starting energy</HudLabel>
+        <span className="numeric bt-energy-read">
+          {Math.round(energy)}
+          <i>/{ENERGY_CAP}</i>
+        </span>
       </div>
+
+      <div className="bt-energy-row">
+        <button
+          type="button"
+          className="btn btn-sm bt-energy-step"
+          onClick={() => step(-1)}
+          disabled={!countable || moves <= 0}
+          title={countable ? `One ${fast.name} less (${gain} energy)` : 'This move gains no energy'}
+          aria-label={`Remove one ${fast.name}`}
+        >
+          −
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={ENERGY_CAP}
+          // 1, not 10. The steppers land on multiples of the move's gain — 8,
+          // 16, 24 for a Shadow Claw — and a slider that can only represent
+          // tens put its thumb at 20 while the readout said 24. One control,
+          // one state: the thumb has to be able to sit where the value is.
+          step={1}
+          value={energy}
+          onChange={(e) => onEnergy(Number(e.target.value))}
+          className="bt-range"
+          aria-label="Starting energy"
+        />
+        <button
+          type="button"
+          className="btn btn-sm bt-energy-step"
+          onClick={() => step(1)}
+          disabled={!countable || moves >= maxMoves}
+          title={countable ? `One ${fast.name} more (${gain} energy)` : 'This move gains no energy'}
+          aria-label={`Add one ${fast.name}`}
+        >
+          +
+        </button>
+      </div>
+
+      {countable && (
+        <div className="bt-energy-moves">
+          <span className="numeric bt-energy-count">
+            {Number.isInteger(moves) ? moves : moves.toFixed(1)}
+          </span>
+          <span className="bt-energy-x">x</span>
+          <span className="bt-energy-move">{fast.name}</span>
+          <span className="text-faint bt-energy-gain numeric">{gain}<i>e</i> each</span>
+        </div>
+      )}
     </div>
   );
 }

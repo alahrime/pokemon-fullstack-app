@@ -17,6 +17,20 @@ import { readFileSync } from 'node:fs';
 const components = readFileSync('src/styles/components.css', 'utf8');
 const leagues = readFileSync('src/styles/leagues.css', 'utf8');
 
+/**
+ * A top-level rule's declarations, with comments removed.
+ *
+ * Stripping matters: these rules are heavily commented, and a comment
+ * explaining *why* `flex: none` was wrong contains the string `flex: none`.
+ * An assertion that the declaration is absent would then fail on the note
+ * saying so — which is exactly what happened writing this file.
+ */
+function ruleBody(css: string, selector: string): string {
+  const i = css.search(new RegExp(`^\\${selector}\\s*\\{`, 'm'));
+  expect(i, `${selector} not found at the top level`).toBeGreaterThan(-1);
+  return css.slice(i, css.indexOf('}', i)).replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
 describe('no fixed length can outgrow its container', () => {
   it('every auto-fit/auto-fill grid track can shrink below its ideal', () => {
     // `minmax(360px, 1fr)` is 360px wide in a 327px column, which is how the
@@ -24,6 +38,16 @@ describe('no fixed length can outgrow its container', () => {
     const tracks = components.match(/repeat\(auto-(?:fit|fill),\s*minmax\([^)]*\)[^)]*\)/g) ?? [];
     expect(tracks.length).toBeGreaterThan(5);
     for (const t of tracks) expect(t, t).toMatch(/minmax\(min\(\d+px,\s*100%\)/);
+  });
+
+  it('nothing declares a min-width it is also forbidden to shrink to', () => {
+    // `.bt-verdict` had `flex: none` above `min-width: min(280px, 100%)`, and
+    // flex-shrink: 0 makes that min-width unreachable — the block sized to its
+    // content instead, 629px of verdict in a 327px column. A floor only works
+    // if the box is allowed to descend to it.
+    const rule = ruleBody(components, '.bt-verdict');
+    expect(rule).toMatch(/min-width:\s*min\(/);
+    expect(rule, 'flex: none would pin it to its content width').not.toMatch(/flex:\s*none/);
   });
 
   it('no min-width large enough to overflow is stated as a bare length', () => {
@@ -54,8 +78,7 @@ describe('no fixed length can outgrow its container', () => {
 describe('the layouts that have to stack', () => {
   it('the nav row wraps instead of running off the side', () => {
     // 410px of league tabs and theme button on a 375px phone, on every screen.
-    const i = components.search(/^\.nav-right\s*\{/m);
-    const rule = components.slice(i, components.indexOf('}', i));
+    const rule = ruleBody(components, '.nav-right');
     expect(rule).toMatch(/flex-wrap:\s*wrap/);
     expect(rule).toMatch(/min-width:\s*0/);
   });
@@ -99,8 +122,7 @@ describe('the layouts that have to stack', () => {
 
 describe('what scrolls instead of stacking', () => {
   it('a segmented control scrolls sideways, because it reads as one switch', () => {
-    const i = components.search(/^\.seg-group\s*\{/m);
-    const rule = components.slice(i, components.indexOf('}', i));
+    const rule = ruleBody(components, '.seg-group');
     expect(rule).toMatch(/overflow-x:\s*auto/);
     expect(rule).toMatch(/max-width:\s*100%/);
     // And its own row must be allowed to shrink, or there is nothing to scroll.
@@ -108,8 +130,7 @@ describe('what scrolls instead of stacking', () => {
   });
 
   it('every wide table is inside a scroller, and keeps its natural width there', () => {
-    const i = components.search(/^\.table-scroll\s*\{/m);
-    const rule = components.slice(i, components.indexOf('}', i));
+    const rule = ruleBody(components, '.table-scroll');
     expect(rule).toMatch(/overflow-x:\s*auto/);
     expect(rule).toMatch(/max-width:\s*100%/);
     expect(components).toMatch(/\.table-scroll\s*>\s*\.table\s*\{\s*min-width:\s*max-content/);

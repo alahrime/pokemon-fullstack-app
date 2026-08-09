@@ -3902,6 +3902,61 @@ th.bt-matrix-head { text-align: center; }
   margin: 0;
 }
 
+/* ── Core detail: how long each charged move takes ─────────────────────────
+   Same information the report's charged tiles carry, in the one place on this
+   screen with room for it. The row above says what a member throws; this says
+   how often, which is the half a pairing actually turns on. */
+.core-timings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.core-timing {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+.core-timing-who { color: var(--text-muted); }
+.core-timing-fast {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-accent);
+}
+.core-timing-fast i { font-style: normal; opacity: 0.6; margin-left: 5px; }
+.core-timing-list { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+.core-timing-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-2xs);
+  min-width: 0;
+}
+.core-timing-move {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.core-timing-seq { display: flex; gap: 2px; flex: none; }
+/* One cell per throw, so the drift down the sequence is visible as a shape
+   rather than as four numbers that have to be read. */
+.core-timing-n {
+  min-width: 18px;
+  padding: 0 3px;
+  text-align: center;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-top: var(--border-hairline) solid var(--rule-hairline);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    THRESHOLD TABLE — every breakpoint, and how far the roll is from it.
 

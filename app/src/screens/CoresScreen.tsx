@@ -3,7 +3,7 @@ import { useAppState } from '../state/AppState';
 import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../lib/teams';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
-import { bestSpreadFor } from '../lib/engine';
+import { fastMoveCounts, bestSpreadFor } from '../lib/engine';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -80,11 +80,85 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
       <span className="numeric core-build-iv">{spread.a}/{spread.d}/{spread.s}</span>
       <span className="numeric core-build-cp">{spread.cp}<i>CP</i></span>
       {moves && (
-        <span className="core-build-moves">
-          {moves.fast.name} · {moves.charges.map((m) => m.name).join(' / ')}
+        // The same chips the Show 6 and GBL cards use — literally the same
+        // classes, so the two cannot drift apart. A moveset was a run-on line
+        // of names here ("Rollout · Body Slam / Earthquake"), which said what
+        // the set was and nothing about what it costs.
+        <span className="pc-moves">
+          <span className="pc-move pc-move-fast">
+            <span className="pc-move-name">{moves.fast.name}</span>
+            <span className="numeric pc-move-eco">
+              {(moves.fast.energyGain / moves.fast.turns).toFixed(1)}<i>e/t</i>
+            </span>
+          </span>
+          {moves.charges.map((m) => (
+            <span className="pc-move" key={m.id}>
+              <span className="pc-move-name">{m.name}</span>
+              <span className="numeric pc-move-eco">
+                {(m.power / m.energy).toFixed(2)}<i>dpe</i>
+              </span>
+            </span>
+          ))}
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * How long each charged move takes, in fast moves.
+ *
+ * The row says what a member throws; this says how often. The count is not a
+ * constant — the first throw starts from empty and every one after it begins
+ * with whatever overflowed the last, so the sequence drifts down and cycles.
+ * Lickilicky is the worked example in `fastMoveCounts`: Rollout at 13 energy
+ * charges Body Slam 3-3-3-2, while Lick at 3 charges the same move 12-12-11-12.
+ *
+ * Which is the point of showing it per member rather than as a single number:
+ * the same charged move is a different proposition behind a different fast
+ * move, and a core is a claim about two builds fighting together.
+ */
+function CoreTiming({ ref: r, league }: { ref: string; league: LeagueId }) {
+  const sp = speciesOf(r);
+  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  if (!sp || !moves) return null;
+  return (
+    <div className="core-timing">
+      <span className="hud-label core-timing-who">{displayName(r)}</span>
+      <span className="core-timing-fast numeric">
+        {moves.fast.name}
+        <i>{(moves.fast.energyGain / moves.fast.turns).toFixed(1)}e/t</i>
+      </span>
+      <span className="core-timing-list">
+        {moves.charges.map((m) => {
+          const counts = fastMoveCounts(moves.fast, m);
+          return (
+            <span
+              className="core-timing-row"
+              key={m.id}
+              title={
+                counts.length
+                  ? `Fast moves needed for each successive ${m.name}. Later throws start with leftover energy, so the count drifts down.`
+                  : `${moves.fast.name} generates no energy, so it cannot charge this move.`
+              }
+            >
+              <span className="core-timing-move">{m.name}</span>
+              <span className="core-timing-seq numeric">
+                {counts.length ? (
+                  counts.map((n, i) => (
+                    <span className="core-timing-n" key={i}>
+                      {n}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-faint">no energy gain</span>
+                )}
+              </span>
+            </span>
+          );
+        })}
+      </span>
+    </div>
   );
 }
 
@@ -167,6 +241,10 @@ function CoreRow({ c, max, league }: { c: Core; max: number; league: LeagueId })
           )}
           <Direction from={c.b} to={c.a} covers={c.bCovers} types={c.bCoversTypes} />
           <Direction from={c.a} to={c.b} covers={c.aCovers} types={c.aCoversTypes} />
+          <div className="core-timings">
+            <CoreTiming ref={c.a} league={league} />
+            <CoreTiming ref={c.b} league={league} />
+          </div>
           <p className="text-faint core-detail-note">
             Rescue is measured only over matchups the other member loses, and only counts the part
             above a comfortable win — being mediocre into your partner's counters is not cover.

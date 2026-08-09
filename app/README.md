@@ -26,7 +26,7 @@ making that call explicitly; two of them have caught real bugs.
 ## Tests
 
 ```bash
-npm run test          # 667 tests, ~10s
+npm run test          # 672 tests, ~10s
 npm run test:watch
 npm run coverage
 ```

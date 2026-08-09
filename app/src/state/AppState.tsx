@@ -74,7 +74,9 @@ export interface AppStateShape {
 // each visit instead of always on the same saved-looking pair.
 const [openingA, openingB] = randomMatchup('great');
 
-const initialState: AppStateShape = {
+/** The state a fresh session starts in. Exported so tests can assert the
+ *  defaults themselves rather than inferring them from rendered text. */
+export const INITIAL_STATE: AppStateShape = {
   // The search is the first step of every task here, so the page whose whole
   // job is the search is where you start. Choosing a species moves you on.
   screen: 'landing',
@@ -93,8 +95,16 @@ const initialState: AppStateShape = {
   shieldsOpp: 1,
   battleA: openingA,
   battleB: openingB,
-  ivA: { a: 15, d: 15, s: 15 },
-  ivB: { a: 15, d: 15, s: 15 },
+  // Not 15/15/15. A perfect roll is the *worst* common case in a capped
+  // league — attack costs level under the cap, so Registeel at 15/15/15 is
+  // rank 3656 of 4096 in Great — and opening the battle screen on it argues
+  // the opposite of what the rest of the app demonstrates. 10/10/10 is the
+  // floor the game guarantees on a raid, research or trade catch, so it is a
+  // roll people actually hold, and it is rank 1 in no league, which leaves the
+  // rank-1 button something to do. The report screen already defaults to a
+  // deliberately imperfect spread; this brings the battle screen in line.
+  ivA: { a: 10, d: 10, s: 10 },
+  ivB: { a: 10, d: 10, s: 10 },
   fastA: 0,
   fastB: 0,
   bestBuddyA: false,
@@ -117,7 +127,7 @@ interface AppStateContextValue {
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppStateShape>(initialState);
+  const [state, setState] = useState<AppStateShape>(INITIAL_STATE);
 
   const value = useMemo<AppStateContextValue>(() => {
     const set = <K extends keyof AppStateShape>(key: K, v: AppStateShape[K]) =>

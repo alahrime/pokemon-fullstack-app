@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
-import { ENERGY_CAP, bestBuddyEligible, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
+import { ENERGY_CAP, bestBuddyEligible, bestSpreadFor, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
 import { HeldOutNote } from '../components/HeldOutNote';
@@ -23,6 +23,7 @@ function Side({
   onSpecies,
   iv,
   onBump,
+  onIv,
   fastIdx,
   onFast,
   chargeIds,
@@ -40,6 +41,7 @@ function Side({
   onSpecies: (id: string) => void;
   iv: IV;
   onBump: (key: keyof IV, delta: number) => void;
+  onIv: (iv: IV) => void;
   fastIdx: number;
   onFast: (i: number) => void;
   chargeIds: string[];
@@ -60,6 +62,10 @@ function Side({
   // The move the energy stepper counts in. Same clamp the simulation uses, so
   // the two never disagree about which move this side is throwing.
   const fast = species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)];
+  // Same Best Buddy state the entry above is priced at, so the target roll and
+  // the rank beside it are computed under one level cap rather than two.
+  const best = bestSpreadFor(speciesId, league, bestBuddy && bbEligible);
+  const isBest = iv.a === best.a && iv.d === best.d && iv.s === best.s;
 
   return (
     <div className="bt-side">
@@ -108,7 +114,33 @@ function Side({
         </div>
       </div>
 
-      <IVAdjuster iv={iv} onBump={onBump} size={30} />
+      <div className="bt-iv">
+        <IVAdjuster iv={iv} onBump={onBump} size={30} />
+        <div className="bt-iv-foot">
+          {/* Rank is of stat product within the 4096, so "rank 1" is the
+              bulkiest legal roll under this league's cap — which in Great and
+              Ultra is usually a *low* attack IV, and in Master is 15/15/15
+              because nothing is capped. Reads the same call the rest of the
+              app prices spreads with, so the button cannot disagree with the
+              rank shown beside it. */}
+          <button
+            className="btn btn-sm bt-iv-best"
+            onClick={() => onIv({ a: best.a, d: best.d, s: best.s })}
+            disabled={isBest}
+            title={
+              isBest
+                ? 'Already on the rank-1 roll for this league'
+                : `Set to the rank-1 roll for this league — ${best.a}/${best.d}/${best.s}`
+            }
+          >
+            Rank-1 roll
+          </button>
+          <span className="numeric bt-iv-rank">
+            {isBest ? 'rank 1' : `rank ${entry.rank.toLocaleString()}`}
+            <i>of 4,096</i>
+          </span>
+        </div>
+      </div>
 
       <BestBuddyToggle on={bestBuddy} eligible={bbEligible} onChange={onBestBuddy} />
 
@@ -358,6 +390,7 @@ export function BattleScreen() {
             onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeIdsA: [], bestBuddyA: false })}
             iv={ivA}
             onBump={bumpA}
+            onIv={(v) => patch({ ivA: v })}
             fastIdx={fastA}
             onFast={(i) => patch({ fastA: i })}
             chargeIds={chargeIdsA}
@@ -377,6 +410,7 @@ export function BattleScreen() {
           onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeIdsB: [], bestBuddyB: false })}
           iv={ivB}
           onBump={bumpB}
+          onIv={(v) => patch({ ivB: v })}
           fastIdx={fastB}
           onFast={(i) => patch({ fastB: i })}
           chargeIds={chargeIdsB}

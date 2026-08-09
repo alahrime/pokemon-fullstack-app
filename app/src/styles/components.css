@@ -3795,6 +3795,27 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .bt-range { width: 100%; min-width: 0; }
 
+/* ── The roll, and the way back to the best one ────────────────────────────
+   The button sits under the adjuster with the rank beside it, so the number
+   it is aiming at and the number you are on are read together. It disables on
+   arrival rather than disappearing: a control that vanishes when it succeeds
+   leaves you wondering whether you clicked it. */
+.bt-iv { display: flex; flex-direction: column; gap: var(--space-2); }
+.bt-iv-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.bt-iv-best:disabled { opacity: 0.4; cursor: default; }
+.bt-iv-rank {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+.bt-iv-rank i { font-style: normal; opacity: 0.55; margin-left: 4px; }
+
 /* ── Starting energy, counted in fast moves ────────────────────────────────
    A percentage cannot be acted on; "two Counters in" can. The slider keeps a
    free hand and the steppers move by one real throw, so the readout carries

@@ -2211,7 +2211,21 @@ textarea.input { min-height: 90px; resize: vertical; }
 @keyframes pc-fill { from { transform: scaleX(0); transform-origin: left; } }
 .pc-stat-value { font-size: var(--text-2xs); text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 
+/* Chips are tinted by the MOVE's type, not the species'.
+   
+   They used to take `--t2`, the Pokemon's second type, so a Ground move on a
+   Steel/Flying body was coloured for the body — which is the one thing a move
+   chip should not say. `--move-type` is set per chip from the move itself and
+   falls back to the old behaviour when the palette does not know the type.
+
+   Only the rail and the wash carry the hue. The text stays on the theme's own
+   colours deliberately: the 18 type colours are brand constants picked for
+   discs with white glyphs, and several of them (electric at #dfbc28, ice at
+   #47c8c8) fail contrast as small text on a light ground. The comment at the
+   top of types.css states that rule — the colours are fixed, their treatment
+   adapts — and this is what obeying it looks like. */
 .pc-move {
+  --move-tint: var(--move-type, var(--t2));
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -2219,11 +2233,19 @@ textarea.input { min-height: 90px; resize: vertical; }
   font-size: var(--text-2xs);
   color: var(--text-muted);
   padding: 1px var(--space-1);
-  border-left: 2px solid color-mix(in srgb, var(--t2) 55%, transparent);
-  background: color-mix(in srgb, var(--t2) 7%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--move-tint) 70%, transparent);
+  background: color-mix(in srgb, var(--move-tint) 9%, transparent);
 }
 
-.pc-move-fast { border-left-color: var(--color-accent); color: var(--color-accent); }
+/* The fast move is the one you throw constantly, so it reads as primary — a
+   heavier rail and full-strength text, rather than a different hue. Colouring
+   it with the accent hid its type, which is the information this change is
+   about. */
+.pc-move-fast {
+  border-left-width: 3px;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--move-tint) 14%, transparent);
+}
 .pc-move-eco { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .pc-move-eco i { font-style: normal; opacity: 0.7; margin-left: 1px; }
 .pc-note { margin-top: var(--space-1); padding-top: var(--space-1); border-top: var(--border-hairline) solid var(--rule-hairline); }

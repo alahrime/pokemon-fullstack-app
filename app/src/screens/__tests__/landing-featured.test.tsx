@@ -42,6 +42,18 @@ describe('the landing leaderboard is not a team', () => {
     expect(sub).toMatch(/not a team/i);
   });
 
+  it('states each typing once, not twice', () => {
+    // The card carries type badges already; the `note` under it repeated them
+    // as text — the same fact as a glyph and again as words beneath it.
+    const { container } = renderApp(<LandingScreen />);
+    const cards = [...container.querySelectorAll('.landing-featured .pc')];
+    expect(cards.length).toBe(LANDING_FEATURED_N);
+    for (const c of cards) {
+      expect(c.querySelector('.pc-types'), 'the badges are the one statement').toBeTruthy();
+      expect(c.querySelector('.pc-note'), 'and nothing repeats them').toBeNull();
+    }
+  });
+
   it('still allows two forms of one species, because a leaderboard may', () => {
     // The inverse of the team rule: forbidding it here would be the wrong fix,
     // since both forms genuinely are among the strongest.

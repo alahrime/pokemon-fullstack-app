@@ -4,6 +4,7 @@ import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../li
 import { ScreenHeader } from '../components/ScreenHeader';
 import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { fastMoveCounts, bestSpreadFor } from '../lib/engine';
+import { moveTypeStyle } from '../lib/pokemonTypes';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -85,14 +86,14 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
         // of names here ("Rollout · Body Slam / Earthquake"), which said what
         // the set was and nothing about what it costs.
         <span className="pc-moves">
-          <span className="pc-move pc-move-fast">
+          <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
             <span className="pc-move-name">{moves.fast.name}</span>
             <span className="numeric pc-move-eco">
               {(moves.fast.energyGain / moves.fast.turns).toFixed(1)}<i>e/t</i>
             </span>
           </span>
           {moves.charges.map((m) => (
-            <span className="pc-move" key={m.id}>
+            <span className="pc-move" key={m.id} style={moveTypeStyle(m.type)}>
               <span className="pc-move-name">{m.name}</span>
               <span className="numeric pc-move-eco">
                 {(m.power / m.energy).toFixed(2)}<i>dpe</i>

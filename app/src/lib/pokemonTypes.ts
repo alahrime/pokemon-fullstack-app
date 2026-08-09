@@ -27,3 +27,14 @@ export function isPokemonType(t: string): boolean {
 export function typeIconUrl(type: string): string {
   return `${import.meta.env.BASE_URL}type-icons/${type.toLowerCase()}.svg`;
 }
+
+/**
+ * The custom property a move chip is tinted from.
+ *
+ * Returns nothing for a type the palette does not know, so the chip falls back
+ * to whatever its stylesheet already used rather than resolving `var(--type-)`
+ * to nothing and losing its rail entirely.
+ */
+export function moveTypeStyle(type: string): Record<string, string> {
+  return isPokemonType(type) ? { '--move-type': `var(--type-${type.toLowerCase()})` } : {};
+}

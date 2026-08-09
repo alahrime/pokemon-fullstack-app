@@ -3,7 +3,7 @@ import { useAppState } from '../state/AppState';
 import { SCREEN_DEFS } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { PokemonCard } from '../components/PokemonCard';
-import { LEAGUE_BY_ID, ROSTER, SPECIES, speciesOf } from '../lib/data';
+import { LEAGUE_BY_ID, ROSTER, SPECIES } from '../lib/data';
 import { summaryFor } from '../lib/summary';
 
 /**
@@ -158,17 +158,15 @@ export function LandingScreen() {
               <span className="numeric landing-featured-pos" aria-hidden="true">
                 {i + 1}
               </span>
+              {/* No `note`. It carried `types.join(' / ')`, which the card
+                  already states above as type badges — the same fact twice,
+                  once as a glyph and once as text under it. */}
               <PokemonCard
                 refId={ref}
                 league={state.league}
                 size="compact"
                 rank={i}
                 onClick={() => open(ref)}
-                note={
-                  <span className="text-(--text-faint)">
-                    {speciesOf(ref)?.types.join(' / ')}
-                  </span>
-                }
               />
             </li>
           ))}

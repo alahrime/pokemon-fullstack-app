@@ -3,6 +3,7 @@ import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
 import { bestSpreadFor, getEntry } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
+import { moveTypeStyle } from '../lib/pokemonTypes';
 import type { ChargeMove, FastMove, IV, LeagueId } from '../lib/types';
 
 /**
@@ -185,7 +186,7 @@ export function PokemonCard({
 
         {size !== 'mini' && moves && (
           <div className="pc-moves" title="The league's rated set — what was simulated">
-            <span className="pc-move pc-move-fast">
+            <span className="pc-move pc-move-fast" style={moveTypeStyle(moves.fast.type)}>
               <span className="pc-move-name">{moves.fast.name}</span>
               {size === 'full' && (
                 <span className="numeric pc-move-eco">
@@ -194,7 +195,7 @@ export function PokemonCard({
               )}
             </span>
             {moves.charges.map((c) => (
-              <span className="pc-move" key={c.id}>
+              <span className="pc-move" key={c.id} style={moveTypeStyle(c.type)}>
                 <span className="pc-move-name">{c.name}</span>
                 {size === 'full' && (
                   <span className="numeric pc-move-eco">

@@ -1312,10 +1312,75 @@ textarea.input { min-height: 90px; resize: vertical; }
    Narrower than it was in the nav: at 620px it filled most of the column and
    read as a second header under the real one. It still grows into the space
    between the two, and still has a floor it can shrink to. */
+/* No cap: the field takes every pixel between the label and Arrange. The row
+   was carrying ~355px of dead space with the picker capped at 460, which is
+   the width this column has to spare and nothing else is asking for. */
 .report-search {
-  flex: 1 1 320px;
-  min-width: min(200px, 100%);
-  max-width: 460px;
+  flex: 1 1 auto;
+  min-width: min(220px, 100%);
+}
+/* The picker, dressed as the instrument it is.
+
+   It arrived as a bare input — correct, and plainly a form control on a page
+   where every other control is machined: chamfered corners, a hairline that
+   brightens on approach, a lit rail on the engaged state. This gives it the
+   same vocabulary rather than inventing one.
+
+   The rail starts below the chamfer (9px) so it does not cross the cut
+   corner, and the whole treatment keys off :focus-within, so the field lights
+   as one piece — rail, glyph and glow together — instead of the input alone. */
+.report-search .input {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-text) 5%, var(--surface-2)),
+      var(--surface-2) 55%
+    );
+  padding-left: calc(var(--field-pad) + 4px);
+}
+.report-search::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 0;
+  width: 2px;
+  z-index: 1;
+  background: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  pointer-events: none;
+  transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.report-search:focus-within::before {
+  background: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+/* A tick off the top-right corner, the opposite corner to the chamfer, so the
+   field reads as a cut plate rather than a rectangle. */
+.report-search::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 10px;
+  height: 2px;
+  z-index: 1;
+  background: color-mix(in srgb, var(--color-text) 28%, transparent);
+  pointer-events: none;
+  transition: background var(--dur-2) var(--ease-out);
+}
+.report-search:focus-within::after { background: var(--color-accent); }
+.report-search .nav-search-glyph {
+  transition: color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.report-search:focus-within .nav-search-glyph {
+  color: var(--color-accent);
+  transform: translateY(-50%) scale(1.12);
+}
+.report-search .input:focus {
+  box-shadow:
+    0 0 0 1px var(--color-accent),
+    0 0 22px color-mix(in srgb, var(--color-accent) 30%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-text) 10%, transparent);
 }
 
 /* The hero copy: same field, scaled up, with a deeper chamfer to match the

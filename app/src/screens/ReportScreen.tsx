@@ -322,8 +322,11 @@ export function ReportScreen() {
             <div className="stat-strip">
             {(
               [
-                ['Attack', entry.atk.toFixed(1)],
-                ['Defense', entry.def.toFixed(1)],
+                // The stats themselves. Shadow's 6/5 and 5/6 are damage
+                // multipliers, not stat changes — the hero's meters carry that
+                // effect as a separate segment.
+                ['Attack', entry.statAtk.toFixed(1)],
+                ['Defense', entry.statDef.toFixed(1)],
                 ['Stamina', String(entry.hp)],
               ] as [string, string][]
             ).map(([label, value]) => (
@@ -519,7 +522,10 @@ export function ReportScreen() {
                         activeOppIdx={activeOppIdx}
                         onSelectOpponent={(idx) => set('oppId', visible[idx].info.id)}
                         now={grid.results.find((o) => o.entry.a === iv.a && o.entry.d === iv.d)?.result ?? { win: false, margin: 0 }}
-                        cmpWin={entry.atk >= grid.opponentMon.atk}
+                        // Priority compares the Attack *stat*: `atk` carries Shadow's damage
+                        // multiplier, so this read a CMP difference between a Shadow and
+                        // its base form that never happens.
+                        cmpWin={entry.statAtk >= grid.opponentMon.cmpAtk}
                       />
                     )}
                   </div>

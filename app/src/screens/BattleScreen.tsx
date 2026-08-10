@@ -100,14 +100,39 @@ function Side({
             <span><i>RANK</i>{entry.rank}</span>
           </div>
           <div className="flex flex-col gap-[3px] mt-2">
-            {([['ATK', entry.atk, 200], ['DEF', entry.def, 200], ['HP', entry.hp, 250]] as const).map(
-              ([lab, v, ceil]) => (
-                <span className="battle-mon-bar" key={lab} title={`${lab} ${v.toFixed(1)}`}>
-                  <i>{lab}</i>
-                  <span><span style={{ width: `${Math.min(100, (v / ceil) * 100)}%` }} /></span>
-                  <b className="numeric">{Math.round(v)}</b>
-                </span>
-              ),
+            {/* The stat, not the damage figure: Shadow multiplies damage, it
+                does not change Attack or Defense. The bar shows the stat and
+                marks the multiplier's effect as a second segment. */}
+            {([['ATK', entry.statAtk, entry.atk, 200], ['DEF', entry.statDef, entry.def, 200], ['HP', entry.hp, entry.hp, 250]] as const).map(
+              ([lab, stat, effective, ceil]) => {
+                const pct = (v: number) => Math.max(0, Math.min(100, (v / ceil) * 100));
+                const lo = Math.min(pct(stat), pct(effective));
+                const hi = Math.max(pct(stat), pct(effective));
+                const gain = effective > stat;
+                return (
+                  <span
+                    className="battle-mon-bar"
+                    key={lab}
+                    title={
+                      Math.abs(effective - stat) > 0.05
+                        ? `${lab} ${stat.toFixed(1)} — Shadow ${gain ? 'deals' : 'takes'} damage as if ${effective.toFixed(1)}`
+                        : `${lab} ${stat.toFixed(1)}`
+                    }
+                  >
+                    <i>{lab}</i>
+                    <span>
+                      <span style={{ width: `${lo}%` }} />
+                      {hi - lo > 0.05 && (
+                        <span
+                          className={`battle-mon-shadow${gain ? ' is-gain' : ' is-loss'}`}
+                          style={{ left: `${lo}%`, width: `${hi - lo}%` }}
+                        />
+                      )}
+                    </span>
+                    <b className="numeric">{Math.round(stat)}</b>
+                  </span>
+                );
+              },
             )}
           </div>
         </div>

@@ -64,6 +64,34 @@ describe('ReportScreen views', () => {
     expect(container.textContent).toMatch(/No Shadow form exists/);
   });
 
+  it('does not move the displayed stats when the form changes', async () => {
+    // Shadow multiplies damage; it does not change Attack or Defense. The
+    // meters showed 143.7/102.3 for a Venusaur whose stats are 119.8/122.8,
+    // beside a CP that (correctly) never moved.
+    const { container } = renderApp(<With species="venusaur"><ReportScreen /></With>);
+    const read = () =>
+      [...container.querySelectorAll('.hero-meter')].map(
+        (m) => `${m.querySelector('.hero-meter-label')!.textContent}:${m.querySelector('.hero-meter-value')!.textContent}`,
+      );
+    const shadowOpt = await waitFor(() => {
+      const el = container.querySelector('.form-opt-shadow') as HTMLButtonElement;
+      expect(el.disabled).toBe(false);
+      return el;
+    });
+    const before = read();
+    expect(before.length).toBe(3);
+    fireEvent.click(shadowOpt);
+    await waitFor(() =>
+      expect(container.querySelector('.form-opt-shadow')!.getAttribute('aria-pressed')).toBe('true'));
+    expect(read()).toEqual(before);
+
+    // The effect is shown instead: attack gains a segment, defence gives one back.
+    const segs = [...container.querySelectorAll('.hero-meter-shadow')];
+    expect(segs.length, 'the Shadow adjustment must still be visible').toBe(2);
+    expect(segs[0].className).toMatch(/is-gain/);
+    expect(segs[1].className).toMatch(/is-loss/);
+  });
+
   it('toggles to the Shadow form and re-derives the readout', async () => {
     const { container } = renderApp(<With species="venusaur"><ReportScreen /></With>);
     const shadowOpt = await waitFor(() => {

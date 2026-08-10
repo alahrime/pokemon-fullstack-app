@@ -306,6 +306,40 @@
   transition: width var(--dur-3) var(--ease-out);
 }
 .hero-meter.is-atk .hero-meter-fill { --lg-accent: var(--color-accent); }
+
+/* The Shadow adjustment, drawn past the end of the stat's own fill.
+
+   Shadow does not change a stat — 6/5 attack and 5/6 defence are multipliers
+   in the damage formula. So the bar shows the stat, and this segment shows
+   what the multiplier does with it: added beyond the fill for attack, and for
+   defence the part of the bar the multiplier takes back, hatched rather than
+   solid so a give-back never reads as a gain.
+
+   Purple in both cases, because it is the Shadow mark elsewhere in the app and
+   it belongs to neither league accent. */
+.hero-meter-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* The app's own Shadow purple, defined per theme, rather than a literal —
+     a hard-coded hue would survive a theme swap and stop matching the aura. */
+  --shadow-hue: var(--shadow-aura);
+  transition: left var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out);
+}
+.hero-meter-shadow.is-gain {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--shadow-hue) 55%, transparent),
+    var(--shadow-hue));
+  box-shadow: 0 0 9px color-mix(in srgb, var(--shadow-hue) 55%, transparent);
+}
+.hero-meter-shadow.is-loss {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--shadow-hue) 55%, transparent) 0 2px,
+    transparent 2px 5px
+  );
+  border-right: var(--border-hairline) solid color-mix(in srgb, var(--shadow-hue) 70%, transparent);
+}
 .hero-meter-value {
   font-size: var(--text-sm);
   font-weight: 700;

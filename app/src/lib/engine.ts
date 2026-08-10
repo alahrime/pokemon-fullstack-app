@@ -238,9 +238,16 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
       for (let s = 0; s < 16; s++) {
         const r = bestAt(species, { a, d, s }, league, maxIdx);
         // sp / cp / lvl stay on the unadjusted stats; only the battle stats
-        // scale. `statAtk` is the Attack stat itself, kept because charge-move
-        // priority compares stats rather than damage — see BattleMon.cmpAtk.
-        all.push({ a, d, s, ...r, atk: r.atk * aMult, statAtk: r.atk, def: r.def * dMult, rank: 0 });
+        // scale. `statAtk`/`statDef` are the Attack and Defense stats
+        // themselves: Shadow's 6/5 and 5/6 are damage multipliers, not changes
+        // to the stats, so charge-move priority compares these (see
+        // BattleMon.cmpAtk) and so does anything that displays a stat.
+        all.push({
+          a, d, s, ...r,
+          atk: r.atk * aMult, statAtk: r.atk,
+          def: r.def * dMult, statDef: r.def,
+          rank: 0,
+        });
       }
     }
   }
@@ -343,6 +350,8 @@ export interface OpponentInfo {
   /** Attack stat, i.e. `atk` without Shadow's damage multiplier. See BattleMon.cmpAtk. */
   statAtk: number;
   def: number;
+  /** Defense stat, i.e. `def` without Shadow's damage multiplier. */
+  statDef: number;
   hp: number;
   fastMove: FastMove;
   chargeMove: ChargeMove;
@@ -484,13 +493,13 @@ export function fastMoveCounts(fast: FastMove, charge: ChargeMove, throws = 4): 
  *
  * Same search, same tie-break as getTable, no retained structures.
  */
-const bestCache = new Map<string, StatLine & { a: number; d: number; s: number; statAtk: number }>();
+const bestCache = new Map<string, StatLine & { a: number; d: number; s: number; statAtk: number; statDef: number }>();
 
 export function bestSpreadFor(
   ref: string,
   leagueId: LeagueId,
   bestBuddy = false,
-): StatLine & { a: number; d: number; s: number; statAtk: number } {
+): StatLine & { a: number; d: number; s: number; statAtk: number; statDef: number } {
   const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const hit = bestCache.get(key);
   if (hit) return hit;
@@ -534,10 +543,15 @@ export function bestSpreadFor(
     }
   }
 
-  // `statAtk` is the Attack stat, so it is the unmultiplied figure either way.
+  // `statAtk`/`statDef` are the stats themselves, so they are the unmultiplied
+  // figures either way.
   const out = shadow
-    ? { ...best!, atk: best!.atk * SHADOW_ATK_MULT, statAtk: best!.atk, def: best!.def * SHADOW_DEF_MULT }
-    : { ...best!, statAtk: best!.atk };
+    ? {
+        ...best!,
+        atk: best!.atk * SHADOW_ATK_MULT, statAtk: best!.atk,
+        def: best!.def * SHADOW_DEF_MULT, statDef: best!.def,
+      }
+    : { ...best!, statAtk: best!.atk, statDef: best!.def };
   bestCache.set(key, out);
   return out;
 }
@@ -570,6 +584,7 @@ export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
     atk: best.atk,
     statAtk: best.statAtk,
     def: best.def,
+    statDef: best.statDef,
     hp: best.hp,
     // Resolved per league: an opponent runs the set that league rates, not
     // whichever one happened to be read first when the data was generated.

@@ -135,6 +135,8 @@ export interface RankedEntry extends StatLine {
   rank: number;
   /** The Attack stat, i.e. `atk` before the Shadow multiplier. See BattleMon. */
   statAtk: number;
+  /** The Defense stat, i.e. `def` before the Shadow multiplier. */
+  statDef: number;
 }
 
 export interface SpeciesTable {

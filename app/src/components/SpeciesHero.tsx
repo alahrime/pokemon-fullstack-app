@@ -95,27 +95,54 @@ export function SpeciesHero({
 
         {/* Attack, defence and HP as meters against the strongest in the
             league, so the bar answers "how does this compare" rather than
-            just restating the number beside it. */}
+            just restating the number beside it.
+
+            The number is the *stat*, and a Shadow's stats are its base form's.
+            The 6/5 attack and 5/6 defence are multipliers applied in the damage
+            formula, not changes to the stat — which is why CP does not move
+            when the form does, and why charge-move priority between a Shadow
+            and its base form is always a tie. Showing the multiplied figure
+            here reported a stat that does not exist and implied a CMP
+            difference that never happens.
+
+            So the bar carries the effect instead: base stat in the usual fill,
+            and the Shadow adjustment as a second segment beyond it — added for
+            attack, given back for defence. */}
         <div className="hero-meters">
           {(
             [
-              ['ATK', entry.atk, range.atk, 'atk'],
-              ['DEF', entry.def, range.def, 'def'],
-              ['HP', entry.hp, range.hp, 'hp'],
+              ['ATK', entry.statAtk, entry.atk, range.atk, 'atk'],
+              ['DEF', entry.statDef, entry.def, range.def, 'def'],
+              ['HP', entry.hp, entry.hp, range.hp, 'hp'],
             ] as const
-          ).map(([label, value, max, kind]) => {
-            const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+          ).map(([label, stat, effective, max, kind]) => {
+            const clamp = (v: number) => Math.max(0, Math.min(100, v));
+            const statPct = max > 0 ? clamp((stat / max) * 100) : 0;
+            const effPct = max > 0 ? clamp((effective / max) * 100) : 0;
+            // The delta runs from whichever is lower to whichever is higher, so
+            // one rule draws both the attack gain and the defence give-back.
+            const lo = Math.min(statPct, effPct);
+            const hi = Math.max(statPct, effPct);
+            const gain = effective > stat;
+            const shifted = Math.abs(effective - stat) > 0.05;
             return (
               <div className={`hero-meter is-${kind}`} key={label}>
                 <span className="hero-meter-label">{label}</span>
                 <span className="hero-meter-track">
-                  <span className="hero-meter-fill" style={{ width: `${pct}%` }} />
+                  <span className="hero-meter-fill" style={{ width: `${lo}%` }} />
+                  {shifted && (
+                    <span
+                      className={`hero-meter-shadow${gain ? ' is-gain' : ' is-loss'}`}
+                      style={{ left: `${lo}%`, width: `${hi - lo}%` }}
+                      title={`Shadow ${gain ? 'deals' : 'takes'} damage as if ${effective.toFixed(1)} — the ${label} stat itself stays ${stat.toFixed(1)}`}
+                    />
+                  )}
                 </span>
                 <span className="hero-meter-value numeric">
-                  {kind === 'hp' ? value : value.toFixed(1)}
+                  {kind === 'hp' ? stat : stat.toFixed(1)}
                 </span>
-                <span className="hero-meter-pct numeric" title={`${pct.toFixed(0)}% of the league best`}>
-                  {pct.toFixed(0)}%
+                <span className="hero-meter-pct numeric" title={`${statPct.toFixed(0)}% of the league best`}>
+                  {statPct.toFixed(0)}%
                 </span>
               </div>
             );

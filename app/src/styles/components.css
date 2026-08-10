@@ -3057,9 +3057,31 @@ button:disabled,
   color: var(--text-faint);
 }
 .battle-mon-bar > span {
+  position: relative;
   height: 5px;
   background: var(--color-neutral-300);
   overflow: hidden;
+}
+/* Shadow's damage multiplier, past the end of the stat's own fill — the same
+   reading as the hero meters: solid purple for the attack it adds, hatched for
+   the defence it gives back. `.battle-mon-bar > span > span` would otherwise
+   paint this with the accent fill, so both properties are restated. */
+.battle-mon-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+}
+.battle-mon-shadow.is-gain {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--shadow-aura) 55%, transparent), var(--shadow-aura));
+}
+.battle-mon-shadow.is-loss {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--shadow-aura) 55%, transparent) 0 2px,
+    transparent 2px 5px
+  );
 }
 .battle-mon-bar > span > span {
   display: block;

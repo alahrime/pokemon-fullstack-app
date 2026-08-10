@@ -1033,6 +1033,15 @@ input[type='range'] { accent-color: var(--color-accent); }
   border: var(--border-hairline) solid var(--rule-hairline);
   border-radius: var(--radius-sm);
 }
+/* A cell with no flip-shields flag has nothing holding the right-hand slot, so
+   its name and reason run the full width — and the fight button, which sits in
+   that slot, landed on the tail of both. Measured: 5,500px2 of text under the
+   button across the flagless cells, against 44 in the flagged ones. Reserving
+   the slot only where the flag is absent keeps the two cases identical without
+   narrowing the cells that were already correct. */
+.opp-cell:not(:has(.opp-flag)) {
+  padding-right: 36px;
+}
 .opp-cell:hover {
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 8%, transparent);
@@ -1166,7 +1175,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .nav-brand {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
-  font-size: 18px; margin-right: auto; letter-spacing: var(--tracking-tight);
+  font-size: 18px; letter-spacing: var(--tracking-tight);
 }
 .nav a { color: inherit; text-decoration: none; font-size: var(--text-md); }
 .nav a:hover, .nav a[aria-current='page'] { color: var(--color-accent); }
@@ -2854,8 +2863,11 @@ button:disabled,
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  /* Tightened from space-2/space-3. Seven tabs at the old metrics measured
+     716px, and the header is a single row now — 7px a tab is what buys the
+     brand, the tabs, the leagues and the theme one line at 1280. */
+  gap: 6px;
+  padding: var(--space-2) 10px;
   background: none;
   border: var(--border-hairline) solid transparent;
   color: var(--text-muted);
@@ -4777,22 +4789,31 @@ th.bt-matrix-head { text-align: center; }
   min-width: 0;
 }
 .opp-cell-wrap > .opp-cell { width: 100%; }
-/* Top-left, over the sprite's corner rather than the cell's right edge.
-   On the right it sat on the flip-shields flag — measured at 16x10px of a
-   17x14px badge, so the one mark saying which shield counts change the result
-   was almost entirely hidden behind the action button. The left corner holds
-   nothing but artwork, and a sprite is the one thing here that can afford to
-   lose a corner. */
+/* Superimposed on the flip-shields flag, not beside it.
+
+   It began at the cell's top-right, where it clipped that flag — 16x10px of a
+   17x14px badge. Moving it to the left corner freed the flag but put a button
+   on the artwork. Sitting exactly on the flag is the version with no cost: the
+   badge is a static readout, the button only appears on hover, and one swaps
+   for the other in place rather than the cell gaining a control somewhere new.
+
+   Centred on the flag's own box — 8px cell padding, 1px border, and half the
+   difference between a 22px button and a 17px badge — and fully opaque, so it
+   covers rather than blends with what is underneath. */
 .opp-fight {
   position: absolute;
-  top: 3px;
-  left: 3px;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
-  width: 22px;
+  /* Wide enough to cover the widest badge it replaces: a two-digit flag
+     ("12", both shield counts flipping) measures 23.2px against 16.6px for a
+     single digit. At 22px the button left the two-digit case showing. */
+  width: 28px;
   height: 22px;
   padding: 0;
-  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  background: var(--surface-1);
   border: var(--border-hairline) solid var(--rule-hairline);
   color: var(--text-faint);
   cursor: pointer;

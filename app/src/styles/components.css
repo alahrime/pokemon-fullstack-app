@@ -1296,7 +1296,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   box-shadow: 0 0 0 1px var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
-.nav-search {
+/* The species picker's wrapper. Named for what it is rather than where it
+   lives — it moved out of the nav and into the Report's Analysis row, where
+   it leads the row and takes the slack so the label and the Arrange control
+   sit together at the right. */
+.report-search {
   flex: 1 1 380px;
   min-width: min(200px, 100%);
   max-width: 620px;

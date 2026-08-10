@@ -28,14 +28,21 @@ describe('App shell', () => {
     const { container } = renderApp(<App />);
     fireEvent.click(container.querySelector('.nav-tab')!);
     fireEvent.click(container.querySelector('.nav-brand')!);
-    // Landing hides the nav search, which is how the screen identifies itself.
-    expect(container.querySelector('.nav-search')).toBeNull();
+    // Identify the screen by the screen, not by the absent nav search: that
+    // search has moved to the Report, so its absence no longer distinguishes
+    // anything and the assertion would pass however broken the brand was.
+    expect(container.querySelector('.landing-route')).toBeTruthy();
   });
-  it('hides the nav search on landing and shows it elsewhere', () => {
+  it('keeps the species picker on the Report rather than in the nav', () => {
+    // It sat in the nav and was inert on four of the six screens, since only
+    // the Report reads `state.species`. It now leads the Report's Analysis
+    // row, beside the readouts it changes.
     const { container } = renderApp(<App />);
-    expect(container.querySelector('.nav-search')).toBeNull();
+    expect(container.querySelector('.nav .report-search')).toBeNull();
     fireEvent.click([...container.querySelectorAll('.nav-tab')].find((b) => b.textContent!.includes('Report'))!);
-    expect(container.querySelector('.nav-search')).toBeTruthy();
+    const search = container.querySelector('.report-search');
+    expect(search, 'the Report must carry the picker').toBeTruthy();
+    expect(container.querySelector('.nav')!.contains(search!)).toBe(false);
   });
   it('gives every nav tab its own hue', () => {
     const { container } = renderApp(<App />);

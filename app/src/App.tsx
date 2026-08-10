@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { AppStateProvider, useAppState } from './state/AppState';
 import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
-import { SpeciesSearch } from './components/SpeciesSearch';
 import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
@@ -31,10 +30,6 @@ const DiagnosticsScreen = lazy(() => import('./screens/DiagnosticsScreen').then(
 
 function Nav() {
   const { state, set, patch } = useAppState();
-  // On the landing page the search is the page — a second copy in the header
-  // would be two inputs for one job, and the smaller one would win by being
-  // nearer the mouse. The brand takes the space back instead.
-  const onLanding = state.screen === 'landing';
   return (
     <div className="nav sticky top-0 z-20 flex-wrap">
       <button
@@ -44,29 +39,6 @@ function Nav() {
       >
         PARAGON<span className="text-(--color-accent)">/</span>IV
       </button>
-      {!onLanding && (
-        <SpeciesSearch
-          id="nav-species"
-          value={state.species}
-          onChange={(id) =>
-            // Go to the Report, because the Report is the only screen that
-            // shows the species this picks. Rankings, Cores and the two team
-            // builders never read `state.species`, so choosing from here used
-            // to commit the selection and change nothing visible — the control
-            // looked broken on four of the six screens when it was in fact
-            // working perfectly and reporting to an empty room.
-            //
-            // chargeIds must clear with the species. Held across a change they
-            // name moves the new species does not learn, and the moves panel —
-            // which shows only the selected moves once a pool needs a picker —
-            // then matches nothing and renders empty. Switching from Azumarill
-            // to Mew was showing no charged moves at all.
-            patch({ species: id, moveIdx: 0, chargeIds: [], screen: 'report' })
-          }
-          placeholder="Name, type, gen1, @counter, water&!legendary…"
-          className="nav-search"
-        />
-      )}
       {/* Not SegGroup any more: these are the app's primary destinations, and
           rendering them as the same control used for a sort order made them
           read as a minor setting. Each carries its own hue and glyph, matching

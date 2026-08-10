@@ -27,9 +27,12 @@ describe('App shell', () => {
     await waitFor(() => expect(container.querySelectorAll('.bt-side').length).toBe(2));
   });
 
-  it('the nav search sends you to the Report, the only screen that shows the pick', async () => {
+  it('the Report picker changes the species in place', async () => {
+    // It used to live in the nav and route here from wherever you were, which
+    // is why it navigated. Now it is on the screen that reads the selection,
+    // so picking simply updates the report under it.
     const { container } = renderApp(<App />);
-    fireEvent.click(go(container, 'Rankings'));
+    fireEvent.click(go(container, 'Report'));
     await waitFor(() => expect(container.querySelector('.species-search input')).toBeTruthy());
     const input = container.querySelector('.species-search input') as HTMLInputElement;
     fireEvent.focus(input);
@@ -40,10 +43,10 @@ describe('App shell', () => {
       return r;
     });
     fireEvent.mouseDown(row);
-    // The control used to commit the selection and change nothing visible on
-    // four of the six screens.
     await waitFor(() => expect(go(container, 'Report').className).toMatch(/is-active/));
     await waitFor(() => expect(container.textContent).toMatch(/Skarmory/i));
+    // And the nav no longer carries a picker of its own.
+    expect(container.querySelector('.nav .report-search')).toBeNull();
   });
 
   it('changing league re-points the opponent, which is league-specific', async () => {

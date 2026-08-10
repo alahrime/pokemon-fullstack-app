@@ -25,6 +25,7 @@ import { metricSortLabel } from '../lib/metrics';
 import { MovesPanel } from '../components/MovesPanel';
 import { Board, BoardControls } from '../components/Board';
 import { VizTabs } from '../components/VizTabs';
+import { SpeciesSearch } from '../components/SpeciesSearch';
 import { FormToggle } from '../components/FormToggle';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { SpeciesHero } from '../components/SpeciesHero';
@@ -403,8 +404,25 @@ export function ReportScreen() {
         {/* Right column. The panels here are independent readouts and which one
             matters most depends on the task, so their order is the user's. */}
         <div className="flex min-w-0 flex-col gap-3.5 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="hud-label text-(--text-faint)">
+          {/* The species picker leads this row, ahead of the label and the
+              Arrange control. It used to sit in the nav, where it was the one
+              item forcing that bar onto a second line — and where it was inert
+              on four of the six screens, since only this one reads
+              `state.species`. Here it sits with the readouts it changes. */}
+          <div className="flex items-center gap-3">
+            <SpeciesSearch
+              id="report-species"
+              value={speciesId}
+              onChange={(id) =>
+                // chargeIds must clear with the species. Held across a change
+                // they name moves the new species does not learn, and the moves
+                // panel then matches nothing and renders empty.
+                patch({ species: id, moveIdx: 0, chargeIds: [] })
+              }
+              placeholder="Name, type, gen1, @counter, water&!legendary…"
+              className="report-search"
+            />
+            <span className="hud-label text-(--text-faint) whitespace-nowrap">
               {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
             </span>
             <BoardControls

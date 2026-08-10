@@ -1306,13 +1306,16 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 
 /* The species picker's wrapper. Named for what it is rather than where it
-   lives — it moved out of the nav and into the Report's Analysis row, where
-   it leads the row and takes the slack so the label and the Arrange control
-   sit together at the right. */
+   lives — it moved out of the nav into the Report's Analysis row, and sits
+   between the label and the Arrange control.
+
+   Narrower than it was in the nav: at 620px it filled most of the column and
+   read as a second header under the real one. It still grows into the space
+   between the two, and still has a floor it can shrink to. */
 .report-search {
-  flex: 1 1 380px;
+  flex: 1 1 320px;
   min-width: min(200px, 100%);
-  max-width: 620px;
+  max-width: 460px;
 }
 
 /* The hero copy: same field, scaled up, with a deeper chamfer to match the

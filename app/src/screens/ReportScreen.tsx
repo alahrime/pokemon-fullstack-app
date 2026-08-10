@@ -407,12 +407,15 @@ export function ReportScreen() {
         {/* Right column. The panels here are independent readouts and which one
             matters most depends on the task, so their order is the user's. */}
         <div className="flex min-w-0 flex-col gap-3.5 p-5">
-          {/* The species picker leads this row, ahead of the label and the
-              Arrange control. It used to sit in the nav, where it was the one
-              item forcing that bar onto a second line — and where it was inert
-              on four of the six screens, since only this one reads
-              `state.species`. Here it sits with the readouts it changes. */}
+          {/* Row order is label, picker, Arrange: the picker sits between the
+              two rather than leading, and Arrange stays pinned to the right
+              edge so it lines up with the board beneath it. Leading the row
+              made a 620px field the first thing in the column, which read as a
+              second header rather than a control inside one. */}
           <div className="flex items-center gap-3">
+            <span className="hud-label text-(--text-faint) whitespace-nowrap">
+              {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
+            </span>
             <SpeciesSearch
               id="report-species"
               value={speciesId}
@@ -425,15 +428,18 @@ export function ReportScreen() {
               placeholder="Name, type, gen1, @counter, water&!legendary…"
               className="report-search"
             />
-            <span className="hud-label text-(--text-faint) whitespace-nowrap">
-              {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
+            {/* ml-auto rather than justify-between: with three items the latter
+                spreads all of them, which pushed the picker away from the label
+                it belongs beside. This keeps label and picker together at the
+                left and sends Arrange to the edge. */}
+            <span className="ml-auto">
+              <BoardControls
+                storageKey={REPORT_BOARD}
+                editing={editing}
+                onEditing={setEditing}
+                onReset={() => setBoardNonce((n) => n + 1)}
+              />
             </span>
-            <BoardControls
-              storageKey={REPORT_BOARD}
-              editing={editing}
-              onEditing={setEditing}
-              onReset={() => setBoardNonce((n) => n + 1)}
-            />
           </div>
           <Board
             // Remounts on reset so the board re-reads the cleared storage.

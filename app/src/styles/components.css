@@ -4777,10 +4777,16 @@ th.bt-matrix-head { text-align: center; }
   min-width: 0;
 }
 .opp-cell-wrap > .opp-cell { width: 100%; }
+/* Top-left, over the sprite's corner rather than the cell's right edge.
+   On the right it sat on the flip-shields flag — measured at 16x10px of a
+   17x14px badge, so the one mark saying which shield counts change the result
+   was almost entirely hidden behind the action button. The left corner holds
+   nothing but artwork, and a sprite is the one thing here that can afford to
+   lose a corner. */
 .opp-fight {
   position: absolute;
   top: 3px;
-  right: 3px;
+  left: 3px;
   display: grid;
   place-items: center;
   width: 22px;

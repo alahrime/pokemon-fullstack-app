@@ -428,18 +428,15 @@ export function ReportScreen() {
               placeholder="Name, type, gen1, @counter, water&!legendary…"
               className="report-search"
             />
-            {/* ml-auto rather than justify-between: with three items the latter
-                spreads all of them, which pushed the picker away from the label
-                it belongs beside. This keeps label and picker together at the
-                left and sends Arrange to the edge. */}
-            <span className="ml-auto">
-              <BoardControls
-                storageKey={REPORT_BOARD}
-                editing={editing}
-                onEditing={setEditing}
-                onReset={() => setBoardNonce((n) => n + 1)}
-              />
-            </span>
+            {/* No margin of its own: the picker's auto margins absorb the row's
+                free space, which leaves nothing after this and puts it on the
+                edge anyway. */}
+            <BoardControls
+              storageKey={REPORT_BOARD}
+              editing={editing}
+              onEditing={setEditing}
+              onReset={() => setBoardNonce((n) => n + 1)}
+            />
           </div>
           <Board
             // Remounts on reset so the board re-reads the cleared storage.

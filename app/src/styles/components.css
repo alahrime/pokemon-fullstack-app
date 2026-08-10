@@ -1312,12 +1312,21 @@ textarea.input { min-height: 90px; resize: vertical; }
    Narrower than it was in the nav: at 620px it filled most of the column and
    read as a second header under the real one. It still grows into the space
    between the two, and still has a floor it can shrink to. */
-/* No cap: the field takes every pixel between the label and Arrange. The row
-   was carrying ~355px of dead space with the picker capped at 460, which is
-   the width this column has to spare and nothing else is asking for. */
+/* Capped, and centred in what is left.
+
+   Filling the row put an 803px field around a species name — more empty field
+   than the row had dead space. It sits at 620 instead, with `margin-inline:
+   auto` splitting the remaining slack equally either side, so the gap to the
+   label and the gap to Arrange are the same number rather than 12px on one
+   side and 191 on the other.
+
+   `flex: 0 1` because auto margins take the free space before flex-grow would
+   see it: a growing item with auto margins never grows, and the two together
+   read as a bug later. It still shrinks, down to the floor below. */
 .report-search {
-  flex: 1 1 auto;
+  flex: 0 1 620px;
   min-width: min(220px, 100%);
+  margin-inline: auto;
 }
 /* The picker, dressed as the instrument it is.
 

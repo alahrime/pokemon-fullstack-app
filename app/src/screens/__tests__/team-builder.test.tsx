@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { TeamBuilderScreen } from '../TeamBuilderScreen';
@@ -51,12 +51,21 @@ describe('TeamBuilderScreen — building a roster', () => {
     }
   });
 
-  it('keeps Analyse disabled until the team is full', async () => {
+  it('opens the analysis at two members, and says how many it is judging', async () => {
+    // What beats a roster and which swap answers it are per-member questions,
+    // so they do not wait for the empty slots to be filled — only the chain
+    // result and the matrix game need a fieldable line.
     const { container } = renderApp(<TeamBuilderScreen size={3} />);
-    const analyse = screen.getByRole('button', { name: /Analyse team/i }) as HTMLButtonElement;
-    expect(analyse.disabled).toBe(true);
+    const analyse = () => screen.getByRole('button', { name: /Analyse/i }) as HTMLButtonElement;
+    expect(analyse().disabled).toBe(true);
     await pick(container, 'azumarill');
-    expect(analyse.disabled).toBe(true);
+    expect(analyse().disabled).toBe(true);
+    expect(analyse().textContent).toMatch(/1 of 3/);
+    await pick(container, 'registeel');
+    expect(analyse().disabled).toBe(false);
+    expect(analyse().textContent).toMatch(/2 of 3/);
+    await pick(container, 'medicham');
+    expect(analyse().textContent).toMatch(/Analyse team/);
   });
 
   it('keeps Suggest disabled on an empty roster and enables it once picked', async () => {
@@ -131,29 +140,53 @@ describe('TeamBuilderScreen — Show 6', () => {
     expect(container.textContent).toMatch(/Your strongest line/);
   }, 180000);
 
-  it('exports the analysis as JSON and the threats as CSV', async () => {
-    const names: string[] = [];
-    URL.createObjectURL = (() => 'blob:x') as never;
-    URL.revokeObjectURL = (() => {}) as never;
-    const realCreate = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      const el = realCreate(tag);
-      if (tag === 'a') {
-        Object.defineProperty(el, 'download', { set: (v: string) => names.push(v), get: () => '' });
-        (el as HTMLAnchorElement).click = () => {};
-      }
-      return el;
+  it('shows what beats the six, and how many members answer each', async () => {
+    const { container } = renderApp(<TeamBuilderScreen size={6} />);
+    await fill(container, ['azumarill', 'registeel', 'medicham', 'bastiodon', 'skarmory', 'altaria']);
+    fireEvent.click(screen.getByRole('button', { name: /Analyse six/i }));
+    await waitFor(() => expect(container.querySelector('.weak-list')).toBeTruthy(), { timeout: 120000 });
+
+    const rows = [...container.querySelectorAll('.weak-row')];
+    // Up to twenty, worst first — a six is meant to answer the whole field, so
+    // the list has to run far enough down it to show where the answers stop.
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(20);
+    const shares = rows.map((r) => {
+      const [lost, of] = r.querySelector('.weak-share-text')!.textContent!.split('/').map(Number);
+      return lost / of;
     });
-    const { container } = renderApp(<TeamBuilderScreen size={3} />);
-    await fill(container, ['azumarill', 'registeel', 'medicham']);
-    fireEvent.click(screen.getByRole('button', { name: /Analyse team/i }));
-    await waitFor(() => expect(container.querySelector('.team-report')).toBeTruthy(), { timeout: 60000 });
-    fireEvent.click(screen.getByRole('button', { name: /Export JSON/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^CSV$/i }));
-    expect(names.some((n) => n.endsWith('.json'))).toBe(true);
-    expect(names.some((n) => n.endsWith('.csv'))).toBe(true);
-    vi.restoreAllMocks();
-  }, 90000);
+    expect([...shares].sort((a, b) => b - a)).toEqual(shares);
+    // Every row says how many members lose, out of the whole six.
+    expect(rows[0].querySelector('.weak-share-text')!.textContent).toMatch(/^[1-6]\/6$/);
+    // A row nothing answers is marked, not merely sorted first.
+    for (const r of rows) {
+      const open = r.className.includes('is-open');
+      expect(!!r.querySelector('.weak-none')).toBe(open);
+    }
+  }, 180000);
+
+  it('suggests swaps that answer what the six cannot, without repeating itself', async () => {
+    const { container } = renderApp(<TeamBuilderScreen size={6} />);
+    await fill(container, ['azumarill', 'registeel', 'medicham', 'bastiodon', 'skarmory', 'altaria']);
+    fireEvent.click(screen.getByRole('button', { name: /Analyse six/i }));
+    await waitFor(() => expect(container.querySelector('.swap-list')).toBeTruthy(), { timeout: 120000 });
+
+    const rows = [...container.querySelectorAll('.swap-row')];
+    if (rows.length === 0) {
+      // A six with no unanswered threat has nothing to suggest, and says so.
+      expect(container.textContent).toMatch(/No legal swap improves/);
+      return;
+    }
+    // One row per departing member and one per arriving pick: without both,
+    // the strongest answer in the pool fills the list six times over.
+    const outs = rows.map((r) => r.querySelector('.swap-side.is-out .swap-name')!.textContent);
+    const ins = rows.map((r) => r.querySelector('.swap-side.is-in .swap-name')!.textContent);
+    expect(new Set(outs).size).toBe(outs.length);
+    expect(new Set(ins).size).toBe(ins.length);
+    // Every suggestion drops someone actually on the team.
+    const onTeam = [...container.querySelectorAll('.team-slots .pc-name')].map((n) => n.textContent);
+    for (const o of outs) expect(onTeam.some((n) => n?.includes(o!) || o?.includes(n ?? ''))).toBe(true);
+  }, 180000);
 
   it('suggests a sixth member for a five-strong roster', async () => {
     // The failure this covers: the screen asked for the completion to a team of

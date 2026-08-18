@@ -7,7 +7,7 @@ import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import { LEAGUE_BY_ID, movesFor, parseRef, speciesOf } from '../lib/data';
 import { moveTypeStyle } from '../lib/pokemonTypes';
 import { MoveCounts } from '../components/MoveCounts';
-import { bestSpreadFor } from '../lib/engine';
+import { defaultSpreadFor } from '../lib/engine';
 import type { LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -41,7 +41,7 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
   const gain = row.bestScore - row.score;
   // Read back from the same calls the build made, so the row cannot show a
   // spread or a set that did not earn the score beside it.
-  const spread = useMemo(() => (sp ? bestSpreadFor(row.ref, league, true) : null), [sp, row.ref, league]);
+  const spread = useMemo(() => (sp ? defaultSpreadFor(row.ref, league, true) : null), [sp, row.ref, league]);
   const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   return (
     <>
@@ -56,7 +56,7 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
               wasted the width the table already had. At 56px with the rated
               spread and the set underneath, the row answers "is this the build
               I am thinking of" without expanding it. Same data the score was
-              computed from — bestSpreadFor and movesFor, not a second guess. */}
+              computed from — defaultSpreadFor and movesFor, not a second guess. */}
           <div className="rank-name">
             <span className="rank-art">
               {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={84} shadow={shadow} />}

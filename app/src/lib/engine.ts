@@ -314,15 +314,6 @@ export function getEntry(
   return { entry: table.map.get(ivKey(iv))!, table };
 }
 
-export function bestLeagueFor(speciesId: string, iv: IV): { rank: number; league: League } {
-  let best: { rank: number; league: League } | null = null;
-  for (const league of LEAGUE_BY_ID.values()) {
-    const { entry } = getEntry(speciesId, iv, league.id);
-    if (!best || entry.rank < best.rank) best = { rank: entry.rank, league };
-  }
-  return best!;
-}
-
 // ── Opponent representative — the opponent's own rank-1 stat-product spread
 // (not a blanket hundo assumption), primary fast move and charge move as the
 // incoming attack. Sourced from the broad opponent pool (top ~300/league),
@@ -732,6 +723,44 @@ const KEEPABLE_RANK = 1500;
  * between two spreads no serious player would field.
  */
 const UNCAPPED_IV_FLOOR = 13;
+
+/**
+ * How far down the stat-product ranking a default spread may sit, and how
+ * close to the cap it has to be.
+ *
+ * Rank 1 is a real spread but not always a played one: it maximises stat
+ * product, which sometimes means leaving CP on the table. What people actually
+ * field is a roll that is both near the top of the ranking and pushed hard
+ * against the cap — so the default takes the best-ranked spread inside the top
+ * band whose CP is within a few points of the limit.
+ */
+const DEFAULT_RANK_BAND = 30;
+const DEFAULT_CP_SLACK = 5;
+
+/**
+ * The spread the app fields when nobody has chosen one.
+ *
+ * Master is exempt by construction: with no cap there is no level/IV trade-off,
+ * every point is strictly better, and rank 1 is 15/15/15 — the band and the CP
+ * rule would both select it anyway, but saying so directly is cheaper and
+ * cannot drift.
+ *
+ * Capped leagues: the first spread in the top #{DEFAULT_RANK_BAND} that comes
+ * within {DEFAULT_CP_SLACK} CP of the cap. Falling back through the band's
+ * highest CP and then rank 1 means a species whose whole table sits well under
+ * the cap — anything that maxes out before the limit — still gets its best
+ * roll rather than nothing.
+ */
+export function defaultSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false): RankedEntry {
+  const table = getTable(ref, leagueId, bestBuddy);
+  if (table.league.uncapped) return table.map.get(ivKey({ a: 15, d: 15, s: 15 }))!;
+  const band = table.all.slice(0, DEFAULT_RANK_BAND);
+  const near = band.find((e) => e.cp >= table.league.cap - DEFAULT_CP_SLACK);
+  if (near) return near;
+  let highest = band[0];
+  for (const e of band) if (e.cp > highest.cp) highest = e;
+  return highest ?? table.best;
+}
 
 type ProbeLabel = 'rank1' | 'atk' | 'def' | 'hp' | 'cmp+' | 'cmp-';
 

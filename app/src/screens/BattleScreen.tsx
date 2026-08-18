@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
-import { ENERGY_CAP, bestBuddyEligible, bestSpreadFor, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
+import { ENERGY_CAP, bestBuddyEligible, bestSpreadFor, defaultSpreadFor, getEntry, mkBattleMon, selectedCharges, shieldMatrix, verdictLine } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
 import type { FastMove, IV, LeagueId } from '../lib/types';
@@ -320,6 +320,9 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
 /** `+2`, `-1`, `0` — signed so a debuff is never mistaken for a buff. */
 const fmtStage = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
+/** The three numbers a spread contributes to state, without the rest of it. */
+const ivOf = (e: { a: number; d: number; s: number }): IV => ({ a: e.a, d: e.d, s: e.s });
+
 export function BattleScreen() {
   const { state, patch } = useAppState();
   const { league, battleA, battleB, ivA, ivB, fastA, fastB, chargeIdsA, chargeIdsB, shieldsA, shieldsB, energyA, energyB, bestBuddyA, bestBuddyB } = state;
@@ -410,7 +413,10 @@ export function BattleScreen() {
           <Side
             label="Pokémon 1"
             speciesId={battleA}
-            onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeIdsA: [], bestBuddyA: false })}
+            // The roll is species-specific, so it resets with the species —
+            // the same rule the moves follow. Carried over, one species' rank-1
+            // roll is an arbitrary mid-table one on the next.
+            onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeIdsA: [], bestBuddyA: false, ivA: ivOf(defaultSpreadFor(id, league)) })}
             iv={ivA}
             onBump={bumpA}
             onIv={(v) => patch({ ivA: v })}
@@ -430,7 +436,7 @@ export function BattleScreen() {
         <Side
           label="Pokémon 2"
           speciesId={battleB}
-          onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeIdsB: [], bestBuddyB: false })}
+          onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeIdsB: [], bestBuddyB: false, ivB: ivOf(defaultSpreadFor(id, league)) })}
           iv={ivB}
           onBump={bumpB}
           onIv={(v) => patch({ ivB: v })}

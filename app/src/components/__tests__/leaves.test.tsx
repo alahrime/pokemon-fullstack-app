@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { Heatmap } from '../Heatmap';
-import { FormToggle } from '../FormToggle';
+import { Switch } from '../Switch';
 import { BestBuddyToggle } from '../BestBuddyToggle';
 import { ThemeSwitch, MotionToggle } from '../ThemeSwitch';
 import { SearchHelp } from '../SearchHelp';
@@ -74,18 +74,25 @@ describe('Heatmap', () => {
   });
 });
 
-describe('FormToggle', () => {
-  it('switches back to Normal', () => {
+describe('Switch', () => {
+  it('reports its state to assistive tech and flips it on click', () => {
     const onChange = vi.fn();
     const { container } = renderApp(
-      <FormToggle shadow eligible onChange={onChange} speciesName="Venusaur" />);
-    fireEvent.click(container.querySelector('.form-opt-normal')!);
+      <Switch label="Shadow" tone="shadow" checked onChange={onChange} />);
+    const track = container.querySelector('.sw-track') as HTMLButtonElement;
+    expect(track.getAttribute('role')).toBe('switch');
+    expect(track.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(track);
     expect(onChange).toHaveBeenCalledWith(false);
   });
-  it('disables Shadow for a species that has none', () => {
+  it('cannot be thrown where the property does not apply', () => {
+    const onChange = vi.fn();
     const { container } = renderApp(
-      <FormToggle shadow={false} eligible={false} onChange={() => {}} speciesName="Azumarill" />);
-    expect((container.querySelector('.form-opt-shadow') as HTMLButtonElement).disabled).toBe(true);
+      <Switch label="Best Buddy" tone="buddy" checked={false} disabled onChange={onChange} />);
+    const track = container.querySelector('.sw-track') as HTMLButtonElement;
+    expect(track.disabled).toBe(true);
+    fireEvent.click(track);
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
 

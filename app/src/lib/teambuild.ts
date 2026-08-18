@@ -1,4 +1,4 @@
-import { bestSpreadFor, getEntry, mkBattleMon, selectedCharges } from './engine';
+import { defaultSpreadFor, getEntry, mkBattleMon, selectedCharges } from './engine';
 import { conflictsOnTeam, movesFor, speciesOf } from './data';
 import { resistancesOf, sharedTypePairs, weaknessesOf } from './synergy';
 import { teamBattle, carryoverEdge } from './team';
@@ -43,7 +43,10 @@ export function monFor(ref: string, lg: LeagueId, build?: MonBuild): BattleMon {
   const rated = movesFor(sp, lg);
   const fast = build ? (sp.fastMoves[Math.min(build.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast) : rated.fast;
   const charges = build && build.chargeIds.length ? selectedCharges(sp, build.chargeIds) : rated.charges;
-  const entry = build ? getEntry(ref, build.iv, lg).entry : bestSpreadFor(ref, lg, true);
+  // The same roll the slot's card displays. These two disagreeing is the one
+  // thing this must not do: the card would describe a build the analysis behind
+  // it never fielded.
+  const entry = build ? getEntry(ref, build.iv, lg).entry : defaultSpreadFor(ref, lg, true);
   const mon = mkBattleMon(entry, fast, charges, sp.types);
   monCache.set(key, mon);
   return mon;
@@ -88,6 +91,24 @@ export function sampleFieldTeams(lg: LeagueId, size: number, count: number): str
   return out;
 }
 
+/**
+ * An opponent that was on the field when a chain lost, and what the roster can
+ * do about it one-on-one.
+ *
+ * `lossRate` alone says a Pokemon was present for defeats; it does not say
+ * whether the team has any answer to it. `answered` and `lost` are the
+ * difference between a list to read and a list to act on.
+ */
+export interface FieldThreat {
+  ref: string;
+  lossRate: number;
+  meanHpCost: number;
+  /** Members that beat it one-on-one. */
+  answered: string[];
+  /** Members that lose to it. */
+  lost: string[];
+}
+
 export interface TeamReport {
   /** Share of sampled opponent teams beaten. */
   winRate: number;
@@ -105,7 +126,42 @@ export interface TeamReport {
    */
   carryover: number;
   /** Worst matchups: individual opponents that beat this team most often. */
-  threats: { ref: string; lossRate: number; meanHpCost: number }[];
+  threats: FieldThreat[];
+}
+
+/**
+ * Who on the roster beats a given opponent, one-on-one.
+ *
+ * A single matchup rather than a chain: the question is whether this member is
+ * an answer to that Pokemon at all, and a chain result would fold in whatever
+ * the two before it left behind. Cheap enough to run for every threat against
+ * every member — twenty threats and six members is 120 battles, against the
+ * sixteen thousand the six's matrix game already costs.
+ */
+function answerBreakdown(
+  team: string[],
+  threatRef: string,
+  lg: LeagueId,
+  builds?: Record<string, MonBuild>,
+): { answered: string[]; lost: string[] } {
+  const foe = monFor(threatRef, lg);
+  const answered: string[] = [];
+  const lost: string[] = [];
+  for (const ref of team) {
+    const r = teamBattle([monFor(ref, lg, builds?.[ref])], [foe]);
+    (r.win ? answered : lost).push(ref);
+  }
+  return { answered, lost };
+}
+
+/** Attach the "who answers this" breakdown to a list of scored threats. */
+function withAnswers(
+  rows: { ref: string; lossRate: number; meanHpCost: number }[],
+  team: string[],
+  lg: LeagueId,
+  builds?: Record<string, MonBuild>,
+): FieldThreat[] {
+  return rows.map((t) => ({ ...t, ...answerBreakdown(team, t.ref, lg, builds) }));
 }
 
 /**
@@ -156,11 +212,16 @@ export function analyseTeam(
   }
   carry = slice.length ? (chainedWins - isolatedWins) / slice.length : 0;
 
-  const threats = [...threat.entries()]
-    .filter(([, t]) => t.seen >= 3)
-    .map(([ref, t]) => ({ ref, lossRate: t.losses / t.seen, meanHpCost: t.hpCost / t.seen }))
-    .sort((a, b) => b.lossRate - a.lossRate || b.meanHpCost - a.meanHpCost)
-    .slice(0, 12);
+  const threats = withAnswers(
+    [...threat.entries()]
+      .filter(([, t]) => t.seen >= 3)
+      .map(([ref, t]) => ({ ref, lossRate: t.losses / t.seen, meanHpCost: t.hpCost / t.seen }))
+      .sort((a, b) => b.lossRate - a.lossRate || b.meanHpCost - a.meanHpCost)
+      .slice(0, 12),
+    team,
+    lg,
+    opts.builds,
+  );
 
   return {
     winRate: wins / field.length,
@@ -443,8 +504,65 @@ export interface Show6Report {
   naive: number;
   /** Which of your 20 subteams achieves the floor. */
   bestLine: string[];
-  /** Opponent Pokemon that most often appear in the answer that beats you. */
-  threats: { ref: string; lossRate: number; meanHpCost: number }[];
+  /**
+   * What the six is actually weak to, worst first.
+   *
+   * Not the Pokemon present when the matrix game was lost, which is what this
+   * used to report and what made the exported table useless: against a six
+   * whose floor is negative, *every* opponent appears in some winning answer,
+   * so all twenty rows read 100% and the list ranked nothing. Measured
+   * one-on-one against each member instead — the share of your roster a
+   * Pokemon beats is a property of your roster, and it is the thing a swap can
+   * change.
+   */
+  weakTo: Weakness[];
+}
+
+/** An opponent measured against every member of the roster, one-on-one. */
+export interface Weakness {
+  ref: string;
+  /** Share of the roster that loses to it, 0..1. 1 means nothing answers it. */
+  beatShare: number;
+  /**
+   * Margin of the roster's best answer — HP kept less HP taken, so 0.42 is a
+   * comfortable win and a negative value means there is no answer at all, only
+   * a least-bad loss.
+   */
+  bestMargin: number;
+  /** Members that beat it. */
+  answered: string[];
+  /** Members that lose to it. */
+  lost: string[];
+}
+
+/** One member out, one candidate in, and what the exchange buys. */
+export interface SixSwap {
+  /** The member to drop. */
+  out: string;
+  /** The candidate to bring. */
+  in: string;
+  /**
+   * Weighted threat coverage gained, on the same 0..1 scale as `lossRate`.
+   *
+   * Coverage is the sum of each threat's loss rate over the threats *someone*
+   * on the roster beats. The gain is that sum after the exchange minus before
+   * it, so a candidate that answers three flagged threats but loses the only
+   * answer to a worse one scores negative and is never suggested.
+   */
+  gain: number;
+  /** Threats the roster could not answer before, and can after. */
+  covers: string[];
+  /** Threats only the departing member answered — the price of the swap. */
+  costs: string[];
+  /**
+   * How many of the flagged threats the incoming pick beats outright.
+   *
+   * The gain counts only what the roster could not already answer, so several
+   * candidates routinely tie on it — filling the same single hole. This breaks
+   * that tie towards the pick that also holds the rest of the list, rather
+   * than a specialist that happens to answer one thing.
+   */
+  answers: number;
 }
 
 export function analyseShow6(
@@ -491,11 +609,10 @@ export function analyseShow6(
     if (floor > bestFloor) { bestFloor = floor; bestLine = line; }
   }
 
-  const threats = [...threat.entries()]
-    .filter(([, t]) => t.seen >= 3)
-    .map(([ref, t]) => ({ ref, lossRate: t.losses / t.seen, meanHpCost: t.hpCost / t.seen }))
-    .sort((a, b) => b.lossRate - a.lossRate || b.meanHpCost - a.meanHpCost)
-    .slice(0, 12);
+  // The pool the field was drawn from is the field: an opponent nobody brings
+  // is not a weakness worth a slot. Ranked by how much of your roster it beats
+  // and how thin your best answer is.
+  const weakTo = weaknessesAgainst(six, lg, { limit: 20, builds: opts.builds });
 
   // A six short of three members yields no lines at all, leaving the floor at
   // -Infinity and rendering as such. Report zero rather than a sentinel.
@@ -503,6 +620,175 @@ export function analyseShow6(
     floor: Number.isFinite(bestFloor) ? bestFloor : 0,
     naive: myLines.length ? naiveTotal / myLines.length : 0,
     bestLine,
-    threats,
+    weakTo,
   };
+}
+
+/**
+ * What a roster is weak to, one opponent at a time.
+ *
+ * Every Pokemon in the league's pool is played against every member, alone.
+ * That is the measurement a swap can act on: "five of your six lose to
+ * Mandibuzz" names a hole, where "Mandibuzz was on the field when you lost"
+ * names a coincidence.
+ *
+ * Sorted by how much of the roster falls to it, then by how thin the best
+ * answer is — so an opponent nothing beats leads the list, and below that come
+ * the ones held by a single member scraping through.
+ *
+ * Cost is one battle per pool entry per member: a 300-strong Great pool
+ * against a six is 1800 battles, ~40ms, against the 16,000 team battles the
+ * matrix game beside it already spends.
+ */
+export function weaknessesAgainst(
+  team: string[],
+  lg: LeagueId,
+  opts: { limit?: number; builds?: Record<string, MonBuild> } = {},
+): Weakness[] {
+  if (team.length === 0) return [];
+  const limit = opts.limit ?? 20;
+  const mine = team.map((r) => ({ ref: r, mon: monFor(r, lg, opts.builds?.[r]) }));
+  const rows: Weakness[] = [];
+  for (const foeRef of teamPool(lg)) {
+    if (team.some((r) => r === foeRef || conflictsOnTeam(r, foeRef))) continue;
+    const foe = monFor(foeRef, lg);
+    const answered: string[] = [];
+    const lost: string[] = [];
+    let bestMargin = -Infinity;
+    for (const m of mine) {
+      const v = answersAt(m.mon, foe);
+      if (v.margin > bestMargin) bestMargin = v.margin;
+      (v.answers ? answered : lost).push(m.ref);
+    }
+    rows.push({ ref: foeRef, beatShare: lost.length / mine.length, bestMargin, answered, lost });
+  }
+  return rows
+    .filter((w) => w.lost.length > 0)
+    .sort((a, b) => b.beatShare - a.beatShare || a.bestMargin - b.bestMargin)
+    .slice(0, limit);
+}
+
+/**
+ * Does this Pokemon answer that one — at every shield count, not one of them.
+ *
+ * A single battle at the default shields is not how a matchup is read: shields
+ * decide a great many of them, and a mon that wins only when the opponent has
+ * none is not an answer to it. Measured across the even counts — 0-0, 1-1, 2-2
+ * — and counted as an answer on two of three, which is the same "wins the
+ * matchup" a player means.
+ *
+ * The first pass here used one no-shield battle and reported that every one of
+ * twenty opponents beat every member of a perfectly ordinary Great core. Three
+ * battles instead of one is the difference between a list that ranks and a
+ * list that says everything is on fire.
+ */
+function answersAt(mine: BattleMon, foe: BattleMon): { answers: boolean; margin: number } {
+  let wins = 0;
+  let margin = 0;
+  for (const shields of [0, 1, 2]) {
+    const r = teamBattle([mine], [foe], { shields });
+    if (r.win) wins++;
+    margin += r.hpFracA - r.hpFracB;
+  }
+  return { answers: wins >= 2, margin: margin / 3 };
+}
+
+/**
+ * Swaps that would answer more of what beats you.
+ *
+ * The threats are already known by the time this runs — `analyseShow6` names
+ * them — so the question is narrow enough to answer cheaply and exactly:
+ * whether a candidate beats each of those specific Pokemon one-on-one. That is
+ * one battle per candidate per threat, and the results are a table the swap
+ * scoring then reads rather than re-simulates.
+ *
+ * Why coverage rather than re-running the matrix game per candidate: the six's
+ * floor is a maximin over 20 lines against a sampled field, and re-scoring it
+ * for every legal candidate is minutes, not milliseconds. Coverage answers the
+ * question actually being asked — "what beats this team, and who fixes that" —
+ * and its unit is the same loss rate the threat list is sorted by.
+ *
+ * The exchange is scored whole. A candidate is credited for the threats it
+ * newly answers and charged for any the departing member alone was holding, so
+ * a specialist that trades one hole for another nets nothing and does not
+ * appear.
+ */
+export function suggestSwaps(
+  six: string[],
+  threats: readonly Weakness[],
+  lg: LeagueId,
+  opts: { limit?: number; builds?: Record<string, MonBuild> } = {},
+): SixSwap[] {
+  const limit = opts.limit ?? 8;
+  if (six.length < 2 || threats.length === 0) return [];
+
+  // Who currently answers what, keyed by threat.
+  const answeredBy = new Map<string, Set<string>>(
+    threats.map((t) => [t.ref, new Set(t.answered)]),
+  );
+  // Weighted by how much of the roster the threat beats, so filling a hole
+  // nothing answers counts for more than adding a second answer to something
+  // half the team already handles.
+  const weight = new Map(threats.map((t) => [t.ref, t.beatShare]));
+  const covered = (holders: (ref: string) => boolean) =>
+    threats.reduce((sum, t) => sum + (holders(t.ref) ? weight.get(t.ref)! : 0), 0);
+
+  const beats = new Map<string, boolean>();
+  const candidateBeats = (cand: string, threatRef: string) => {
+    // A mirror is not an answer to itself: without this a candidate is
+    // credited for "covering" the very Pokemon it is, since the two sides of
+    // an identical matchup are decided by a tie-break.
+    if (cand === threatRef || conflictsOnTeam(cand, threatRef)) return false;
+    const k = `${cand}>${threatRef}`;
+    const hit = beats.get(k);
+    if (hit !== undefined) return hit;
+    const won = answersAt(monFor(cand, lg), monFor(threatRef, lg)).answers;
+    beats.set(k, won);
+    return won;
+  };
+
+  const out: SixSwap[] = [];
+  for (const dropped of six) {
+    const rest = six.filter((r) => r !== dropped);
+    // Same legality the completion picker applies: no duplicate species, and
+    // no typing the roster cannot afford to repeat.
+    const { pool } = completionPool(rest, lg, 6);
+    const restAnswers = (threatRef: string) =>
+      rest.some((r) => answeredBy.get(threatRef)?.has(r));
+    const before = covered((t) => !!answeredBy.get(t)?.size);
+    // What the departing member alone was holding — the price, whoever comes in.
+    const orphaned = threats.filter((t) => t.answered.length > 0 && !restAnswers(t.ref)).map((t) => t.ref);
+
+    for (const cand of pool) {
+      const after = covered((t) => restAnswers(t) || candidateBeats(cand, t));
+      const gain = after - before;
+      if (gain <= 0) continue;
+      out.push({
+        out: dropped,
+        in: cand,
+        gain,
+        covers: threats
+          .filter((t) => !answeredBy.get(t.ref)?.size && candidateBeats(cand, t.ref))
+          .map((t) => t.ref),
+        costs: orphaned.filter((ref) => !candidateBeats(cand, ref)),
+        answers: threats.filter((t) => candidateBeats(cand, t.ref)).length,
+      });
+    }
+  }
+
+  out.sort((a, b) => b.gain - a.gain || b.answers - a.answers || a.covers.length - b.covers.length);
+  // One row per departing member and one per arriving candidate. Without the
+  // second, the strongest single answer in the pool fills the whole list —
+  // "drop any of your six for Bellibolt" four times over is one idea, not
+  // four.
+  const dropped = new Set<string>();
+  const brought = new Set<string>();
+  return out
+    .filter((s) => {
+      if (dropped.has(s.out) || brought.has(s.in)) return false;
+      dropped.add(s.out);
+      brought.add(s.in);
+      return true;
+    })
+    .slice(0, limit);
 }

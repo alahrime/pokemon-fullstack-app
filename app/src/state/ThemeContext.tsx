@@ -131,14 +131,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  /**
+   * Motion is written to storage only when the user picks it, not when it is
+   * merely derived.
+   *
+   * Persisting on mount froze whatever the system said on a visitor's *first*
+   * load: someone who had reduced motion on that day, or who first opened the
+   * app in an environment that reports it, was pinned to "off" for good — the
+   * saved value then beat the media query on every later visit, and the
+   * cascades never ran again. Unset means "follow the system", which is the
+   * honest default and the one that keeps motion on for everyone who has not
+   * asked otherwise.
+   */
   useEffect(() => {
     document.documentElement.setAttribute('data-motion', motion);
-    window.localStorage.setItem(MOTION_KEY, motion);
   }, [motion]);
 
   const setTheme = useCallback((t: ThemeId) => setThemeState(t), []);
   const setCustom = useCallback((c: CustomChoice) => setCustomState(c), []);
-  const setMotion = useCallback((m: MotionPref) => setMotionState(m), []);
+  const setMotion = useCallback((m: MotionPref) => {
+    setMotionState(m);
+    window.localStorage.setItem(MOTION_KEY, m);
+  }, []);
   // Cycles through the list rather than flipping a pair, now that there are
   // more than two. The keyboard shortcut and any caller that just wants "the
   // next one" keeps working without knowing how many exist.
@@ -146,7 +160,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => setThemeState((t) => THEME_IDS[(THEME_IDS.indexOf(t) + 1) % THEME_IDS.length]),
     [],
   );
-  const toggleMotion = useCallback(() => setMotionState((m) => (m === 'on' ? 'off' : 'on')), []);
+  const toggleMotion = useCallback(
+    () =>
+      setMotionState((m) => {
+        const next = m === 'on' ? 'off' : 'on';
+        window.localStorage.setItem(MOTION_KEY, next);
+        return next;
+      }),
+    [],
+  );
 
   const value = useMemo<ThemeContextValue>(
     () => ({ theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion, reduced: motion === 'off' }),

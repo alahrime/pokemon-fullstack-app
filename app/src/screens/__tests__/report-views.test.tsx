@@ -74,7 +74,7 @@ describe('ReportScreen views', () => {
         (m) => `${m.querySelector('.hero-meter-label')!.textContent}:${m.querySelector('.hero-meter-value')!.textContent}`,
       );
     const shadowOpt = await waitFor(() => {
-      const el = container.querySelector('.form-opt-shadow') as HTMLButtonElement;
+      const el = container.querySelector('.sw-shadow .sw-track') as HTMLButtonElement;
       expect(el.disabled).toBe(false);
       return el;
     });
@@ -82,7 +82,7 @@ describe('ReportScreen views', () => {
     expect(before.length).toBe(3);
     fireEvent.click(shadowOpt);
     await waitFor(() =>
-      expect(container.querySelector('.form-opt-shadow')!.getAttribute('aria-pressed')).toBe('true'));
+      expect(container.querySelector('.sw-shadow .sw-track')!.getAttribute('aria-checked')).toBe('true'));
     expect(read()).toEqual(before);
 
     // The effect is shown instead: attack gains a segment, defence gives one back.
@@ -95,13 +95,13 @@ describe('ReportScreen views', () => {
   it('toggles to the Shadow form and re-derives the readout', async () => {
     const { container } = renderApp(<With species="venusaur"><ReportScreen /></With>);
     const shadowOpt = await waitFor(() => {
-      const el = container.querySelector('.form-opt-shadow') as HTMLButtonElement;
+      const el = container.querySelector('.sw-shadow .sw-track') as HTMLButtonElement;
       expect(el.disabled).toBe(false);
       return el;
     });
     fireEvent.click(shadowOpt);
     await waitFor(() =>
-      expect(container.querySelector('.form-opt-shadow')!.getAttribute('aria-pressed')).toBe('true'));
+      expect(container.querySelector('.sw-shadow .sw-track')!.getAttribute('aria-checked')).toBe('true'));
     // Attack x1.2 and defense x5/6 cancel in stat product, so the rank must not
     // move — only the damage thresholds do.
     expect(container.textContent).toMatch(/never moves|rank/i);
@@ -202,17 +202,50 @@ describe('report left column', () => {
     // The column used to be labelled down to "Adjust roll" and then run
     // anonymous: a stat strip, a list of numbers and a table with nothing
     // saying what any of them was.
-    expect(labels).toContain('Form');
     expect(labels).toContain('Adjust roll');
-    expect(labels).toContain('Battle stats');
-    expect(labels).toContain('This spread');
+    // The two properties label themselves, over their own switches, rather
+    // than sharing one block label between them.
+    const props = [...side.querySelectorAll('.sw-label')].map((l) => l.textContent);
+    expect(props).toEqual(['Shadow', 'Best Buddy']);
   });
 
-  it('puts the stat strip and the detail list inside named blocks', () => {
+  it('states each stat once — the hero meters, not a second strip beside them', () => {
     const { container } = renderApp(<ReportScreen />);
     const side = container.querySelector('.report-side')!;
-    expect(side.querySelector('.side-block .stat-strip')).toBeTruthy();
-    expect(side.querySelector('.side-block .detail-list')).toBeTruthy();
+    // "Battle stats" repeated attack/defence/HP from the hero verbatim and
+    // "This spread" repeated the rank frame and the max button. Both are gone;
+    // the meters remain the single place each number appears.
+    expect(side.querySelector('.stat-strip')).toBeFalsy();
+    expect(side.querySelector('.detail-list')).toBeFalsy();
+    expect(side.querySelectorAll('.hero-meter')).toHaveLength(3);
+  });
+
+  it('reads the rank in the hero, beside the figure it is about', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const verdict = container.querySelector('.report-side .hero-verdict')!;
+    expect(verdict.textContent).toBeTruthy();
+    // Inside the hero, after the vitals — not a panel of its own restating the
+    // rank to introduce it, which is what it used to be.
+    expect(verdict.closest('.hero')).toBeTruthy();
+    expect(verdict.previousElementSibling!.className).toContain('hero-vitals');
+  });
+
+  it('rides the legend on the plot and keeps the ranking window in the column', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const side = container.querySelector('.report-side')!;
+    // The window needs the width, so it takes a block in the column; the
+    // legend needs none, so it overlays the plot's corner instead.
+    expect(side.querySelector('.hv-top-row')).toBeTruthy();
+    expect(side.querySelector('.hv-swatch')).toBeFalsy();
+    expect(container.querySelectorAll('.hv-plot .hv-legend-panel .hv-swatch').length).toBeGreaterThan(0);
+    expect(container.querySelector('.hv-plot .hv-top-row')).toBeFalsy();
+  });
+
+  it('drops the legend when the plot it describes is not the view', () => {
+    const { container } = renderApp(<ReportScreen />);
+    expect(container.querySelector('.hv-legend-panel')).toBeTruthy();
+    fireEvent.click(tab(container, 'Damage ruler'));
+    expect(container.querySelector('.hv-legend-panel')).toBeFalsy();
   });
 
   it('labels the Shadow comparison where one exists', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  bestAt, bestBuddyEligible, bestLeagueFor, bestSpreadFor, buildHeatCells, cellColorMix,
+  bestAt, bestBuddyEligible, bestSpreadFor, buildHeatCells, cellColorMix,
   flipGrid, flipMatchupRows, getEntry, getTable, hasBreakpoint, hasBulkpoint, ivKey,
   leagueStatRange, opponentInfo, opponentList, paletteFor, paletteRamp, rankedOpponents,
   relevantOpponents, scenarioMatrix, selectedCharges, shieldMatrix, shortVerdict, tierColor,
@@ -37,10 +37,6 @@ describe('spread maths', () => {
   it('bestSpreadFor returns the rank-1 roll', () => {
     const s = bestSpreadFor('azumarill', LG, true);
     expect(s.cp).toBeLessThanOrEqual(1500);
-  });
-  it('bestLeagueFor picks a league for a spread', () => {
-    const r = bestLeagueFor('azumarill', IV);
-    expect(['great','ultra','master']).toContain(r.league.id);
   });
   it('bestBuddyEligible is a boolean per species and league', () => {
     expect(typeof bestBuddyEligible(SPECIES_BY_ID.get('azumarill')!, LEAGUE_BY_ID.get(LG)!)).toBe('boolean');

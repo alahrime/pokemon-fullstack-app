@@ -79,6 +79,14 @@ export const SCREEN_DEFS: ScreenDef[] = [
     hue: 'var(--type-steel)',
     blurb: 'Two rankings of the same data, and how much either can actually say.',
   },
+  {
+    id: 'moves',
+    label: 'Moves',
+    kicker: 'The catalogue',
+    glyph: '⌁',
+    hue: 'var(--type-electric)',
+    blurb: 'Every fast and charge move, with the figures that rank them.',
+  },
 ];
 
 export const HUE_OF: Record<string, string> = Object.fromEntries(

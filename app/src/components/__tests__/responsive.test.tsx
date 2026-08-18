@@ -159,14 +159,11 @@ describe('the layouts that have to stack', () => {
     expect(components.slice(at, at + 200)).toMatch(/\.rs-split/);
   });
 
-  it('a detail row wraps rather than breaking a figure in half', () => {
-    // Both halves are `nowrap` deliberately — "Great League · 1500 · #9" is one
-    // fact — so the row is what gives way, and the dotted leader goes with it.
-    const at = components.indexOf('@media (max-width: 400px)');
-    expect(at).toBeGreaterThan(-1);
-    const q = components.slice(at, at + 260);
-    expect(q).toMatch(/\.detail-row\s*\{[^}]*flex-wrap:\s*wrap/);
-    expect(q).toMatch(/\.detail-row::before\s*\{[^}]*display:\s*none/);
+  it('carries no rules for the detail row, which no screen renders any more', () => {
+    // It was the report's "This spread" list and nothing else. Removed with it,
+    // narrow-width rules included — a stylesheet that still dressed it would
+    // read as a component someone could reach for.
+    expect(components).not.toMatch(/\.detail-(list|row|label|value)\b/);
   });
 });
 

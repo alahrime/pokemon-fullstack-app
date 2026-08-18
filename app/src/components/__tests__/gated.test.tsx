@@ -33,11 +33,10 @@ describe('HeatmapView with WebGL available', () => {
 
   it('offers the terrain, and comes back to the flat grid', async () => {
     pretendWebGL();
-    const { iv, table, cells, palette } = view();
+    const { iv, cells, palette } = view();
     const { container } = renderApp(
-      <HeatmapView
-        cells={cells} colorBy="rank" colorByLabel="Rank" onPick={() => {}}
-        ivS={iv.s} onIvS={() => {}} table={table} iv={iv} palette={palette} />);
+      <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
+        onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
     const controls = container.querySelector('.hv-controls')!;
     const threeD = [...controls.querySelectorAll('button')].find((b) => b.textContent === '3D');
     expect(threeD).toBeTruthy();
@@ -50,11 +49,10 @@ describe('HeatmapView with WebGL available', () => {
   });
 
   it('hides the toggle entirely where the probe fails', () => {
-    const { iv, table, cells, palette } = view();
+    const { iv, cells, palette } = view();
     const { container } = renderApp(
-      <HeatmapView
-        cells={cells} colorBy="rank" colorByLabel="Rank" onPick={() => {}}
-        ivS={iv.s} onIvS={() => {}} table={table} iv={iv} palette={palette} />);
+      <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
+        onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
     const controls = container.querySelector('.hv-controls')!;
     expect([...controls.querySelectorAll('button')].some((b) => b.textContent === '3D')).toBe(false);
   });
@@ -98,17 +96,20 @@ describe('AddPokemonModal IV controls', () => {
     const onCommit = vi.fn();
     const r = renderApp(
       <AddPokemonModal league="great" restrictTo={undefined} onCommit={onCommit} onClose={() => {}} />);
-    const input = r.container.querySelector('.species-search input') as HTMLInputElement;
+    // The dialog portals into <body>, so it is never inside the render's own
+    // container — that is what keeps a transformed ancestor from containing it.
+    const container = document.body;
+    const input = container.querySelector('.species-search input') as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'azumarill' } });
     const row = await waitFor(() => {
-      const x = [...r.container.querySelectorAll('.search-row')].find((n) => /azumarill/i.test(n.textContent ?? ''));
+      const x = [...container.querySelectorAll('.search-row')].find((n) => /azumarill/i.test(n.textContent ?? ''));
       if (!x) throw new Error('no Azumarill');
       return x;
     });
     fireEvent.mouseDown(row);
-    await waitFor(() => expect(r.container.querySelector('.iv-step')).toBeTruthy());
-    return { ...r, onCommit };
+    await waitFor(() => expect(container.querySelector('.iv-step')).toBeTruthy());
+    return { ...r, container, onCommit };
   };
 
   it('steps an IV with the +/- buttons', async () => {

@@ -3,8 +3,8 @@ import { BestBuddyRibbon } from './BestBuddyRibbon';
 /**
  * Off / Include selector for the Best Buddy boost.
  *
- * Mirrors FormToggle rather than the accent SegGroup, for the same reason:
- * this describes the Pokemon, not the view. It reads as a property you turn on
+ * A labelled two-pole channel rather than the accent SegGroup, for the same
+ * reason the Shadow control was one: this describes the Pokemon, not the view. It reads as a property you turn on
  * for both sides of the matchup, which is what it is — a Best Buddy opponent
  * is a real opponent.
  *

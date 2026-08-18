@@ -174,6 +174,49 @@ export function isSimulated(ref: string): boolean {
 }
 
 /**
+ * The move catalogue: every distinct move in the game, once each.
+ *
+ * Three things have to be undone to get from the interned table to a
+ * catalogue.
+ *
+ * The table is keyed `ID|stab`, so a move learned by both a same-type and an
+ * off-type species appears twice. Species read those keyed copies — that is
+ * the point of them, since STAB belongs to the pairing and not to the move.
+ * A catalogue describes the move itself, so it dedupes by id and pins `stab`
+ * to 1. Anything computing `power * stab` against these rows —
+ * `fastMoveStats`, `chargeMoveStats` — then reports the move's own numbers
+ * rather than one learner's.
+ *
+ * `turns` is the discriminator, exactly as in the raw table: only a fast move
+ * has a duration. Charge moves resolve instantly in PvP, which is also why
+ * they have no per-turn figures to report.
+ *
+ * And it is built from what SIMULATED species learn, so it inherits
+ * UNSIMULATED_IDS rather than restating it. Aegislash is the case that forces
+ * this: its two form-change moves are named "Air Slash" and "Psycho Cut" like
+ * the real ones, carry 0 power, and belong to a species the engine refuses to
+ * model at all. Listed, they read as duplicate rows with broken numbers.
+ * Emptying UNSIMULATED_IDS restores them here with no other edit, which is the
+ * same property the pickers have.
+ */
+const DISTINCT_MOVES = (() => {
+  const learned = new Set<string>();
+  for (const s of SPECIES) {
+    if (!isSimulated(s.id)) continue;
+    for (const m of s.fastMoves) learned.add(m.id);
+    for (const m of s.chargeMoves) learned.add(m.id);
+  }
+  const byId = new Map<string, FastMove & ChargeMove>();
+  for (const m of Object.values(raw.moves)) {
+    if (learned.has(m.id) && !byId.has(m.id)) byId.set(m.id, { ...m, stab: 1 });
+  }
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+})();
+
+export const FAST_MOVES: FastMove[] = DISTINCT_MOVES.filter((m) => m.turns !== undefined);
+export const CHARGE_MOVES: ChargeMove[] = DISTINCT_MOVES.filter((m) => m.turns === undefined);
+
+/**
  * Every selectable entry, base forms plus a Shadow row for each eligible
  * form. Used by the battle screen's search, where the two sides are picked
  * independently and a Shadow is a genuinely different opponent.

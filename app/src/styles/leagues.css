@@ -131,6 +131,14 @@
   text-transform: uppercase;
   color: var(--text-faint);
 }
+/* Reads the rank directly above it, so it hangs off the vitals rather than
+   standing as a block of its own — same hairline, no second frame. */
+.hero-verdict {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
 
 .league-tabs {
   display: flex;

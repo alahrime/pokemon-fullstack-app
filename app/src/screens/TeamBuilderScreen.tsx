@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { teamPool } from '../lib/rankings';
-import { analyseShow6, analyseTeam, completionPool, suggestCompletions } from '../lib/teambuild';
+import { analyseShow6, analyseTeam, completionPool, suggestCompletions, suggestSwaps, weaknessesAgainst } from '../lib/teambuild';
+import type { SixSwap, Weakness } from '../lib/teambuild';
 import { Sprite } from '../components/Sprite';
 import { PokemonCard } from '../components/PokemonCard';
 import { TypeBadge } from '../components/TypeBadge';
@@ -11,7 +12,6 @@ import { SpeciesSearch } from '../components/SpeciesSearch';
 import { AddPokemonModal, movesForChoice, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { BestTeams } from '../components/BestTeams';
 import { InfoPopover } from '../components/InfoPopover';
-import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import type { LeagueId } from '../lib/types';
 
 /**
@@ -37,7 +37,7 @@ function Slot({ ref: r, league, onClear, onAdd, build }: {
   if (!r) {
     return (
       <button className="team-slot is-empty" onClick={onAdd} title="Add a Pokémon, with its moves and roll">
-        <span aria-hidden="true">＋</span>
+        <span className="team-slot-mark" aria-hidden="true">+</span>
         <span className="team-slot-hint">Add</span>
       </button>
     );
@@ -57,6 +57,101 @@ function Slot({ ref: r, league, onClear, onAdd, build }: {
       title="Click to remove"
       build={resolved ? { ...resolved, iv: build!.iv } : null}
     />
+  );
+}
+
+/** A sprite that says who it is — the unit both lists below are built from. */
+function Mon({ refId, size = 28 }: { refId: string; size?: number }) {
+  const sp = speciesOf(refId);
+  if (!sp) return null;
+  return (
+    <span className="flex-none inline-grid place-items-center" title={displayName(refId)}>
+      <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(refId).shadow} />
+    </span>
+  );
+}
+
+/**
+ * What beats the six, and what the six has to say about it.
+ *
+ * One row per opponent: how much of the roster it beats, and — the part that
+ * makes it act-on-able rather than read-only — exactly which members answer it.
+ * A row with no answer at all is the thing to fix, and is marked as such.
+ */
+function WeaknessList({ weaknesses }: { weaknesses: readonly Weakness[] }) {
+  if (!weaknesses.length) {
+    return <p className="text-muted">Nothing in the pool beats a member of this six.</p>;
+  }
+  return (
+    <ol className="weak-list">
+      {weaknesses.map((w) => (
+        <li key={w.ref} className={`weak-row${w.answered.length === 0 ? ' is-open' : ''}`}>
+          <Mon refId={w.ref} size={30} />
+          <span className="weak-name">{displayName(w.ref)}</span>
+          <span className="weak-share" title={`${w.lost.length} of ${w.lost.length + w.answered.length} lose to it`}>
+            <span className="weak-share-fill" style={{ width: `${w.beatShare * 100}%` }} />
+            <span className="numeric weak-share-text">{w.lost.length}/{w.lost.length + w.answered.length}</span>
+          </span>
+          <span className="weak-answers">
+            {w.answered.length === 0 ? (
+              <span className="weak-none">no answer</span>
+            ) : (
+              w.answered.map((r) => <Mon key={r} refId={r} size={24} />)
+            )}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Swaps worth trying, each answering something the six currently cannot.
+ *
+ * The gain is weighted threat coverage — a hole nothing answers is worth more
+ * than a second answer to something half the team already handles — and the
+ * "answers" figure is how much of the whole list the incoming pick holds,
+ * which is what separates several candidates that all plug the same one hole.
+ */
+function SwapList({ swaps }: { swaps: readonly SixSwap[] }) {
+  if (!swaps.length) {
+    return (
+      <p className="text-muted">
+        No legal swap improves on this six — every candidate that answers something new gives up
+        something the roster was already holding.
+      </p>
+    );
+  }
+  return (
+    <ol className="swap-list">
+      {swaps.map((s) => (
+        <li key={`${s.out}|${s.in}`} className="swap-row">
+          <span className="swap-side is-out">
+            <Mon refId={s.out} size={30} />
+            <span className="swap-name">{displayName(s.out)}</span>
+          </span>
+          <span className="swap-arrow" aria-hidden="true">→</span>
+          <span className="swap-side is-in">
+            <Mon refId={s.in} size={30} />
+            <span className="swap-name">{displayName(s.in)}</span>
+          </span>
+          <span className="swap-why">
+            {s.covers.length > 0 && (
+              <span className="swap-covers">
+                answers {s.covers.slice(0, 3).map(displayName).join(', ')}
+                {s.covers.length > 3 && ` +${s.covers.length - 3}`}
+              </span>
+            )}
+            {s.costs.length > 0 && (
+              <span className="swap-costs">gives up {s.costs.map(displayName).join(', ')}</span>
+            )}
+          </span>
+          <span className="numeric swap-score" title="How many of the flagged threats this pick beats">
+            {s.answers}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -98,6 +193,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<ReturnType<typeof analyseTeam> | null>(null);
   const [six, setSix] = useState<ReturnType<typeof analyseShow6> | null>(null);
+  const [swaps, setSwaps] = useState<SixSwap[] | null>(null);
+  const [weak, setWeak] = useState<Weakness[] | null>(null);
   const [picks, setPicks] = useState<ReturnType<typeof suggestCompletions> | null>(null);
 
   // Three different pools, and conflating them is what made Altaria
@@ -127,9 +224,30 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   // same tick both read the `team` their own render closed over, so the second
   // overwrites the first instead of appending — which silently dropped members
   // and left the roster looking like it had chosen at random.
+  /**
+   * Where the keyboard goes once a Pokemon has been added.
+   *
+   * The "+" that opened the dialog has just been replaced by the card it asked
+   * for, so the modal has nothing to hand focus back to and it would land on
+   * <body>. The next empty slot is where you would go to add the next one.
+   *
+   * In an effect rather than a frame callback: requestAnimationFrame does not
+   * run at all while the document is hidden, so a focus move scheduled that
+   * way either never happens or happens whenever the tab is next looked at.
+   * `preventScroll` for the same reason the dialog uses it — focus should
+   * move, the page should not.
+   */
+  const focusNextSlot = useRef(false);
+  useEffect(() => {
+    if (!focusNextSlot.current) return;
+    focusNextSlot.current = false;
+    document.querySelector<HTMLElement>('.team-slot.is-empty')?.focus({ preventScroll: true });
+  }, [team]);
+
   const addBuilt = (choice: AddPokemonChoice) => {
     setBuilds((b) => ({ ...b, [choice.ref]: choice }));
     add(choice.ref);
+    focusNextSlot.current = true;
   };
 
   const add = (ref: string) => {
@@ -160,11 +278,25 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     // Yield once so the button paints its busy state before the sim blocks.
     setTimeout(() => {
       const t0 = performance.now();
-      if (size === 3) setReport(analyseTeam(team, league, { builds }));
-      else {
-        setSix(analyseShow6(team, league, { builds }));
-        setReport(analyseTeam(team, league, { size: 3, count: 160 , builds }));
-      }
+      // A roster of two has no line to field, so neither the chain nor the
+      // matrix game is asked of it. The weakness scan and the swaps are — they
+      // are per-member measurements, and they are most useful while there are
+      // still slots to fill.
+      const canField = team.length >= 3;
+      const report6 = size === 6 && canField ? analyseShow6(team, league, { builds }) : null;
+      const weakness = report6 ? report6.weakTo : weaknessesAgainst(team, league, { builds });
+      setSix(report6);
+      setWeak(weakness);
+      // Scored against the weaknesses just named, so the two panels always
+      // agree about what the problem is.
+      setSwaps(suggestSwaps(team, weakness, league, { builds }));
+      setReport(
+        canField
+          ? size === 3
+            ? analyseTeam(team, league, { builds })
+            : analyseTeam(team, league, { size: 3, count: 160, builds })
+          : null,
+      );
       setElapsed(performance.now() - t0);
       setBusy(false);
     }, 0);
@@ -259,62 +391,25 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           />
         </div>
         <div className="team-actions">
-          <button className="btn btn-primary" disabled={!full || busy} onClick={run}>
-            {busy ? 'Simulating…' : `Analyse ${size === 3 ? 'team' : 'six'}`}
+          {/* Two members, not a full roster. What beats a partial team and
+              which swap answers it are per-member measurements — they do not
+              need the empty slots filled, and the questions are at their most
+              useful while there are still slots to fill. Only the chain result
+              and the matrix game need a fieldable line; those say so
+              themselves rather than gating the whole button. */}
+          <button className="btn btn-primary" disabled={team.length < 2 || busy} onClick={run}>
+            {busy ? 'Simulating…' : full ? `Analyse ${size === 3 ? 'team' : 'six'}` : `Analyse ${team.length} of ${size}`}
           </button>
           <button className="btn" disabled={team.length >= size || busy || team.length === 0} onClick={suggest}>
             Suggest next pick
           </button>
           {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
-          {report && (
-            <>
-              <button
-                className="btn btn-sm"
-                title="This analysis as JSON — headline numbers, threats, and the Show 6 game where applicable"
-                onClick={() =>
-                  downloadJson(`paragon-team-${league}-${stamp()}`, {
-                    league,
-                    size,
-                    team: team.map((r) => ({ ref: r, name: displayName(r) })),
-                    winRate: report.winRate,
-                    meanHpKept: report.meanHp,
-                    carryoverEdge: report.carryover,
-                    show6: six
-                      ? { floor: six.floor, naive: six.naive, bestLine: six.bestLine }
-                      : null,
-                    threats: (six ? six.threats : report.threats).map((t) => ({
-                      ref: t.ref,
-                      name: displayName(t.ref),
-                      lossRate: t.lossRate,
-                      meanHpCost: t.meanHpCost,
-                    })),
-                  })
-                }
-              >
-                Export JSON
-              </button>
-              <button
-                className="btn btn-sm"
-                title="The threat table as CSV"
-                onClick={() =>
-                  downloadCsv(
-                    `paragon-threats-${league}-${stamp()}`,
-                    (six ? six.threats : report.threats).map((t, i) => ({
-                      rank: i + 1,
-                      ref: t.ref,
-                      name: displayName(t.ref),
-                      lossRate: t.lossRate,
-                      meanHpCost: t.meanHpCost,
-                      league,
-                      team: team.map(displayName).join(' / '),
-                    })),
-                  )
-                }
-              >
-                Threats CSV
-              </button>
-            </>
-          )}
+          {/* The analysis used to leave by the back door: an "Export JSON" of
+              the headline numbers and a "Threats CSV" of a table nobody could
+              read without a spreadsheet. Both are gone — everything they
+              carried is on the page now, in "What beats this six" and the
+              swaps beside it, where it can be acted on rather than
+              downloaded. */}
         </div>
       </div>
 
@@ -391,8 +486,17 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         </div>
       )}
 
-      {report && (
+      {(report || weak) && (
         <div className="team-report">
+          {!report && (
+            <div className="panel text-muted">
+              A roster of {team.length} cannot field a line, so there is no chain result and no
+              matrix game to report — those arrive at three. What is below needs only the members
+              you have: every opponent in the pool played against each of them, and the swaps that
+              would answer what none of them beat.
+            </div>
+          )}
+          {report && (
           <div className="panel panel-filled">
             <div className="stat-strip">
               <div className="stat-cell">
@@ -430,6 +534,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
               )}
             </div>
           </div>
+          )}
 
           {six && (
             <div className="panel">
@@ -447,21 +552,50 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             </div>
           )}
 
-          <div className="panel">
-            <div className="hud-label">Greatest threats</div>
-            <p className="text-muted">
-              Share of sampled opposing teams containing this Pokémon that beat you. Listed per
-              Pokémon rather than per team, because "Registeel is a problem" is actionable and "this
-              exact trio is a problem" is not.
-            </p>
-            <ThreatList threats={six ? six.threats : report.threats} />
-          </div>
+          {weak && (
+            <>
+              <div className="panel">
+                <div className="hud-label">What beats this {size === 6 ? 'six' : 'team'}</div>
+                <p className="text-muted">
+                  The twenty opponents your roster handles worst, each played against every member
+                  at 0, 1 and 2 shields. The bar is how many of your {team.length} lose to it; the
+                  sprites on the right are the ones that answer it. A row with no answer is a hole —
+                  those come first.
+                </p>
+                <WeaknessList weaknesses={weak} />
+              </div>
+
+              <div className="panel">
+                <div className="hud-label">{team.length < size ? 'Swaps worth trying — and the slots still open' : 'Swaps worth trying'}</div>
+                <p className="text-muted">
+                  One member out, one legal candidate in, ranked by how much of the list above the
+                  exchange closes. A candidate is charged for anything the departing member alone
+                  was holding, so a swap that trades one hole for another never appears. The figure
+                  on the right is how many of the twenty the incoming pick beats.
+                  {team.length < size && ' With slots still open, "Suggest next pick" answers the other half of the question — what to add rather than what to change.'}
+                </p>
+                <SwapList swaps={swaps ?? []} />
+              </div>
+            </>
+          )}
+
+          {report && size === 3 && (
+            <div className="panel">
+              <div className="hud-label">Greatest threats</div>
+              <p className="text-muted">
+                Share of sampled opposing teams containing this Pokémon that beat you. Listed per
+                Pokémon rather than per team, because "Registeel is a problem" is actionable and
+                "this exact trio is a problem" is not.
+              </p>
+              <ThreatList threats={report.threats} />
+            </div>
+          )}
         </div>
       )}
 
-      {!report && !picks && (
+      {!report && !weak && !picks && (
         <div className="panel text-muted">
-          Pick {size} and hit analyse. Every matchup is played as one continuous fight — the winner
+          Pick at least two and hit analyse. Every matchup is played as one continuous fight — the winner
           carries its remaining HP and banked energy into the next opponent, and your two shields
           deplete across the whole battle rather than resetting each time.
           {size === 6 && ' Six is scored as a matrix game: both players choose their three after seeing the other six.'}

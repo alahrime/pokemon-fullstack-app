@@ -66,6 +66,13 @@
   /* Per-cell stagger for the 4096-cell heatmap reveal. Kept tiny — with 256
      visible cells even 2ms compounds to a half-second sweep. */
   --stagger-step: calc(2ms * var(--motion-scale));
+  /* Row cascade: the gap between one row arriving and the next, and the point
+     past which every remaining row shares the last one's start. 55ms is a
+     readable beat — at 18ms consecutive rows were a single frame apart and a
+     table read as one block. The run ends at 900ms, so a 100-row page still
+     finishes inside a second and a half. */
+  --row-step: 55ms;
+  --row-run: 900ms;
 
   /* — geometry — */
   --border-hairline: 1px;

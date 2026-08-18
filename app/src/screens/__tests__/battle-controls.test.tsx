@@ -141,9 +141,14 @@ describe('BattleScreen — per-side controls', () => {
     const { container } = renderApp(<BattleScreen />);
     const [a] = sides(container);
     const before = a.textContent;
-    const steppers = a.querySelectorAll('.iv-step, .iv-adjuster button');
+    // The side opens on its default roll, which is usually rank 1 — so the
+    // first stepper may be pinned (attack 0 cannot decrease). Drive one that
+    // is actually live.
+    const steppers = [...a.querySelectorAll('.iv-step')] as HTMLButtonElement[];
     expect(steppers.length).toBeGreaterThan(0);
-    fireEvent.click(steppers[0]);
+    const live = steppers.find((b) => !b.disabled)!;
+    expect(live).toBeTruthy();
+    fireEvent.click(live);
     expect(a.textContent).not.toBe(before);
   });
 

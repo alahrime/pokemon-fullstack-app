@@ -226,16 +226,82 @@
   to { opacity: 1; transform: none; }
 }
 
+/* The row arrival itself: slides in and settles past its mark before coming
+   back to it, which is what --ease-spring's overshoot does. One row after
+   another, so a page of results gels into place rather than appearing.
+
+   --row-step is what makes it read as a cascade at all. At the 18ms it started
+   life as, consecutive rows were one frame apart on a 60Hz screen and the
+   whole table looked like a single block fading in — which is exactly what it
+   looked like. 55ms is far enough apart to follow a row down the list and
+   still lands a full page inside a second. */
+@keyframes gel-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
 .stagger-drop > * {
-  animation: drop-in var(--dur-3) var(--ease-out) both;
-  animation-delay: calc(min(var(--i, 0) * 18ms, 320ms) * var(--motion-scale));
+  animation: gel-in var(--dur-4) var(--ease-spring) both;
+  animation-delay: calc(min(var(--i, 18) * var(--row-step), var(--row-run)) * var(--motion-scale));
 }
 
 /* A table row cannot carry a transform on itself in every engine, but its
    cells can — so the row animates through its own children. */
 .stagger-drop-rows > tr > * {
-  animation: drop-in var(--dur-3) var(--ease-out) both;
-  animation-delay: calc(min(var(--row-i, 0) * 18ms, 320ms) * var(--motion-scale));
+  animation: gel-in var(--dur-4) var(--ease-spring) both;
+  animation-delay: calc(min(var(--row-i, 0) * var(--row-step), var(--row-run)) * var(--motion-scale));
+}
+
+/* ── every table, not only the ones that opted in ──────────────────────────
+   The cascade used to need two things from a screen: the class on the tbody
+   and a --row-i on each row. Two screens had both; the other nine tables in
+   the app snapped in as a block, so the same list of numbers arrived one way
+   on Rankings and another way on Cores.
+
+   The index comes from the row's own position now, which is why this needs no
+   markup at all. Written out rather than computed because sibling-index() is
+   too new to rely on: the delay is capped at 320ms anyway, so the run only has
+   to reach the row where the cap bites — every row past it shares the last
+   step and arrives together, which is what the cap always did. */
+.table tbody > tr > * {
+  animation: gel-in var(--dur-4) var(--ease-spring) both;
+  animation-delay: calc(min(var(--row-i, 18) * var(--row-step), var(--row-run)) * var(--motion-scale));
+}
+/* One run of indices for both kinds of row — a table's and a list's — so a
+   list of cores arrives the way a page of rankings does. Whichever variable a
+   given rule reads, it finds the row's position here; a screen that sets one
+   inline (BestTeams, Rankings) still wins, since inline beats any selector. */
+.table tbody > tr:nth-child(1), .stagger-drop > *:nth-child(1) { --row-i: 0; --i: 0; }
+.table tbody > tr:nth-child(2), .stagger-drop > *:nth-child(2) { --row-i: 1; --i: 1; }
+.table tbody > tr:nth-child(3), .stagger-drop > *:nth-child(3) { --row-i: 2; --i: 2; }
+.table tbody > tr:nth-child(4), .stagger-drop > *:nth-child(4) { --row-i: 3; --i: 3; }
+.table tbody > tr:nth-child(5), .stagger-drop > *:nth-child(5) { --row-i: 4; --i: 4; }
+.table tbody > tr:nth-child(6), .stagger-drop > *:nth-child(6) { --row-i: 5; --i: 5; }
+.table tbody > tr:nth-child(7), .stagger-drop > *:nth-child(7) { --row-i: 6; --i: 6; }
+.table tbody > tr:nth-child(8), .stagger-drop > *:nth-child(8) { --row-i: 7; --i: 7; }
+.table tbody > tr:nth-child(9), .stagger-drop > *:nth-child(9) { --row-i: 8; --i: 8; }
+.table tbody > tr:nth-child(10), .stagger-drop > *:nth-child(10) { --row-i: 9; --i: 9; }
+.table tbody > tr:nth-child(11), .stagger-drop > *:nth-child(11) { --row-i: 10; --i: 10; }
+.table tbody > tr:nth-child(12), .stagger-drop > *:nth-child(12) { --row-i: 11; --i: 11; }
+.table tbody > tr:nth-child(13), .stagger-drop > *:nth-child(13) { --row-i: 12; --i: 12; }
+.table tbody > tr:nth-child(14), .stagger-drop > *:nth-child(14) { --row-i: 13; --i: 13; }
+.table tbody > tr:nth-child(15), .stagger-drop > *:nth-child(15) { --row-i: 14; --i: 14; }
+.table tbody > tr:nth-child(16), .stagger-drop > *:nth-child(16) { --row-i: 15; --i: 15; }
+.table tbody > tr:nth-child(17), .stagger-drop > *:nth-child(17) { --row-i: 16; --i: 16; }
+.table tbody > tr:nth-child(18), .stagger-drop > *:nth-child(18) { --row-i: 17; --i: 17; }
+
+/* ── text arrival ──────────────────────────────────────────────────────────
+   A screen's title and its line of explanation used to be painted the instant
+   the chunk resolved, which reads as a jump even inside a container that is
+   itself rising. They resolve out of a blur instead — the same fluid arrival
+   as the rows below them, a beat earlier. */
+@keyframes text-flow {
+  from { opacity: 0; transform: translateY(8px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.text-flow > * {
+  animation: text-flow var(--dur-4) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0) * 70ms, 280ms) * var(--motion-scale));
 }
 
 /* ── press ─────────────────────────────────────────────────────────────────

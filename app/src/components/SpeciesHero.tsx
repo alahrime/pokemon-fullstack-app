@@ -23,6 +23,7 @@ export function SpeciesHero({
   league,
   shadow,
   bestBuddy = false,
+  verdict,
 }: {
   species: Species;
   entry: RankedEntry;
@@ -30,6 +31,13 @@ export function SpeciesHero({
   shadow: boolean;
   /** Rank-1 spread only reachable with a Best Buddy boost. */
   bestBuddy?: boolean;
+  /**
+   * One line reading the rank beside it — "elite spread, worth full
+   * investment". It used to sit in a panel of its own further down the column
+   * that restated the rank to introduce it; here it annotates the figure it is
+   * about, which is the only place it needs to be.
+   */
+  verdict?: string;
 }) {
   const range = useMemo(() => leagueStatRange(league), [league]);
 
@@ -92,6 +100,8 @@ export function SpeciesHero({
             <span className="hero-vital-label">Rank</span>
           </span>
         </div>
+
+        {verdict ? <p className="hero-verdict">{verdict}</p> : null}
 
         {/* Attack, defence and HP as meters against the strongest in the
             league, so the bar answers "how does this compare" rather than

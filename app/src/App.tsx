@@ -7,6 +7,7 @@ import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { LeagueTabs } from './components/LeagueTabs';
 import { opponentsFor, randomMatchup } from './lib/data';
+import { defaultSpreadFor } from './lib/engine';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
@@ -26,6 +27,7 @@ const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) =>
 const TeamBuilderScreen = lazy(() => import('./screens/TeamBuilderScreen').then((m) => ({ default: m.TeamBuilderScreen })));
 const CoresScreen = lazy(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
 const DiagnosticsScreen = lazy(() => import('./screens/DiagnosticsScreen').then((m) => ({ default: m.DiagnosticsScreen })));
+const MovesScreen = lazy(() => import('./screens/MovesScreen').then((m) => ({ default: m.MovesScreen })));
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -68,6 +70,8 @@ function Nav() {
             // re-rolled here — a Great-league matchup left on the Master
             // screen is priced at a cap it never plays under.
             const [a, b] = randomMatchup(id);
+            const spreadA = defaultSpreadFor(a, id);
+            const spreadB = defaultSpreadFor(b, id);
             patch({
               league: id,
               oppId: opponentsFor(id)[0]?.id ?? '',
@@ -77,6 +81,11 @@ function Nav() {
               fastB: 0,
               chargeIdsA: [],
               chargeIdsB: [],
+              // The roll is priced against the cap, so it is re-taken with the
+              // league as well as with the species — a Great roll under Master
+              // is a spread nobody would field there.
+              ivA: { a: spreadA.a, d: spreadA.d, s: spreadA.s },
+              ivB: { a: spreadB.a, d: spreadB.d, s: spreadB.s },
             });
           }}
         />
@@ -111,6 +120,8 @@ function Screens() {
       return <LazyScreen key="cores"><CoresScreen /></LazyScreen>;
     case 'diagnostics':
       return <LazyScreen key="diagnostics"><DiagnosticsScreen /></LazyScreen>;
+    case 'moves':
+      return <LazyScreen key="moves"><MovesScreen /></LazyScreen>;
   }
 }
 

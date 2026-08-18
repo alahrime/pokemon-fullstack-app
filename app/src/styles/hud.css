@@ -83,8 +83,9 @@
   bottom: -1px; right: -1px;
   border-width: 0 var(--border-strong) var(--border-strong) 0;
 }
-.hud-frame.is-signal::before,
-.hud-frame.is-signal::after { border-color: var(--color-accent-2); }
+/* The `is-signal` variant — cyan brackets — came only from the HudFrame
+   wrapper, whose last caller was the report's rank panel. Frames are applied
+   as a bare `.hud-frame` class now, so there is nothing left to signal. */
 
 /* — readout label: the small caps telemetry header — */
 .hud-label {
@@ -115,17 +116,8 @@
   animation: fade-in var(--dur-2) var(--ease-out) both, pulse-ring 2s var(--ease-out) infinite;
 }
 
-/* — big display numerals — */
-.hud-readout {
-  font-family: var(--font-numeric);
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-:root[data-theme='hud'] .hud-readout {
-  text-shadow: 0 0 22px color-mix(in srgb, var(--color-accent) 45%, transparent);
-}
+/* The big display numeral went with the rank panel it sized — the only screen
+   that showed one. */
 
 /* — axis ticks for the battle timeline — */
 .hud-ticks {

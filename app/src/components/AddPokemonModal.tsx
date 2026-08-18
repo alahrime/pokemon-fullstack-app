@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor, chargesOf, getEntry, selectedCharges } from '../lib/engine';
+import { bestSpreadFor, chargesOf, defaultSpreadFor, getEntry, selectedCharges } from '../lib/engine';
 import { SpeciesSearch } from './SpeciesSearch';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
@@ -24,15 +25,19 @@ import type { IV, LeagueId } from '../lib/types';
 /**
  * How tall the results list may be inside this panel.
  *
- * Nine rows at the 52px the search uses, against the eight the default 420
- * gives every other caller. Derived from the panel's guaranteed floor rather
- * than picked: `.modal-panel` stands at least `min(660px, 88vh)`, which on the
- * shortest viewport that matters (720) is 634 — less the head, the foot and the
- * 58px the search box occupies at the top of the body, that leaves 482 for a
- * dropdown that spends 2 on its own border. Raising it past that would put the
- * last rows back under the footer, which is the bug this whole change is about.
+ * Derived from the panel's guaranteed floor rather than picked, and it has to
+ * move whenever that floor does. `.modal-panel` now stands at least
+ * `min(500px, 88vh)`; on the shortest viewport that matters (720) that is 500,
+ * less the 46px head, the 51px foot, the body's 16px of padding above the
+ * search, the 40px search box itself and 16px of clearance under the list —
+ * which leaves 330 for a dropdown that spends 2 on its own border.
+ *
+ * Six rows at the 52px the search uses. Fewer than the nine the taller panel
+ * held, which is the trade: the dialog no longer covers most of the screen.
+ * Raising this past the space the panel has puts the last rows back under the
+ * footer, out of reach — the bug the floor exists to prevent.
  */
-export const MODAL_LIST_H = 468;
+export const MODAL_LIST_H = 328;
 
 export interface AddPokemonChoice {
   ref: string;
@@ -62,24 +67,47 @@ export function AddPokemonModal({
   const sp = ref ? speciesOf(ref) : null;
   const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   const best = useMemo(() => (ref && sp ? bestSpreadFor(ref, league, true) : null), [ref, sp, league]);
+  // What the slot opens on: the same roll the cards and the rankings show, so
+  // adding without touching anything matches what the rest of the app said this
+  // Pokemon was. The Rank-1 button below still aims at rank 1, which is a
+  // different spread wherever the two disagree.
+  const opening = useMemo(
+    () => (ref && sp ? defaultSpreadFor(ref, league, true) : null),
+    [ref, sp, league],
+  );
 
   // Picking a species resets the build: a fast-move index or charge id carried
   // over from the previous pick names a move the new species does not learn.
   // The same bug the nav search had (see App.tsx), in a place where it would be
   // even less visible.
   useEffect(() => {
-    if (!sp || !rated || !best) return;
+    if (!sp || !rated || !opening) return;
     setFastIdx(Math.max(0, sp.fastMoves.findIndex((m) => m.id === rated.fast.id)));
     setChargeIds(rated.charges.map((c) => c.id));
-    setIv({ a: best.a, d: best.d, s: best.s });
-  }, [ref, sp, rated, best]);
+    setIv({ a: opening.a, d: opening.d, s: opening.s });
+  }, [ref, sp, rated, opening]);
 
-  // Escape closes; focus moves into the panel so the keyboard lands somewhere.
+  /**
+   * Escape closes; focus moves into the panel so the keyboard lands somewhere,
+   * and goes back where it came from when the panel goes away.
+   *
+   * `preventScroll` is the whole point of both calls. The scrim is fixed and
+   * the panel is centred in it, but a plain `.focus()` still scrolls the
+   * document to bring the target into view: opening this from the slots on a
+   * long team page jumped the page from the top to 2559px, and closing it left
+   * you there. Focus should move; the page should not.
+   */
   useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    panel.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
+    panel.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      // The "+" that opened this is gone once the slot is filled, so only
+      // restore to something still on the page.
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
   }, [onClose]);
 
   const entry = useMemo(() => (ref ? getEntry(ref, iv, league).entry : null), [ref, iv, league]);
@@ -100,7 +128,22 @@ export function AddPokemonModal({
     onClose();
   };
 
-  return (
+  /*
+   * Rendered into <body>, not where it is written.
+   *
+   * `position: fixed` is only fixed to the viewport while no ancestor holds a
+   * transform, filter or perspective — any of those makes that ancestor the
+   * containing block instead. The screen wrapper animates in on a transform,
+   * so the scrim measured 1280x5639 and centred the panel 2709px down the
+   * page: opening the dialog from the slots scrolled the whole page to it, and
+   * closing it left you stranded there. That is the "focus jumps to the middle
+   * of the page" report.
+   *
+   * A portal ends the whole class of bug rather than the one instance of it —
+   * no ancestor of this component can contain it, whatever it is styled with
+   * later.
+   */
+  return createPortal(
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
         className="modal-panel"
@@ -225,7 +268,8 @@ export function AddPokemonModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

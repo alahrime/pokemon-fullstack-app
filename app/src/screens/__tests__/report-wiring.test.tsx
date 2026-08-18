@@ -134,13 +134,88 @@ describe('ReportScreen wiring', () => {
     if (pageRange) fireEvent.change(pageRange, { target: { value: '1' } });
   });
 
-  it('picks a roll off the heatmap\'s top-of-the-space table', () => {
+  it('picks a roll off the ranking window', () => {
     const { container } = renderApp(<ReportScreen />);
     const rows = container.querySelectorAll('.hv-top-row');
     expect(rows.length).toBeGreaterThan(0);
     const other = [...rows].find((r) => !r.className.includes('is-selected'))!;
     fireEvent.click(other);
     expect(container.querySelector('.hv-top-row.is-selected')).toBeTruthy();
+  });
+
+  it('stands the window on the current roll, seven spreads either side', () => {
+    // The default roll is 0/14/15, rank 9 — far enough down that a centred
+    // window is a real one rather than clamped to the top of the ranking.
+    const { container } = renderApp(<ReportScreen />);
+    const rows = [...container.querySelectorAll('.hv-top-row')];
+    expect(rows).toHaveLength(15);
+    expect(rows.findIndex((r) => r.className.includes('is-selected'))).toBe(7);
+  });
+
+  it('follows the adjuster: a new roll re-centres the window on it', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const before = container.querySelector('.hv-top-row.is-selected')!.textContent;
+    fireEvent.click(container.querySelector('[aria-label="Decrease Defense"]')!);
+    const rows = [...container.querySelectorAll('.hv-top-row')];
+    const selected = rows.findIndex((r) => r.className.includes('is-selected'));
+    expect(rows[selected].textContent).not.toBe(before);
+    // Centred on the new roll, except where the ranking runs out above it:
+    // dropping a defense point here lands on rank 7, which has only six
+    // spreads above it to show.
+    const rank = Number(rows[selected].querySelector('.hv-top-rank')!.textContent);
+    expect(selected).toBe(Math.min(7, rank - 1));
+  });
+
+  it('reports the stats a spread buys, not the stat product twice over', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const heads = [...container.querySelectorAll('.hv-top-table th')].map((h) => h.textContent);
+    expect(heads).toEqual(['#', 'IV', 'Atk', 'Def', 'HP', 'SP %']);
+    // Six cells per row, and the last is the share of rank 1 — the raw stat
+    // product column it used to sit beside is gone.
+    const cells = container.querySelectorAll('.hv-top-row')[0].querySelectorAll('td');
+    expect(cells).toHaveLength(6);
+    expect(cells[5].textContent).toMatch(/^\d+\.\d%$/);
+  });
+
+  it('pages through the rest of the 4096, and finds its way back', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const range = () => container.querySelector('.hv-top-pager .pager-range')!.textContent;
+    const opening = range();
+    fireEvent.click(container.querySelector('[aria-label="Next ranks"]')!);
+    expect(range()).not.toBe(opening);
+    // Off your own roll, the way back appears — and only then.
+    const home = [...container.querySelectorAll('.hv-top-home')].at(-1)!;
+    fireEvent.click(home);
+    expect(range()).toBe(opening);
+    expect(container.querySelector('.hv-top-home')).toBeFalsy();
+  });
+
+  it('sends the legend to the other corner when you pick a spread beneath it', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const cell = container.querySelector('.heat-cell')!;
+    // jsdom lays nothing out, so every rect is 0×0 and the real geometry has to
+    // be supplied: a panel occupying 100–200 × 100–150. The corners themselves
+    // were measured in the browser.
+    const stub = () => {
+      const panel = container.querySelector('.hv-legend-panel')!;
+      panel.getBoundingClientRect = () =>
+        ({ left: 100, right: 200, top: 100, bottom: 150, width: 100, height: 50 }) as DOMRect;
+      return panel;
+    };
+
+    stub();
+    fireEvent.click(cell, { clientX: 300, clientY: 400 });
+    // A pick out in the open leaves it where it is.
+    expect(container.querySelector('.hv-legend-panel')!.className).not.toContain('is-left');
+
+    stub();
+    fireEvent.click(cell, { clientX: 150, clientY: 120 });
+    expect(container.querySelector('.hv-legend-panel')!.className).toContain('is-left');
+
+    // And back again from the far corner — the same gesture, both ways.
+    stub();
+    fireEvent.click(cell, { clientX: 150, clientY: 120 });
+    expect(container.querySelector('.hv-legend-panel')!.className).not.toContain('is-left');
   });
 
   it('moves the HP IV slice, which re-slices the 4096', () => {

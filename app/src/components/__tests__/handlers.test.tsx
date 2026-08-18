@@ -172,7 +172,9 @@ describe('AddPokemonModal', () => {
     const onClose = vi.fn();
     const r = renderApp(
       <AddPokemonModal league="great" restrictTo={undefined} onCommit={onCommit} onClose={onClose} />);
-    return { ...r, onCommit, onClose };
+    // Portalled into <body>, so the dialog is never inside the render's own
+    // container — see the comment on the portal in AddPokemonModal.
+    return { ...r, container: document.body, onCommit, onClose };
   };
   const choose = async (container: HTMLElement, name: string) => {
     const input = container.querySelector('.species-search input') as HTMLInputElement;
@@ -191,7 +193,9 @@ describe('AddPokemonModal', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(a.onClose).toHaveBeenCalled();
     const b = open();
-    const scrim = b.container.querySelector('.modal-scrim')!;
+    // Both dialogs portal into the same <body>, so this has to be the scrim
+    // that belongs to the second one — the first is still mounted.
+    const scrim = [...document.body.querySelectorAll('.modal-scrim')].at(-1)!;
     fireEvent.mouseDown(scrim, { target: scrim });
     expect(b.onClose).toHaveBeenCalled();
   });

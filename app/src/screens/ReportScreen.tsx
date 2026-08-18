@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
-  bestLeagueFor,
   dmg,
   bestBuddyEligible,
   bpRowsFor,
@@ -18,7 +17,6 @@ import {
   verdictLine,
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
-import { HudFrame, HudReadout } from '../components/Hud';
 import { OpponentGrid } from '../components/OpponentGrid';
 import { MetricTabs } from '../components/MetricTabs';
 import { metricSortLabel } from '../lib/metrics';
@@ -26,10 +24,9 @@ import { MovesPanel } from '../components/MovesPanel';
 import { Board, BoardControls } from '../components/Board';
 import { VizTabs } from '../components/VizTabs';
 import { SpeciesSearch } from '../components/SpeciesSearch';
-import { FormToggle } from '../components/FormToggle';
-import { BestBuddyToggle } from '../components/BestBuddyToggle';
+import { Switch } from '../components/Switch';
 import { SpeciesHero } from '../components/SpeciesHero';
-import { HeatmapView } from './detail/HeatmapView';
+import { HeatmapKey, HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
@@ -137,8 +134,6 @@ export function ReportScreen() {
   const activeOppIdx = Math.max(0, visible.findIndex((r) => r.info.id === effectiveOppId));
   const opp = useMemo(() => opponentInfo(effectiveOppId, league), [effectiveOppId, league]);
 
-  const spPct = entry.sp / table.best.sp;
-  const bestLeague = bestLeagueFor(ref, iv);
   const isRank1 = entry.rank === 1;
   const bpRows = useMemo(() => bpRowsFor(ref, iv, league, opp), [ref, iv, league, opp]);
 
@@ -170,14 +165,19 @@ export function ReportScreen() {
   const footnote =
     'Stat product = Atk × Def × floor(HP) at the highest level under the cap; ranks recomputed per species per league. Damage model: floor(0.5 · power · Atk/Def · STAB) + 1. Click any heatmap cell to load that spread.';
 
-  const rankBarW = (100 - ((entry.rank - 1) / 4095) * 100).toFixed(2) + '%';
-
   // Master has no CP cap, so there's no level/IV trade-off: every mon sits at
   // level 50 and every IV point is strictly better. Rank still sorts, but it
   // encodes nothing a player can act on - only near-perfect rolls are real
   // options - so the report says so rather than implying a decision exists.
   const uncapped = table.league.uncapped;
   const ivFloor = Math.min(iv.a, iv.d, iv.s);
+
+  // One line reading the rank, shown under the hero's rank figure.
+  const verdict = uncapped
+    ? ivFloor === 15
+      ? 'Perfect. In an uncapped league that is the only spread that matters.'
+      : `Uncapped: every IV point is strictly better, so rank is just "more is better". Lowest IV is ${ivFloor}.`
+    : verdictLine(entry.rank);
 
   // Normal vs Shadow at the *same* IVs against the current opponent. Since the
   // multipliers cancel in stat product, rank is identical either way - the only
@@ -219,36 +219,50 @@ export function ReportScreen() {
         <div className="report-side">
           {/* Identity → form → roll. The three things you change sit together at
               the top; everything below is the readout they produce. */}
-          <SpeciesHero species={species} entry={entry} league={league} shadow={isShadow} bestBuddy={entry.lvl > 50} />
+          <SpeciesHero
+            species={species}
+            entry={entry}
+            league={league}
+            shadow={isShadow}
+            bestBuddy={entry.lvl > 50}
+            verdict={verdict}
+          />
 
-          <div className="side-block">
-            <div className="hud-label rs-label">
-              <span>Form</span>
-            </div>
-            <FormToggle
-              shadow={isShadow}
-              eligible={species.shadowEligible}
-              onChange={(v) => set('shadow', v)}
-              speciesName={species.name}
-            />
-            <div className="text-muted text-xs mt-1.5 max-w-[38ch]">
-              {species.shadowEligible
-                ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
-                : 'No Shadow form exists for this Pokémon.'}
+          {/* Two booleans, side by side. They took two stacked full-width
+              channels before, which is most of a screenful of column for a
+              pair of yes/no properties that the readouts below them are the
+              actual subject of. */}
+          <div className="side-block rs-props">
+            <div className="rs-prop">
+              <Switch
+                label="Shadow"
+                tone="shadow"
+                checked={isShadow}
+                disabled={!species.shadowEligible}
+                onChange={(v) => set('shadow', v)}
+                title={species.shadowEligible ? 'Attack x1.2, defense x5/6' : `${species.name} has no Shadow form`}
+              />
+              <p className="rs-prop-note">
+                {species.shadowEligible
+                  ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
+                  : 'No Shadow form exists for this Pokémon.'}
+              </p>
             </div>
 
-            <div className="hud-label mt-[13px] mr-0 mb-[7px] ml-0">
-              <span>Best Buddy</span>
-            </div>
-            <BestBuddyToggle
-              on={bestBuddy}
-              eligible={bbEligible}
-              onChange={(v) => set('bestBuddy', v)}
-            />
-            <div className="text-muted text-xs mt-1.5 max-w-[38ch]">
-              {bbEligible
-                ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
-                : `${species.name} tops out below level 50 in this league, so a Best Buddy boost changes nothing for it. Opponents are still priced at theirs.`}
+            <div className="rs-prop">
+              <Switch
+                label="Best Buddy"
+                tone="buddy"
+                checked={bestBuddy && bbEligible}
+                disabled={!bbEligible}
+                onChange={(v) => set('bestBuddy', v)}
+                title={bbEligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
+              />
+              <p className="rs-prop-note">
+                {bbEligible
+                  ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
+                  : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
+              </p>
             </div>
           </div>
 
@@ -277,31 +291,22 @@ export function ReportScreen() {
             <IVAdjuster iv={iv} onBump={bumpIv} />
           </div>
 
-          <HudFrame
-            signal
-            className="rs-rank"
-          >
-            <div className="rs-rank-caption">
-              Stat product rank
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <HudReadout value={`#${entry.rank}`} />
-              <span className="numeric rs-rank-of">/ 4096</span>
-            </div>
-            <div className="rs-rank-track">
-              <div
-                className="ruler-band"
-                style={{ height: 2, background: 'var(--color-accent)', width: rankBarW, boxShadow: 'var(--glow-accent)' }}
-              />
-            </div>
-            <div className="rs-rank-note">
-              {uncapped
-                ? ivFloor === 15
-                  ? 'Perfect. In an uncapped league that is the only spread that matters.'
-                  : `Uncapped: every IV point is strictly better, so rank is just "more is better". Lowest IV is ${ivFloor}.`
-                : verdictLine(entry.rank)}
-            </div>
-          </HudFrame>
+          {/* The ranking window reads the roll above it, so it sits with the
+              roll rather than in a column stealing 300px from the plot. Only
+              while the heatmap is the visualisation — it describes that
+              grid. */}
+          {viz === 'heat' && (
+            <HeatmapKey
+              colorBy={colorBy}
+              onPickSpread={(a, d, s) => patch({ iv: { a, d, s } })}
+              table={table}
+              iv={iv}
+            />
+          )}
+
+          {/* The rank frame that stood here is gone too: the hero's vitals
+              already print this spread's rank beside its CP and level, and the
+              heatmap below plots where it sits among the 4096. */}
 
           {uncapped && (
             <div className="panel rs-uncapped">
@@ -313,51 +318,16 @@ export function ReportScreen() {
             </div>
           )}
 
-          {/* Battle stats — these carry the Shadow multipliers, unlike the
-              hero's CP/level, which don't. */}
-          <div className="side-block">
-            <div className="hud-label rs-label">
-              <span>Battle stats</span>
-            </div>
-            <div className="stat-strip">
-            {(
-              [
-                // The stats themselves. Shadow's 6/5 and 5/6 are damage
-                // multipliers, not stat changes — the hero's meters carry that
-                // effect as a separate segment.
-                ['Attack', entry.statAtk.toFixed(1)],
-                ['Defense', entry.statDef.toFixed(1)],
-                ['Stamina', String(entry.hp)],
-              ] as [string, string][]
-            ).map(([label, value]) => (
-                <div key={label} className="stat-cell">
-                  <span className="stat-cell-label">{label}</span>
-                  <span className="stat-cell-value numeric">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* No "Battle stats" strip here: attack, defence and HP are already
+              in the hero's meters, to the same precision and from the same
+              fields, and the meters say more by showing each against the
+              league best. Two copies of one number invite the reading that
+              they differ — which is exactly what the Shadow multipliers used
+              to make people look for. */}
 
-          <div className="side-block">
-            <div className="hud-label rs-label">
-              <span>This spread</span>
-            </div>
-            <div className="stagger detail-list">
-            {(
-              [
-                ['Stat product', `${(entry.sp / 1000).toFixed(2)}k`],
-                ['% of rank 1', `${(spPct * 100).toFixed(2)}%`],
-                ['Rank 1 spread', `${table.best.a}/${table.best.d}/${table.best.s} (${(table.best.sp / 1000).toFixed(2)}k)`],
-                ['Best league here', `${bestLeague.league.name} · #${bestLeague.rank}`],
-              ] as [string, string][]
-            ).map(([label, value], i) => (
-                <div key={label} className="detail-row" style={{ ['--i' as string]: i }}>
-                  <span className="detail-label">{label}</span>
-                  <span className="detail-value numeric">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Nor a "This spread" list: the rank frame above already carries
+              this spread's standing, and the rank-1 spread is on the button
+              that jumps to it. */}
 
           {/* Sits with the other numbers rather than beside the toggle: the
               control belongs at the top, but this is a readout of its effect. */}
@@ -502,8 +472,6 @@ export function ReportScreen() {
                         onPick={(a, d) => patch({ iv: { ...iv, a, d } })}
                         ivS={iv.s}
                         onIvS={(v) => patch({ iv: { ...iv, s: v } })}
-                        table={table}
-                        iv={iv}
                         palette={palette}
                       />
                     )}

@@ -34,8 +34,10 @@ export function ScreenHeader({
 }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-(--rule-strong) pb-4">
-      <div className="min-w-0 flex-1 basis-80">
-        <h1 className="font-(family-name:--font-head) text-3xl/none tracking-tight">
+      {/* The title and its line of explanation flow in rather than appearing:
+          same arrival as the rows below them, one beat ahead. */}
+      <div className="text-flow min-w-0 flex-1 basis-80">
+        <h1 className="font-(family-name:--font-head) text-3xl/none tracking-tight" style={{ ['--i' as string]: 0 }}>
           {/* The accent bar reads as a cursor: this is where the page begins. */}
           <span className="mr-3 inline-block h-[0.7em] w-1 translate-y-[0.04em] bg-(--color-accent) align-middle" aria-hidden="true" />
           {title}
@@ -46,7 +48,9 @@ export function ScreenHeader({
           )}
         </h1>
         {blurb && (
-          <p className="mt-2 max-w-[70ch] text-sm/relaxed text-(--text-muted)">{blurb}</p>
+          <p className="mt-2 max-w-[70ch] text-sm/relaxed text-(--text-muted)" style={{ ['--i' as string]: 1 }}>
+            {blurb}
+          </p>
         )}
       </div>
       {aside && <div className="flex flex-wrap items-center gap-2">{aside}</div>}

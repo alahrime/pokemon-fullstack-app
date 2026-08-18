@@ -64,9 +64,10 @@ describe('LeagueTabs', () => {
 
 describe('AddPokemonModal', () => {
   it('opens with a search and a close control', () => {
-    const { container } = renderApp(
-      <AddPokemonModal league="great" onCommit={() => {}} onClose={() => {}} />);
-    expect(container.querySelector('input')).toBeTruthy();
+    // Portalled into <body>: a fixed scrim inside a transformed ancestor is
+    // not fixed to the viewport at all.
+    renderApp(<AddPokemonModal league="great" onCommit={() => {}} onClose={() => {}} />);
+    expect(document.body.querySelector('.modal-panel input')).toBeTruthy();
   });
   it('closes on Escape without committing', () => {
     const onClose = vi.fn(), onCommit = vi.fn();
@@ -77,8 +78,8 @@ describe('AddPokemonModal', () => {
   });
   it('lets a species be chosen and committed with its build', () => {
     const onCommit = vi.fn();
-    const { container } = renderApp(
-      <AddPokemonModal league="great" onCommit={onCommit} onClose={() => {}} />);
+    renderApp(<AddPokemonModal league="great" onCommit={onCommit} onClose={() => {}} />);
+    const container = document.body;
     fireEvent.focus(container.querySelector('input')!);
     const row = container.querySelector('.search-row');
     if (row) {

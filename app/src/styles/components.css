@@ -242,12 +242,68 @@ input[type='range'] { accent-color: var(--color-accent); }
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--shadow-aura) 90%, transparent));
 }
 
-/* — form toggle (Normal / Shadow) — */
+/* — form toggle: a thrown switch, not two buttons —
+   (Normal / Shadow, Level 50 / Best Buddy, and the battle's timing pair)
+
+   These were two abutting buttons where the selected one lit up. Read cold,
+   that is a pair of controls that happen to be adjacent — nothing says the
+   state is one thing with two positions. Now the pair sits in a machined
+   channel and a single lit block is *thrown* between the poles: one object
+   moving, which is what a switch is.
+
+   The travel is a transform on the channel's own ::before, so it costs no
+   markup and no per-call-site class — `:has()` reads which pole is engaged.
+   Durations come from the tokens, so motion-off collapses the throw to a jump
+   rather than animating a slide nobody asked for. */
 .form-toggle {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
+  padding: 3px;
   border: var(--border-hairline) solid var(--rule-strong);
+  /* Faint instrument ruling under the channel — visible only where the block
+     is not, so the empty pole reads as machined rather than blank. */
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-text) 6%, transparent) 0 1px,
+      transparent 1px 7px
+    ),
+    var(--surface-2);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+/* The block itself: chamfered like everything else in the HUD, with a lit rail
+   along its top edge so the thrown pole is legible at a glance and in a
+   greyscale screenshot. */
+.form-toggle::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: var(--color-text);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--color-accent) 75%, transparent),
+    0 0 14px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition:
+    transform var(--dur-3) var(--ease-out),
+    background var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+/* Thrown right. The block is one pole wide, so 100% of its own width lands it
+   exactly on the second pole. */
+.form-toggle:has(.form-opt:nth-child(2).is-active)::before {
+  transform: translateX(100%);
+}
+/* An ineligible second pole is not a state you can reach, so the switch stops
+   advertising one: the block sits home, unlit. */
+.form-toggle:has(.form-opt:nth-child(2):disabled)::before {
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--color-text) 25%, transparent);
 }
 .form-opt {
   display: flex;
@@ -266,29 +322,40 @@ input[type='range'] { accent-color: var(--color-accent); }
   color: var(--text-muted);
   border: 0;
   position: relative;
+  z-index: 1;
   overflow: hidden;
-  transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out);
+  transition: color var(--dur-2) var(--ease-out);
 }
-.form-opt + .form-opt { border-left: var(--border-hairline) solid var(--rule-strong); }
 .form-opt:hover:not(.is-active):not(:disabled) { color: var(--color-text); }
 .form-opt:disabled { opacity: 0.35; cursor: not-allowed; }
+/* The label sits *on* the block, so it takes the ground's colour, not the
+   channel's. */
+.form-opt.is-active { color: var(--surface-1); }
 
-.form-opt-normal.is-active {
-  background: var(--color-text);
-  color: var(--surface-1);
-}
-
-.form-opt-shadow.is-active {
-  color: #fff;
+/* Per-pole tinting of the block. Shadow's violet and Best Buddy's gold are
+   the same colours these states carry everywhere else, so which way the
+   switch is thrown is readable without the label. */
+.form-toggle:has(.form-opt-shadow.is-active)::before {
   background:
     radial-gradient(ellipse 120% 90% at 50% 120%, color-mix(in srgb, var(--shadow-aura) 70%, transparent), transparent 70%),
     linear-gradient(180deg, var(--shadow-ink), var(--shadow-aura-deep));
   box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--shadow-aura) 90%, transparent),
     inset 0 0 18px color-mix(in srgb, var(--shadow-aura) 45%, transparent),
     0 0 16px color-mix(in srgb, var(--shadow-aura) 40%, transparent);
 }
-/* Creeping wisp across the active Shadow button. */
+.form-opt-shadow.is-active { color: #fff; }
+
+.form-toggle:has(.form-opt-buddy.is-active)::before {
+  background: linear-gradient(180deg, #ffe066, #e0a800);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, #fff 70%, transparent),
+    inset 0 0 14px color-mix(in srgb, #fff 45%, transparent),
+    0 0 16px color-mix(in srgb, #f5c518 45%, transparent);
+}
+.form-opt-buddy.is-active { color: #2a1c04; }
+
+/* Creeping wisp across the thrown Shadow pole. */
 .form-opt-shadow.is-active::after {
   content: '';
   position: absolute;
@@ -296,6 +363,76 @@ input[type='range'] { accent-color: var(--color-accent); }
   pointer-events: none;
   background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--shadow-aura) 40%, transparent) 50%, transparent 70%);
   animation: aura-sweep 3.2s var(--ease-in-out) infinite;
+}
+
+/* — property switch: the same throw at instrument density —
+
+   The channel above names both of its states across the full column width.
+   This one names the property once, above, and lets the knob say whether — so
+   two of them fit in a row where one channel used to sit. Same maths as the
+   channel: the knob is one pole wide, so a 100% throw lands it exactly on the
+   other side. */
+.sw {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.sw-label { margin: 0; }
+.sw-track {
+  position: relative;
+  width: 52px;
+  height: 24px;
+  flex: none;
+  padding: 3px;
+  cursor: pointer;
+  border: var(--border-hairline) solid var(--rule-strong);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-text) 6%, transparent) 0 1px,
+      transparent 1px 7px
+    ),
+    var(--surface-2);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.sw-track:hover:not(:disabled) {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+.sw-track:disabled { opacity: 0.35; cursor: not-allowed; }
+.sw-knob {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  transition:
+    transform var(--dur-3) var(--ease-out),
+    background var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+.sw.is-on .sw-knob {
+  transform: translateX(100%);
+  background: var(--color-text);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--color-accent) 75%, transparent),
+    0 0 12px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+/* Engaged in the colour the state carries elsewhere, so a glance at the knob
+   is enough to say which property is on. */
+.sw-shadow.is-on .sw-knob {
+  background: linear-gradient(180deg, var(--shadow-ink), var(--shadow-aura-deep));
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--shadow-aura) 90%, transparent),
+    0 0 14px color-mix(in srgb, var(--shadow-aura) 45%, transparent);
+}
+.sw-buddy.is-on .sw-knob {
+  background: linear-gradient(180deg, #ffe066, #e0a800);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, #fff 70%, transparent),
+    0 0 14px color-mix(in srgb, #f5c518 45%, transparent);
 }
 
 /* Shadow badge used beside names. */
@@ -361,46 +498,8 @@ input[type='range'] { accent-color: var(--color-accent); }
   line-height: 1.05;
 }
 
-/* — detail rows — */
-.detail-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border-top: var(--border-hairline) solid var(--rule-hairline);
-}
-.detail-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 5px 2px;
-  font-size: var(--text-sm);
-  border-bottom: var(--border-hairline) solid var(--rule-hairline);
-}
-.detail-label { color: var(--text-muted); white-space: nowrap; }
-/* Dotted leader ties label to value across the gap, which a bare
-   space-between left visually unlinked at this width. */
-.detail-row::before {
-  content: '';
-  order: 1;
-  flex: 1;
-  height: 0;
-  margin-bottom: 3px;
-  border-bottom: 1px dotted var(--rule-hairline);
-}
-.detail-value { order: 2; font-weight: 800; white-space: nowrap; }
-/* Narrow: the row gives up its leader and takes a second line.
-
-   Label and value are both `nowrap` on purpose — "Great League · 1500 · #9" is
-   one fact and breaking it mid-figure reads worse than wrapping. So when the
-   two no longer fit a line together the row wraps instead, and the dotted
-   leader goes: a leader that ties a label to a value on the *next* line points
-   at nothing. */
-@media (max-width: 400px) {
-  .detail-row { flex-wrap: wrap; }
-  .detail-row::before { display: none; }
-  .detail-value { order: 0; }
-}
+/* The detail-row primitive (dotted leader, wrapping under 400px) lived here.
+   Its only caller was the report's "This spread" list, so it went with it. */
 
 /* — IV appraisal rows — */
 .iv-adjuster {
@@ -1195,6 +1294,381 @@ textarea.input { min-height: 90px; resize: vertical; }
 .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 .table tbody tr.is-selected { background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHOW 6 — what beats it, and what to do about it.
+
+   Both lists are records with a verdict attached, so both are built the same
+   way: the subject on the left, the measurement in the middle, and what it
+   means on the right. The rows that need action are marked rather than merely
+   sorted to the top — an unanswered threat reads as a hole at a glance.
+   ═══════════════════════════════════════════════════════════════════════ */
+.weak-list,
+.swap-list {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.weak-row,
+.swap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 5px var(--space-2);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.weak-name,
+.swap-name {
+  min-width: 0;
+  flex: 1;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The measurement: how much of the roster this opponent beats. */
+.weak-share {
+  position: relative;
+  flex: none;
+  width: 120px;
+  height: 16px;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.weak-share-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+.weak-share-text {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+.weak-answers {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  min-width: 132px;
+  justify-content: flex-end;
+}
+/* Nothing on the roster beats it — the row that is actually a problem. */
+.weak-row.is-open { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+.weak-row.is-open .weak-share-fill { background: color-mix(in srgb, var(--color-accent) 80%, transparent); }
+.weak-none {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.swap-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 0;
+}
+.swap-side.is-out { opacity: 0.65; }
+.swap-side.is-out .swap-name { text-decoration: line-through; }
+.swap-arrow { flex: none; color: var(--color-accent); }
+.swap-why {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+}
+.swap-covers { color: var(--text-muted); }
+.swap-costs { color: var(--color-accent-700); }
+.swap-score {
+  flex: none;
+  width: 3ch;
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  /* The verdict wraps under the pairing rather than squeezing both. */
+  .swap-row { flex-wrap: wrap; }
+  .swap-why { flex-basis: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOVES — the catalogue.
+
+   A 96-row and a 225-row table read as a wall unless the eye is given a way
+   in. Three things do that here: the type colour runs down the leading edge of
+   each row, so the table scans by type before a word is read; the damage
+   column carries its own bar, scaled to whatever the query returned; and the
+   figures sit on the mono grid so columns of numbers line up on their digits.
+   ═══════════════════════════════════════════════════════════════════════ */
+.mv-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.mv-kind,
+.mv-search {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+/* Fixed width for the kind, so the trigger does not resize under the cursor
+   when the label goes from "Fast moves" to the longer "Charge moves". */
+.mv-kind { width: min(232px, 100%); }
+.mv-search { flex: 1 1 320px; }
+.mv-search-field { position: relative; display: block; }
+.mv-search-field .input { width: 100%; padding-left: var(--field-pad, 34px); }
+/* The kind picker. A native <select> draws its expanded list in the operating
+   system's own chrome — a white menu no stylesheet here can reach — so this is
+   a listbox in the app's overlay language instead. */
+.mv-kind-picker { position: relative; }
+.mv-kind-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--field-h, 40px);
+  padding: 0 var(--space-3);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  cursor: pointer;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-text) 5%, transparent) 0 1px,
+      transparent 1px 7px
+    ),
+    var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: box-shadow var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+.mv-kind-btn:hover,
+.mv-kind-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    0 0 14px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+/* Open reads as engaged, not merely hovered: the trigger keeps the lit rail
+   while its panel is down. */
+.mv-kind-btn.is-open {
+  box-shadow: inset 0 2px 0 var(--color-accent), 0 0 18px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.mv-kind-current { flex: 1; text-align: left; }
+.mv-kind-glyph {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-accent);
+}
+.mv-kind-tally {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.mv-kind-caret { font-size: 9px; color: var(--text-faint); }
+
+/* Overlaid, never inline: opening it must not shove the table down the page. */
+.mv-kind-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--color-accent);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  animation: rise-in var(--dur-2) var(--ease-out) both;
+}
+.mv-kind-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.mv-kind-opt:hover,
+.mv-kind-opt:focus-visible {
+  outline: none;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+/* The chosen one keeps a lit rail down its leading edge — the same mark the
+   engaged state carries everywhere else. */
+.mv-kind-opt.is-on {
+  color: var(--color-text);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+.mv-kind-opt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.mv-kind-opt-label {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mv-kind-opt-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.mv-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+  padding-bottom: 11px;
+}
+.mv-count i { font-style: normal; opacity: 0.6; }
+
+.mv-panel { padding: 0; }
+/* Fixed, not auto: the column widths come from the colgroup, so they are a
+   function of the table and not of whichever rows the current sort put on
+   screen. Under `auto` every column downstream of the name shifted when you
+   sorted, because "Hidden Power (Fighting)" and "Gust" measure differently. */
+.mv-table {
+  width: 100%;
+  table-layout: fixed;
+}
+/* The name column carries the slack. `auto` gave it every spare pixel at
+   desktop but collapsed it to 79px inside a phone's scroller — fixed layout
+   ignores a cell's min-width, so the floor has to be the column's own declared
+   width, and the surplus above it is distributed by the table. */
+.mv-col-name { width: 260px; }
+/* Fixed layout cannot push a cell wider, so an over-long name has to be told
+   what to do instead: it truncates, and keeps its full text in the title. */
+.mv-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* max-content on a fixed-layout table is the sum of the declared widths — a
+   constant — so the scroller still kicks in on a narrow page rather than
+   squeezing six columns into 375px. */
+.table-scroll > .mv-table { min-width: max-content; }
+.mv-th { padding: 0; }
+/* The header is the sort control, so it is a button — but it has to keep the
+   header's own metrics, not a button's. */
+.mv-sort {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: var(--space-3) var(--space-2);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.mv-th-num .mv-sort { justify-content: flex-end; }
+.mv-sort:hover { color: var(--color-text); }
+.mv-caret { font-size: 8px; opacity: 0.25; }
+.mv-caret.is-on { opacity: 1; color: var(--color-accent); }
+.mv-th-type { padding-left: var(--space-2); }
+
+/* The lit leading edge: the row's type, drawn as a rail rather than a fill so
+   eighteen colours can sit in one table without it turning into bunting. */
+.mv-row td:first-child {
+  position: relative;
+  padding-left: 14px;
+}
+.mv-row td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: var(--mv-type, var(--color-accent));
+  opacity: 0.55;
+  transition: opacity var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.mv-row:hover td:first-child::before {
+  opacity: 1;
+  box-shadow: 0 0 10px var(--mv-type, var(--color-accent));
+}
+.mv-row:hover { background: color-mix(in srgb, var(--mv-type, var(--color-text)) 9%, transparent); }
+
+.mv-name { white-space: nowrap; }
+.mv-name-text { font-weight: 700; }
+/* PvPoke's own archetype, kept subordinate to the name it qualifies. */
+.mv-tag {
+  margin-left: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.mv-type-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.mv-type-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mv-type, var(--color-text)) 75%, var(--color-text));
+}
+.mv-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The bar sits behind its own figure, right-aligned like the column, so the
+   number never has to move to make room for it. */
+.mv-meter { position: relative; }
+.mv-meter-fill {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  height: 60%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mv-type, var(--color-accent)) 30%, transparent));
+  pointer-events: none;
+}
+.mv-num-text { position: relative; }
+.mv-empty {
+  padding: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 .dialog {
   width: min(440px, 100%); display: flex; flex-direction: column; gap: var(--space-3);
   padding: var(--space-4); border-radius: var(--radius-lg);
@@ -1210,9 +1684,11 @@ textarea.input { min-height: 90px; resize: vertical; }
    The notch is clip-path, so it costs no extra markup and degrades to a plain
    rectangle where clip-path is unsupported. 9px is large enough to register at
    a glance and small enough to leave the label untouched. */
+/* .form-opt is not in this set: the switch chamfers its channel and its
+   thrown block instead, and a third notch on the label itself read as three
+   nested cuts. */
 .seg-btn,
 .chip-btn,
-.form-opt,
 .btn-primary,
 .btn-secondary {
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
@@ -1228,10 +1704,10 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 
 /* Engaged state: a bright rail along the top edge, the way a lit switch shows
-   which way it is thrown. */
+   which way it is thrown. The form toggle draws its own on the thrown block,
+   which travels with it, so it is not in this set. */
 .seg-btn.is-active::before,
-.chip-btn.is-active::before,
-.form-opt.is-active::before {
+.chip-btn.is-active::before {
   content: '';
   position: absolute;
   left: 9px;
@@ -1267,15 +1743,8 @@ textarea.input { min-height: 90px; resize: vertical; }
   .hero-meter-fill { transition: none; }
 }
 
-/* The Best Buddy control borrows the Shadow button's lit treatment but in its
-   own gold, so the two never read as the same state. */
-.form-opt-buddy.is-active {
-  color: #2a1c04;
-  background: linear-gradient(180deg, #ffe066, #e0a800);
-  box-shadow:
-    inset 0 0 14px color-mix(in srgb, #fff 45%, transparent),
-    0 0 16px color-mix(in srgb, #f5c518 45%, transparent);
-}
+/* The Best Buddy gold moved onto the switch's thrown block, with the Shadow
+   violet — see the form toggle above. */
 
 /* Primary search: the first control anyone reaches for, so it takes the space
    the header was wasting rather than sitting at a fixed 220px. */
@@ -3570,7 +4039,7 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 @keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-panel {
-  width: min(880px, 100%);
+  width: min(620px, 100%);
   /* Caps at the viewport so a long movepool scrolls inside the panel rather
      than pushing the footer buttons off screen. */
   max-height: min(88vh, 900px);
@@ -3583,8 +4052,13 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
      bottom of the screen and the last three of nine matches could not be
      reached at all. Reserving the height here fixes it where it belongs,
      rather than by shortening the list: the list is the thing being asked
-     for. */
-  min-height: min(660px, 88vh);
+     for.
+
+     Retuned with the panel: 880x660 was a dialog for choosing one Pokemon that
+     covered most of a 1280x800 screen. The floor and MODAL_LIST_H move
+     together — shrinking one without the other is exactly how the dropdown
+     escaped the panel the first time. */
+  min-height: min(500px, 88vh);
   display: flex;
   flex-direction: column;
   background: var(--surface-1);
@@ -3662,23 +4136,44 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 
 .btn.is-primary:disabled { opacity: 0.4; }
 
-/* The empty slot is a button now, not a decorative glyph. */
+/* The empty slot is a button now, not a decorative glyph.
+
+   It also fills its grid cell. `.team-slot` states a 92px width for the filled
+   card, which left three "+" buttons sitting 92px wide at the left edge of
+   three 393px columns — the same control drawn three times, in three places
+   that had nothing to do with each other. Filling the cell makes them
+   identical to each other and to the card that will replace them. */
 .team-slot.is-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  width: 100%;
   background: none;
   color: var(--text-faint);
   border: var(--border-hairline) dashed var(--rule-strong);
-  font-size: var(--size-h3);
   transition: color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
 }
 .team-slot.is-empty:hover {
   color: var(--color-accent);
   border-color: var(--color-accent);
 }
+/* The mark is a tile of its own, fixed size, dead centre — so a slot in a
+   380px column and one in a 190px column carry the same object rather than
+   the same glyph at two apparent weights. */
+.team-slot-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  font-size: var(--size-h3);
+  line-height: 1;
+  border: var(--border-hairline) solid currentColor;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  opacity: 0.75;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.team-slot.is-empty:hover .team-slot-mark { opacity: 1; }
 .team-slot-hint {
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wider);
@@ -3700,9 +4195,13 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 /* Reserves a strip for the viewport controls rather than floating them over
    the plot: at 16x16 the top-right cells are the high-attack/high-defense
    corner, the part you least want covered. */
+/* The plot owns the whole board width now that the legend and the rank table
+   have moved to the left column. It used to be a flex child sharing the row
+   with them, wrapping to its own line below 1100px or so and leaving a ragged
+   right edge either way. */
 .hv-plot {
   min-width: 0;
-  flex: 1 1 560px;
+  width: 100%;
   position: relative;
   padding-top: 42px;
 }
@@ -3736,9 +4235,13 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   writing-mode: vertical-rl;
   letter-spacing: 0.1em;
 }
+/* No 640px ceiling any more: the grid is square by construction (16 columns of
+   aspect-ratio 1), so its width is also its height, and capping the width
+   capped the cell size. Filling the column squares the board off against the
+   panels above it. */
 .hv-grid {
   min-width: 0;
-  width: min(640px, 100%);
+  flex: 1;
 }
 .hv-axis-x {
   display: flex;
@@ -3747,12 +4250,12 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   margin-top: 6px;
   letter-spacing: 0.1em;
 }
+/* Runs the width of the plot it slices, rather than stopping short of it. */
 .hv-slice {
   margin-top: 14px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  max-width: 620px;
 }
 .hv-slice-value {
   font-weight: 800;
@@ -3760,6 +4263,40 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   width: 24px;
   text-align: right;
 }
+/* The legend rides in a corner of the field instead of taking a block of its
+   own in the column. It is a readout, never a control, so it takes no pointer
+   events — the cells it covers are still clickable straight through it, and
+   only their colour is hidden. Picking one of those cells moves it to the
+   opposite corner (see `.is-left`), which is why both insets are declared.
+
+   Positioned against the grid, not the plot wrapper, so each corner is a
+   corner of the drawn field. Above the cells, one of which lifts to z-index 2
+   when it is yours. */
+.hv-legend-panel {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 6;
+  pointer-events: none;
+  max-width: min(280px, 55%);
+  padding: 7px 10px 8px;
+  font-size: var(--text-xs);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: 0 6px 20px color-mix(in srgb, #000 35%, transparent);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  /* Replayed on arrival — the element is keyed by corner, so React remounts it
+     and the animation runs once. Collapses to nothing with motion off. */
+  animation: fade-in var(--dur-2) var(--ease-out) both;
+}
+.hv-legend-panel.is-left {
+  right: auto;
+  left: 4px;
+}
+/* The grid and the terrain canvas are the legend's frame of reference. */
+.hv-grid,
+.hv-terrain-canvas { position: relative; }
+.hv-legend-title { margin-bottom: 4px; }
 .hv-legend-row {
   display: flex;
   align-items: center;
@@ -3767,6 +4304,12 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   font-size: var(--text-sm);
   padding: 2px 0;
 }
+/* Tighter inside the overlay than it was as a panel in the column. */
+.hv-legend-panel .hv-legend-row {
+  font-size: var(--text-xs);
+  padding: 1px 0;
+}
+.hv-legend-panel .hv-swatch { width: 11px; height: 11px; }
 /* The swatch colour is sampled from the live palette, so it stays inline —
    the legend must never describe a ramp the grid is not drawing. */
 .hv-swatch {
@@ -3777,6 +4320,49 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .hv-top-row { cursor: pointer; }
 .hv-top-rank { font-weight: 800; }
 .hv-top-pct { color: var(--color-accent-700); }
+/* The ranking window runs to the foot of the report, squaring the column off
+   against the board's bottom edge. The block takes the leftover height, the
+   panel fills the block, and the scroller inside it takes what the title and
+   the pager leave — which is the height the row count is measured against. */
+.report-side > .hv-key { flex: 1; min-height: 0; }
+.hv-key { display: flex; flex-direction: column; }
+.hv-top-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.hv-top-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Six columns in a side panel: the cell padding of the general table is what
+   pushes them into a scroll, not the figures themselves. */
+.hv-top-table th,
+.hv-top-table td {
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+.hv-top-table th:first-child,
+.hv-top-table td:first-child { padding-left: 2px; }
+.hv-top-table th:last-child,
+.hv-top-table td:last-child { padding-right: 2px; }
+/* The window's own controls. Same parts as the shared pager — a step either
+   side of a range readout — at the scale of a side panel. */
+.hv-top-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.hv-top-pager .pager-range { font-size: var(--text-2xs); }
+.hv-top-home {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  padding: 3px 8px;
+  min-height: 0;
+}
 .hv-note {
   font-size: var(--text-sm);
   line-height: 1.5;
@@ -4532,10 +5118,14 @@ th.bt-matrix-head { text-align: center; }
 /* ═══════════════════════════════════════════════════════════════════════════
    REPORT SCREEN / SMALL COMPONENTS — moved out of inline styles.
    ═══════════════════════════════════════════════════════════════════════ */
+/* 460, not 390: the ranking window under the adjuster carries six columns —
+   rank, the spread, the three stats it buys and its share of rank 1 — and the
+   stats are the point of it. At 390 they collapsed onto a scrollbar, which is
+   the one place a number nobody can see is worse than no number. */
 .rs-split {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
   gap: 0;
   border: var(--border-strong) solid var(--rule-strong);
 }
@@ -4550,33 +5140,23 @@ th.bt-matrix-head { text-align: center; }
   .rs-split { grid-template-columns: minmax(0, 1fr); }
 }
 .rs-label { margin-bottom: 7px; }
-/* The rank panel is the one inverted surface on the screen. */
-.rs-rank {
-  background: var(--surface-inverse);
-  color: var(--text-inverse);
-  padding: 16px 18px;
+/* Shadow and Best Buddy read as one pair of properties, so they share a row.
+   Equal columns rather than content width: the two switches line up under
+   their labels, and the notes wrap to the same measure. */
+.rs-props {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
 }
-.rs-rank-caption {
+.rs-prop { min-width: 0; }
+.rs-prop-note {
+  margin-top: 7px;
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-  opacity: 0.6;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
-.rs-rank-of {
-  font-size: var(--text-lg);
-  opacity: 0.55;
-}
-/* Track tints from the current text colour so it works on either ground — a
-   hardcoded rgba(255,255,255,.25) vanished on light. */
-.rs-rank-track {
-  height: 2px;
-  background: color-mix(in srgb, currentColor 25%, transparent);
-  margin: 12px 0 8px;
-}
-.rs-rank-note {
-  font-size: var(--text-sm);
-  opacity: 0.75;
-}
+/* The inverted rank panel that lived here is gone with the block it framed —
+   the hero prints the same rank beside CP and level. */
 .rs-uncapped {
   font-size: var(--text-xs);
   line-height: 1.5;
@@ -4985,38 +5565,9 @@ th.bt-matrix-head { text-align: center; }
    one sequence of named blocks rather than a header followed by loose numbers.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* The strip already draws its own 1px grid via a background bleed; the frame
-   here is the outer edge that matches the other blocks. */
-.report-side .stat-strip {
-  border-color: var(--rule-strong);
-}
-.report-side .stat-cell {
-  padding: 9px 11px;
-}
-/* Values are compared down the column, so they line up on the same grid as
-   every other number in the report. */
-.report-side .stat-cell-value {
-  font-variant-numeric: tabular-nums;
-}
-
-/* The detail list had a top border and a border under every row, which reads
-   as a table with a missing edge. Framed, it reads as a block. */
-.report-side .detail-list {
-  border: var(--border-hairline) solid var(--rule-hairline);
-  border-bottom: 0;
-  background: var(--surface-1);
-}
-.report-side .detail-row {
-  padding: 6px 11px;
-}
-.report-side .detail-row:nth-child(even) {
-  /* A whisper of banding: four rows of label-and-number are easy to misread
-     across, and this costs nothing on either ground. */
-  background: color-mix(in srgb, var(--color-text) 3%, transparent);
-}
-.report-side .detail-value {
-  font-variant-numeric: tabular-nums;
-}
+/* The stat strip and the detail list that used to sit here are gone — both
+   restated numbers the hero meters and the rank frame already carry — so the
+   rules that framed them in this column went with them. */
 
 /* The Shadow comparison is three rows of paired numbers — the point is the
    difference between the columns, so they get equal width and the same

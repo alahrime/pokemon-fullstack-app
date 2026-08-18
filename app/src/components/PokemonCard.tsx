@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor, getEntry } from '../lib/engine';
+import { defaultSpreadFor, getEntry } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
 import { moveTypeStyle } from '../lib/pokemonTypes';
@@ -11,7 +11,7 @@ import type { ChargeMove, FastMove, IV, LeagueId } from '../lib/types';
  * One Pokemon as a card, at the exact spread and loadout the simulation used.
  *
  * Everything shown is read back from the same calls the engine made —
- * `bestSpreadFor` for the roll, `movesFor` for the set — rather than from
+ * `defaultSpreadFor` for the roll, `movesFor` for the set — rather than from
  * anything the display computed for itself. A card showing a different spread
  * than the one that earned the score would be worse than a card with less on it.
  *
@@ -97,7 +97,7 @@ export function PokemonCard({
       sp
         ? build?.iv
           ? { ...getEntry(refId, build.iv, league).entry, ...build.iv }
-          : bestSpreadFor(refId, league, true)
+          : defaultSpreadFor(refId, league, true)
         : null,
     [sp, refId, league, build?.iv],
   );

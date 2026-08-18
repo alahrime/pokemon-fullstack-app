@@ -3,7 +3,7 @@ import { useAppState } from '../state/AppState';
 import { coreBalance, coresFor, pillarsFor, type Core, type Pillar } from '../lib/teams';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
-import { bestSpreadFor } from '../lib/engine';
+import { defaultSpreadFor } from '../lib/engine';
 import { moveTypeStyle } from '../lib/pokemonTypes';
 import { MoveCounts } from '../components/MoveCounts';
 import { InfoPopover } from '../components/InfoPopover';
@@ -70,12 +70,12 @@ function Direction({ from, to, covers, types }: {
 /**
  * One member's rated build: the spread and the set the core was scored on.
  *
- * Read back from bestSpreadFor and movesFor rather than restated, so a row can
+ * Read back from defaultSpreadFor and movesFor rather than restated, so a row can
  * never advertise a build that did not earn the score beside it.
  */
 function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
   const sp = speciesOf(r);
-  const spread = useMemo(() => (sp ? bestSpreadFor(r, league, true) : null), [sp, r, league]);
+  const spread = useMemo(() => (sp ? defaultSpreadFor(r, league, true) : null), [sp, r, league]);
   const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   if (!sp || !spread) return null;
   return (
@@ -503,7 +503,11 @@ export function CoresScreen() {
               <span className="hud-label">Seen</span>
               <span className="hud-label">Balance</span>
             </div>
-            <ol className="core-list">
+            {/* Keyed on what re-orders the list — league, sort, the diversity
+                filter and the name query — so switching any of them replays
+                the arrival. Reused nodes animate once and never again, which
+                is what made this list look static while the tables flowed. */}
+            <ol className="core-list stagger-drop" key={`${league}-${sort}-${diverse}-${filter}`}>
               {cores.map((c) => <CoreRow key={`${c.a}|${c.b}`} c={c} max={maxCore} league={league} />)}
             </ol>
           </div>
@@ -512,7 +516,7 @@ export function CoresScreen() {
         <div className="panel text-muted">No pillars recorded. Re-run <code>npm run teams</code>.</div>
       ) : (
         <div className="panel">
-          <ol className="pillar-list">
+          <ol className="pillar-list stagger-drop" key={`${league}-${sort}`}>
             {pillars.map((p) => (
               <PillarRow key={`${p.lead}|${p.backs.join('|')}`} p={p} max={maxPillar} />
             ))}

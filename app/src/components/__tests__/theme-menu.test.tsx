@@ -72,6 +72,19 @@ describe('ThemeMenu', () => {
     expect(motion).toBeTruthy();
     fireEvent.click(motion);
     expect(document.documentElement.getAttribute('data-motion')).toBe('off');
+    // An explicit choice is the only thing that persists.
+    expect(localStorage.getItem('paragon.motion')).toBe('off');
+  });
+
+  it('leaves motion unstored until it is chosen, so the default stays on', () => {
+    // Persisting the derived value on mount pinned whatever the system said on
+    // a visitor's first load. Someone who once opened the app with reduced
+    // motion on kept a saved "off" for good — the stored value beats the media
+    // query on every later visit — and no cascade ever ran again.
+    localStorage.clear();
+    open();
+    expect(localStorage.getItem('paragon.motion')).toBeNull();
+    expect(document.documentElement.getAttribute('data-motion')).toBe('on');
   });
 });
 

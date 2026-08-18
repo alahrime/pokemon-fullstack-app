@@ -113,8 +113,7 @@ describe('TeamBuilderScreen — adding through the modal', () => {
     expect(container.querySelectorAll('.team-slot.is-empty').length).toBe(0);
   }, 90000);
 
-  it('exports the threat table as CSV', async () => {
-    const names = captureDownloads();
+  it('names the threats on the page rather than in a downloaded file', async () => {
     const { container } = renderApp(<TeamBuilderScreen size={3} />);
     for (const name of ['azumarill', 'registeel', 'medicham']) {
       const search = container.querySelector('.team-add input') as HTMLInputElement;
@@ -130,10 +129,11 @@ describe('TeamBuilderScreen — adding through the modal', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: /Analyse team/i }));
     await waitFor(() => expect(container.querySelector('.team-report')).toBeTruthy(), { timeout: 60000 });
-    // Several buttons on this screen say "CSV"; the threat table's is the one
-    // that carries the report, so target it by what it does.
-    fireEvent.click(container.querySelector('[title="The threat table as CSV"]')!);
-    expect(names.some((n) => n.startsWith('paragon-threats') && n.endsWith('.csv'))).toBe(true);
+    // A three keeps the field-threat list; what went away is the pair of
+    // export buttons that used to be the only way to read any of it.
+    expect(container.querySelector('.threat-list')).toBeTruthy();
+    const labels = [...container.querySelectorAll('button')].map((b) => b.textContent ?? '');
+    expect(labels.some((t) => /export json|threats csv/i.test(t))).toBe(false);
   }, 90000);
 });
 

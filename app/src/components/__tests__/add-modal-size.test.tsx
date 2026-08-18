@@ -31,7 +31,7 @@ describe('add-modal sizing', () => {
     // dropdown ran off the bottom of the screen.
     const rule = block('.modal-panel');
     expect(rule).toMatch(/min-height:\s*min\(/);
-    expect(rule).toMatch(/width:\s*min\(880px/);
+    expect(rule).toMatch(/width:\s*min\(620px/);
   });
 
   it('lets the body fill the panel rather than sizing to its content', () => {
@@ -115,13 +115,18 @@ describe('SpeciesSearch — fitting the list to the room it has', () => {
     expect(parseFloat(scroller(c).style.maxHeight)).toBe(52 * 3);
   });
 
-  it('the modal asks for more room than the default, and the panel provides it', () => {
+  it('asks for exactly the room the panel has, and no more', () => {
     renderApp(<AddPokemonModal league="great" onCommit={() => {}} onClose={() => {}} />);
     const input = document.querySelector('.modal-search input') as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'a' } });
     const box = document.querySelector('.modal-search .search-dropdown > div') as HTMLElement;
-    expect(MODAL_LIST_H).toBeGreaterThan(420);
     expect(parseFloat(box.style.maxHeight)).toBeLessThanOrEqual(MODAL_LIST_H);
+
+    // The two move together or the dropdown escapes the panel again: the list
+    // plus the chrome above and below it has to fit the panel's floor.
+    const floor = Number(block('.modal-panel').match(/min-height:\s*min\((\d+)px/)![1]);
+    const CHROME = 46 + 51 + 16 + 40 + 16; // head, foot, body padding, search, clearance
+    expect(MODAL_LIST_H + CHROME).toBeLessThanOrEqual(floor);
   });
 });

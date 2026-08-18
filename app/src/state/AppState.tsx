@@ -1,8 +1,9 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
+import { defaultSpreadFor } from '../lib/engine';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
@@ -73,6 +74,15 @@ export interface AppStateShape {
 // Rolled once per page load, so the battle screen opens somewhere different
 // each visit instead of always on the same saved-looking pair.
 const [openingA, openingB] = randomMatchup('great');
+/**
+ * The opening spreads, from the same rule a species change applies.
+ *
+ * A flat 10/10/10 was the old seed: a rank-2918 roll nobody fields, sitting
+ * 27 CP under the cap, quietly deciding every breakpoint on the screen until
+ * someone noticed and fixed it by hand.
+ */
+const openingIvA = defaultSpreadFor(openingA, 'great');
+const openingIvB = defaultSpreadFor(openingB, 'great');
 
 /** The state a fresh session starts in. Exported so tests can assert the
  *  defaults themselves rather than inferring them from rendered text. */
@@ -103,8 +113,8 @@ export const INITIAL_STATE: AppStateShape = {
   // roll people actually hold, and it is rank 1 in no league, which leaves the
   // rank-1 button something to do. The report screen already defaults to a
   // deliberately imperfect spread; this brings the battle screen in line.
-  ivA: { a: 10, d: 10, s: 10 },
-  ivB: { a: 10, d: 10, s: 10 },
+  ivA: { a: openingIvA.a, d: openingIvA.d, s: openingIvA.s },
+  ivB: { a: openingIvB.a, d: openingIvB.d, s: openingIvB.s },
   fastA: 0,
   fastB: 0,
   bestBuddyA: false,

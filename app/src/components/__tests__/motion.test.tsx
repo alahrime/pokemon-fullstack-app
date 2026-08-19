@@ -131,6 +131,19 @@ describe('rows gel into place', () => {
     expect(cores).toMatch(/className="pillar-list stagger-drop" key=\{/);
   });
 
+  it('lets a row bring its own dividing line in with it', () => {
+    // The cascade fades the cells, and in the collapsed border model the rules
+    // between rows belong to the *table* — so a page of results opened as a
+    // fully ruled empty grid waiting to be filled, with every line for every
+    // row painted before any of the data was. Separate borders are painted by
+    // the cell, so the line arrives with the content it divides.
+    expect(components).toMatch(/\.table\s*\{[^}]*border-collapse:\s*separate/);
+    expect(components).toMatch(/\.table\s*\{[^}]*border-spacing:\s*0/);
+    expect(components).not.toMatch(/\.table\s*\{[^}]*border-collapse:\s*collapse/);
+    // And the rule itself still hangs off the cell, which is what fades.
+    expect(components).toMatch(/\.table td\s*\{[^}]*border-bottom/);
+  });
+
   it('flows a screen\'s title and blurb in ahead of them', () => {
     const flow = rule('.text-flow > *');
     expect(flow).toMatch(/animation:\s*text-flow/);

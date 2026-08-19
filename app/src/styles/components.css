@@ -1280,7 +1280,15 @@ textarea.input { min-height: 90px; resize: vertical; }
 .nav a:hover, .nav a[aria-current='page'] { color: var(--color-accent); }
 
 /* — tables — */
-.table { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
+/* Separate borders, spacing zero — which renders identically to collapse here,
+   since only th and td carry a bottom rule and there is nothing to merge.
+
+   The reason it matters is the arrival: in the collapsed model the borders
+   belong to the *table*, so a cell fading in from opacity 0 leaves its rule
+   painted. A page of results opened as a fully ruled empty grid waiting to be
+   filled, which is the opposite of rows stacking into place. Separate borders
+   are painted by the cell, so the line arrives with the content it divides. */
+.table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--text-md); }
 .table th {
   text-align: left; font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase;
   color: var(--text-muted);

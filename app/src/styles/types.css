@@ -33,6 +33,27 @@
   --type-dark: #4f4747;
   --type-steel: #74b0cb;
   --type-fairy: #e18ce1;
+
+/* ── stat meters ───────────────────────────────────────────────────────────
+   One hue per stat, and none of them the appraisal bar's red.
+
+   Every meter used to be the league accent, with attack taking the app accent
+   on top — which put the hero's three bars in the same warm family as the IV
+   ticks directly below them. Two different quantities in one colour, stacked,
+   is a reading problem: the roll's bars and the stats they produce looked like
+   the same scale.
+
+   Gold, blue and green are far apart from each other, far from the appraisal
+   red-orange, and far from the Shadow segment's violet. Each is nudged toward
+   the ground's own text colour, so the fill darkens on a light theme and
+   brightens on a dark one rather than sitting at one fixed value that only
+   suits half of them. */
+  /* Gold is intrinsically the lightest of the three, so it takes a heavier
+     share of the ground's ink than the other two — at the same 82% it measured
+     2.1:1 against a light surface, under the 3:1 a graphical element wants. */
+  --meter-atk: color-mix(in srgb, var(--type-electric) 62%, var(--color-text));
+  --meter-def: color-mix(in srgb, var(--type-water) 82%, var(--color-text));
+  --meter-hp: color-mix(in srgb, var(--type-grass) 82%, var(--color-text));
 }
 
 /* ── appraisal bar ─────────────────────────────────────────────────────────

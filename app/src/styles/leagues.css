@@ -313,7 +313,18 @@
   box-shadow: 0 0 9px color-mix(in srgb, var(--lg-accent) 55%, transparent);
   transition: width var(--dur-3) var(--ease-out);
 }
-.hero-meter.is-atk .hero-meter-fill { --lg-accent: var(--color-accent); }
+/* One hue per stat rather than one league accent for all three. The bars sit
+   directly above the roll's appraisal ticks, so sharing that palette made two
+   different quantities read as one scale — see --meter-* in types.css. */
+.hero-meter.is-atk .hero-meter-fill { --lg-accent: var(--meter-atk); }
+.hero-meter.is-def .hero-meter-fill { --lg-accent: var(--meter-def); }
+.hero-meter.is-hp .hero-meter-fill { --lg-accent: var(--meter-hp); }
+/* The label carries a trace of its bar's hue, so the pairing survives a glance
+   at the left column alone — muted, since the figure beside it is the reading
+   and the label is only naming it. */
+.hero-meter.is-atk .hero-meter-label { color: color-mix(in srgb, var(--meter-atk) 55%, var(--text-faint)); }
+.hero-meter.is-def .hero-meter-label { color: color-mix(in srgb, var(--meter-def) 55%, var(--text-faint)); }
+.hero-meter.is-hp .hero-meter-label { color: color-mix(in srgb, var(--meter-hp) 55%, var(--text-faint)); }
 
 /* The Shadow adjustment, drawn past the end of the stat's own fill.
 

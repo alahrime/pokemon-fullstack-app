@@ -74,6 +74,44 @@ describe('Board', () => {
   });
 });
 
+describe('the hero stat meters', () => {
+  const types = readFileSync('src/styles/types.css', 'utf8');
+  const leagues = readFileSync('src/styles/leagues.css', 'utf8');
+
+  it('gives each stat its own hue rather than one league accent for all three', () => {
+    for (const stat of ['atk', 'def', 'hp']) {
+      expect(types, stat).toMatch(new RegExp(`--meter-${stat}:\\s*color-mix`));
+      expect(leagues, stat).toMatch(
+        new RegExp(`\\.hero-meter\\.is-${stat} \\.hero-meter-fill \\{[^}]*var\\(--meter-${stat}\\)`),
+      );
+    }
+    // Three different base hues, not one colour at three strengths.
+    const bases = ['atk', 'def', 'hp'].map(
+      (s) => types.match(new RegExp(`--meter-${s}:[^;]*var\\((--type-[a-z]+)\\)`))![1],
+    );
+    expect(new Set(bases).size).toBe(3);
+  });
+
+  it('keeps them clear of the appraisal bars stacked directly below', () => {
+    // The roll's ticks and the stats they produce are different quantities in
+    // the same column; sharing the warm palette made them read as one scale.
+    const appraisal = ['--iv-fill', '--iv-fill-max'];
+    for (const stat of ['atk', 'def', 'hp']) {
+      const decl = types.match(new RegExp(`--meter-${stat}:[^;]*;`))![0];
+      for (const a of appraisal) expect(decl, `${stat} must not borrow ${a}`).not.toContain(a);
+    }
+  });
+
+  it('mixes toward the ground\'s own ink, so one value does not have to suit both', () => {
+    // Fixed hex would be too pale on a light theme and too dark on a dark one.
+    // Measured after this change: 3.2, 3.4 and 3.9 against the light hero
+    // surface, all clear of the 3:1 a graphical element wants.
+    for (const stat of ['atk', 'def', 'hp']) {
+      expect(types, stat).toMatch(new RegExp(`--meter-${stat}:[^;]*var\\(--color-text\\)`));
+    }
+  });
+});
+
 describe('IVAdjuster', () => {
   const iv: IV = { a: 5, d: 10, s: 15 };
   it('renders a row per stat with the current values', () => {

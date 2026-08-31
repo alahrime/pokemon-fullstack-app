@@ -78,4 +78,28 @@ describe('lintFormat', () => {
     expect(MIN_POOL_ABSOLUTE).toBeGreaterThan(0);
     expect(RANDOM_POOL_MULTIPLE).toBeGreaterThan(1);
   });
+
+  it('errors on a random draft with quotas', () => {
+    const f = fmt({
+      selection: { mode: 'random' },
+      composition: { size: 3, quotas: [{ select: 'water', min: 1 }] },
+    });
+    expect(lintFormat(f).some((d) => d.kind === 'random-with-quotas' && d.level === 'error')).toBe(true);
+  });
+
+  it('does not error on a random draft without quotas', () => {
+    const f = fmt({
+      selection: { mode: 'random' },
+      composition: { size: 3 },
+    });
+    expect(lintFormat(f).some((d) => d.kind === 'random-with-quotas')).toBe(false);
+  });
+
+  it('does not error on an open-pick format with quotas', () => {
+    const f = fmt({
+      selection: { mode: 'open' },
+      composition: { size: 3, quotas: [{ select: 'water', min: 1 }] },
+    });
+    expect(lintFormat(f).some((d) => d.kind === 'random-with-quotas')).toBe(false);
+  });
 });

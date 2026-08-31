@@ -92,6 +92,7 @@ export type Diagnostic =
   | { level: 'error'; kind: 'pool-too-small'; need: number; have: number }
   | { level: 'error'; kind: 'unsatisfiable' }
   | { level: 'error'; kind: 'bad-selector'; clause: number; select: string }
+  | { level: 'error'; kind: 'random-with-quotas' }
   | { level: 'warn'; kind: 'unsatisfiable-unproven' }
   | { level: 'warn'; kind: 'narrow-pool'; have: number; leagueSize: number }
   | { level: 'warn'; kind: 'dead-clause'; clause: number };

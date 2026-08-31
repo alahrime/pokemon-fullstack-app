@@ -1,4 +1,4 @@
-import { opponentCandidatesFor } from '../lib/data';
+import { opponentCandidatesFor, rankOfRef } from '../lib/data';
 import { compileSelector, type RefTerm } from './selector';
 import type { Format } from './types';
 
@@ -60,4 +60,17 @@ export function resolvePool(format: Format): PoolResolution {
   }
 
   return { legal, decidedBy, bad };
+}
+
+/**
+ * The refs the draw will actually see.
+ *
+ * `resolvePool` gives the complete legal set; `drawablePool` applies
+ * any `topN` filter to match what `rollTeam` draws from. This ensures
+ * the linter and the draw measure the same pool.
+ */
+export function drawablePool(format: Format): string[] {
+  const { legal } = resolvePool(format);
+  const topN = format.selection.topN;
+  return topN ? legal.filter((r) => rankOfRef(r, format.base) <= topN) : [...legal];
 }

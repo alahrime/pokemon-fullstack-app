@@ -74,4 +74,12 @@ describe('rollTeam', () => {
       Math.random = real;
     }
   });
+
+  it('fills the team even with a tight but legal topN', () => {
+    // A topN of 25 is tight (just over the 6 * 4 = 24 minimum) but still legal.
+    // This verifies that drawablePool is measured correctly and rollTeam
+    // can still deal a full team from a limited pool.
+    const team = rollTeam(fmt({ topN: 25 }, 6), 's', 'p');
+    expect(team).toHaveLength(6);
+  });
 });

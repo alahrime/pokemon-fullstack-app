@@ -1,5 +1,5 @@
 import { SPECIES_BY_ID, conflictsOnTeam, movesFor, opponentCandidatesFor, parseRef, speciesOf } from '../lib/data';
-import { resolvePool } from './pool';
+import { resolvePool, drawablePool } from './pool';
 import { compileBuildSelector, type BuildTerm } from './buildSelector';
 import { compileSelector } from './selector';
 import type { Build, Diagnostic, Format, Quota } from './types';
@@ -182,13 +182,19 @@ export function lintFormat(format: Format): Diagnostic[] {
   }
 
   const size = format.composition.size;
-  if (format.selection.mode === 'random' && legal.length < size * RANDOM_POOL_MULTIPLE) {
+  const drawable = drawablePool(format);
+
+  if (format.selection.mode === 'random' && drawable.length < size * RANDOM_POOL_MULTIPLE) {
     out.push({
       level: 'error',
       kind: 'pool-too-small',
       need: size * RANDOM_POOL_MULTIPLE,
-      have: legal.length,
+      have: drawable.length,
     });
+  }
+
+  if (format.selection.mode === 'random' && (format.composition.quotas?.length ?? 0) > 0) {
+    out.push({ level: 'error', kind: 'random-with-quotas' });
   }
 
   if (legal.length < Math.max(MIN_POOL_ABSOLUTE, leagueSize * NARROW_POOL_FRACTION)) {

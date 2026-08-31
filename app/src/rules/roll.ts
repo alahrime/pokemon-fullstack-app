@@ -1,5 +1,5 @@
-import { SPECIES_BY_ID, conflictsOnTeam, movesFor, parseRef, rankOfRef, speciesOf } from '../lib/data';
-import { resolvePool } from './pool';
+import { SPECIES_BY_ID, conflictsOnTeam, movesFor, parseRef, speciesOf } from '../lib/data';
+import { drawablePool } from './pool';
 import type { Build, Format } from './types';
 
 /**
@@ -47,10 +47,7 @@ function rng(key: string): () => number {
  */
 export function rollTeam(format: Format, seed: string, playerId: string): Build[] {
   const next = rng(`${seed}|${playerId}`);
-  const { legal } = resolvePool(format);
-
-  const topN = format.selection.topN;
-  const pool = topN ? legal.filter((r) => rankOfRef(r, format.base) <= topN) : [...legal];
+  const pool = drawablePool(format);
 
   // Fisher-Yates against the seeded generator, so the order is a function of the
   // key and nothing else.

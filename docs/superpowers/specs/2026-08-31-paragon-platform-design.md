@@ -147,6 +147,13 @@ Formats migrate from `localStorage` to the server. The RLS assertion joins
 `npm run check`. This is also the first deployment this app has ever had: static
 client to a CDN, nothing else yet.
 
+**The M2 coordinator starts as a scheduled function, not a long-lived process.**
+Queue matching runs on a timer rather than holding sockets, and chat and lobby
+presence come from Supabase Realtime, so nothing in the walking skeleton needs a
+persistent server. Adjudication timeouts and rating passes are likewise periodic
+work. A long-lived process is a later optimisation for match latency, not a
+prerequisite — which removes the last infrastructure decision blocking M2.
+
 **M2 — The walking skeleton.** One real match end to end — queue, paired with an
 actual second human, codes revealed on mutual accept, match channel opens, both
 report per round, adjudicated, stored. Unranked only; no rating, no seasons. The
@@ -266,19 +273,30 @@ defended against.
 ### Disputes are settled with journal evidence
 
 Pokemon GO's own battle journal records who won each round, when, and the
-opponent's in-game username. That is the adjudication mechanism:
+opponent's in-game username. **Evidence is only ever asked for once a dispute
+actually exists** — a disagreement, not merely a report:
 
-1. Both sides report. Agreement confirms the match; no evidence needed.
-2. Reports conflict, or one side never reports, and the match enters `disputed`.
-3. The disputing party supplies a journal screenshot, which is verified.
-4. **No screenshot, no ranking.** The match is marked unverified, `rating_counted`
-   goes false, and the win/loss is excluded from every rating and record.
-5. **The data is still kept for analytics** — which species were brought, what
-   was played — with the outcome flagged unverified rather than deleted.
+1. **Both sides report.** Agreement confirms the match. No evidence, no
+   friction, and this is the overwhelmingly common path.
+2. **Reports differ → `mismatch`.** Both players are told the scores disagree
+   and are given a window to **amend**. Most mismatches are a mis-tap or a
+   reversed perspective, and an amend step resolves them without anyone
+   uploading anything.
+3. **Still differing after the amend window → `disputed`.** Only now is a
+   journal screenshot requested.
+4. **A journal that reflects what its owner reported is the final outcome.** The
+   journal is ground truth; matching it settles the match.
+5. **No evidence → `unverified`.** `rating_counted` goes false and the result is
+   excluded from every rating and record.
+6. **Conflicting evidence** — both sides producing journals that support their
+   own report — cannot both be true, so it escalates to a human rather than
+   being auto-resolved.
+7. **The data is kept for analytics either way** — which species were brought,
+   what was played — with the outcome flagged unverified rather than deleted.
 
-The virtue of this rule is that it needs no adjudicator in the common case and
-cannot be gamed by simply refusing to engage: silence costs the rating, and it
-costs it symmetrically.
+The virtue is that the common case costs nothing, the mismatch case is
+de-escalated before it becomes a dispute, and refusing to engage is not a
+strategy: silence costs the rating, and it costs it symmetrically.
 
 ### Message retention follows an ephemeral model
 
@@ -289,11 +307,28 @@ ordinary chatter does not.
 **This conflicts with moderation, and the conflict has to be designed for rather
 than discovered.** If a message is gone the moment it is read, the abusive one is
 gone before any moderator sees it. The resolution is the one Snapchat itself
-uses: ephemerality is a property of the *reader's view*, not of the server. A
-short server-side retention window backs every message for moderation purposes,
-and anything reported or pinned is retained indefinitely, independent of what the
-sender or reader sees. The window length is a stated number in the privacy
-policy, not an implementation detail.
+uses: ephemerality is a property of the *reader's view*, not of the server.
+
+The governing principle is **the shortest window that still permits
+investigation** — every extra day of retention is both a safety asset and a
+liability, and the two do not scale together past the point where an incident
+would realistically be reported.
+
+| Content | Held | Reason |
+|---|---|---|
+| Message, unreported | **7 days** server-side, ephemeral in the UI well before that | Long enough for a victim to report and a moderator to act; short enough that the store is not an archive |
+| Message, reported | Through resolution, then **30 days** | The appeal period |
+| Message, pinned | While pinned | User-controlled and deliberate |
+| Journal evidence | Until the dispute closes, then **14 days** | Carries a third party's username; no reason to hold it once settled |
+
+Three handling rules that cost little and remove real exposure. Uploaded images
+are **re-encoded server-side and stripped of metadata**, so no EXIF payload
+reaches the store. Evidence is served from the object store's own origin, never
+the app's, so a crafted upload cannot become script in the app's context. And
+nothing user-uploaded is ever public-by-URL.
+
+Retention windows are stated in the privacy policy. They are a commitment, not
+an implementation detail.
 
 ### Decisions that are expensive to reverse
 
@@ -337,7 +372,30 @@ of unrelated strangers.
 
 It sharpens the sample-size problem rather than easing it. Grit was already a
 ratio over a subsample; restricting it to tournaments makes that subsample far
-smaller, so the minimum-N gate before display matters more, not less.
+smaller, so the gate before display matters more, not less.
+
+**Bracket shape decides whether grit exists at all.** Single elimination
+produces *no* post-loss matches by construction — you lose once and you are
+out — so it contributes nothing. Grit is computed only over Swiss, round-robin
+and double-elimination play, where losing and continuing is the normal case.
+
+**The gate scales with tournament volume rather than being a fixed count.** A
+threshold of twenty post-loss matches is unreachable on a platform running
+eight-player brackets and trivial on one running Swiss majors, so it is
+expressed relative to what is actually available:
+
+- **Display requires** a post-loss sample of at least 10, drawn from **at least
+  two distinct tournaments**, so a single bad event cannot define a player.
+- **Where the platform's own median post-loss sample exceeds that floor**, the
+  floor rises to that median — the statistic should be as demanding as the
+  available play allows, not permanently pinned to its launch conditions.
+- **Below the gate the statistic is absent, not zero.** "Not enough tournament
+  play yet" is honest; a number computed from four matches is not.
+- **Above it, grit is shown as an interval rather than a point**, narrowing as
+  the sample grows. This is the same instinct Glicko-2 applies to rating, and it
+  keeps a 3-from-4 record from reading as a 75% trait.
+
+Both constants are tunable and belong beside the pool minimums in section 4.
 
 **Grit needs ordering and per-round outcomes stored, not a final tally.** Grit is
 performance after losing, and it has two readings the schema must not foreclose:
@@ -462,19 +520,35 @@ user-content policies.
 **Judge and organiser are scoped roles, not global ones.** A tournament
 organiser may overwrite a result, advance a round and settle a dispute *within
 their own tournament* and nowhere else. That is a row policy joining
-`tournament_roles`, not a flag on `profiles`. Every such override is written as
-an audit row naming the actor and the prior value; a result that can be changed
-without a trace is a result nobody can trust.
+`tournament_roles`, not a flag on `profiles`. **The organiser is the root of the
+grant and appoints judges**, who then hold the same verification powers within
+that tournament. Every override and every grant is written as an audit row
+naming the actor and the prior value; a result that can be changed without a
+trace is a result nobody can trust.
 
-**Automated verification is advisory.** Screenshot checking runs as a vision
-model against the journal image, and it is subject to two limits that must be
-designed around rather than assumed away. It can be fooled by an edited
-screenshot — it raises the cost of cheating without eliminating it — and it can
-simply misread a real one. So its verdict is a recommendation with a confidence,
-never a final ruling: high confidence auto-resolves, low confidence escalates to
-a human, and **every automated decision is appealable to a judge.** A model
-silently costing somebody their rating with no route of appeal is the failure
-mode to avoid.
+**Tournaments are judged by people, not by the model.** Inside a tournament a
+judge or organiser settles disputes directly — reading the evidence themselves,
+or talking it through with both participants in the match channel and recording
+the conclusion. There is no automated adjudication in a bracket, because a
+bracket already has an authority and a model's verdict would only add an appeal
+step.
+
+**Automated verification is therefore an open-lobby mechanism, and advisory even
+there.** It is subject to two limits that must be designed around rather than
+assumed away: it can be fooled by an edited screenshot — raising the cost of
+cheating without eliminating it — and it can simply misread a real one. Its
+verdict is a recommendation carrying a confidence, never a final ruling. High
+confidence auto-resolves; low confidence falls back to `unverified`, which
+costs no one their record because an unverified match is excluded rather than
+decided against. A model silently costing somebody their rating with no route of
+appeal is the failure mode to avoid.
+
+**Evidence may be a journal screenshot or a video recording**, since some
+disputes turn on what happened rather than on the final tally. Video is accepted
+**as a link to an external host, not as an upload.** Hosting user video for a
+public platform is a bandwidth and storage cost that scales badly and a
+moderation surface that scales worse; a link keeps both off the server while
+losing nothing a judge needs.
 
 ### Testing it
 
@@ -790,7 +864,8 @@ query form still works.
 
 What has to be refactored so that Shadow Bug Bite Forretress and regular Volt
 Switch Forretress can be told apart. The short answer is much less than expected
-for Shadows, nothing in the engine for movesets, and nothing at all for megas.
+for Shadows, nothing in the engine for movesets, and for megas a small data
+field the upstream source already half-provides.
 
 ### Shadows are already first-class
 
@@ -829,47 +904,63 @@ does not require touching it.
 
 ### Megas: included, gated on a floor-CP test
 
-There are 56 mega entries and none is currently in any league pool. They are
-included, and league membership is derived rather than inherited — because the
-question is not whether a mega is strong but whether it is **obtainable at a
-level that fits under the cap.**
+Megas are included, and league membership is derived rather than inherited,
+because the question is not whether a mega is strong but whether it is
+**obtainable at a level that fits under the cap.** Mega Sableye is legal in
+Great. Mega Mewtwo is not, and not because of its stats: Mewtwo comes from raids
+and cannot be powered down, so its floor CP is far above 1500.
 
-Mega Sableye is legal in Great. Mega Mewtwo is not, and not because of its
-stats: Mewtwo comes from raids at level 20 and cannot be lowered, so its floor
-CP is already far above 1500.
+**The rule:** a mega is eligible for a league when its CP at its minimum
+obtainable level, with worst-case IVs, is at or below the cap.
 
-**The rule:** a mega is eligible for a league when its CP at its *minimum
-obtainable level*, with worst-case IVs, is at or below the cap. Minimum
-obtainable level is 20 for raid-sourced legendaries and mythicals, and 1
-otherwise, since anything else can be traded down.
+### `minLevel`, and why a proxy will not do
 
-Measured over all 56, using the CPM table in `lib/cpm.ts`:
+The upstream data already carries part of this. `data-src/pokemon.json` has a
+**`levelFloor`** field — but on only **39 of 1,736 entries**, with values 8, 15
+and 20, and `scripts/build-data.mjs` does not read it. Where it exists it is
+authoritative: Shadow raid legendaries floor at 8, several legendaries and
+Hisuian starters at 15, Paldean Tauros at 20.
 
-| | floor CP | eligible |
-|---|---|---|
-| Sableye (Mega) | 22 | Great, Ultra |
-| Gengar (Mega) | 54 | Great, Ultra |
-| Diancie (Mega) | 2,190 | Ultra only |
-| Latias (Mega) | 2,450 | Ultra only |
-| Mewtwo (Mega X / Y) | 3,152 / 3,323 | **Master only** |
+Measured, the sparseness is disqualifying on its own:
 
-**48 of 56 are Great-eligible, 50 Ultra-eligible, and 6 are Master-only** —
-Mewtwo X and Y, Rayquaza, Primal Kyogre, Primal Groudon and Latios. So the
-exclusion is real but narrow, and it is a computed property rather than a
-curated list that would drift.
+- Only **2 of 56 megas** carry an upstream floor — Mewtwo Mega X and Y, both at
+  level 15, giving floor CP 2,364 and 2,492. Both are therefore **Ultra**-legal.
+- The other 54 default to level 1, which produces Primal Kyogre at CP 75 in
+  Great League. That is not a ruling anyone would accept.
 
-Two caveats. The level-20 floor is inferred from the `legendary` and `mythical`
-tags rather than from a per-species acquisition record; that reproduces every
-case checked, but a genuine `minLevel` field in the generator would be more
-honest than a tag proxy and is the better long-term fix. And megas have no
-PvPoke ranking, so `leagueRank` and `bestIv` are absent for them: the eligible
-set has to run through `build-best-spreads` and the matrix build to acquire the
-precomputed rank-1 IV per league that `mkBattleMon` expects, or every mega falls
-into the 4,096-spread search path at runtime.
+**This corrects a number in an earlier revision of this document.** Mega Mewtwo
+was recorded as Master-only at floor CP 3,152, derived from an assumed level-20
+raid floor inferred from the `legendary` tag. The upstream floor is 15, not 20,
+and the counts that accompanied it — 48 Great-eligible, 6 Master-only — were
+produced by that same proxy and should not be relied on. Neither the upstream
+field nor the tag proxy answers the question; the honest position is that the
+data cannot answer it yet.
 
-**This is data-pipeline work and it is not in M0.** Formats can reference megas
-as soon as the pipeline emits them; nothing in the rules layer needs to change,
-because a mega is just another ref.
+So `minLevel` becomes a real field on `Species`, resolved in this order:
+
+1. the upstream `levelFloor` where present,
+2. otherwise a curated acquisition table,
+3. otherwise 1.
+
+The curated table is a new hand-maintained input, `data-src/level-floors.json`,
+following the pattern `data-src/pool-exclusions.json` already sets in this repo:
+a small data file, reviewed rather than derived, whose entries each record a
+reason. It only needs rows where acquisition imposes a floor — raid-only
+species, Shadow raids, research encounters — which is a short list, not 1,736.
+
+`verify-data` asserts that every species whose upstream `levelFloor` exists
+matches the emitted `minLevel`, so the curated table can never silently
+contradict the source.
+
+**Other proxies worth replacing while the generator is open.** `shadoweligible`
+is carried both as a tag and as the `shadowEligible` boolean, and the tag is
+retained only because search reads it; one of the two should be derived from the
+other rather than emitted twice. `mega` is likewise a tag standing in for what
+is really a form, though nothing currently depends on the distinction. Neither
+is urgent; `minLevel` is the one that changes an answer.
+
+Until `minLevel` lands, **mega league eligibility is undetermined and no mega
+ships into a league pool.** This is a data task, not an M0 task.
 
 ### The refactor, in order
 
@@ -882,7 +973,8 @@ because a mega is just another ref.
 | Rules layer respects `UNSIMULATED_IDS` | `packages/rules` | trivial | M0 |
 | Emit `bestVariant` per ref | `build-matrix.ts` | one int per ref | cheap follow-up |
 | Emit per-variant rows | `build-matrix.ts`, artefact split | ~12× `rankings.json` | deferred |
-| Mega league membership by floor CP, plus spreads and ranks for the eligible set | `build-data.mjs`, `build-best-spreads`, `build-matrix` | full data regeneration | own data task, after M1 |
+| `minLevel` field: read upstream `levelFloor`, add `data-src/level-floors.json`, assert in `verify-data` | `build-data.mjs`, `data-src/` | small, and unblocks megas | own data task |
+| Mega league membership by floor CP, plus spreads and ranks for the eligible set | `build-best-spreads`, `build-matrix` | full data regeneration | after `minLevel` |
 
 **M0 needs no pipeline change at all.** Emitting `bestVariant` is worth taking
 early regardless of the platform: it is a single integer per ref and it exposes
@@ -905,34 +997,30 @@ because `rollMoves` deals the loadout rather than trusting a claim about it.
 
 ## Open questions
 
-Most of the original list is now settled and folded into the sections above:
-Glicko-2, rating confined to the three open leagues, journal-screenshot
-disputes, ephemeral messaging with pins, agentic verification with judge
-override, the scheduled-battle handshake, grit as a tournament-only statistic,
-no ranked moveset formats, Show 6 draw visibility, and megas gated on floor CP.
+The list is now short. Settled and folded into the sections above: Glicko-2;
+rating confined to the three open leagues; the mismatch-then-dispute evidence
+ladder; ephemeral messaging with pins and stated retention windows; agentic
+verification as an open-lobby mechanism only, with tournaments judged by people;
+organiser-appointed judges; the scheduled-battle handshake; grit as a
+tournament-only statistic with a volume-scaled gate; no ranked moveset formats;
+Show 6 draw visibility; the M2 coordinator as a scheduled function; and
+`minLevel` as a real field rather than a tag proxy.
 
 What remains:
 
-1. **Grit's minimum-N gate.** Now restricted to tournament matches, the
-   subsample is small enough that a threshold is required rather than advisable.
-   Decide before M4.
-2. **Coordinator hosting**, and whether M2's version can be a scheduled function
-   before it needs a long-lived process.
-3. **The ephemeral retention window** — the concrete number of hours a message
-   is held server-side for moderation while presenting as expired to readers.
-   This is a privacy-policy commitment, not an implementation detail. Decide
-   before M2.
-4. **Evidence retention** — how long a journal screenshot is kept after its
-   dispute closes, given it carries a third party's username. Decide before M2.
-5. **Confidence threshold for automated verification**, and whether a low-
-   confidence verdict escalates to a judge or defaults to unverified. Decide
-   before M2.
-6. **A real `minLevel` field** in the generator, replacing the legendary and
-   mythical tag proxy used for mega eligibility. Correct in every case checked,
-   but a proxy. No milestone blocks on it.
-7. **Moderation staffing** for the non-tournament report queue. Agentic
-   verification covers match results; it does not cover a message someone
-   reports. Decide before M2.
+1. **Moderation staffing** for the message report queue. Automated verification
+   covers match results in the open lobby, and judges cover tournaments, but
+   neither covers a message someone reports. This is a people question, not a
+   design one. Decide before M2.
+2. **The confidence threshold** at which open-lobby screenshot verification
+   auto-resolves rather than falling back to `unverified`. Needs real
+   screenshots to calibrate against, so it is a tuning task during M2 rather
+   than a decision before it.
+3. **How far the curated `data-src/level-floors.json` has to go** to make mega
+   eligibility trustworthy. The upstream field covers 39 species; how many rows
+   the curated table needs is an empirical question answered while building it.
+4. **Whether `shadoweligible` stays a tag** as well as a boolean, or search
+   derives it from the field. Cosmetic; no milestone depends on it.
 
 ## What comes next
 

@@ -214,19 +214,86 @@ tests become the ones nobody runs.
 |---|---|
 | `channels` | kind: `dm` / `group` / `tournament` / `match` |
 | `channel_members` | Role, `last_read_at`, which makes unread counts free |
-| `messages` | Body, `edited_at`, `deleted_at` |
+| `messages` | Body, `edited_at`, `deleted_at`, **`expires_at`** — ephemeral by default |
+| `message_pins` | Who pinned, what, and when. A pin lifts a message out of expiry |
 | `message_reports` | The moderation queue. Required at this audience, not optional |
 
 **Matchmaking and records** (5, 6)
 
 | Table | Notes |
 |---|---|
-| `queue_entries` | Blind matching. Profile, format version, **`rules_hash`** (the partition key), ranked flag, team snapshot, expiry |
-| `match_offers` | Proposals: proposer, format version, `rules_hash`, visibility, `scheduled_for`, `expires_at`, accepted_by |
-| `matches` | Both players, both team snapshots, format version, `rules_hash`, `data_rev`, `seed`, channel, state, season |
+| `queue_entries` | Blind matching. Profile, league, **`rules_hash`**, team snapshot, expiry |
+| `match_offers` | Proposals: proposer, format version, `rules_hash`, visibility, `scheduled_for`, the handshake window, `accepted_by`, `confirmed_at` |
+| `matches` | Both players, both team snapshots, format version, `rules_hash`, `data_rev`, `seed`, `rounds` (3 or 5), channel, state, season, **`rating_counted`** |
 | `match_reports` | Two rows per match: each side's independent claim |
 | `match_rounds` | The adjudicated per-round truth, written on confirmation |
-| `seasons`, `ratings` | Per season, per scope, with deviation columns |
+| `match_evidence` | Journal screenshots backing a disputed report. Object-store keys, uploader, verification verdict |
+| `seasons`, `ratings` | Glicko-2 rating, deviation and volatility, per season, per league |
+
+**Tournaments** (5, 6)
+
+| Table | Notes |
+|---|---|
+| `tournaments` | Organiser, format version, bracket shape, rounds, state |
+| `tournament_roles` | Judge and organiser grants, scoped to one tournament |
+| `tournament_entrants` | Seeding, standing, elimination state |
+
+### Rating is narrower than the match log
+
+**Rating attaches only to the open queue on the three canonical leagues** —
+Great, Ultra and Master. Not to friend battles, not to direct challenges, not to
+curated custom formats, and not to tournaments. Everything else is played and
+recorded but does not move a number.
+
+This settles the stratification problem outright rather than mitigating it:
+there are exactly three rating pools, each fed by the entire open population,
+so Glicko-2 has the sample it needs and no per-format ladder can be farmed into
+existence. It also confines collusion to the one mode where nobody picks their
+opponent.
+
+**Every match is still recorded for analytics** regardless of rating
+eligibility — species usage, matchup outcomes, unique opponents, activity. The
+`rating_counted` flag on `matches` is what separates the two, and it is
+deliberately a distinct column from `state`: a match can be perfectly valid,
+fully confirmed and simply not rating-bearing.
+
+A consequence worth stating: since ranked is only the three canonical leagues,
+**moveset-restricted formats can never be ranked**, because the canonical
+leagues carry no moveset restrictions. The unenforceability problem in section 5
+is therefore structurally out of reach of the rating system rather than
+defended against.
+
+### Disputes are settled with journal evidence
+
+Pokemon GO's own battle journal records who won each round, when, and the
+opponent's in-game username. That is the adjudication mechanism:
+
+1. Both sides report. Agreement confirms the match; no evidence needed.
+2. Reports conflict, or one side never reports, and the match enters `disputed`.
+3. The disputing party supplies a journal screenshot, which is verified.
+4. **No screenshot, no ranking.** The match is marked unverified, `rating_counted`
+   goes false, and the win/loss is excluded from every rating and record.
+5. **The data is still kept for analytics** — which species were brought, what
+   was played — with the outcome flagged unverified rather than deleted.
+
+The virtue of this rule is that it needs no adjudicator in the common case and
+cannot be gamed by simply refusing to engage: silence costs the rating, and it
+costs it symmetrically.
+
+### Message retention follows an ephemeral model
+
+Messages expire by default. A **pin** lifts a message out of expiry and records
+who pinned it and when, so a tournament's rulings and arrangements survive while
+ordinary chatter does not.
+
+**This conflicts with moderation, and the conflict has to be designed for rather
+than discovered.** If a message is gone the moment it is read, the abusive one is
+gone before any moderator sees it. The resolution is the one Snapchat itself
+uses: ephemerality is a property of the *reader's view*, not of the server. A
+short server-side retention window backs every message for moderation purposes,
+and anything reported or pinned is retained indefinitely, independent of what the
+sender or reader sees. The window length is a stated number in the privacy
+policy, not an implementation detail.
 
 ### Decisions that are expensive to reverse
 
@@ -261,6 +328,16 @@ lying profitable, there will be disputes.
 rate are computed over match history rather than incremented in columns.
 Counters drift under retries and partial failures, and a drifted lifetime
 statistic is unrecoverable.
+
+**Grit is a tournament statistic only.** It is computed over tournament matches
+and never over public open-lobby logs, which is the right call: a bracket gives
+"after a loss" a definite meaning — the next match in a known sequence, against
+a field you are still in — where an open queue gives only an arbitrary ordering
+of unrelated strangers.
+
+It sharpens the sample-size problem rather than easing it. Grit was already a
+ratio over a subsample; restricting it to tournaments makes that subsample far
+smaller, so the minimum-N gate before display matters more, not less.
 
 **Grit needs ordering and per-round outcomes stored, not a final tally.** Grit is
 performance after losing, and it has two readings the schema must not foreclose:
@@ -368,6 +445,36 @@ with actual humans behind it, and soft-deleted messages retained on a fixed
 window so a reported message still exists when a moderator opens the ticket.
 There is a real privacy tension in that retention; name the window explicitly
 rather than keeping everything forever.
+
+### Evidence, roles and automated verification
+
+Three surfaces that the dispute and tournament decisions add.
+
+**Journal screenshots contain someone else's data.** A GO battle journal
+screenshot shows the opponent's in-game username, which means uploading it
+places a third party's identifier in the object store. Evidence therefore lives
+in a private bucket readable only by the match's participants and the
+moderation or judging role acting on that match, is never public-by-URL, and
+carries its own retention window ending when the dispute closes and the appeal
+period lapses. It is not ordinary user content and should not inherit ordinary
+user-content policies.
+
+**Judge and organiser are scoped roles, not global ones.** A tournament
+organiser may overwrite a result, advance a round and settle a dispute *within
+their own tournament* and nowhere else. That is a row policy joining
+`tournament_roles`, not a flag on `profiles`. Every such override is written as
+an audit row naming the actor and the prior value; a result that can be changed
+without a trace is a result nobody can trust.
+
+**Automated verification is advisory.** Screenshot checking runs as a vision
+model against the journal image, and it is subject to two limits that must be
+designed around rather than assumed away. It can be fooled by an edited
+screenshot — it raises the cost of cheating without eliminating it — and it can
+simply misread a real one. So its verdict is a recommendation with a confidence,
+never a final ruling: high confidence auto-resolves, low confidence escalates to
+a human, and **every automated decision is appealable to a judge.** A model
+silently costing somebody their rating with no route of appeal is the failure
+mode to avoid.
 
 ### Testing it
 
@@ -547,6 +654,26 @@ independently from one shared seed.
   deterministic, reproducible and independently verifiable after the fact, which
   is what makes it auditable when someone claims a bad roll.
 
+**Both draws are visible to both players, and only in Show 6.** The app already
+has this concept — `TeamBuilderScreen` switches on `size === 3 ? 'GBL Teams' :
+'Show 6'`, and `teams.json` already stores best Show 6s — so the format maps
+onto something the codebase understands.
+
+The protocol is the competitive one: each player is dealt six, both sixes are
+open, and each brings **three** of their six into a best of three or five.
+
+```json
+"composition": { "size": 6, "bring": 3 },
+"match":       { "rounds": 5 }
+```
+
+`bring` and `rounds` are new. `bring` is a battle-protocol field rather than a
+composition constraint — the team of six is what is validated, the three are
+what is played — and `rounds` lives on the match because a best-of length is a
+property of the meeting, not of the roster. Outside Show 6 the draw stays
+private, since seeing an opponent's rolled three before a single elimination
+match is simply seeing their team.
+
 **A scheduled random match must pin `data_rev` at proposal time.** The same seed
 against a regenerated roster yields a different draw, so a match proposed on
 Tuesday and played on Friday would silently deal different teams. This is the
@@ -604,13 +731,25 @@ format's name and owner are presentation; the hash is identity.
 |---|---|---|---|
 | Open queue, canonical league format | yes | yes | `queue_entries` |
 | Live dashboard — browse offers, inspect the format, opt in | no | no | `match_offers` |
-| Scheduled proposal for a later time | no | no | `match_offers` + `scheduled_for` |
+| Scheduled proposal for a later time | no | no | `match_offers` + `scheduled_for` + handshake |
 | Direct friend challenge (M3) | no | no | `match_offers`, targeted |
 
 A queue entry says *match me with anyone on these terms*. An offer says *here is
 my proposition, come and look at it* — the requirement that an opponent can
 review a curated format before accepting is what makes these separate tables
 rather than a flag.
+
+**Scheduled battles get their own view and their own handshake.** An offer for a
+future time carries an invite window: a bounded period during which the
+opponent may accept, and within which **both sides must confirm** before the
+offer expires. One-sided acceptance is not a match. An offer that reaches its
+expiry unconfirmed lapses rather than converting, which keeps the calendar
+honest — a scheduled battle on the board is one both people have actually
+committed to, not one somebody was nominated for.
+
+This is also the case that makes `data_rev` pinning mandatory rather than
+advisory: a random-draw match agreed on Tuesday and played on Friday must deal
+the same six it promised.
 
 Only the open queue feeds rating. That confines the collusion surface to the one
 mode where nobody chooses their opponent.
@@ -688,18 +827,49 @@ sweeping both sides lets sets nobody plays vote in the average, and it is 6.56
 billion battles against 244 million. Build identity on the player's own side
 does not require touching it.
 
-### Megas are a documented non-goal
+### Megas: included, gated on a floor-CP test
 
-There are 56 mega entries and **none of them is in any league pool**, because
-Mega Evolution is not legal in GO Trainer Battles. Making them eligible would
-mean inventing league membership for species PvPoke does not rank — so no
-`leagueRank` and no `bestIv` to key on — and regenerating `bestIv`, `rankings`,
-`matrix` and `teams` over an enlarged pool, to produce formats nobody could
-actually play.
+There are 56 mega entries and none is currently in any league pool. They are
+included, and league membership is derived rather than inherited — because the
+question is not whether a mega is strong but whether it is **obtainable at a
+level that fits under the cap.**
 
-Recorded as a non-goal in the manner of `UNSIMULATED_IDS`: one named constant,
-one reason, trivially reversible if the game ever changes. An analysis-only
-format kind that cannot reach the lobby is a separate feature, not this one.
+Mega Sableye is legal in Great. Mega Mewtwo is not, and not because of its
+stats: Mewtwo comes from raids at level 20 and cannot be lowered, so its floor
+CP is already far above 1500.
+
+**The rule:** a mega is eligible for a league when its CP at its *minimum
+obtainable level*, with worst-case IVs, is at or below the cap. Minimum
+obtainable level is 20 for raid-sourced legendaries and mythicals, and 1
+otherwise, since anything else can be traded down.
+
+Measured over all 56, using the CPM table in `lib/cpm.ts`:
+
+| | floor CP | eligible |
+|---|---|---|
+| Sableye (Mega) | 22 | Great, Ultra |
+| Gengar (Mega) | 54 | Great, Ultra |
+| Diancie (Mega) | 2,190 | Ultra only |
+| Latias (Mega) | 2,450 | Ultra only |
+| Mewtwo (Mega X / Y) | 3,152 / 3,323 | **Master only** |
+
+**48 of 56 are Great-eligible, 50 Ultra-eligible, and 6 are Master-only** —
+Mewtwo X and Y, Rayquaza, Primal Kyogre, Primal Groudon and Latios. So the
+exclusion is real but narrow, and it is a computed property rather than a
+curated list that would drift.
+
+Two caveats. The level-20 floor is inferred from the `legendary` and `mythical`
+tags rather than from a per-species acquisition record; that reproduces every
+case checked, but a genuine `minLevel` field in the generator would be more
+honest than a tag proxy and is the better long-term fix. And megas have no
+PvPoke ranking, so `leagueRank` and `bestIv` are absent for them: the eligible
+set has to run through `build-best-spreads` and the matrix build to acquire the
+precomputed rank-1 IV per league that `mkBattleMon` expects, or every mega falls
+into the 4,096-spread search path at runtime.
+
+**This is data-pipeline work and it is not in M0.** Formats can reference megas
+as soon as the pipeline emits them; nothing in the rules layer needs to change,
+because a mega is just another ref.
 
 ### The refactor, in order
 
@@ -712,6 +882,7 @@ format kind that cannot reach the lobby is a separate feature, not this one.
 | Rules layer respects `UNSIMULATED_IDS` | `packages/rules` | trivial | M0 |
 | Emit `bestVariant` per ref | `build-matrix.ts` | one int per ref | cheap follow-up |
 | Emit per-variant rows | `build-matrix.ts`, artefact split | ~12× `rankings.json` | deferred |
+| Mega league membership by floor CP, plus spreads and ranks for the eligible set | `build-data.mjs`, `build-best-spreads`, `build-matrix` | full data regeneration | own data task, after M1 |
 
 **M0 needs no pipeline change at all.** Emitting `bestVariant` is worth taking
 early regardless of the platform: it is a single integer per ref and it exposes
@@ -734,36 +905,34 @@ because `rollMoves` deals the loadout rather than trusting a claim about it.
 
 ## Open questions
 
-Not blocking M0. Each should be settled before the milestone that needs it.
+Most of the original list is now settled and folded into the sections above:
+Glicko-2, rating confined to the three open leagues, journal-screenshot
+disputes, ephemeral messaging with pins, agentic verification with judge
+override, the scheduled-battle handshake, grit as a tournament-only statistic,
+no ranked moveset formats, Show 6 draw visibility, and megas gated on floor CP.
 
-1. **Rating algorithm.** The request said ELO. Glicko-2's rating deviation is a
-   better fit for irregular play and small samples, since it knows when it is
-   uncertain, and the schema above already reserves deviation columns. Decide
-   before M4.
-2. **Rating scope.** One rating per base league, or per format? Rating is
-   population-hungry; many small pools produce noise that describes matchup luck
-   rather than skill. A single pooled rating with format as context is the safer
-   default. Decide before M4.
-3. **Dispute resolution policy.** What happens on contradictory reports, on one
-   side never reporting, and on repeat offenders. The schema supports any
-   policy; the policy is unchosen. Decide before M2.
-4. **Message retention window** for moderation, balanced against privacy.
-   Decide before M2.
-5. **Moderation staffing.** A report queue needs people. Decide before M2.
-6. **Coordinator hosting**, and whether M2's version can be a scheduled function
+What remains:
+
+1. **Grit's minimum-N gate.** Now restricted to tournament matches, the
+   subsample is small enough that a threshold is required rather than advisable.
+   Decide before M4.
+2. **Coordinator hosting**, and whether M2's version can be a scheduled function
    before it needs a long-lived process.
-7. **Grit's minimum-N gate.** Grit is a ratio over a subsample — only matches
-   following a loss count — so it converges far slower than win rate and reads
-   as noise over a user's first few dozen matches. Decide the display threshold
-   before M4.
-
-8. **Do moveset-restricted formats qualify for ranked?** They are
-   unenforceable against an opponent (section 5). Curated and friend matches are
-   unaffected either way. Decide before M4.
-9. **Does each player see the opponent's random draw before the battle?**
-   Decidable either way; the answer sets the reveal timing. Decide before M2.
-10. **Megas as an analysis-only format kind** that cannot reach the lobby —
-   wanted, or leave the non-goal absolute? No milestone depends on it.
+3. **The ephemeral retention window** — the concrete number of hours a message
+   is held server-side for moderation while presenting as expired to readers.
+   This is a privacy-policy commitment, not an implementation detail. Decide
+   before M2.
+4. **Evidence retention** — how long a journal screenshot is kept after its
+   dispute closes, given it carries a third party's username. Decide before M2.
+5. **Confidence threshold for automated verification**, and whether a low-
+   confidence verdict escalates to a judge or defaults to unverified. Decide
+   before M2.
+6. **A real `minLevel` field** in the generator, replacing the legendary and
+   mythical tag proxy used for mega eligibility. Correct in every case checked,
+   but a proxy. No milestone blocks on it.
+7. **Moderation staffing** for the non-tournament report queue. Agentic
+   verification covers match results; it does not cover a message someone
+   reports. Decide before M2.
 
 ## What comes next
 

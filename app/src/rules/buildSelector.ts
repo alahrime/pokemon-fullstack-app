@@ -1,3 +1,4 @@
+import { moveMatcher } from '../lib/query';
 import { CHARGE_MOVES, FAST_MOVES } from '../lib/data';
 import { compileSelector } from './selector';
 import type { Build } from './types';
@@ -5,19 +6,12 @@ import type { Build } from './types';
 /** A predicate over a build — a ref plus the loadout it is running. */
 export type BuildTerm = (b: Build) => boolean;
 
-const ALL_MOVES = [...FAST_MOVES, ...CHARGE_MOVES];
-
-/** Loose match on a move's name, id or type, the way the search box matches. */
-function movesMatching(body: string): Set<string> {
-  const want = body.replace(/\s+/g, '');
-  const out = new Set<string>();
-  for (const m of ALL_MOVES) {
-    const name = m.name.toLowerCase().replace(/\s+/g, '');
-    const id = m.id.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (name.includes(want) || id.includes(want) || m.type === want) out.add(m.id);
-  }
-  return out;
-}
+// Builds store moves by id (`b.fast`, `b.charges`), but `moveMatcher` from
+// `lib/query` — the shared vocabulary — matches against move objects, so it
+// can see `type`/`name`/`archetype`/slot. These look the id back up in the
+// same deduped catalogues search itself is built from.
+const FAST_BY_ID = new Map(FAST_MOVES.map((m) => [m.id, m] as const));
+const CHARGE_BY_ID = new Map(CHARGE_MOVES.map((m) => [m.id, m] as const));
 
 /**
  * Compile a quota selector, which sees the loadout as well as the ref.
@@ -29,6 +23,10 @@ function movesMatching(body: string): Set<string> {
  * Forretress outright — which is the placement the spec argues for, since the
  * pool answers whether you may bring Forretress and composition answers whether
  * you may bring that one.
+ *
+ * The vocabulary itself — name, id, type, archetype, and the `1`/`2` slot
+ * prefix — is shared with search via `moveMatcher`, not reimplemented here;
+ * only the "running it" vs. "can learn it" application differs.
  *
  * Every other token falls through to the ref selector unchanged.
  */
@@ -46,8 +44,15 @@ export function compileBuildSelector(select: string): BuildTerm | null {
       }
 
       if (body.startsWith('@')) {
-        const ids = movesMatching(body.slice(1));
-        const t: BuildTerm = (b) => ids.has(b.fast) || b.charges.some((c) => ids.has(c));
+        const matches = moveMatcher(body.slice(1));
+        const t: BuildTerm = (b) => {
+          const fast = FAST_BY_ID.get(b.fast);
+          if (fast && matches(fast)) return true;
+          return b.charges.some((c) => {
+            const charge = CHARGE_BY_ID.get(c);
+            return charge !== undefined && matches(charge);
+          });
+        };
         return negate ? (b) => !t(b) : t;
       }
 

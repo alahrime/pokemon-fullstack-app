@@ -43,6 +43,26 @@ describe('compileBuildSelector', () => {
     expect(t(build(makeRef('azumarill', true)))).toBe(true);
     expect(t(build('azumarill'))).toBe(false);
   });
+
+  it('matches an archetype selector against a move the build is running', () => {
+    // registeel's rated Great build runs Flash Cannon + Focus Blast, both
+    // archetype "Nuke"; azumarill's runs Ice Beam + Play Rough, both "High
+    // Energy" — neither name nor id nor type contains "nuke", only archetype.
+    const t = compileBuildSelector('@nuke')!;
+    expect(t(build('registeel'))).toBe(true);
+    expect(t(build('azumarill'))).toBe(false);
+  });
+
+  it('a slot-prefixed selector matches only in the intended slot', () => {
+    // azumarill's rated Great build runs Bubble (water, fast) and Ice Beam
+    // (ice, charged) among its moves — an ice-type move exists only as a
+    // charge, so a fast-only selector must not pick it up even though the
+    // unprefixed and charge-prefixed forms do.
+    const b = build('azumarill');
+    expect(compileBuildSelector('@ice')!(b)).toBe(true);
+    expect(compileBuildSelector('@2ice')!(b)).toBe(true);
+    expect(compileBuildSelector('@1ice')!(b)).toBe(false);
+  });
 });
 
 describe('validateTeam quotas', () => {
@@ -77,5 +97,17 @@ describe('validateTeam quotas', () => {
   it('ignores a quota whose selector will not compile', () => {
     const r = validateTeam(team, fmt({ quotas: [{ select: '  ' }] }));
     expect(r.violations.filter((v) => v.kind === 'quota')).toEqual([]);
+  });
+
+  it('counts an archetype quota against builds actually running it, not an empty match set', () => {
+    // Regression for the finding: movesMatching (pre-fix) recognised only
+    // name/id/type, so '@nuke' matched nothing and any quota built on it
+    // silently passed with actual: 0 regardless of max. Only registeel's
+    // rated build runs Nuke-archetype charges among this team.
+    const ok = validateTeam(team, fmt({ quotas: [{ select: '@nuke', max: 1 }] }));
+    expect(ok.ok).toBe(true);
+
+    const exceeded = validateTeam(team, fmt({ quotas: [{ select: '@nuke', max: 0 }] }));
+    expect(exceeded.violations).toContainEqual({ kind: 'quota', select: '@nuke', max: 0, actual: 1 });
   });
 });

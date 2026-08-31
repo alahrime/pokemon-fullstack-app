@@ -1,6 +1,6 @@
 import { CPM, LVL } from './cpm';
 import { POKEMON_TYPES } from './pokemonTypes';
-import type { Species } from './types';
+import type { ChargeMove, FastMove, Species } from './types';
 
 /**
  * Search query language for the roster.
@@ -118,8 +118,21 @@ function needsXl(s: Species): boolean {
 
 const has = (hay: string, needle: string) => hay.toLowerCase().includes(needle);
 
-/** `@…` — anything about the movepool. */
-function moveTerm(raw: string): Term {
+/**
+ * Compile the naming half of `@x` — the part that decides which real moves it
+ * points at, independent of how a caller applies the match. Search
+ * (`moveTerm`, below) asks whether a species' movepool contains a matching
+ * move; a format's quota (`src/rules/buildSelector.ts`) asks whether a build
+ * is *running* one. Both want the same vocabulary — name, type, archetype,
+ * and the `1`/`2` slot prefix — so it lives here once rather than being
+ * partially re-implemented at the second call site. Same reasoning as
+ * `termCompiler` below, pulled out of `compileQuery` for the identical reason.
+ *
+ * A fast move is any move carrying `turns`; only fast moves do, per
+ * `DISTINCT_MOVES`'s own split in `lib/data.ts` — so slot filtering needs no
+ * second parameter naming which array a move came from.
+ */
+export function moveMatcher(raw: string): (m: FastMove | ChargeMove) => boolean {
   let body = raw;
   let slot: 'fast' | 'charge' | 'any' = 'any';
   if (body.startsWith('1')) {
@@ -131,16 +144,25 @@ function moveTerm(raw: string): Term {
   }
   if (!body) return () => false;
 
-  return (s) => {
-    const pool =
-      slot === 'fast' ? s.fastMoves : slot === 'charge' ? s.chargeMoves : [...s.fastMoves, ...s.chargeMoves];
-    return pool.some(
-      (m) =>
-        m.type?.toLowerCase() === body ||
-        has(m.name, body) ||
-        has(m.archetype ?? '', body),
-    );
+  return (m) => {
+    // Same discriminator `DISTINCT_MOVES` uses in `lib/data.ts`: `!== undefined`,
+    // not `in`. Every move here traces back to a JSON artefact, where a missing
+    // key and a key present with value `undefined` read identically through `in`
+    // — but only the former is what the data actually does today. Matching the
+    // established check keeps this from silently inverting if that ever isn't true.
+    // Cast is required because `turns` isn't declared on `ChargeMove` at all —
+    // the same reason `lib/data.ts` types its own catalogue as an intersection.
+    const turns = (m as Partial<FastMove>).turns;
+    if (slot === 'fast' && turns === undefined) return false;
+    if (slot === 'charge' && turns !== undefined) return false;
+    return m.type?.toLowerCase() === body || has(m.name, body) || has(m.archetype ?? '', body);
   };
+}
+
+/** `@…` — anything about the movepool. */
+function moveTerm(raw: string): Term {
+  const matches = moveMatcher(raw);
+  return (s) => [...s.fastMoves, ...s.chargeMoves].some(matches);
 }
 
 /** A bare word, resolved most-specific first so exact concepts beat name text. */

@@ -43,6 +43,18 @@ describe('lintFormat', () => {
     expect(lintFormat(f).some((d) => d.kind === 'dead-clause' && d.clause === 0)).toBe(true);
   });
 
+  it('reports both empty-pool and dead-clause when a dead rule precedes the emptying rule', () => {
+    const f = fmt({
+      pool: [
+        { effect: 'deny', select: 'zzzznotaspecies' },
+        { effect: 'deny', select: '!nothingmatchesthisxyz' },
+      ],
+    });
+    const diags = lintFormat(f);
+    expect(diags.some((d) => d.kind === 'empty-pool' && d.level === 'error')).toBe(true);
+    expect(diags.some((d) => d.kind === 'dead-clause' && d.clause === 0)).toBe(true);
+  });
+
   it('warns when the pool is a sliver of its league', () => {
     const f = fmt({ pool: [{ effect: 'deny', select: '!azumarill' }] });
     expect(lintFormat(f).some((d) => d.kind === 'narrow-pool')).toBe(true);

@@ -156,21 +156,23 @@ export function lintFormat(format: Format): Diagnostic[] {
   const { legal, decidedBy } = resolvePool(format);
   const leagueSize = opponentCandidatesFor(format.base).length;
 
-  if (legal.length === 0) {
-    out.push({ level: 'error', kind: 'empty-pool' });
-    return out;
-  }
-
   // A clause is dead when it decided nothing — either it matched no ref at all,
   // or every ref it matched was overruled by a later clause. Both read the same
   // to an author ("rule 3 does nothing") and both are nearly always a typo, so
-  // they warn rather than block.
+  // they warn rather than block. This check happens before the empty-pool early
+  // return so that the author sees which rule did nothing, even when the pool
+  // came out empty.
   const decisive = new Set(decidedBy.values());
   format.pool.forEach((_, i) => {
     if (!decisive.has(i) && compileSelector(format.pool[i].select)) {
       out.push({ level: 'warn', kind: 'dead-clause', clause: i });
     }
   });
+
+  if (legal.length === 0) {
+    out.push({ level: 'error', kind: 'empty-pool' });
+    return out;
+  }
 
   const size = format.composition.size;
   if (format.selection.mode === 'random' && legal.length < size * RANDOM_POOL_MULTIPLE) {

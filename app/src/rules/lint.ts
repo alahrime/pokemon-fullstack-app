@@ -47,8 +47,15 @@ function ratedBuild(ref: string, format: Format): Build {
  * true` means the budget ran out, which proves nothing at all and must never
  * be reported as unsatisfiable — wrongly blocking a legal format is a worse
  * failure than letting a pathological one through.
+ *
+ * `budget` defaults to `SEARCH_NODE_BUDGET` and exists as a parameter so a
+ * test can force genuine exhaustion on a small, cheap search rather than
+ * having to construct a format that burns 20,000 real nodes.
  */
-export function findSatisfyingTeam(format: Format): { found: string[] | null; exhausted: boolean } {
+export function findSatisfyingTeam(
+  format: Format,
+  budget: number = SEARCH_NODE_BUDGET,
+): { found: string[] | null; exhausted: boolean } {
   const c = format.composition;
   const { legal } = resolvePool(format);
   if (legal.length < c.size) return { found: null, exhausted: false };
@@ -97,11 +104,11 @@ export function findSatisfyingTeam(format: Format): { found: string[] | null; ex
    * satisfied in a few nodes rather than after walking the pool alphabetically.
    *
    * Deliberately static rather than recomputed per node. A dynamic reordering
-   * would destroy the index ordering that makes this a search over *
-   * combinations, and without it the recursion has to restart from 0 at every
-   * level and explores permutations instead — 6! times more work for the same
-   * answer, which turns a cheap search into one that only ever reports
-   * "unproven".
+   * would destroy the index ordering that makes this a search over
+   * *combinations*, and without it the recursion has to restart from 0 at
+   * every level and explores permutations instead — 6! times more work for
+   * the same answer, which turns a cheap search into one that only ever
+   * reports "unproven".
    */
   const ordered = (() => {
     const wanted: string[] = [];
@@ -116,7 +123,7 @@ export function findSatisfyingTeam(format: Format): { found: string[] | null; ex
   function search(startIdx: number): boolean {
     if (!viable()) return false;
     if (chosen.length === c.size) return true;
-    if (nodes++ > SEARCH_NODE_BUDGET) {
+    if (nodes++ > budget) {
       exhausted = true;
       return false;
     }

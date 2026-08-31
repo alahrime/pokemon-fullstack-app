@@ -975,19 +975,34 @@ species, Shadow raids, research encounters — which is a short list, not 1,736.
 matches the emitted `minLevel`, so the curated table can never silently
 contradict the source.
 
-**`shadoweligible` stays, and the reason is now recorded.** The tag is carried
-alongside the `shadowEligible` boolean, and `scripts/build-data.mjs` keeps it
-with a comment saying search needs it. **That comment is wrong.** `query.ts:157`
+**`shadoweligible` is dropped from the emitted tags.** It is carried alongside
+the `shadowEligible` boolean, and `scripts/build-data.mjs` keeps it with a
+comment saying search needs it. **That comment is wrong.** `query.ts:157`
 resolves the `shadow` term to `s.shadowEligible`, the boolean; line 156 is only
 a note that the term and the data field are spelled differently. Nothing in
-`src/` or `scripts/` reads the tag.
+`src/` or `scripts/` reads the emitted tag, and no test references it — so it
+goes.
 
-So removal carries no functional drawback — and with no drawback forcing the
-issue, the tag stays rather than being churned for tidiness. What does get fixed
-is the stale comment in the generator, which should say the tag is retained
-deliberately and that **`shadowEligible` is the source of truth**. A duplicated
-field is survivable; a duplicated field whose comment misdirects the next reader
-to the dead copy is not.
+**The trap, and the reason this is a two-line change rather than a one-line
+one.** `build-data.mjs` touches `shadoweligible` in two places with opposite
+roles:
+
+| Line | Role | Action |
+|---|---|---|
+| 296 | Reads the tag from **upstream** `data-src/pokemon.json` to derive the `shadowEligible` boolean | **Keep** |
+| 387 | Emits the tag into `species.json`'s output `tags` whitelist | **Remove** |
+
+Deleting both would set `shadowEligible` false for every species, which silently
+drops every Shadow row from `ROSTER` — roughly 500 refs vanishing from every
+pool, picker and ranking, with no error raised. The input derivation and the
+output duplication share a spelling and nothing else.
+
+The stale comment at line 383 goes with it, and `verify-data` gains an assertion
+that `shadowEligible` is true for at least one known Shadow, so a future edit
+that guts the derivation fails loudly rather than quietly emptying the roster.
+
+Regeneration is a real diff: 513 entries lose the string. That is the change,
+not drift.
 
 `mega` is likewise a tag standing in for what is really a form, and nothing
 depends on the distinction. `minLevel` remains the only one of these that
@@ -1039,7 +1054,7 @@ mechanism only, calibrated against a supplied corpus, with tournaments judged by
 organiser-appointed humans; the scheduled-battle handshake; grit as a
 tournament-only statistic with a volume-scaled gate; no ranked moveset formats;
 Show 6 draw visibility; the M2 coordinator as a scheduled function; `minLevel`
-as a real field; and `shadoweligible` retained with its stale comment corrected.
+as a real field; and `shadoweligible` dropped from the emitted tags.
 
 Three things remain, none of them blocking:
 

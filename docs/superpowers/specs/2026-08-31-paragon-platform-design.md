@@ -294,6 +294,18 @@ actually exists** — a disagreement, not merely a report:
 7. **The data is kept for analytics either way** — which species were brought,
    what was played — with the outcome flagged unverified rather than deleted.
 
+**The same ladder covers battles arranged by message.** A friend battle or a
+direct challenge reports, mismatches, amends and disputes exactly as an
+open-queue match does, and journal screenshots settle it the same way. Where
+nobody produces conclusive evidence the result lands on `unverified` and stays
+there.
+
+The consequence differs, though, and it is worth being clear about: these
+matches were never rating-bearing to begin with, so `unverified` costs nothing
+but the confidence of the record. The species usage, the matchup and the
+activity all survive into analytics regardless; what is withheld is the claim
+that a particular person won.
+
 The virtue is that the common case costs nothing, the mismatch case is
 de-escalated before it becomes a dispute, and refusing to engage is not a
 strategy: silence costs the rating, and it costs it symmetrically.
@@ -542,6 +554,17 @@ confidence auto-resolves; low confidence falls back to `unverified`, which
 costs no one their record because an unverified match is excluded rather than
 decided against. A model silently costing somebody their rating with no route of
 appeal is the failure mode to avoid.
+
+**The confidence threshold is calibrated against a labelled corpus, supplied
+during M2.** Real journal screenshots — genuine ones, and ideally a few doctored
+ones — are checked into the repo as test fixtures with their expected verdicts,
+and the auto-resolve threshold is fitted to them rather than guessed. That makes
+the threshold a tested constant instead of a number somebody picked, and it
+gives the verifier a regression suite: a model or prompt change that starts
+misreading the corpus fails the gate rather than quietly costing users their
+records. Until the corpus exists, every open-lobby dispute falls back to
+`unverified`, which is the safe default because it withholds a claim rather than
+deciding against anyone.
 
 **Evidence may be a journal screenshot or a video recording**, since some
 disputes turn on what happened rather than on the final tally. Video is accepted
@@ -952,12 +975,23 @@ species, Shadow raids, research encounters — which is a short list, not 1,736.
 matches the emitted `minLevel`, so the curated table can never silently
 contradict the source.
 
-**Other proxies worth replacing while the generator is open.** `shadoweligible`
-is carried both as a tag and as the `shadowEligible` boolean, and the tag is
-retained only because search reads it; one of the two should be derived from the
-other rather than emitted twice. `mega` is likewise a tag standing in for what
-is really a form, though nothing currently depends on the distinction. Neither
-is urgent; `minLevel` is the one that changes an answer.
+**`shadoweligible` stays, and the reason is now recorded.** The tag is carried
+alongside the `shadowEligible` boolean, and `scripts/build-data.mjs` keeps it
+with a comment saying search needs it. **That comment is wrong.** `query.ts:157`
+resolves the `shadow` term to `s.shadowEligible`, the boolean; line 156 is only
+a note that the term and the data field are spelled differently. Nothing in
+`src/` or `scripts/` reads the tag.
+
+So removal carries no functional drawback — and with no drawback forcing the
+issue, the tag stays rather than being churned for tidiness. What does get fixed
+is the stale comment in the generator, which should say the tag is retained
+deliberately and that **`shadowEligible` is the source of truth**. A duplicated
+field is survivable; a duplicated field whose comment misdirects the next reader
+to the dead copy is not.
+
+`mega` is likewise a tag standing in for what is really a form, and nothing
+depends on the distinction. `minLevel` remains the only one of these that
+changes an answer.
 
 Until `minLevel` lands, **mega league eligibility is undetermined and no mega
 ships into a league pool.** This is a data task, not an M0 task.
@@ -997,30 +1031,29 @@ because `rollMoves` deals the loadout rather than trusting a claim about it.
 
 ## Open questions
 
-The list is now short. Settled and folded into the sections above: Glicko-2;
+Nearly everything is settled and folded into the sections above: Glicko-2;
 rating confined to the three open leagues; the mismatch-then-dispute evidence
-ladder; ephemeral messaging with pins and stated retention windows; agentic
-verification as an open-lobby mechanism only, with tournaments judged by people;
-organiser-appointed judges; the scheduled-battle handshake; grit as a
+ladder, applying equally to battles arranged by message; ephemeral messaging
+with pins and stated retention windows; automated verification as an open-lobby
+mechanism only, calibrated against a supplied corpus, with tournaments judged by
+organiser-appointed humans; the scheduled-battle handshake; grit as a
 tournament-only statistic with a volume-scaled gate; no ranked moveset formats;
-Show 6 draw visibility; the M2 coordinator as a scheduled function; and
-`minLevel` as a real field rather than a tag proxy.
+Show 6 draw visibility; the M2 coordinator as a scheduled function; `minLevel`
+as a real field; and `shadoweligible` retained with its stale comment corrected.
 
-What remains:
+Three things remain, none of them blocking:
 
-1. **Moderation staffing** for the message report queue. Automated verification
-   covers match results in the open lobby, and judges cover tournaments, but
-   neither covers a message someone reports. This is a people question, not a
-   design one. Decide before M2.
-2. **The confidence threshold** at which open-lobby screenshot verification
-   auto-resolves rather than falling back to `unverified`. Needs real
-   screenshots to calibrate against, so it is a tuning task during M2 rather
-   than a decision before it.
-3. **How far the curated `data-src/level-floors.json` has to go** to make mega
-   eligibility trustworthy. The upstream field covers 39 species; how many rows
-   the curated table needs is an empirical question answered while building it.
-4. **Whether `shadoweligible` stays a tag** as well as a boolean, or search
-   derives it from the field. Cosmetic; no milestone depends on it.
+1. **Moderation staffing for reported *messages*.** Automated verification
+   covers match results and judges cover tournaments, but neither covers
+   somebody reporting abuse in a chat. Given the audience includes minors this
+   is the one open item with a safety edge, and it is a people question rather
+   than a design one. Needed before M4 opens messaging beyond friends.
+2. **How far `data-src/level-floors.json` has to go** before mega eligibility is
+   trustworthy. Deferred deliberately: an empirical question, answered by
+   working through the roster as its own research task rather than guessed at
+   now. Megas stay out of every league pool until it is done.
+3. **The verification corpus itself** — gathering and labelling the screenshots
+   is a real task inside M2, not a precondition for it.
 
 ## What comes next
 

@@ -150,8 +150,12 @@ export function findSatisfyingTeam(
  * Errors block publishing; warnings do not. The distinction matters: a format
  * that is merely narrow is a legitimate thing to want, and refusing it would be
  * the tool overruling its user. A format that no legal team can satisfy is not.
+ *
+ * `budget` defaults to `SEARCH_NODE_BUDGET` and is threaded straight through to
+ * `findSatisfyingTeam`; it exists so a test can force the "unproven" branch on
+ * a cheap search rather than a real caller ever needing to touch it.
  */
-export function lintFormat(format: Format): Diagnostic[] {
+export function lintFormat(format: Format, budget: number = SEARCH_NODE_BUDGET): Diagnostic[] {
   const out: Diagnostic[] = [];
 
   format.pool.forEach((c, i) => {
@@ -201,7 +205,7 @@ export function lintFormat(format: Format): Diagnostic[] {
     out.push({ level: 'warn', kind: 'narrow-pool', have: legal.length, leagueSize });
   }
 
-  const sat = findSatisfyingTeam(format);
+  const sat = findSatisfyingTeam(format, budget);
   if (!sat.found) {
     out.push(
       sat.exhausted

@@ -62,41 +62,19 @@ describe('findSatisfyingTeam budget exhaustion', () => {
     expect(r.exhausted).toBe(true);
   });
 
-  it('keeps the contradiction case exhausted:false, distinct from the budget case', () => {
-    // Same format shape as 'proves a contradiction impossible' above, run
-    // side by side with the exhaustion case so the suite pins both outcomes
-    // rather than relying on the reader to compare across describe blocks.
-    const contradiction = fmt({
-      composition: {
-        size: 2,
-        uniqueSpecies: true,
-        quotas: [{ select: 'shadow', min: 2 }, { select: 'shadow', max: 0 }],
-      },
-    });
-    expect(findSatisfyingTeam(contradiction).exhausted).toBe(false);
-    expect(findSatisfyingTeam(bigButOrdinary, 1).exhausted).toBe(true);
-  });
-
-  it('maps a budget-exhausted result to warn/unsatisfiable-unproven, never error/unsatisfiable', () => {
-    // lintFormat always calls findSatisfyingTeam with the default budget, so
-    // it cannot be driven into the exhausted state through its public API
-    // without either lowering SEARCH_NODE_BUDGET (which would slow every
-    // real lint) or constructing a format that genuinely burns 20,000 nodes
-    // (which would be slow and fragile to the generated species data). So
-    // this test exercises the exact branch lintFormat uses — the
-    // `sat.exhausted ? warn/unsatisfiable-unproven : error/unsatisfiable`
-    // mapping — directly against a genuinely exhausted result, instead of
-    // faking it.
-    const sat = findSatisfyingTeam(bigButOrdinary, 1);
-    expect(sat.found).toBeNull();
-    expect(sat.exhausted).toBe(true);
-
-    const diagnostic = sat.exhausted
-      ? { level: 'warn' as const, kind: 'unsatisfiable-unproven' as const }
-      : { level: 'error' as const, kind: 'unsatisfiable' as const };
-
-    expect(diagnostic).toEqual({ level: 'warn', kind: 'unsatisfiable-unproven' });
-    expect(diagnostic).not.toEqual({ level: 'error', kind: 'unsatisfiable' });
+  it('lintFormat reports the exhausted case as unproven, never as disproved', () => {
+    // A real call into lintFormat — not a copy of its level-selection ternary
+    // evaluated against a local variable — using the same tiny-budget format
+    // as the test above (`lintFormat` now threads its optional `budget`
+    // parameter straight through to `findSatisfyingTeam`) rather than
+    // lowering SEARCH_NODE_BUDGET globally or constructing a format that
+    // genuinely burns 20,000 nodes (slow, and fragile to the generated
+    // species data). This is the one test that actually executes lintFormat's
+    // exhausted -> warn branch; deleting that branch from lintFormat would
+    // fail it.
+    const ds = lintFormat(bigButOrdinary, 1);
+    expect(ds).toContainEqual({ level: 'warn', kind: 'unsatisfiable-unproven' });
+    expect(ds.some((d) => d.kind === 'unsatisfiable')).toBe(false);
   });
 });
 

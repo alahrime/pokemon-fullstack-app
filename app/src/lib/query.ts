@@ -185,16 +185,14 @@ function compileTerm(raw: string, familyOf: (id: string) => string | null, famil
 }
 
 /**
- * Compile a query into a single predicate.
+ * A per-term compiler bound to one roster.
  *
- * Returns null for an empty query so the caller can keep its own default
- * ordering rather than being handed a match-everything predicate.
+ * Extracted so the rules layer (`src/rules/selector.ts`) can reuse the term
+ * vocabulary without reimplementing it. The `,`/`&` splitting is five lines and
+ * is done by each caller; the terms themselves are the part worth sharing, and
+ * a second implementation of them would drift.
  */
-export function compileQuery(query: string, roster: readonly Species[]): Term | null {
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-
-  // `+name` needs name -> family id; built lazily, once per compile.
+export function termCompiler(roster: readonly Species[]): (raw: string) => Term {
   let byName: Map<string, string> | null = null;
   const familyIdFor = (name: string): string | null => {
     if (!byName) {
@@ -209,15 +207,24 @@ export function compileQuery(query: string, roster: readonly Species[]): Term | 
     return byName.get(name) ?? null;
   };
   const familyOf = () => null;
+  return (raw: string) => compileTerm(raw, familyOf, familyIdFor);
+}
+
+/**
+ * Compile a query into a single predicate.
+ *
+ * Returns null for an empty query so the caller can keep its own default
+ * ordering rather than being handed a match-everything predicate.
+ */
+export function compileQuery(query: string, roster: readonly Species[]): Term | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+
+  const term = termCompiler(roster);
 
   const alternatives = q
     .split(',')
-    .map((clause) =>
-      clause
-        .split('&')
-        .map((t) => compileTerm(t, familyOf, familyIdFor))
-        .filter(Boolean),
-    )
+    .map((clause) => clause.split('&').map(term).filter(Boolean))
     .filter((and) => and.length > 0);
 
   if (!alternatives.length) return null;

@@ -1,4 +1,5 @@
 import { conflictsOnTeam, speciesOf } from '../lib/data';
+import { compileBuildSelector } from './buildSelector';
 import { resolvePool } from './pool';
 import type { Build, Format, Violation } from './types';
 
@@ -61,6 +62,30 @@ export function validateTeam(team: readonly Build[], format: Format): TeamCheck 
         const fb = speciesOf(b)?.family;
         if (fa && fb && fa === fb) violations.push({ kind: 'duplicate-family', refs: [a, b] });
       }
+    }
+  }
+
+  // Quotas are count constraints over the subset of the team matching a
+  // selector. A quota whose selector will not compile is skipped rather than
+  // failing the team: an unparseable rule is the author's problem and is
+  // reported by lintFormat at publish time, not the player's problem here.
+  for (const q of format.composition.quotas ?? []) {
+    const term = compileBuildSelector(q.select);
+    if (!term) continue;
+    const actual = team.filter(term).length;
+    const under = q.min !== undefined && actual < q.min;
+    const over = q.max !== undefined && actual > q.max;
+    if (under || over) {
+      // Built as one literal rather than assigned field by field: `Violation`
+      // is a discriminated union and tsc will not let you set `.min` on a value
+      // already narrowed to one member.
+      violations.push({
+        kind: 'quota',
+        select: q.select,
+        actual,
+        ...(q.min !== undefined ? { min: q.min } : {}),
+        ...(q.max !== undefined ? { max: q.max } : {}),
+      });
     }
   }
 

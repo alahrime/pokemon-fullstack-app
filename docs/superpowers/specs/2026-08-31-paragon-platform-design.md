@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-31
 **Status:** design approved in conversation; not yet planned or implemented
-**Covers:** the decomposition, data model, security model, and rules language
+**Covers:** the decomposition, data model, security model, rules language, and
+build identity (Shadows, megas, movesets)
 **Does not cover:** implementation plans. Each milestone gets its own.
 
 ---
@@ -197,7 +198,7 @@ tests become the ones nobody runs.
 | Table | Notes |
 |---|---|
 | `teams` | Owner, name, league |
-| `team_members` | Species, fast move, two charge moves, IVs, level, shadow flag |
+| `team_members` | **`ref`** (`machamp_shadow` form — Shadow lives in the ref), fast move, two charge moves, IVs, level |
 | `saved_searches` | Query string against the existing `lib/query.ts` language |
 
 **Social** (3)
@@ -220,8 +221,9 @@ tests become the ones nobody runs.
 
 | Table | Notes |
 |---|---|
-| `queue_entries` | Profile, format version, **`rules_hash`** (the actual partition key), ranked flag, team snapshot, expiry |
-| `matches` | Both players, both team snapshots, format version, `rules_hash`, `data_rev`, channel, state, season |
+| `queue_entries` | Blind matching. Profile, format version, **`rules_hash`** (the partition key), ranked flag, team snapshot, expiry |
+| `match_offers` | Proposals: proposer, format version, `rules_hash`, visibility, `scheduled_for`, `expires_at`, accepted_by |
+| `matches` | Both players, both team snapshots, format version, `rules_hash`, `data_rev`, `seed`, channel, state, season |
 | `match_reports` | Two rows per match: each side's independent claim |
 | `match_rounds` | The adjudicated per-round truth, written on confirmation |
 | `seasons`, `ratings` | Per season, per scope, with deviation columns |
@@ -398,14 +400,57 @@ different machinery. Separating them is most of the design.
 
 | Axis | Question | Shape |
 |---|---|---|
-| Pool | Is this species legal at all? | Predicate over one species |
+| Pool | Is this build legal at all? | Predicate over one ref |
 | Composition | Is this assembled team legal? | Predicate over a set |
 | Selection | How was the team arrived at? | Open pick vs random draft |
 
-**"Random 6" is not a filter.** It is a selection mode, and no amount of species
+**"Random 6" is not a filter.** It is a selection mode, and no amount of pool
 filtering expresses it. Likewise "max one of each type" is a set property: every
 individual member passes and the team still fails. Conflating these is the
 mistake that makes rules engines collapse.
+
+### The pool unit is a ref, which the engine already defines
+
+`lib/data.ts` models a Shadow as a **ref** — `machamp_shadow` — via
+`parseRef`/`makeRef`. `ROSTER` carries roughly 1,650 entries, a base row plus a
+Shadow row for each eligible species; `opponentCandidatesFor` returns refs;
+`rankFor` is Shadow-aware; and `mkBattleMon(ref, …)` parses the suffix to apply
+`SHADOW_ATK_MULT` and `SHADOW_DEF_MULT`. Only the picker collapses the two,
+deliberately, so its list stays around 1,100 rather than 1,650.
+
+So the rules layer resolves to refs, not to species:
+
+```ts
+resolvePool(rules, league): { legal: Ref[]; decidedBy: Map<Ref, number> }
+```
+
+This is what makes a ban more specific than a species, which is a requirement:
+`forretress` and `forretress_shadow` are separate pool entries that can be
+allowed and denied independently.
+
+**Selectors match refs, and a species-level term matches all of that species'
+refs.** No new syntax is needed, because the existing grammar already composes:
+
+| Clause | Effect |
+|---|---|
+| `deny forretress` | both variants |
+| `deny forretress&!shadow` | the normal form only |
+| `allow forretress&shadow` | the Shadow only |
+| `deny shadow` | every Shadow in the pool |
+
+The builder surfaces these as three explicit actions — ban species, ban normal
+only, ban Shadow only — so the precision is discoverable without teaching
+anyone the syntax.
+
+**One deliberate divergence from the search language.** In `query.ts`, `shadow`
+maps to the `shadoweligible` tag and means *"has a Shadow variant"* — a property
+of a species. In rules it must mean *"is the Shadow variant"* — a property of a
+ref. Same token, rebound. This is the concrete reason `packages/rules` **wraps**
+`query.ts` rather than re-exporting it: it expands species to refs, rebinds a
+small number of terms, and pins the rest.
+
+`packages/rules` also respects `UNSIMULATED_IDS`, so a format cannot be authored
+around a species the engine is unable to model.
 
 ### Pool: an ordered pipeline, last match wins
 
@@ -415,23 +460,118 @@ base: great
 2. allow  +mantine      — airdropped exception
 ```
 
-A species starts legal if it is in the base league pool. Each clause is
-evaluated in order and **the last clause that matches decides.** These are
-`.gitignore` semantics, and iptables', and CSS's: well-trodden, explainable, and
-able to express exceptions-to-exceptions at arbitrary depth, which a fixed
+A ref starts legal if it is in the base league pool. Each clause is evaluated in
+order and **the last clause that matches decides.** These are `.gitignore`
+semantics, and iptables', and CSS's: well-trodden, explainable, and able to
+express exceptions-to-exceptions at arbitrary depth, which a fixed
 allow-then-deny phase ordering cannot.
 
 Two things fall out of last-match-wins for free, and they are what make the
 builder usable.
 
-Every species has exactly one deciding clause, so "why is my Mantine illegal?"
-is answerable precisely — *denied by rule 1: `flying`* — with a button to add
-the exception. That is the most important affordance in the builder and it costs
+Every ref has exactly one deciding clause, so "why is my Mantine illegal?" is
+answerable precisely — *denied by rule 1: `flying`* — with a button to add the
+exception. That is the most important affordance in the builder and it costs
 nothing, because the evaluator already knows the answer.
 
-And since the roster is roughly 1,100 species and `Term` compiles to a closure,
-the pool can be recomputed live per keystroke and each clause annotated with its
+And since the roster is roughly 1,650 refs and `Term` compiles to a closure, the
+pool can be recomputed live per keystroke and each clause annotated with its
 delta: −87, +1. The author sees the format being built rather than imagining it.
+
+### Composition: quota clauses
+
+Rather than enumerating named rules and adding one whenever a new idea arrives,
+composition is a list of **quotas, each a selector plus a count range**, reusing
+the same selector language as the pool:
+
+```json
+"composition": {
+  "size": 6,
+  "uniqueSpecies": true,
+  "uniqueFamilies": true,
+  "quotas": [
+    { "select": "shadow",    "min": 1, "max": 2, "note": "some shadows" },
+    { "select": "legendary", "max": 1 },
+    { "select": "water",     "max": 2 }
+  ]
+}
+```
+
+"No shadows" is a pool clause (`deny shadow`); "some shadows" is a quota; "all
+shadows" is `min: size`. Type caps, legendary caps and anything thought of later
+are the same mechanism with no new code.
+
+**`uniqueSpecies` is separate from `uniqueFamilies` and necessary.** With refs as
+the unit, Azumarill plus Shadow Azumarill is two legal refs of one species, and
+a format needs to be able to say whether that is allowed.
+
+**Moveset restrictions are composition rules, not pool rules.** The pool answers
+"may I bring Forretress"; composition answers "may I bring *this* Forretress".
+Keeping build-level constraints in composition leaves `resolvePool` keyed on
+refs, exactly matching the engine, and requires no pipeline change at all —
+`species.json` already ships every species' full movepool, so the client can
+validate a build offline today.
+
+**Cost, stated honestly:** quotas with *minimums* turn the publish-time
+feasibility check from a count into a small constraint-satisfaction problem.
+"Min 1 Shadow, max 1 Water, unique families, size 6" can be unsatisfiable in
+ways no count detects. At team sizes of six or fewer it remains tractable with
+backtracking search, but it is a solver, not a greedy pass.
+
+### Selection: the random draft
+
+A separate unranked mode with its own parameters. Both players roll
+independently from one shared seed.
+
+```json
+"selection": {
+  "mode": "random",
+  "seed": "<per-match>",
+  "source": { "topN": 100 },
+  "playerPicks": 1,
+  "rollMoves": true
+}
+```
+
+- **`source`** — draw from the whole legal pool, or the top N by `leagueRank`.
+  The data carries per-league ranks, with separate Shadow ranks, so this works
+  directly on refs.
+- **`playerPicks`** — partial randomness: *k* slots chosen by the player,
+  `size − k` rolled.
+- **`rollMoves`** — whether the draw also deals each slot's loadout. The draw
+  source is `loadoutsFor()` from `scripts/build-matrix.ts`, which already
+  generates up to twelve plausible sets per species ranked by real usage, so a
+  rolled build is realistic rather than absurd. With `rollMoves` off, players
+  are dealt refs and choose their own moves.
+- **Each player's draw is `f(seed, playerId, rules_hash, data_rev)`** —
+  deterministic, reproducible and independently verifiable after the fact, which
+  is what makes it auditable when someone claims a bad roll.
+
+**A scheduled random match must pin `data_rev` at proposal time.** The same seed
+against a regenerated roster yields a different draw, so a match proposed on
+Tuesday and played on Friday would silently deal different teams. This is the
+case that makes the `data_rev` column load-bearing rather than decorative.
+
+### Publishing gates
+
+The empty-format problem is worse than empty:
+
+- **Unsatisfiable composition** — the pool is all Water, the rule says max one
+  per type across three members. Every member is legal; no team is. This is the
+  CSP above rather than a count.
+- **Error, random modes:** pool ≥ 4 × `size`. A "random" draw of six from a pool
+  of nine is not random.
+- **Warning, narrowness:** pool below 10% of base-league refs — fewer than 114 in
+  Great, 84 in Ultra, 37 in Master — or below about 30 refs absolute. Legal, but
+  the author may be the only person queuing it.
+- **Warning, dead clauses** — matching nothing, or entirely shadowed by a later
+  clause. Nearly always a typo, and saying so is a kindness.
+
+Both thresholds are tunable constants. They are scaled to league size because a
+flat floor is either trivial in Great or crippling in Master: the measured pools
+are 1,143 refs in Great, 841 in Ultra and 365 in Master.
+
+Errors block publishing. Warnings do not.
 
 ### Which terms re-evaluate, and which are pinned
 
@@ -447,61 +587,49 @@ members whenever upstream adds a species with those letters in it. That is not
 intentionality, it is a lexical accident.
 
 So the rules subset uses the same grammar with stricter resolution: **names and
-families resolve to concrete ids at authoring time and are stored as ids, while
-types, tags, generations and move predicates stay live.** Semantic categories
-absorb new data; lexical matches do not.
-
-Consequence: because the pool genuinely moves under a fixed ruleset, match
-records store `rules_hash` *and* the data revision — the same instinct as the
-existing `engineRev` stamp on the artefacts.
-
-### Publishing gates
-
-The empty-format problem is worse than empty:
-
-- **Pool too small** for the composition — three cannot be fielded from two.
-- **Unsatisfiable composition** — the pool is all Water, the rule says max one
-  per type across three members. Every member is legal; no team is. This needs a
-  real satisfiability check rather than a count, and at these sizes a greedy
-  brute force suffices.
-- **Dead clauses** — matching nothing, or entirely shadowed by a later clause.
-  Warn rather than block; it is nearly always a typo, and saying so is a
-  kindness.
-- **Viable but lonely** — legal, but so narrow nobody else will queue it.
-
-Errors block publishing. Warnings do not.
+families resolve to concrete refs at authoring time and are stored as refs,
+while types, tags, generations and move predicates stay live.** Semantic
+categories absorb new data; lexical matches do not.
 
 ### Queues partition by `rules_hash`
 
 Queues partition by a canonical serialisation hash of the resolved rules rather
-than by `format_version_id`:
-two people who independently author the same format should match each other, and
-ranked ratings should pool across them. The format's name and owner are
-presentation; the hash is identity.
+than by `format_version_id`: two people who independently author the same format
+should match each other, and ranked ratings should pool across them. The
+format's name and owner are presentation; the hash is identity.
+
+### Three ways into a match
+
+| Mode | Blind | Ranked | Entity |
+|---|---|---|---|
+| Open queue, canonical league format | yes | yes | `queue_entries` |
+| Live dashboard — browse offers, inspect the format, opt in | no | no | `match_offers` |
+| Scheduled proposal for a later time | no | no | `match_offers` + `scheduled_for` |
+| Direct friend challenge (M3) | no | no | `match_offers`, targeted |
+
+A queue entry says *match me with anyone on these terms*. An offer says *here is
+my proposition, come and look at it* — the requirement that an opponent can
+review a curated format before accepting is what makes these separate tables
+rather than a flag.
+
+Only the open queue feeds rating. That confines the collusion surface to the one
+mode where nobody chooses their opponent.
 
 ### The shared package
 
 ```ts
 // packages/rules — no React, no browser APIs
-resolvePool(rules, roster): { legal: Species[]; decidedBy: Map<SpeciesId, number> }
-validateTeam(team, rules, roster): { ok: boolean; violations: Violation[] }
-lintFormat(rules, roster): Diagnostic[]
+resolvePool(rules, league): { legal: Ref[]; decidedBy: Map<Ref, number> }
+validateTeam(builds, rules): { ok: boolean; violations: Violation[] }
+lintFormat(rules, league): Diagnostic[]
+rollTeam(rules, seed, playerId): Build[]
 canonicalize(rules): string        // → rules_hash
 ```
 
-The client uses all four. **The coordinator uses only `validateTeam`, and that
-call is the trust boundary** — the one place a client's claim that its team is
-legal is checked by something the client does not control.
-
-Stored shape, with a `schema` field from day one so migration is possible:
-
-```json
-{ "schema": 1, "base": "great",
-  "pool": [ {"effect":"deny","select":"flying","note":"air banned"},
-            {"effect":"allow","select":"+mantine"} ],
-  "composition": { "size": 3, "maxPerType": 1, "uniqueFamilies": true },
-  "selection": { "mode": "open" } }
-```
+The client uses all of it. **The coordinator uses `validateTeam` and `rollTeam`,
+and those calls are the trust boundary** — the one place a client's claim that
+its team is legal is checked by something the client does not control, and the
+one place a random draw is generated where neither player can influence it.
 
 ### The risk, named
 
@@ -516,6 +644,91 @@ over the same `Species` type would be strictly worse. But it needs a guard.
 that a corpus of stored formats still resolves to identical pools. The repo
 already does exactly this trick, asserting in `verify-data` that each documented
 query form still works.
+
+---
+
+## 5. Build identity — Shadows, megas and movesets
+
+What has to be refactored so that Shadow Bug Bite Forretress and regular Volt
+Switch Forretress can be told apart. The short answer is much less than expected
+for Shadows, nothing in the engine for movesets, and nothing at all for megas.
+
+### Shadows are already first-class
+
+Covered in section 4: `parseRef`/`makeRef`, a Shadow row per eligible species in
+`ROSTER`, Shadow-aware ranking, and the multipliers applied in `mkBattleMon`.
+There is **no engine refactor**. The platform work is consistency — key
+`team_members` on `ref`, resolve `packages/rules` to refs, and give the format
+builder an affordance the picker deliberately lacks, since it collapses the two
+forms behind a toggle.
+
+### Movesets are already computed, then discarded
+
+In `scripts/build-matrix.ts`:
+
+- `loadoutsFor()` generates up to `MOVESETS_MAX = 12` plausible sets per species
+  (`FAST_K = 3`, `CHARGE_K = 4`), ranked by real usage
+- `buildPool()` builds a `Variant` per **ref × loadout**
+- `sweep()` rates every variant against every foe, in every scenario, under both
+  shield policies
+- **`perRefBest()` collapses that to one Overall per ref**, retaining
+  `bestVariant` — the index of the winning loadout — which is never emitted
+
+The battles distinguishing those two Forretresses **already run**. The pipeline
+computes the distinction and drops it at the last step; the word "variant" in
+this codebase already means ref plus loadout.
+
+So the constraint is not compute, it is **artefact size**. `rankings.json` is
+3.3MB per-ref, and per-variant is roughly twelve times that. That is a shipping
+problem with cheaper answers than emitting everything.
+
+**What must not change:** opponents are swept only at their rated loadout. The
+file header records this as a modelling decision rather than a cost shortcut —
+sweeping both sides lets sets nobody plays vote in the average, and it is 6.56
+billion battles against 244 million. Build identity on the player's own side
+does not require touching it.
+
+### Megas are a documented non-goal
+
+There are 56 mega entries and **none of them is in any league pool**, because
+Mega Evolution is not legal in GO Trainer Battles. Making them eligible would
+mean inventing league membership for species PvPoke does not rank — so no
+`leagueRank` and no `bestIv` to key on — and regenerating `bestIv`, `rankings`,
+`matrix` and `teams` over an enlarged pool, to produce formats nobody could
+actually play.
+
+Recorded as a non-goal in the manner of `UNSIMULATED_IDS`: one named constant,
+one reason, trivially reversible if the game ever changes. An analysis-only
+format kind that cannot reach the lobby is a separate feature, not this one.
+
+### The refactor, in order
+
+| Work | Where | Cost | Milestone |
+|---|---|---|---|
+| Pool and teams key on `ref` | `packages/rules`, `team_members` | small | M0 / M1 |
+| Builder addresses Shadow variants separately | builder UI | small | M0 |
+| Build ref — `{ ref, fast, charge1, charge2 }` plus a canonical string | `packages/rules` | small, additive | M0 |
+| Moveset restrictions as composition quotas | `packages/rules` | small | M0 |
+| Rules layer respects `UNSIMULATED_IDS` | `packages/rules` | trivial | M0 |
+| Emit `bestVariant` per ref | `build-matrix.ts` | one int per ref | cheap follow-up |
+| Emit per-variant rows | `build-matrix.ts`, artefact split | ~12× `rankings.json` | deferred |
+
+**M0 needs no pipeline change at all.** Emitting `bestVariant` is worth taking
+early regardless of the platform: it is a single integer per ref and it exposes
+the gap between the set PvPoke rates and the set that actually scores best —
+something the pipeline has computed all along and never reported.
+
+### The enforceability caveat
+
+**A moveset restriction cannot be verified against an opponent.** What Forretress
+they brought is unknowable until they throw it. A moveset rule is therefore a
+validated commitment on one's own submitted team and a social contract on the
+other side — the same trust model as score reporting.
+
+That is acceptable for curated and friend matches. Whether moveset-restricted
+formats should be eligible for **ranked** is a separate decision, since ranked is
+where the incentive to defect exists. In random mode the question is softer,
+because `rollMoves` deals the loadout rather than trusting a claim about it.
 
 ---
 
@@ -543,6 +756,14 @@ Not blocking M0. Each should be settled before the milestone that needs it.
    following a loss count — so it converges far slower than win rate and reads
    as noise over a user's first few dozen matches. Decide the display threshold
    before M4.
+
+8. **Do moveset-restricted formats qualify for ranked?** They are
+   unenforceable against an opponent (section 5). Curated and friend matches are
+   unaffected either way. Decide before M4.
+9. **Does each player see the opponent's random draw before the battle?**
+   Decidable either way; the answer sets the reveal timing. Decide before M2.
+10. **Megas as an analysis-only format kind** that cannot reach the lobby —
+   wanted, or leave the non-goal absolute? No milestone depends on it.
 
 ## What comes next
 

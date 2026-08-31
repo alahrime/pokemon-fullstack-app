@@ -44,4 +44,16 @@ describe('canonicalize', () => {
     const explicit: Format = { ...base, composition: { ...base.composition, uniqueFamilies: false } };
     expect(canonicalize(explicit)).toBe(canonicalize(base));
   });
+
+  it('preserves word boundaries: selectors differing only in internal whitespace canonicalize differently', () => {
+    const tapuKoko: Format = { ...base, pool: [{ effect: 'deny', select: 'tapu koko' }, base.pool[1]] };
+    const tapuKokoMultispace: Format = { ...base, pool: [{ effect: 'deny', select: 'tapu  koko' }, base.pool[1]] };
+    const tapukoko: Format = { ...base, pool: [{ effect: 'deny', select: 'tapukoko' }, base.pool[1]] };
+
+    // Same spacing normalizes to same canonical
+    expect(canonicalize(tapuKoko)).toBe(canonicalize(tapuKokoMultispace));
+
+    // Different spacing within word boundaries produces different canonicals
+    expect(canonicalize(tapuKoko)).not.toBe(canonicalize(tapukoko));
+  });
 });

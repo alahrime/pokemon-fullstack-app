@@ -17,9 +17,15 @@ import type { Format, PoolClause, Quota } from './types';
  *
  * Optional fields are written at their defaults rather than omitted, so an
  * explicit `false` and an absent flag agree.
+ *
+ * Word boundaries within selectors are significant to the grammar: species and
+ * move names are matched as raw multi-word substrings. Canonicalization may
+ * normalize runs of whitespace but must not delete them, or two different
+ * rulesets — `deny tapu koko` vs. `deny tapukoko` — would collapse onto one
+ * identity.
  */
 function normSelect(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, '');
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function clause(c: PoolClause): string {

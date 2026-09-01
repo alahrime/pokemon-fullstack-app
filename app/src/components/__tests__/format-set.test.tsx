@@ -189,5 +189,44 @@ describe('FormatSet', () => {
       expect(legal).toContain('registeel');
       expect(legal).toContain('registeel_shadow');
     });
+
+    // Some species rank as a Shadow in Great while their plain form is
+    // structurally absent from the league's own pool — verified directly
+    // against resolvePool's `decidedBy` for base:'great': mewtwo's normal ref
+    // is not a key at all, only 'mewtwo_shadow' is. Offering a 'normal' scope
+    // there would add a clause that can never match a base-pool ref.
+
+    it('never offers a Normal scope for a species whose plain form the league cannot hold', async () => {
+      // Mewtwo, untouched by any clause: Shadow is the only form Great's pool
+      // can hold, so 'normal' (and 'both', which would reduce to the same
+      // no-op) must never appear — only 'shadow'.
+      render(<FormatSet format={nothing} onChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/add a species/i);
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: 'mewtwo' } });
+      await waitFor(() => expect(screen.getByRole('option', { name: /mewtwo/i })).toBeInTheDocument());
+      fireEvent.mouseDown(screen.getByRole('option', { name: /mewtwo/i }));
+
+      expect(screen.getByTestId('add-species-shadow')).toBeInTheDocument();
+      expect(screen.queryByTestId('add-species-normal')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('add-species-both')).not.toBeInTheDocument();
+    });
+
+    it('still offers the Normal scope for a symmetric species in the same untouched state', async () => {
+      // Registeel, same "nothing legal yet" state as the Mewtwo case above,
+      // both forms genuinely Great-legal — the discriminator proving the
+      // Mewtwo suppression is about league membership, not a scope gone
+      // missing for everyone.
+      render(<FormatSet format={nothing} onChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/add a species/i);
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: 'registeel' } });
+      await waitFor(() => expect(screen.getByRole('option', { name: /registeel/i })).toBeInTheDocument());
+      fireEvent.mouseDown(screen.getByRole('option', { name: /registeel/i }));
+
+      expect(screen.getByTestId('add-species-normal')).toBeInTheDocument();
+    });
   });
 });

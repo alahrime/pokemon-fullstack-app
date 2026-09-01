@@ -33,7 +33,7 @@ interface Props {
  * running the engine over a group's whole membership just to draw a checkbox.
  */
 export function FormatSet({ format, onChange }: Props) {
-  const { legal } = useMemo(() => resolvePool(format), [format]);
+  const { legal, decidedBy } = useMemo(() => resolvePool(format), [format]);
 
   // Bucketed by PRIMARY type only — `speciesOf(ref).types[0]` — never every
   // type a ref has. A Pokemon can carry two types, so grouping under both
@@ -63,68 +63,76 @@ export function FormatSet({ format, onChange }: Props) {
       return next;
     });
 
-  // Every league-legal species id, deduped, regardless of which of its forms
-  // are league-legal — the base to offer an add against. `pool: []` and
-  // `start: 'league'` peel off every clause the author has written so far, so
-  // this is the whole league's candidate set, not the format's current one.
-  const leaguePool = useMemo(
-    () => resolvePool({ ...format, pool: [], start: 'league' }).legal,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [format.base],
-  );
-
   /**
    * Per species, which scopes are still worth offering.
    *
-   * Not a flat "already in the set, so hide it" — that was the bug this fixed.
-   * A species with only its Shadow legal still has a real gap (its Normal
-   * form), and hiding the species entirely took away the only discoverable
-   * way to close it — leaving just the advanced clause editor, the syntax
-   * path this whole control exists to keep people off.
+   * Reads legality off the *resolved* set (`resolvePool(format).legal`), not
+   * the raw clause list — the opposite of how `typesOn` in edits.ts reads a
+   * chip's state. A species can end up partially in the set through clauses
+   * that never mention it by name at all (a type chip plus one X, say), and
+   * the resolved set is the only place that shows the true, current state.
    *
-   * Reads legality the same way `typesOn` does in edits.ts: inspecting the
-   * *resolved* set rather than the raw clause list, because a species can end
-   * up partially in the set through clauses that never mention it by name — a
-   * type chip plus one X, say — and the resolved set is the only place that
-   * shows the true, current state at a glance.
+   * Every scope offered is also checked against `decidedBy` — resolvePool's
+   * map of every base-league ref to the clause that decided it, populated for
+   * every ref regardless of legality (see pool.ts). `decidedBy.has(ref)` is
+   * exactly "does this ref exist in the league's pool at all," which is a
+   * different question from "is it currently legal." Some species rank as a
+   * Shadow in a league while their plain form is structurally absent from it
+   * — mewtwo, kyogre, groudon, dialga, palkia, giratina_altered and reshiram
+   * all do this in Great — and `cradily_b` has the reverse asymmetry. Without
+   * this check, a species like that would get offered a scope whose selector
+   * can never match a single base-pool ref: the button does nothing, and
+   * nothing says so.
    *
-   * Four states, per species:
-   *   - both variants already legal        → not offered at all
-   *   - neither variant legal               → 'both', 'normal', and 'shadow'
-   *     (Shadow only where the species can have one)
-   *   - only Normal legal                   → 'shadow' only (if it can have one)
-   *   - only Shadow legal                   → 'normal' only
+   * States, per species:
+   *   - both forms it can have are already legal   → not offered at all
+   *   - neither is legal, and both exist in league  → 'both', 'normal', 'shadow'
+   *   - only Normal legal (Shadow exists in league) → 'shadow' only
+   *   - only Shadow legal (Normal exists in league) → 'normal' only
+   *   - only one form exists in the league at all,
+   *     and it is not yet legal                     → that one scope only
    *
-   * A species with no Shadow form at all behaves as the first two rows
-   * collapse into: fully in the set once Normal is legal, otherwise offered
-   * as 'both' and 'normal' (equivalent for it, since no Shadow ref exists to
-   * distinguish them).
+   * A species with no Shadow form ever (`!shadowEligible`) only ever reaches
+   * the second and last rows, with 'both' and 'normal' offered together —
+   * equivalent for it, since there is no Shadow ref to distinguish them.
    */
   const offeredScopes = useMemo(() => {
     const legalSet = new Set(legal);
     const m = new Map<string, SpeciesScope[]>();
     const seen = new Set<string>();
-    for (const ref of leaguePool) {
+    for (const ref of decidedBy.keys()) {
       const { id } = parseRef(ref);
       if (seen.has(id)) continue;
       seen.add(id);
       const sp = speciesOf(id);
       if (!sp) continue;
 
-      const normalLegal = legalSet.has(id);
-      const shadowLegal = sp.shadowEligible && legalSet.has(makeRef(id, true));
-
       if (!sp.shadowEligible) {
-        if (!normalLegal) m.set(id, ['both', 'normal']);
+        if (!legalSet.has(id)) m.set(id, ['both', 'normal']);
         continue;
       }
-      if (normalLegal && shadowLegal) continue;
-      if (normalLegal && !shadowLegal) m.set(id, ['shadow']);
-      else if (!normalLegal && shadowLegal) m.set(id, ['normal']);
-      else m.set(id, ['both', 'normal', 'shadow']);
+
+      const normalInLeague = decidedBy.has(id);
+      const shadowInLeague = decidedBy.has(makeRef(id, true));
+      const normalLegal = normalInLeague && legalSet.has(id);
+      const shadowLegal = shadowInLeague && legalSet.has(makeRef(id, true));
+
+      if (normalInLeague && shadowInLeague) {
+        if (normalLegal && shadowLegal) continue;
+        if (normalLegal) m.set(id, ['shadow']);
+        else if (shadowLegal) m.set(id, ['normal']);
+        else m.set(id, ['both', 'normal', 'shadow']);
+      } else if (normalInLeague) {
+        if (!normalLegal) m.set(id, ['normal']);
+      } else if (shadowInLeague) {
+        if (!shadowLegal) m.set(id, ['shadow']);
+      }
+      // Neither in league: this id would not appear as a key of `decidedBy`
+      // at all, so this branch is unreachable — noted rather than coded,
+      // since there is nothing to express here.
     }
     return m;
-  }, [leaguePool, legal]);
+  }, [decidedBy, legal]);
 
   const addable = useMemo(() => new Set(offeredScopes.keys()), [offeredScopes]);
 

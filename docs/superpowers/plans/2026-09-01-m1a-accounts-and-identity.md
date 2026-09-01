@@ -1,0 +1,433 @@
+# M1a — Accounts and Identity: Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** A person can create an account with Google or email, is refused if under 13, and gets a profile row whose Pokémon GO friend code is readable only under conditions a row policy enforces.
+
+**Architecture:** Supabase (Postgres + GoTrue auth + PostgREST) running locally under colima for development. The client talks to Postgres directly through PostgREST with its JWT, so **every table is an endpoint and the row policy is the only check** — there is no handler in between. Policies are therefore code, and they get tests that assert both directions.
+
+**Tech Stack:** Supabase CLI (pinned), PostgreSQL 17.6, `@supabase/supabase-js`, React 19, TypeScript, Vitest. Local stack verified working on this machine: 12 containers, native aarch64, `auth` schema present with 16 RLS-enabled tables.
+
+**Spec:** `docs/superpowers/specs/2026-08-31-paragon-platform-design.md` — sections 2 (data model) and 3 (security model) are the authority here.
+
+**Predecessor:** M0 + M0b, merged to `main` at `00b0441` (35 commits, 973 tests, gate green).
+
+---
+
+## Before Task 1 — steps only the human can do
+
+These are **not** implementation tasks. Nothing in Tasks 1–4 needs them; Tasks 5–6 do.
+
+1. **Create the hosted Supabase project.** Note its project URL and **anon key** — both are public by design and safe to commit. The **service role key is not**: it bypasses RLS entirely, and if it ever reaches the client bundle every policy in this plan becomes decoration. Keep it out of the repo.
+2. **Create a Google Cloud OAuth client** for the Gmail sign-in, and add its client ID and secret to the Supabase project's Auth → Providers settings (they live in Supabase, not in this repo).
+3. Confirm colima is running before any database work: `colima status`. If not, `colima start`.
+
+An implementer that reaches a step needing one of these and finds it missing should report NEEDS_CONTEXT, not invent a placeholder credential.
+
+## Global Constraints
+
+- **`app/src/rules/` still imports no React and no browser API.** `rules:node` in the gate now bundles and *executes* it under Node; do not add anything to that module here.
+- **The service role key never enters the repo, the client bundle, or a test fixture.** Local development uses the local stack's own keys, which are identical on every Supabase install and are not secrets.
+- **Every table in `public` gets RLS enabled and at least one policy.** A table with RLS off is world-readable; a table with RLS on and no policies denies everything and looks like a broken feature rather than a security hole. Both are failures.
+- **Policy tests assert both directions.** "User B cannot read user A's row" is the half that catches a policy someone loosened to fix a bug, and it is the half usually skipped.
+- **No new runtime dependencies beyond `@supabase/supabase-js`.**
+- Design tokens only in CSS; no new tokens. Real names: `--color-accent`, `--color-text`, `--text-muted`, `--text-faint`, `--font-mono`, `--space-*`, `--text-*`, `--border-hairline`, `--border-strong`, `--rule-hairline`, `--rule-strong`. There is no `--danger` and no `--warn`.
+- **Never hand-edit `app/src/data/species.json`** — it is generated.
+- **jsdom applies no stylesheet.** Assert structure and behaviour in component tests, never computed layout.
+- Append to `app/src/styles/components.css`; do not reflow existing blocks.
+- **Read the signature before writing the test.** Assumed APIs are this repo's most repeated historical mistake.
+
+## Two decisions taken here, and why
+
+**Where things live.** `supabase/` sits at the repo root — it is infrastructure, not app code. The CLI is pinned as a devDependency in `app/package.json`, because that is where npm lives in this repo; there is no root `package.json`, and creating one is a structural change out of scope for M1a. This is the same pragmatism that put `packages/rules` at `app/src/rules/` in M0.
+
+**The gate stays Docker-free.** The spec says the RLS assertion joins `npm run check`. Taken literally that would make every gate run require Docker and a running stack — slow, and broken for anyone without colima. So there are two levels:
+
+- `npm run check` — unchanged, Docker-free, still the everyday gate.
+- `npm run check:db` — the default-deny assertion plus every policy test, against the local stack. **Required before merging anything that touches a migration or a policy**, and named as such in the task that adds it.
+
+That is a deliberate deviation from the spec's wording, taken so the assertion is actually runnable rather than nominally in a gate people would start skipping.
+
+---
+
+## File Structure
+
+**Created**
+
+| File | Responsibility |
+|---|---|
+| `supabase/config.toml` | Local stack configuration (generated by `supabase init`, then edited) |
+| `supabase/migrations/*_profiles.sql` | `profiles` and `friend_codes`, RLS enabled |
+| `supabase/migrations/*_profiles_policies.sql` | The policies for both tables |
+| `supabase/tests/helpers.ts` | Connect as a given user; the impersonation the policy tests need |
+| `supabase/tests/rls.test.ts` | Default-deny assertion over `pg_tables`, plus policy allow/deny tests |
+| `app/src/lib/supabase.ts` | The browser client, created once from env |
+| `app/src/state/SessionContext.tsx` | Session state, sign-in, sign-out |
+| `app/src/screens/SignInScreen.tsx` | Google and email sign-in, and the age gate |
+
+**Modified**
+
+| File | Change |
+|---|---|
+| `app/package.json` | Pin the CLI, add `db:*` scripts and `check:db` |
+| `app/.env.example` | Document `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` |
+| `.gitignore` | Ignore `.env.local` and Supabase local artefacts |
+| `app/src/App.tsx`, `app/src/lib/screens.ts` | Register the sign-in screen |
+
+---
+
+### Task 1: Scaffolding, pinned, and a stack that comes up
+
+**Files:**
+- Create: `supabase/config.toml` (via `supabase init`), `app/.env.example`
+- Modify: `app/package.json`, `.gitignore`
+
+**Interfaces:**
+- Produces: `npm run db:start`, `db:stop`, `db:reset` in `app/package.json`, and the pinned `supabase` devDependency. Later tasks call these by name.
+
+**Verified preconditions** (do not re-derive, but do re-check if something fails): colima is installed and running; `npx supabase` resolves to 2.116.0; the stack starts, gives PostgreSQL 17.6 on aarch64 with the `auth` schema present, and stops cleanly.
+
+- [ ] **Step 1: Pin the CLI**
+
+From `app/`: `npm install --save-dev supabase`
+
+Pinning matters here for the same reason esbuild and vitest are pinned — an unpinned `npx --yes` fetches whatever is newest, and a CLI version drift changes generated migrations.
+
+- [ ] **Step 2: Initialise, at the repo root**
+
+From the repo root: `npx supabase init`
+
+If it asks about generating VS Code or IntelliJ settings, decline — this repo carries neither.
+
+- [ ] **Step 3: Add the scripts**
+
+In `app/package.json`, alongside the existing scripts:
+
+```json
+"db:start": "supabase start --workdir ..",
+"db:stop": "supabase stop --workdir ..",
+"db:reset": "supabase db reset --workdir ..",
+"check:db": "npm run db:start && vitest run --config vitest.db.config.ts"
+```
+
+`--workdir ..` because `supabase/` is at the repo root while npm runs in `app/`. **Verify each script actually works before moving on** — run `npm run db:start`, confirm it prints the API and DB URLs, then `npm run db:stop`. Capture the exit code directly (`cmd; echo $?`), never through a pipe: a pipeline reports the last command's status, and that has produced false greens in this repo three times.
+
+- [ ] **Step 4: Ignore what should not be committed**
+
+Add to `.gitignore`:
+
+```
+.env.local
+supabase/.branches
+supabase/.temp
+```
+
+`supabase/config.toml` and `supabase/migrations/` **are** committed — they are the schema's source of truth.
+
+- [ ] **Step 5: Document the environment**
+
+Create `app/.env.example`:
+
+```
+# Both values are public by design and safe to commit in a real .env.local.
+# The SERVICE ROLE key is not among them and must never appear in this app.
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=<the anon key printed by `npm run db:start`>
+```
+
+- [ ] **Step 6: Prove the loop works end to end**
+
+Run `npm run db:start`, then `npm run db:reset`, then `npm run db:stop`. Report each exit code, captured directly.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add supabase/config.toml app/package.json app/package-lock.json app/.env.example .gitignore
+git commit -m "chore(db): a local Postgres this repo can start, stopped when it is done"
+```
+
+---
+
+### Task 2: `profiles` and `friend_codes`, denied by default
+
+**Files:**
+- Create: `supabase/migrations/<timestamp>_profiles.sql`
+- Test: exercised by Task 3's harness
+
+**Interfaces:**
+- Produces: tables `public.profiles` and `public.friend_codes`, both with RLS **enabled and no policies yet** — deliberately, so Task 3's default-deny assertion has something to prove before Task 4 opens access.
+
+**Why two tables.** Postgres RLS is row-level, not column-level. A profile is broadly readable; a GO friend code is readable only if it is yours, you are accepted friends, or you share an active match. Two visibility rules cannot live on one row, so they are two rows in two tables. This is the mechanism that makes reveal-on-mutual-accept a policy rather than a feature to remember to write.
+
+- [ ] **Step 1: Write the migration**
+
+`npx supabase migration new profiles` from the repo root, then fill it:
+
+```sql
+-- A person, 1:1 with auth.users. GoTrue owns auth.users; we never write to it.
+create table public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  handle text unique not null,
+  display_name text,
+  -- Stored rather than a derived is_minor flag: a twelve-year-old becomes
+  -- thirteen, and a boolean frozen at signup would never notice.
+  birth_date date not null,
+  -- Load-bearing for the daily-battle calendar in a later milestone: UTC would
+  -- put an evening match on tomorrow's row for anyone west of London.
+  timezone text not null default 'UTC',
+  default_league text not null default 'great',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Separate table, not a column, because RLS is row-level and this needs a
+-- different visibility rule from the rest of the profile. See the plan.
+create table public.friend_codes (
+  profile_id uuid primary key references public.profiles (id) on delete cascade,
+  code text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+alter table public.friend_codes enable row level security;
+```
+
+**No policies in this migration.** RLS on with zero policies denies everything — that is the correct starting state, and Task 3 asserts it before Task 4 relaxes it deliberately.
+
+- [ ] **Step 2: Apply and inspect**
+
+`npm run db:reset`, then confirm both tables exist with `rowsecurity = true` and zero policies:
+
+```bash
+docker exec supabase_db_paragon-iv psql -U postgres -tAc \
+  "select tablename, rowsecurity from pg_tables where schemaname='public';
+   select count(*) from pg_policies where schemaname='public';"
+```
+
+The container name depends on the project directory — check `docker ps` rather than assuming the name above.
+
+Expected: both tables listed with `t`, and a policy count of `0`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add supabase/migrations
+git commit -m "feat(db): a profile, and a friend code that lives apart from it"
+```
+
+---
+
+### Task 3: The harness, and default-deny as an assertion
+
+**Files:**
+- Create: `supabase/tests/helpers.ts`, `supabase/tests/rls.test.ts`, `app/vitest.db.config.ts`
+
+**Interfaces:**
+- Produces: `asUser(jwtClaims)` / `asAnon()` returning a Postgres client whose requests carry a given identity, and `npm run check:db` running the suite.
+
+**The assertion that matters most.** New tables in Supabase ship with RLS **off** — that single default is the most common Supabase data leak there is. So the suite fails if any table in `public` has `rowsecurity = false`, **and** fails if a table has RLS on with zero policies once Task 4 has run, because that state denies everything while looking like a broken feature.
+
+- [ ] **Step 1: Write the failing test**
+
+`supabase/tests/rls.test.ts`:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { sql } from './helpers';
+
+describe('every public table is protected', () => {
+  it('has row level security enabled', async () => {
+    const rows = await sql(
+      `select tablename from pg_tables where schemaname='public' and rowsecurity = false`,
+    );
+    expect(rows.map((r) => r.tablename)).toEqual([]);
+  });
+
+  it('starts denying everything before any policy is written', async () => {
+    const rows = await sql(`select count(*)::int as n from pg_policies where schemaname='public'`);
+    expect(rows[0].n).toBe(0);
+  });
+});
+```
+
+The second test is **temporary and Task 4 replaces it** — it exists so the default-deny starting state is proven rather than assumed. Say so in a comment, or a later reader will treat it as a rule.
+
+- [ ] **Step 2: Run it and watch it fail**
+
+`npm run check:db` — it fails because `helpers.ts` and the vitest config do not exist yet.
+
+- [ ] **Step 3: Write the harness**
+
+`supabase/tests/helpers.ts` connects to `postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Impersonation works by setting the role and the JWT claims PostgREST would set, inside a transaction:
+
+```
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';
+```
+
+`auth.uid()` reads `request.jwt.claims`, so this is what makes a policy behave exactly as it will for a real signed-in user. **Verify that against the running stack** — read Supabase's own `auth.uid()` definition with `\sf auth.uid` before trusting this description.
+
+Use `postgres` (already available) or `pg` as the driver. If a new devDependency is needed, that is acceptable here and only here — it is test-only tooling, not a runtime dependency.
+
+- [ ] **Step 4: Add the vitest config**
+
+`app/vitest.db.config.ts` — a **node** environment, not jsdom, including only `../supabase/tests/**/*.test.ts`. These tests talk to a real database and have nothing to do with the browser suite.
+
+- [ ] **Step 5: Green, then commit**
+
+```bash
+git add supabase/tests app/vitest.db.config.ts app/package.json
+git commit -m "test(db): prove the tables deny everything before anything opens them"
+```
+
+---
+
+### Task 4: Policies, with the deny half tested
+
+**Files:**
+- Create: `supabase/migrations/<timestamp>_profiles_policies.sql`
+- Modify: `supabase/tests/rls.test.ts`
+
+**Interfaces:**
+- Produces: policies on `profiles` and `friend_codes`.
+
+**The friend-code policy is the crown jewel.** Readable only if it is yours. Friendship and shared-match conditions arrive in M3 and M5 — write the policy so those are added as `or` branches later, and say so in a comment. Do not stub tables that do not exist yet.
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace the temporary zero-policies test with the real ones. Each needs **both directions**:
+
+- A signed-in user can read their own profile row; a different user can read it too (handles are public), but **cannot update it**.
+- A signed-in user can read their **own** friend code.
+- A different signed-in user **cannot** read that friend code.
+- An **anonymous** request cannot read any friend code.
+- A user cannot insert a profile whose `id` is not their own `auth.uid()`.
+
+- [ ] **Step 2: Watch them fail**
+
+They fail because no policy grants anything yet — everything is denied. That is the right RED.
+
+- [ ] **Step 3: Write the policies**
+
+```sql
+create policy "profiles are readable by anyone signed in"
+  on public.profiles for select
+  to authenticated
+  using (true);
+
+create policy "a profile is editable only by its owner"
+  on public.profiles for update
+  to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
+
+create policy "a profile is created only by its owner"
+  on public.profiles for insert
+  to authenticated
+  with check ((select auth.uid()) = id);
+
+-- Readable only by its owner today. M3 adds an accepted-friendship branch and
+-- M5 a shared-active-match branch as further `or` conditions; this policy IS
+-- the reveal-on-mutual-accept behaviour, not a feature to be written later.
+create policy "a friend code is readable by its owner"
+  on public.friend_codes for select
+  to authenticated
+  using ((select auth.uid()) = profile_id);
+
+create policy "a friend code is written only by its owner"
+  on public.friend_codes for all
+  to authenticated
+  using ((select auth.uid()) = profile_id)
+  with check ((select auth.uid()) = profile_id);
+```
+
+`(select auth.uid())` rather than a bare `auth.uid()` is deliberate: RLS predicates evaluate **per row**, and the subquery form lets the planner hoist it once. Retrofitting this once a table is large is a bad afternoon.
+
+- [ ] **Step 4: Green, then commit**
+
+```bash
+git add supabase/migrations supabase/tests
+git commit -m "feat(db): a friend code only its owner can read"
+```
+
+---
+
+### Task 5: The client, and a session
+
+**Files:**
+- Create: `app/src/lib/supabase.ts`, `app/src/state/SessionContext.tsx`
+- Test: `app/src/state/__tests__/session.test.tsx`
+
+**Interfaces:**
+- Produces: `supabase` (the browser client) and `useSession()` returning `{ session, user, loading, signOut }`.
+
+**Needs the hosted project or the local stack** — either works, via `.env.local`.
+
+- [ ] **Step 1: Install the client**
+
+From `app/`: `npm install @supabase/supabase-js`
+
+- [ ] **Step 2: Create the client from env, and fail loudly if it is missing**
+
+An absent `VITE_SUPABASE_URL` should throw at startup with a message naming `.env.example`, not produce a client that fails mysteriously on first use.
+
+- [ ] **Step 3: Session context**
+
+Read the existing session on mount, subscribe to `onAuthStateChange`, and **unsubscribe on unmount**. Follow `app/src/state/ThemeContext.tsx` for this codebase's context shape.
+
+- [ ] **Step 4: Test it**
+
+Mock `@supabase/supabase-js` at the module boundary — this test is about the context's behaviour (loading → resolved, sign-out clearing state, unsubscribe on unmount), not about the network.
+
+- [ ] **Step 5: Gate, then commit**
+
+```bash
+git commit -m "feat(auth): a session the app can ask about"
+```
+
+---
+
+### Task 6: Sign in, and the age gate
+
+**Files:**
+- Create: `app/src/screens/SignInScreen.tsx`
+- Test: `app/src/screens/__tests__/sign-in.test.tsx`
+- Modify: `app/src/App.tsx`, `app/src/lib/screens.ts`, `app/src/styles/components.css`
+
+**Interfaces:**
+- Consumes: `useSession`, `supabase`.
+
+**The age gate is a legal constraint, not a nicety.** Public signup plus a Pokémon audience means under-13s will try. We refuse them: verifiable parental consent under COPPA is a compliance apparatus, and once messaging exists a restricted-minor tier means a permission system across every social surface. A neutral age screen is hours; the other path is its own sub-project.
+
+- [ ] **Step 1: Write the failing tests**
+
+- A neutral date-of-birth field is shown **before** either sign-in method is offered.
+- A date under 13 shows a refusal and **no** sign-in control appears.
+- A date of 13 or over reveals both Google and email sign-in.
+- The Google button calls `signInWithOAuth` with the `google` provider.
+- Email sign-in calls the email method with what was typed.
+- The boundary: exactly 13 today passes; one day short fails. Compute from a fixed clock, not `Date.now()`, or the test rots.
+
+- [ ] **Step 2: Implement**
+
+Neutral age screen first — no "are you 13?" prompt, which invites the obvious answer. Reuse `.btn`, `.chip-btn`, `.hud-label`, and the existing form classes. Verify each token used exists in `tokens.css`.
+
+- [ ] **Step 3: Register the screen**
+
+Read `app/src/lib/screens.ts` and `app/src/App.tsx` first — a new screen needs a `Screen` union member, a `lazy()` import, a case in the `Screens()` switch, and a `screens.ts` entry. `screens.ts` alone only feeds nav metadata; it does not mount anything.
+
+- [ ] **Step 4: Gate, then commit**
+
+```bash
+git commit -m "feat(auth): sign in, and a door that is closed to under-13s"
+```
+
+---
+
+## Self-Review
+
+**Spec coverage.** Section 2's `profiles` and `friend_codes` land in Task 2 with the separate-table reasoning intact. Section 3's default-deny, the `(select auth.uid())` planner note, the crown-jewel friend-code policy, and both-direction policy tests land in Tasks 3 and 4. The under-13 refusal from "Decisions already taken" lands in Task 6.
+
+**Deliberately deferred to M1b or later.** `teams`/`team_members` and the formats migration are M1b. The friendship and shared-match branches of the friend-code policy need tables that do not exist until M3 and M5; the policy is shaped to receive them. The first deployment is deferred until there is something worth deploying — it needs hosting credentials, and M1b completes the milestone's user-visible value.
+
+**Known risk.** Task 3's impersonation depends on how `auth.uid()` reads `request.jwt.claims`. The plan describes it, but the implementer is told to read `\sf auth.uid` against the running stack before trusting the description — if that is wrong, every policy test is wrong in the same direction and would pass while proving nothing.

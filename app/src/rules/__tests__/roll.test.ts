@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rollTeam } from '../roll';
+import { lintFormat } from '../lint';
 import { RULES_SCHEMA, type Format } from '../';
 import { SPECIES_BY_ID, movesFor, parseRef, rankOfRef } from '../../lib/data';
 
@@ -46,6 +47,16 @@ describe('rollTeam', () => {
     for (const b of team) expect(rankOfRef(b.ref, 'great')).toBeLessThanOrEqual(20);
   });
 
+  it('fills to the full composition size from a tight but legal topN', () => {
+    // Measured: in Great, topN: 12 leaves 11 drawable refs spanning 8 distinct
+    // species (a species contributes at most a normal + Shadow ref). That is
+    // comfortably more than the 6 uniqueSpecies needs, and held across 500
+    // seeds in measurement — this is the tight-but-fillable case, distinct
+    // from the starved case below where the pool cannot reach size at all.
+    const team = rollTeam(fmt({ topN: 12 }), 's', 'p');
+    expect(team).toHaveLength(6);
+  });
+
   it('leaves playerPicks slots undealt', () => {
     expect(rollTeam(fmt({ playerPicks: 2 }, 6), 's', 'p')).toHaveLength(4);
   });
@@ -77,35 +88,36 @@ describe('rollTeam', () => {
 
   it('trusts lint to reject unfillable formats; does not defend itself', () => {
     // The contract: lintFormat is the guard, rollTeam does not defend itself.
-    // When a format's constraints cannot be satisfied, lint catches it and blocks
-    // publishing; the draw trusts this and does not duplicate the check.
     //
-    // Evidence: rollTeam returns a BuildArray that might be short if the pool
-    // genuinely cannot satisfy the constraints (e.g., uniqueFamilies: true with
-    // fewer families than size). It does not throw; it documents its inability
-    // by returning fewer members than requested.
+    // Construction: denying the negation of a single evolution family
+    // ('!+politoed') is last-match-wins against the whole base pool, so only
+    // that family's refs survive. Measured against the current Great data:
+    // 6 refs survive (poliwhirl, poliwhirl_shadow, poliwrath, poliwrath_shadow,
+    // politoed, politoed_shadow), spanning exactly 1 distinct family. With
+    // uniqueFamilies: true and size: 6, at most one of those six refs can ever
+    // be picked — the pool cannot reach 6 no matter how it's shuffled.
     //
-    // In practice this is safe because satisfiable.test.ts verifies lintFormat
-    // rejects such formats, and the UI blocks publishing until lint is clear.
-    // This test documents the contract itself, not the full safety chain.
-
-    // This format has a high risk of under-filling due to many families.
-    // In the Great league, applying uniqueFamilies with size 6 requires 6
-    // different families. The pool is unlimited, so it should succeed.
-    // Verify rollTeam handles this without throwing.
-    const fullPool: Format = {
+    // A species contributes at most two refs (normal + Shadow), so
+    // uniqueSpecies alone could never starve a size-6 team this way;
+    // uniqueFamilies is the only real starvation vector, because one
+    // evolution line can collapse many refs into a single legal pick.
+    const starved: Format = {
       schema: RULES_SCHEMA,
       base: 'great',
-      pool: [],
+      pool: [{ effect: 'deny', select: '!+politoed' }],
       composition: { size: 6, uniqueFamilies: true },
       selection: { mode: 'open' },
     };
-    const team = rollTeam(fullPool, 's', 'p');
-    // With unlimited pool and many families available, should fill completely.
-    expect(team).toHaveLength(6);
 
-    // If a hypothetical format could not fill, rollTeam would return fewer.
-    // That scenario is tested via lintFormat's unsatisfiable checks in
-    // lint.test.ts and satisfiable.test.ts; they verify lint catches it first.
+    // Half 1: lint is the guard. It must flag this format as unsatisfiable
+    // before it can ever reach a draw.
+    const diagnostics = lintFormat(starved);
+    expect(diagnostics).toContainEqual({ level: 'error', kind: 'unsatisfiable' });
+
+    // Half 2: the draw does not defend itself. Given the same format anyway,
+    // rollTeam does not throw and does not pad the team — it silently returns
+    // fewer than the requested size, exactly as documented.
+    const team = rollTeam(starved, 'some-seed', 'some-player');
+    expect(team.length).toBeLessThan(6);
   });
 });

@@ -28,6 +28,9 @@ const TeamBuilderScreen = lazy(() => import('./screens/TeamBuilderScreen').then(
 const CoresScreen = lazy(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
 const DiagnosticsScreen = lazy(() => import('./screens/DiagnosticsScreen').then((m) => ({ default: m.DiagnosticsScreen })));
 const MovesScreen = lazy(() => import('./screens/MovesScreen').then((m) => ({ default: m.MovesScreen })));
+const FormatBuilderScreen = lazy(() =>
+  import('./screens/FormatBuilderScreen').then((m) => ({ default: m.FormatBuilderScreen })),
+);
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -122,6 +125,8 @@ function Screens() {
       return <LazyScreen key="diagnostics"><DiagnosticsScreen /></LazyScreen>;
     case 'moves':
       return <LazyScreen key="moves"><MovesScreen /></LazyScreen>;
+    case 'formats':
+      return <LazyScreen key="formats"><FormatBuilderScreen /></LazyScreen>;
   }
 }
 

@@ -87,6 +87,14 @@ export const SCREEN_DEFS: ScreenDef[] = [
     hue: 'var(--type-electric)',
     blurb: 'Every fast and charge move, with the figures that rank them.',
   },
+  {
+    id: 'formats',
+    label: 'Formats',
+    kicker: 'Rulesets',
+    glyph: '⌘',
+    hue: 'var(--type-dark)',
+    blurb: 'Author a format clause by clause, and watch the legal pool move as you type.',
+  },
 ];
 
 export const HUE_OF: Record<string, string> = Object.fromEntries(

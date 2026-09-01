@@ -5753,3 +5753,15 @@ th.bt-matrix-head { text-align: center; }
 }
 
 .clause-input { font-family: var(--font-mono); width: 100%; }
+
+/* Format builder — the screen. */
+.format-builder { display: flex; flex-direction: column; gap: var(--space-3); }
+.format-builder-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.format-builder-body { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+
+@media (min-width: 60rem) {
+  .format-builder-body { grid-template-columns: 2fr 1fr; }
+}
+
+.format-builder-side { display: flex; flex-direction: column; gap: var(--space-2); }
+.format-saved ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }

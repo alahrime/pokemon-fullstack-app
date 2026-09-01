@@ -1,3 +1,7 @@
 .env.local
 supabase/.branches
 supabase/.temp
+
+# Any env file, wherever it lands — these hold keys and must never be committed.
+*.env.local
+*.env.*.local

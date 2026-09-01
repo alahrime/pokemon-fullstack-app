@@ -5765,3 +5765,14 @@ th.bt-matrix-head { text-align: center; }
 
 .format-builder-side { display: flex; flex-direction: column; gap: var(--space-2); }
 .format-saved ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Format builder — the eighteen types as switches. */
+.type-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.type-chip {
+  padding: var(--space-1) var(--space-2);
+}

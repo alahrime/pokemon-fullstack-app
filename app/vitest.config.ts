@@ -19,6 +19,19 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    /**
+     * The Supabase client reads its URL and key from the environment and
+     * refuses to be constructed without them, so any test that transitively
+     * imports it needs both present. They cannot come from `.env.local` — that
+     * file is git-ignored, so the suite would pass here and fail on a fresh
+     * clone. These are not credentials and reach no network: every test that
+     * exercises the client mocks `@supabase/supabase-js` at the package
+     * boundary. The point is only that the guard has something to accept.
+     */
+    env: {
+      VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+      VITE_SUPABASE_ANON_KEY: 'sb_publishable_test_not_a_credential',
+    },
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
     coverage: {
       provider: 'v8',

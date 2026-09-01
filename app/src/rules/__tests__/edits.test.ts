@@ -80,9 +80,21 @@ describe('removeRef', () => {
   });
 
   it('undoes an individual add rather than piling on a deny', () => {
-    const f = removeRef(addSpecies(empty, 'registeel', 'both'), 'registeel');
+    const f = removeRef(addSpecies(empty, 'registeel', 'normal'), 'registeel');
     expect(f.pool).toEqual([]);
   });
+
+  it('removing the Normal form out of a wholesale add leaves the Shadow legal', () => {
+    const f0 = addSpecies(empty, 'registeel', 'both');
+    const f1 = removeRef(f0, 'registeel');
+    const legal = resolvePool(f1).legal;
+    expect(legal).toContain(makeRef('registeel', true));
+    expect(legal).not.toContain('registeel');
+  });
+
+  // Mirror of the above: 'removes only the variant asked for' removes
+  // the Shadow out of the same kind of wholesale add and asserts the Normal
+  // form survives.
 
   it('does not mutate the format it is given', () => {
     const water = toggleType(empty, 'water');

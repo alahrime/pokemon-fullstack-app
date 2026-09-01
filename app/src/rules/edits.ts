@@ -69,6 +69,12 @@ export function addSpecies(format: Format, ref: string, scope: SpeciesScope): Fo
   return withPool(format, [...format.pool, { effect: 'allow', select }]);
 }
 
+/** The selector naming exactly one ref, Shadow-aware. */
+function selectorForRef(ref: string): string {
+  const { id, shadow } = parseRef(ref);
+  return selectorFor(id, shadow ? 'shadow' : 'normal');
+}
+
 /**
  * Take one ref out of the set.
  *
@@ -78,28 +84,22 @@ export function addSpecies(format: Format, ref: string, scope: SpeciesScope): Fo
  * then grow the pool list without bound, and every one of those clauses would
  * show up in the advanced view as noise the author never wrote.
  *
- * A clause added with scope 'both' allows the bare species id, which covers
- * both forms at once — it is one add, not two. Undoing it via the Normal-form
- * ref (the id's own ref) removes the whole thing, forms and all: that clause
- * *is* the individual add the Normal control made. Undoing it via the Shadow
- * ref must not do the same — the Normal form has to stay legal — so that case
- * falls through to a deny instead, which last-match-wins turns into "allowed,
- * except the Shadow."
+ * The undo only fires on an exact scope match. A clause allowing the whole
+ * species (added with scope 'both') covers the other variant too, so dropping
+ * it would remove a ref nobody asked to remove — an X on Registeel must not
+ * take Shadow Registeel with it. Removing one variant out of such a clause
+ * therefore falls through to a scoped deny, which last-match-wins turns into
+ * "the species, except this one form." Toggling both variants off one at a
+ * time can leave an inert `allow` behind alongside two `deny`s rather than
+ * collapsing to nothing; that residue is visible to the author as
+ * `lintFormat`'s dead-clause warning, which is the right place to surface it.
  */
 export function removeRef(format: Format, ref: string): Format {
-  const { id, shadow } = parseRef(ref);
-  const select = selectorFor(id, shadow ? 'shadow' : 'normal');
+  const select = selectorForRef(ref);
 
   const exact = format.pool.findIndex((c) => c.effect === 'allow' && c.select === select);
   if (exact !== -1) {
     return withPool(format, format.pool.filter((_, i) => i !== exact));
-  }
-
-  if (!shadow) {
-    const wholesale = format.pool.findIndex((c) => c.effect === 'allow' && c.select === id);
-    if (wholesale !== -1) {
-      return withPool(format, format.pool.filter((_, i) => i !== wholesale));
-    }
   }
 
   if (format.pool.some((c) => c.effect === 'deny' && c.select === select)) return format;

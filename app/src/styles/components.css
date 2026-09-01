@@ -5776,3 +5776,45 @@ th.bt-matrix-head { text-align: center; }
 .type-chip {
   padding: var(--space-1) var(--space-2);
 }
+
+/* Format builder — the resolved set, grouped by primary type. */
+.format-set { display: flex; flex-direction: column; gap: var(--space-2); }
+.set-group-head { display: flex; align-items: center; gap: var(--space-2); }
+.set-members { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; margin: 0; padding: 0; }
+.set-member { display: flex; align-items: center; gap: var(--space-1); }
+
+.set-group {
+  border-bottom: var(--rule-hairline) solid var(--border-hairline);
+  padding-bottom: var(--space-2);
+}
+
+.set-member-name { font-size: var(--text-sm); }
+
+.set-remove-btn {
+  color: var(--text-muted);
+  padding: 0 var(--space-1);
+}
+
+.set-remove-btn:hover { color: var(--color-text); }
+
+/* Format builder — add one species, in a chosen scope. */
+.add-species {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.add-species-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.add-species-name {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Format builder — the raw clause list, folded behind an advanced disclosure. */
+.format-builder-advanced { display: flex; flex-direction: column; gap: var(--space-2); }

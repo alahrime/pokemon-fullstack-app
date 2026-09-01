@@ -35,6 +35,15 @@ describe('PoolPreview', () => {
     expect(screen.getByTestId('explain').textContent).toMatch(/legal/i);
   });
 
+  it('says no rule adds a ref, rather than calling it legal, when the format starts empty', () => {
+    // Once new formats start empty (Task 4), this branch is the common case for
+    // any ref no clause has touched yet — not the edge case it was when every
+    // format started from the whole league.
+    const empty: Format = { ...f, start: 'empty', pool: [] };
+    render(<PoolPreview format={empty} explain="azumarill" />);
+    expect(screen.getByTestId('explain').textContent).toMatch(/not in this format — no rule adds it/i);
+  });
+
   it('renders diagnostics when the format has problems', () => {
     const broken: Format = { ...f, pool: [{ effect: 'deny', select: '!zzz' }] };
     render(<PoolPreview format={broken} />);

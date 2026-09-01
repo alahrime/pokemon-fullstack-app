@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { STORAGE_KEY, deleteFormat, listFormats, saveFormat } from '../formatStore';
 import { RULES_SCHEMA, type Format } from '../../rules';
 
@@ -55,5 +55,24 @@ describe('formatStore', () => {
     expect(listFormats()[0].id).toBe(b.id);
     saveFormat('A', f, a.id);
     expect(listFormats()[0].id).toBe(a.id);
+  });
+
+  it('drops a stored format whose body is incomplete', () => {
+    const incomplete = [
+      { id: 'x', name: 'Incomplete', updatedAt: 1, format: { ...f, composition: undefined } },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(incomplete));
+    expect(listFormats()).toEqual([]);
+  });
+
+  it('survives a quota-exceeded error on write', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    const first = saveFormat('Air Ban', f);
+    // saveFormat should not throw even though setItem threw
+    expect(first.id).toBeDefined();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

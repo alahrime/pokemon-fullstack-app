@@ -35,7 +35,18 @@ function read(): StoredFormat[] {
         typeof (x as StoredFormat).id === 'string' &&
         typeof (x as StoredFormat).name === 'string' &&
         !!(x as StoredFormat).format &&
-        (x as StoredFormat).format.schema === RULES_SCHEMA,
+        (x as StoredFormat).format.schema === RULES_SCHEMA &&
+        // Shallow structural check: validate the format has a body, not just a schema number.
+        // This mirrors app/src/lib/artefact.ts, which validates presence of the keys each
+        // reader depends on rather than deep-walking the contents. Storage can be written
+        // by an older build that lacked fields; this guards against a format that passes
+        // the schema check but lacks pool, composition, or selection, which would crash
+        // when lintFormat() or the builder screen dereferences them.
+        Array.isArray((x as StoredFormat).format.pool) &&
+        !!((x as StoredFormat).format.composition) &&
+        typeof (x as StoredFormat).format.composition === 'object' &&
+        !!((x as StoredFormat).format.selection) &&
+        typeof (x as StoredFormat).format.selection === 'object',
     );
     // Restore monotonic counter from stored sequence numbers
     const maxSeq = Math.max(0, ...formats.map((f) => f._seq ?? 0));
@@ -68,7 +79,7 @@ export function saveFormat(name: string, format: Format, id?: string): StoredFor
   const all = read();
   monotonic++;
   const entry: StoredFormat = {
-    id: id ?? `f${Date.now().toString(36)}${all.length}`,
+    id: id ?? `f${monotonic.toString(36)}`,
     name,
     format,
     updatedAt: Date.now(),

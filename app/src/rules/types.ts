@@ -56,9 +56,25 @@ export interface Selection {
   rollMoves?: boolean;
 }
 
+/**
+ * Where a format's pool begins, before any clause runs.
+ *
+ * `league` starts from every ref the base league admits and clauses restrict it.
+ * `empty` starts from nothing and clauses build it up, which is what the
+ * builder's type chips and species picker do.
+ *
+ * Optional, defaulting to `league`, so a format stored before this field
+ * existed keeps precisely the meaning it had. The builder chooses `empty` for
+ * formats it creates — a different default, deliberately, because changing the
+ * schema's default would rewrite the meaning of everything already saved.
+ */
+export type PoolStart = 'league' | 'empty';
+
 export interface Format {
   schema: number;
   base: LeagueId;
+  /** Defaults to 'league'. See PoolStart. */
+  start?: PoolStart;
   pool: PoolClause[];
   composition: Composition;
   selection: Selection;

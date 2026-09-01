@@ -82,3 +82,33 @@ describe('resolvePool', () => {
     expect(legal).not.toContain('mimikyu');
   });
 });
+
+describe('resolvePool with an empty start', () => {
+  it('is empty when nothing is allowed', () => {
+    const f = { ...fmt([]), start: 'empty' as const };
+    expect(resolvePool(f).legal).toEqual([]);
+  });
+
+  it('admits only what a clause allows', () => {
+    const f = { ...fmt([{ effect: 'allow' as const, select: 'water' }]), start: 'empty' as const };
+    const { legal } = resolvePool(f);
+    expect(legal.length).toBeGreaterThan(0);
+    expect(legal.every((r) => speciesOf(r)?.types.includes('water'))).toBe(true);
+  });
+
+  it('still lets a later deny carve out of an allow', () => {
+    const f = {
+      ...fmt([
+        { effect: 'allow' as const, select: 'water' },
+        { effect: 'deny' as const, select: 'azumarill' },
+      ]),
+      start: 'empty' as const,
+    };
+    expect(resolvePool(f).legal).not.toContain('azumarill');
+  });
+
+  it('leaves a league-start format exactly as it was', () => {
+    const withField = { ...fmt([]), start: 'league' as const };
+    expect(resolvePool(withField).legal).toEqual(resolvePool(fmt([])).legal);
+  });
+});

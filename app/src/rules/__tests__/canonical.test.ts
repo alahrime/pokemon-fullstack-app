@@ -57,3 +57,13 @@ describe('canonicalize', () => {
     expect(canonicalize(tapuKoko)).not.toBe(canonicalize(tapukoko));
   });
 });
+
+describe('canonicalize and the pool start', () => {
+  it('distinguishes an empty start from a league start', () => {
+    expect(canonicalize({ ...base, start: 'empty' })).not.toBe(canonicalize(base));
+  });
+
+  it('treats an absent start as a league start', () => {
+    expect(canonicalize({ ...base, start: 'league' })).toBe(canonicalize(base));
+  });
+});

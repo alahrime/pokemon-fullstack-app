@@ -42,6 +42,7 @@ export function canonicalize(f: Format): string {
   const parts = [
     `schema=${f.schema}`,
     `base=${f.base}`,
+    `start=${f.start ?? 'league'}`,
     `pool=[${f.pool.map(clause).join('|')}]`,
     `size=${c.size}`,
     `bring=${c.bring ?? c.size}`,

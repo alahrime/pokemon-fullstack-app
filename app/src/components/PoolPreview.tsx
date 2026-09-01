@@ -93,7 +93,9 @@ export function PoolPreview({ format, explain }: Props) {
           {explained === undefined
             ? `${explain} is not in this league.`
             : explained === -1
-              ? `${displayName(explain)} is legal — no rule touches it.`
+              ? format.start === 'empty'
+                ? `${displayName(explain)} is not in this format — no rule adds it.`
+                : `${displayName(explain)} is legal — no rule touches it.`
               : `${displayName(explain)}: ${format.pool[explained].effect === 'deny' ? 'denied' : 'allowed'} by rule ${explained + 1} — ${format.pool[explained].select}`}
         </p>
       )}

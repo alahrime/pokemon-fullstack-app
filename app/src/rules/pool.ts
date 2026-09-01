@@ -44,8 +44,13 @@ export function resolvePool(format: Format): PoolResolution {
   const legal: string[] = [];
   const decidedBy = new Map<string, number>();
 
+  // The pool's starting state, before any clause speaks. `league` means every
+  // ref the base league admits; `empty` means none of them, and a clause has to
+  // put each one in. Read once rather than per ref.
+  const startAllowed = format.start !== 'empty';
+
   for (const ref of base) {
-    let allowed = true;
+    let allowed = startAllowed;
     let by = -1;
     for (let i = 0; i < compiled.length; i++) {
       const t = compiled[i];

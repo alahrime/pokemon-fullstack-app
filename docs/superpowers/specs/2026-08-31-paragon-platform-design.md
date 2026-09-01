@@ -190,7 +190,7 @@ tests become the ones nobody runs.
 | Table | Notes |
 |---|---|
 | `auth.users` | Supabase-managed. Not touched. |
-| `profiles` | 1:1 with `auth.users`. Handle, display name, birth date, timezone, default league |
+| `profiles` | 1:1 with `auth.users`. Handle, display name, GO username, birth date, timezone, default league, terms acceptance |
 | `friend_codes` | A separate table, deliberately — see *Security model* |
 
 **Formats** (sub-project 2)
@@ -499,10 +499,21 @@ server process:
 
 ### Abuse surfaces specific to this app
 
-**Friend code harvesting.** Queue repeatedly, collect codes, leave. GO friend
-codes are not rotatable, so this has no undo. Reveal-on-accept plus rate-limited
-queue joins plus a log of every reveal covers it; without the log there is no
-way to tell it is happening.
+**Friend code harvesting.** Queue repeatedly, collect codes, leave.
+
+**Correction to an earlier draft of this document.** It previously asserted that
+GO friend codes cannot be rotated and that harvesting therefore has no undo.
+That is wrong: a trainer can regenerate their code in Pokemon GO itself, so a
+harvested code can be retired by its owner. The mitigation stack does not change
+much — reveal-on-accept, rate-limited queue joins, and a log of every reveal are
+all still worth having, and without the log there is no way to tell harvesting
+is happening at all. But the severity does change: this is a nuisance a user can
+end, not a permanent exposure, and it should not be argued as though a leak were
+irreversible.
+
+The design consequence is that `friend_codes.code` is **user-editable**. A
+trainer who regenerates in-game needs to update it here, and a code that cannot
+be changed in this app would go stale the moment they did.
 
 **Rating collusion.** Two accounts feeding each other wins is the standard attack
 on any rating system. Usefully, **the unique-opponents statistic already

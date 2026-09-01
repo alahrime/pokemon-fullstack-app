@@ -167,10 +167,42 @@ git commit -m "chore(db): a local Postgres this repo can start, stopped when it 
 -- A person, 1:1 with auth.users. GoTrue owns auth.users; we never write to it.
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
-  handle text unique not null,
-  display_name text,
-  -- Stored rather than a derived is_minor flag: a twelve-year-old becomes
-  -- thirteen, and a boolean frozen at signup would never notice.
+  -- The Paragon display name: unique to this app, chosen once, and IMMUTABLE.
+  -- One name field, not two — a fixed handle plus a mutable pretty name is two
+  -- things to show and two things to disagree. Immutability is enforced by a
+  -- trigger below rather than by convention, so it holds against any writer
+  -- including one holding the service role key.
+  --
+  -- NOTE this is deliberately NOT the identity anchor. auth.users.email is,
+  -- because it is verified by the auth provider and survives every rename.
+  display_name text unique not null,
+  -- The in-game trainer name, collected at registration. Load-bearing well
+  -- beyond a display string: the spec adjudicates disputes from GO battle
+  -- journal screenshots, which show the OPPONENT'S in-game username — without
+  -- this stored, a judge cannot match a screenshot to a match.
+  --
+  -- Unique, but unverifiable: there is no public GO API to prove someone owns
+  -- a trainer name, so this prevents obvious collisions rather than
+  -- establishing identity. Do not describe it in the UI as verified.
+  -- MUTABLE and deliberately NOT unique. Trainer names change, and there is no
+  -- public GO API to prove ownership of one — a unique constraint on
+  -- unverifiable mutable data buys little and costs real friction, since a user
+  -- who renames in-game would collide with whoever took their old name. Two
+  -- accounts sharing a trainer name does not break dispute adjudication: a
+  -- match record names its two participants by id, so a judge only needs the
+  -- screenshot to match one of them.
+  go_username text not null,
+  -- Email is deliberately NOT stored here. auth.users.email is the source of
+  -- truth for both email signup and Google, and a second copy would drift.
+  -- Read it through the session, never from this table.
+  --
+  -- Terms acceptance, recorded at signup. The terms themselves are a
+  -- placeholder for now; the timestamp is the audit trail either way, and
+  -- backfilling consent nobody recorded is not possible.
+  tos_accepted_at timestamptz not null,
+  -- Stored rather than an age number or a derived is_minor flag: a
+  -- twelve-year-old becomes thirteen, and either would be frozen at signup and
+  -- never notice. Age is computed from this wherever it is needed.
   birth_date date not null,
   -- Load-bearing for the daily-battle calendar in a later milestone: UTC would
   -- put an evening match on tomorrow's row for anyone west of London.
@@ -182,11 +214,35 @@ create table public.profiles (
 
 -- Separate table, not a column, because RLS is row-level and this needs a
 -- different visibility rule from the rest of the profile. See the plan.
+-- Separate table, not a column, because RLS is row-level and a friend code
+-- needs a different visibility rule from the rest of the profile.
+--
+-- The code is USER-EDITABLE. A trainer can regenerate their code in Pokemon GO
+-- itself, so a code that could not be changed here would go stale the moment
+-- they did. This also softens the harvesting risk: a harvested code is a
+-- nuisance its owner can end, not a permanent exposure.
 create table public.friend_codes (
   profile_id uuid primary key references public.profiles (id) on delete cascade,
   code text not null,
   updated_at timestamptz not null default now()
 );
+
+-- Immutability enforced in the database, not in the client. A rule the client
+-- merely agrees to is not a rule; this one holds against any writer, including
+-- a server process holding the service role key.
+create function public.freeze_display_name() returns trigger
+language plpgsql as $$
+begin
+  if new.display_name is distinct from old.display_name then
+    raise exception 'display_name is immutable once chosen';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger profiles_display_name_frozen
+  before update on public.profiles
+  for each row execute function public.freeze_display_name();
 
 alter table public.profiles enable row level security;
 alter table public.friend_codes enable row level security;
@@ -302,6 +358,12 @@ Replace the temporary zero-policies test with the real ones. Each needs **both d
 - A different signed-in user **cannot** read that friend code.
 - An **anonymous** request cannot read any friend code.
 - A user cannot insert a profile whose `id` is not their own `auth.uid()`.
+- **A user cannot change their own `display_name`** — the trigger rejects it. Assert the
+  update raises, not merely that the value is unchanged; a silent no-op and a refusal are
+  different guarantees.
+- A user **can** change their own `go_username`, and **can** change their own friend code —
+  both are mutable by design.
+- Two profiles may hold the same `go_username`; that insert must succeed.
 
 - [ ] **Step 2: Watch them fail**
 
@@ -399,9 +461,19 @@ git commit -m "feat(auth): a session the app can ask about"
 
 **The age gate is a legal constraint, not a nicety.** Public signup plus a Pokémon audience means under-13s will try. We refuse them: verifiable parental consent under COPPA is a compliance apparatus, and once messaging exists a restricted-minor tier means a permission system across every social surface. A neutral age screen is hours; the other path is its own sub-project.
 
+**Registration collects four things** beyond the auth method itself: the Pokémon GO
+username, the email (from the provider for Google, typed for email signup), the date of
+birth, and an explicit terms acceptance. The terms document is a placeholder; the
+acceptance timestamp is not — consent nobody recorded cannot be backfilled.
+
 - [ ] **Step 1: Write the failing tests**
 
 - A neutral date-of-birth field is shown **before** either sign-in method is offered.
+- Registration requires a GO username, and refuses to submit without one.
+- Registration requires the terms checkbox, and refuses to submit unticked.
+- The terms link points at the placeholder document and is reachable.
+- A profile row is created carrying `go_username` and `tos_accepted_at`; email is read
+  from the session rather than written to `profiles`.
 - A date under 13 shows a refusal and **no** sign-in control appears.
 - A date of 13 or over reveals both Google and email sign-in.
 - The Google button calls `signInWithOAuth` with the `google` provider.

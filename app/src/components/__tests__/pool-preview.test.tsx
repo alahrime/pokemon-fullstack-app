@@ -35,6 +35,13 @@ describe('PoolPreview', () => {
     expect(screen.getByTestId('explain').textContent).toMatch(/legal/i);
   });
 
+  it('is case-insensitive: a capitalised name resolves the same as lowercase', () => {
+    render(<PoolPreview format={f} explain="Azumarill" />);
+    const text = screen.getByTestId('explain').textContent ?? '';
+    expect(text).toMatch(/legal/i);
+    expect(text).not.toMatch(/not in this league/i);
+  });
+
   it('says no rule adds a ref, rather than calling it legal, when the format starts empty', () => {
     // Once new formats start empty (Task 4), this branch is the common case for
     // any ref no clause has touched yet — not the edge case it was when every

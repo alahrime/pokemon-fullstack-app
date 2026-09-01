@@ -67,7 +67,13 @@ export function PoolPreview({ format, explain }: Props) {
     });
   }, [format]);
 
-  const explained = explain ? decidedBy.get(explain) : undefined;
+  // `decidedBy`'s keys are refs — always lowercase — so a capitalised or
+  // mixed-case name typed into the "why is this banned" box must be lowered
+  // before it is used as a lookup key. Left as-is, `explain: 'Azumarill'`
+  // misses the map entirely and the UI confidently reports a legal species as
+  // not being in the league at all.
+  const explainKey = explain?.toLowerCase();
+  const explained = explainKey ? decidedBy.get(explainKey) : undefined;
 
   return (
     <section className="pool-preview">
@@ -90,15 +96,15 @@ export function PoolPreview({ format, explain }: Props) {
         ))}
       </ol>
 
-      {explain && (
+      {explain && explainKey && (
         <p data-testid="explain" className="pool-explain">
           {explained === undefined
             ? `${explain} is not in this league.`
             : explained === -1
               ? format.start === 'empty'
-                ? `${displayName(explain)} is not in this format — no rule adds it.`
-                : `${displayName(explain)} is legal — no rule touches it.`
-              : `${displayName(explain)}: ${format.pool[explained].effect === 'deny' ? 'denied' : 'allowed'} by rule ${explained + 1} — ${format.pool[explained].select}`}
+                ? `${displayName(explainKey)} is not in this format — no rule adds it.`
+                : `${displayName(explainKey)} is legal — no rule touches it.`
+              : `${displayName(explainKey)}: ${format.pool[explained].effect === 'deny' ? 'denied' : 'allowed'} by rule ${explained + 1} — ${format.pool[explained].select}`}
         </p>
       )}
 

@@ -22,4 +22,5 @@ export {
   SEARCH_NODE_BUDGET,
 } from './lint';
 export { rollTeam } from './roll';
+export { typesOn, toggleType, addSpecies, removeRef, type SpeciesScope } from './edits';
 export * from './types';

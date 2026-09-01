@@ -23,7 +23,11 @@
     "matchups": "esbuild scripts/compare-matchups.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/matchups.mjs --log-level=warning && node --max-old-space-size=8192 node_modules/.cache/matchups.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "db:start": "supabase start --workdir ..",
+    "db:stop": "supabase stop --workdir ..",
+    "db:reset": "supabase db reset --workdir ..",
+    "check:db": "npm run db:start && vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -45,6 +49,7 @@
     "esbuild": "^0.28.1",
     "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
+    "supabase": "^2.116.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",

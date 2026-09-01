@@ -1,0 +1,3 @@
+.env.local
+supabase/.branches
+supabase/.temp

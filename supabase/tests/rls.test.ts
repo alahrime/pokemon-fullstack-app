@@ -130,12 +130,79 @@ describe('profiles and friend_codes policies', () => {
     ).rejects.toThrow();
   });
 
-  it('does not let a user change their own display_name — the trigger rejects it', async () => {
-    await expect(
-      asUser(claims(userA))(
-        `update public.profiles set display_name = 'ChangedName' where id = '${userA.id}'`,
-      ),
-    ).rejects.toThrow(/immutable/i);
+  // REQUIREMENT WITHDRAWN, this is a correction of the assertion, not a
+  // loosening of it: display_name was immutable via a BEFORE UPDATE
+  // trigger; the product decision to freeze it has been reversed (see
+  // 20260901162007_display_name_unfrozen.sql), so this test now asserts
+  // the opposite of what it asserted before. Do NOT "restore" the old
+  // `.rejects.toThrow(/immutable/i)` assertion — the trigger it depended
+  // on no longer exists, on purpose. The UNIQUE constraint on
+  // display_name is untouched by this change; see the two tests below.
+  it('lets a user change their own display_name, now that it is no longer frozen', async () => {
+    const rows = await asUser(claims(userA))<{ display_name: string }>(
+      `update public.profiles set display_name = 'RenamedUserA_${randomUUID().slice(0, 8)}' where id = '${userA.id}' returning display_name`,
+    );
+    expect(rows).toHaveLength(1);
+    userA.displayName = rows[0].display_name;
+
+    const [row] = await sql<{ display_name: string }>(
+      `select display_name from public.profiles where id = '${userA.id}'`,
+    );
+    expect(row.display_name).toBe(userA.displayName);
+  });
+
+  it('does not let a user change a different user\'s display_name', async () => {
+    // Unfreezing the column must not have widened the UPDATE policy's
+    // ownership check — that mechanism (RLS scoping to auth.uid() = id)
+    // is independent of the trigger that was just dropped, and this test
+    // exists to verify the two were genuinely independent rather than
+    // assuming it.
+    const beforeRows = await sql<{ display_name: string }>(
+      `select display_name from public.profiles where id = '${userA.id}'`,
+    );
+    const originalName = beforeRows[0].display_name;
+
+    const rows = await asUser(claims(userB))<{ id: string }>(
+      `update public.profiles set display_name = 'HijackedName_${randomUUID().slice(0, 8)}' where id = '${userA.id}' returning id`,
+    );
+    // Same shape as the other cross-user profile update test above: RLS
+    // excludes the row from the update's target set entirely — 0 rows
+    // affected, no error.
+    expect(rows).toHaveLength(0);
+
+    const [row] = await sql<{ display_name: string }>(
+      `select display_name from public.profiles where id = '${userA.id}'`,
+    );
+    expect(row.display_name).toBe(originalName);
+  });
+
+  it('does not let a rename collide with a name someone else already holds', async () => {
+    const takenName = `AlreadyTaken_${randomUUID().slice(0, 8)}`;
+    const ownerId = randomUUID();
+    const ownerEmail = `rename-owner-${randomUUID()}@example.com`;
+    const renamerId = randomUUID();
+    const renamerEmail = `rename-attempt-${randomUUID()}@example.com`;
+
+    try {
+      await sql(`insert into auth.users (id, email) values ('${ownerId}', '${ownerEmail}')`);
+      await sql(
+        `insert into public.profiles (id, display_name, go_username, tos_accepted_at, birth_date)
+         values ('${ownerId}', '${takenName}', 'RenameOwnerGo', now(), '2000-01-01')`,
+      );
+      await sql(`insert into auth.users (id, email) values ('${renamerId}', '${renamerEmail}')`);
+      await sql(
+        `insert into public.profiles (id, display_name, go_username, tos_accepted_at, birth_date)
+         values ('${renamerId}', 'RenameAttempt_${renamerId.slice(0, 8)}', 'RenamerGo', now(), '2000-01-01')`,
+      );
+
+      await expect(
+        asUser({ sub: renamerId, role: 'authenticated' })(
+          `update public.profiles set display_name = '${takenName}' where id = '${renamerId}'`,
+        ),
+      ).rejects.toThrow(/duplicate key|unique constraint/i);
+    } finally {
+      await sql(`delete from auth.users where id in ('${ownerId}', '${renamerId}')`);
+    }
   });
 
   it('lets a user change their own go_username', async () => {

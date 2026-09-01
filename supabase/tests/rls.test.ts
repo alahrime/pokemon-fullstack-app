@@ -115,6 +115,11 @@ describe('profiles and friend_codes policies', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('does not let an anonymous request read any profile', async () => {
+    const rows = await asAnon()<{ id: string }>(`select id from public.profiles`);
+    expect(rows).toHaveLength(0);
+  });
+
   it('does not let a user insert a profile whose id is not their own auth.uid()', async () => {
     const impostorId = randomUUID();
     await expect(
@@ -186,6 +191,102 @@ describe('profiles and friend_codes policies', () => {
       expect(rows.every((r) => r.go_username === sharedGoUsername)).toBe(true);
     } finally {
       await sql(`delete from auth.users where id in ('${userC.id}', '${userD.id}')`);
+    }
+  });
+});
+
+/**
+ * The friend_codes "for all" policy grants insert/update/delete/select
+ * together where `profile_id = auth.uid()`. Only UPDATE's allow direction
+ * was exercised above (inherited from the crown-jewel read tests' fixture);
+ * this block covers the other two write paths the same policy grants,
+ * which Task 6 will actually exercise from client code for the first time.
+ *
+ * Fresh fixture users per test, own auth.users row + profile inserted
+ * directly via the superuser connection (bypassing RLS for setup only),
+ * cleaned up with an explicit `delete from auth.users` in a `finally` —
+ * never a wrapping transaction, for the same reason as above.
+ */
+describe('friend_codes write policy — insert and delete', () => {
+  async function makeProfile(label: string) {
+    const id = randomUUID();
+    const email = `fc-${label}-${randomUUID()}@example.com`;
+    const displayName = `FcUser_${label}_${randomUUID().slice(0, 8)}`;
+    await sql(`insert into auth.users (id, email) values ('${id}', '${email}')`);
+    await sql(
+      `insert into public.profiles (id, display_name, go_username, tos_accepted_at, birth_date)
+       values ('${id}', '${displayName}', 'FcGoUsername', now(), '2000-01-01')`,
+    );
+    return id;
+  }
+
+  it('lets the owner insert their own friend code', async () => {
+    const ownerId = await makeProfile('insert-owner');
+    try {
+      const rows = await asUser({ sub: ownerId, role: 'authenticated' })<{ profile_id: string }>(
+        `insert into public.friend_codes (profile_id, code) values ('${ownerId}', '123412341234') returning profile_id`,
+      );
+      expect(rows).toHaveLength(1);
+    } finally {
+      await sql(`delete from auth.users where id = '${ownerId}'`);
+    }
+  });
+
+  it('does not let a different user insert a friend code for someone else\'s profile_id', async () => {
+    const targetId = await makeProfile('insert-target');
+    const attackerId = await makeProfile('insert-attacker');
+    try {
+      await expect(
+        asUser({ sub: attackerId, role: 'authenticated' })(
+          `insert into public.friend_codes (profile_id, code) values ('${targetId}', '000000000000')`,
+        ),
+      ).rejects.toThrow();
+
+      const rows = await sql(`select profile_id from public.friend_codes where profile_id = '${targetId}'`);
+      expect(rows).toHaveLength(0);
+    } finally {
+      await sql(`delete from auth.users where id in ('${targetId}', '${attackerId}')`);
+    }
+  });
+
+  it('lets the owner delete their own friend code', async () => {
+    const ownerId = await makeProfile('delete-owner');
+    try {
+      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '567856785678')`);
+
+      const rows = await asUser({ sub: ownerId, role: 'authenticated' })<{ profile_id: string }>(
+        `delete from public.friend_codes where profile_id = '${ownerId}' returning profile_id`,
+      );
+      expect(rows).toHaveLength(1);
+
+      const survivors = await sql(`select profile_id from public.friend_codes where profile_id = '${ownerId}'`);
+      expect(survivors).toHaveLength(0);
+    } finally {
+      await sql(`delete from auth.users where id = '${ownerId}'`);
+    }
+  });
+
+  it('does not let a different user delete someone else\'s friend code', async () => {
+    const ownerId = await makeProfile('delete-victim');
+    const attackerId = await makeProfile('delete-attacker');
+    try {
+      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '999900009999')`);
+
+      const rows = await asUser({ sub: attackerId, role: 'authenticated' })<{ profile_id: string }>(
+        `delete from public.friend_codes where profile_id = '${ownerId}' returning profile_id`,
+      );
+      // RLS excludes the row from the delete's target set entirely — 0 rows
+      // affected, no error. A denied delete is silent, so the row surviving
+      // is the only proof that anything was actually denied.
+      expect(rows).toHaveLength(0);
+
+      const survivors = await sql<{ code: string }>(
+        `select code from public.friend_codes where profile_id = '${ownerId}'`,
+      );
+      expect(survivors).toHaveLength(1);
+      expect(survivors[0].code).toBe('999900009999');
+    } finally {
+      await sql(`delete from auth.users where id in ('${ownerId}', '${attackerId}')`);
     }
   });
 });

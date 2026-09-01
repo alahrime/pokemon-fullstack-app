@@ -191,4 +191,91 @@ describe('the profile-creation trigger', () => {
       expect(rows[0].display_name).toBe(sharedName);
     });
   });
+  /**
+   * An OAuth signup has none of the metadata registration collects.
+   *
+   * GoTrue inserts a provider account into `auth.users` ALREADY CONFIRMED, so
+   * this trigger fires on the insert itself, and `raw_user_meta_data` holds
+   * only what Discord or Google sent — full_name, avatar_url, provider_id.
+   * There is no display_name, no go_username and no birth_date, because no
+   * step of an OAuth flow collects them.
+   *
+   * Before the guard these tests cover, that raised not_null_violation on
+   * display_name, which is NOT the unique_violation the handler forgives, so
+   * it propagated and took the whole `auth.users` insert down with it: OAuth
+   * signup was impossible, and the failure appeared as a provider error with
+   * nothing pointing at this trigger.
+   *
+   * The account is left confirmed with no profile — the same state a lost
+   * display_name race produces, and the one the sign-in screen already has to
+   * handle by asking for a name under a real session.
+   */
+  describe('a signup that collected nothing to build a profile from', () => {
+    async function insertConfirmedUser(meta: string) {
+      const id = randomUUID();
+      createdIds.push(id);
+      await sql(
+        `insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+         values ('${id}', '${id}@example.com', now(), '${meta}'::jsonb)`,
+      );
+      return id;
+    }
+
+    /** What Discord actually sends. No field this schema needs. */
+    const OAUTH_META =
+      '{"full_name":"Ash K","name":"ash","avatar_url":"https://example.invalid/a.png","provider_id":"12345"}';
+
+    it('lets an OAuth account be created at all', async () => {
+      await expect(insertConfirmedUser(OAUTH_META)).resolves.toBeTruthy();
+    });
+
+    it('leaves that account with no profile, for the client to complete', async () => {
+      const id = await insertConfirmedUser(OAUTH_META);
+      const rows = await sql(`select id from public.profiles where id = '${id}'`);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('still confirms the account', async () => {
+      const id = await insertConfirmedUser(OAUTH_META);
+      const [row] = await sql<{ email_confirmed_at: string | null }>(
+        `select email_confirmed_at from auth.users where id = '${id}'`,
+      );
+      expect(row.email_confirmed_at).not.toBeNull();
+    });
+
+    /**
+     * Half-filled metadata is the same hazard by another route: go_username and
+     * birth_date are NOT NULL too, so a signup missing either would fail
+     * confirmation exactly as the missing display_name did.
+     */
+    it('skips the profile when go_username is missing rather than failing', async () => {
+      const id = await insertConfirmedUser(
+        `{"display_name":"Partial_${randomUUID().slice(0, 8)}","birth_date":"2000-01-01"}`,
+      );
+      const rows = await sql(`select id from public.profiles where id = '${id}'`);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('skips the profile when birth_date is missing rather than failing', async () => {
+      const id = await insertConfirmedUser(
+        `{"display_name":"Partial_${randomUUID().slice(0, 8)}","go_username":"PartialGo"}`,
+      );
+      const rows = await sql(`select id from public.profiles where id = '${id}'`);
+      expect(rows).toHaveLength(0);
+    });
+
+    /** The guard must not have cost the ordinary path its profile. */
+    it('still builds a profile when registration did supply everything', async () => {
+      const name = `Complete_${randomUUID().slice(0, 8)}`;
+      const id = await insertConfirmedUser(
+        `{"display_name":"${name}","go_username":"CompleteGo","birth_date":"2000-01-01"}`,
+      );
+      const rows = await sql<{ display_name: string; go_username: string }>(
+        `select display_name, go_username from public.profiles where id = '${id}'`,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].display_name).toBe(name);
+      expect(rows[0].go_username).toBe('CompleteGo');
+    });
+  });
 });

@@ -5740,3 +5740,16 @@ th.bt-matrix-head { text-align: center; }
 .diag { font-size: var(--text-sm); }
 .diag-error { color: var(--color-accent); font-weight: 600; }
 .diag-warn { color: var(--text-muted); }
+
+/* Format builder — the ordered clause pipeline. */
+.clause-editor { display: flex; flex-direction: column; gap: var(--space-2); }
+.clause-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+
+.clause-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clause-input { font-family: var(--font-mono); width: 100%; }

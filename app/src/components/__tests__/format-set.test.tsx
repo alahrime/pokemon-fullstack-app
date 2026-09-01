@@ -72,6 +72,25 @@ describe('FormatSet', () => {
       expect(resolvePool(next).legal.length).toBe(1);
     });
 
+    it('offers only the whole-species scope for a species with no Shadow form', async () => {
+      // Azumarill is not shadowEligible, so 'both' and 'normal' would compile
+      // to different selectors (`azumarill` vs. `azumarill&!shadow`) that are
+      // functionally identical for it — offering both would let two authors
+      // land on different format hashes for the same intent (canonicalize
+      // hashes the selector string, not its meaning).
+      render(<FormatSet format={nothing} onChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/add a species/i);
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: 'azumarill' } });
+      await waitFor(() => expect(screen.getByRole('option', { name: /azumarill/i })).toBeInTheDocument());
+      fireEvent.mouseDown(screen.getByRole('option', { name: /azumarill/i }));
+
+      expect(screen.getByTestId('add-species-both')).toBeInTheDocument();
+      expect(screen.queryByTestId('add-species-normal')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('add-species-shadow')).not.toBeInTheDocument();
+    });
+
     it('adds only the normal form when that scope is chosen', async () => {
       const onChange = vi.fn();
       render(<FormatSet format={nothing} onChange={onChange} />);

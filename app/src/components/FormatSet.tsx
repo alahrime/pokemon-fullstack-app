@@ -93,8 +93,10 @@ export function FormatSet({ format, onChange }: Props) {
    *     and it is not yet legal                     → that one scope only
    *
    * A species with no Shadow form ever (`!shadowEligible`) only ever reaches
-   * the second and last rows, with 'both' and 'normal' offered together —
-   * equivalent for it, since there is no Shadow ref to distinguish them.
+   * the second and last rows, and is offered 'both' alone there — 'normal'
+   * would be equivalent for it (no Shadow ref exists to distinguish `id` from
+   * `id&!shadow`) but compiles to a different selector string, which
+   * `canonicalize` would then hash differently for no functional reason.
    */
   const offeredScopes = useMemo(() => {
     const legalSet = new Set(legal);
@@ -108,7 +110,13 @@ export function FormatSet({ format, onChange }: Props) {
       if (!sp) continue;
 
       if (!sp.shadowEligible) {
-        if (!legalSet.has(id)) m.set(id, ['both', 'normal']);
+        // 'both' and 'normal' compile to different selectors (`id` vs.
+        // `id&!shadow`) that are equivalent for a species with no Shadow ref
+        // to distinguish them — but different selector strings canonicalize
+        // to different strings, so two authors picking the "same" scope for
+        // the same species would otherwise land on different format hashes.
+        // Offer only 'both'.
+        if (!legalSet.has(id)) m.set(id, ['both']);
         continue;
       }
 

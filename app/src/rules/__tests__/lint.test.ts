@@ -102,4 +102,19 @@ describe('lintFormat', () => {
     });
     expect(lintFormat(f).some((d) => d.kind === 'random-with-quotas')).toBe(false);
   });
+
+  it('warns when topN is set on an open-selection format, where it does nothing', () => {
+    const f = fmt({ selection: { mode: 'open', topN: 50 } });
+    expect(lintFormat(f).some((d) => d.kind === 'topn-with-open' && d.level === 'warn')).toBe(true);
+  });
+
+  it('does not warn about topN under random selection, where it is honoured', () => {
+    const f = fmt({ selection: { mode: 'random', topN: 50 } });
+    expect(lintFormat(f).some((d) => d.kind === 'topn-with-open')).toBe(false);
+  });
+
+  it('does not warn about topN when the format has none at all', () => {
+    const f = fmt({ selection: { mode: 'open' } });
+    expect(lintFormat(f).some((d) => d.kind === 'topn-with-open')).toBe(false);
+  });
 });

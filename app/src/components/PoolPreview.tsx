@@ -33,6 +33,8 @@ function describeDiagnostic(d: Diagnostic): string {
       return `Only ${d.have} of ${d.leagueSize} league refs are legal — an unusually narrow pool.`;
     case 'dead-clause':
       return `Rule ${d.clause + 1} decides nothing — it is fully shadowed by later rules.`;
+    case 'topn-with-open':
+      return '`topN` only narrows the random draw — with open selection, nothing draws from it, so it has no effect.';
   }
 }
 

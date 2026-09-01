@@ -49,4 +49,11 @@ describe('PoolPreview', () => {
     render(<PoolPreview format={broken} />);
     expect(screen.getAllByTestId('diagnostic').length).toBeGreaterThan(0);
   });
+
+  it('warns that topN has no effect under open selection', () => {
+    const withTopN: Format = { ...f, selection: { mode: 'open', topN: 50 } };
+    render(<PoolPreview format={withTopN} />);
+    const diags = screen.getAllByTestId('diagnostic').map((el) => el.textContent);
+    expect(diags.some((t) => /topN/.test(t ?? ''))).toBe(true);
+  });
 });

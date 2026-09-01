@@ -48,7 +48,20 @@ export type SelectionMode = 'open' | 'random';
 
 export interface Selection {
   mode: SelectionMode;
-  /** Draw only from the top N of the league ranking. Absent → the whole pool. */
+  /**
+   * Draw only from the top N of the league ranking. Absent → the whole pool.
+   *
+   * Shapes the random draw only — it is not a pool restriction. It narrows
+   * what `rollTeam` can deal a slot, and `lintFormat`'s `pool-too-small`
+   * check reads it the same way (both via `drawablePool`) so the two never
+   * disagree about what is drawable. It does **not** restrict what is
+   * *legal*: `resolvePool`, `findSatisfyingTeam`, and `validateTeam` — the
+   * server-side trust boundary — all read the full resolved pool and ignore
+   * it entirely. A player-picked team outside the top N is exactly as legal
+   * as one inside it. That makes `topN` meaningless under `mode: 'open'`,
+   * where nothing ever draws from it; `lintFormat` warns when that
+   * combination occurs (`topn-with-open`).
+   */
   topN?: number;
   /** Slots the player picks; the rest are rolled. Defaults to 0. */
   playerPicks?: number;
@@ -111,4 +124,5 @@ export type Diagnostic =
   | { level: 'error'; kind: 'random-with-quotas' }
   | { level: 'warn'; kind: 'unsatisfiable-unproven' }
   | { level: 'warn'; kind: 'narrow-pool'; have: number; leagueSize: number }
-  | { level: 'warn'; kind: 'dead-clause'; clause: number };
+  | { level: 'warn'; kind: 'dead-clause'; clause: number }
+  | { level: 'warn'; kind: 'topn-with-open' };

@@ -201,6 +201,14 @@ export function lintFormat(format: Format, budget: number = SEARCH_NODE_BUDGET):
     out.push({ level: 'error', kind: 'random-with-quotas' });
   }
 
+  // topN shapes the random draw only (see its doc comment in types.ts) — under
+  // `mode: 'open'` nothing ever draws from the pool, so it has no effect at
+  // all. Warned rather than errored: the format is not broken, its author's
+  // intent just cannot be expressed by this field in this mode.
+  if (format.selection.mode === 'open' && format.selection.topN !== undefined) {
+    out.push({ level: 'warn', kind: 'topn-with-open' });
+  }
+
   if (legal.length < Math.max(MIN_POOL_ABSOLUTE, leagueSize * NARROW_POOL_FRACTION)) {
     out.push({ level: 'warn', kind: 'narrow-pool', have: legal.length, leagueSize });
   }

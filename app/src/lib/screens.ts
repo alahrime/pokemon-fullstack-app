@@ -95,6 +95,14 @@ export const SCREEN_DEFS: ScreenDef[] = [
     hue: 'var(--type-dark)',
     blurb: 'Author a format clause by clause, and watch the legal pool move as you type.',
   },
+  {
+    id: 'account',
+    label: 'Account',
+    kicker: 'You',
+    glyph: '◉',
+    hue: 'var(--type-normal)',
+    blurb: 'Sign in, and choose the name the rest of Paragon will know you by.',
+  },
 ];
 
 export const HUE_OF: Record<string, string> = Object.fromEntries(

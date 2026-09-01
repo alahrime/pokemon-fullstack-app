@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { AppStateProvider, useAppState } from './state/AppState';
 import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
+import { SessionProvider } from './state/SessionContext';
 import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
@@ -31,6 +32,11 @@ const MovesScreen = lazy(() => import('./screens/MovesScreen').then((m) => ({ de
 const FormatBuilderScreen = lazy(() =>
   import('./screens/FormatBuilderScreen').then((m) => ({ default: m.FormatBuilderScreen })),
 );
+// Lazy for a different reason than the others: not megabytes of data, just a
+// screen most visits never open. It does NOT keep @supabase/supabase-js out of
+// the entry chunk — SessionProvider is mounted at the root below, so the client
+// is in the entry chunk either way. Only this screen's own code is deferred.
+const SignInScreen = lazy(() => import('./screens/SignInScreen').then((m) => ({ default: m.SignInScreen })));
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -127,6 +133,8 @@ function Screens() {
       return <LazyScreen key="moves"><MovesScreen /></LazyScreen>;
     case 'formats':
       return <LazyScreen key="formats"><FormatBuilderScreen /></LazyScreen>;
+    case 'account':
+      return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }
 }
 
@@ -176,9 +184,11 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppStateProvider>
-        <Shell />
-      </AppStateProvider>
+      <SessionProvider>
+        <AppStateProvider>
+          <Shell />
+        </AppStateProvider>
+      </SessionProvider>
     </ThemeProvider>
   );
 }

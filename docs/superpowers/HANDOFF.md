@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01, end of session. **Branch:** `feat/m1a-accounts`, 11 commits ahead of `main`.
+**Written:** 2026-09-01, end of session. **Branch:** `feat/m1a-accounts`, 13 commits ahead of `main`.
 
 Read this, then `docs/superpowers/specs/2026-08-31-paragon-platform-design.md`. The spec is the
 design authority; the plans argue from it.
@@ -13,13 +13,17 @@ design authority; the plans argue from it.
 |---|---|
 | **M0** — format rules engine + builder, offline | **Merged to main** (`00b0441`) |
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
-| **M1a** — accounts and identity | **Tasks 1–4 done** on `feat/m1a-accounts`, **NOT merged**. Tasks 5–6 remain. |
+| **M1a** — accounts and identity | **Complete** (Tasks 1–6) on `feat/m1a-accounts`, **NOT merged** — see the blockers below. |
 | M1b — user-owned saves (teams, formats migration) | Not started, not planned |
 | M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
-(tracked in git, not ignored — read them, they carry the reasoning behind decisions that will
-otherwise look arbitrary).
+— read them, they carry the reasoning behind decisions that will otherwise look arbitrary.
+
+**Correction:** an earlier version of this file said those ledgers were tracked in git. They are
+not — `.superpowers/sdd/.gitignore` is `*`, so every ruling recorded there exists only on the
+machine that wrote it and reaches no clone, no reviewer and no future session on another
+checkout. That is worth a decision either way; it has not been taken.
 
 ---
 
@@ -28,8 +32,8 @@ otherwise look arbitrary).
 ```bash
 colima start                      # the Docker runtime; Supabase local needs it
 cd app && npm run db:start        # 12 containers, PostgreSQL 17.6
-npm run check:db                  # 26 database tests
-npm run check                     # 973 app tests, Docker-free
+npm run check:db                  # 32 database tests
+npm run check                     # 1024 app tests, Docker-free
 cd app && npm run db:stop         # ALWAYS stop it when done
 ```
 
@@ -40,39 +44,45 @@ in one gate; splitting them was a deliberate ruling — a gate people skip prote
 
 ---
 
-## What remains in M1a
+## What M1a delivered
 
-**Task 5** — `app/src/lib/supabase.ts` and `app/src/state/SessionContext.tsx`. Create the browser
-client from env, fail loudly at startup if the vars are missing. Session context reads the
-existing session, subscribes to `onAuthStateChange`, unsubscribes on unmount. Follow
-`app/src/state/ThemeContext.tsx` for this codebase's context shape.
+All six tasks. `app/src/lib/supabase.ts` (the browser client, refusing to start without its env),
+`app/src/state/SessionContext.tsx` (`useSession()`), `app/src/lib/age.ts` (the 13-year rule
+against an injectable clock), `app/src/screens/SignInScreen.tsx`, and `app/public/terms.html`.
+The screen is registered as the `account` destination in the nav and on the landing page, and
+`SessionProvider` is mounted at the root of `App`.
 
-**Task 6** — `app/src/screens/SignInScreen.tsx`. Registration collects **GO username, email, date
-of birth, terms acceptance**. The age gate refuses under-13s and sits **in front of both** sign-in
-methods — a Google/Discord user can otherwise authenticate before ever seeing an age screen.
+**The three things the previous handoff flagged are all resolved.** The `sb_publishable_…` key
+format is accepted by `@supabase/supabase-js` 2.112.4 (proven against the stack: a wrong password
+returns `400 invalid_credentials`, not `401 Invalid API key`). `site_url` now points at
+`localhost:5173`, with both 5173 hostnames in `additional_redirect_urls`. "Confirmed account with
+no profile" is handled — it is the screen's complete-your-profile form.
 
-Full step-by-step in `docs/superpowers/plans/2026-09-01-m1a-accounts-and-identity.md`.
+### A defect Task 6 found in Task 4's schema
 
-### Three things Task 6 must handle that are not obvious
+**OAuth signup was impossible at the database level**, and would have failed the moment a provider
+was enabled. GoTrue inserts a provider account *already confirmed*, so `handle_confirmed_user()`
+fired on the INSERT with `raw_user_meta_data` holding only Discord's own fields — no
+`display_name`, `go_username` or `birth_date`, all three `NOT NULL`. The resulting
+`not_null_violation` is **not** the `unique_violation` the handler forgives, so it propagated and
+took the entire `auth.users` INSERT with it.
 
-1. **A confirmed account can exist with no profile.** This is deliberate. The profile trigger
-   catches a `unique_violation` on `display_name` so a name collision cannot block confirmation —
-   without that, a user whose chosen name was taken between signup and confirmation could never
-   confirm (same collision every retry) and never re-register (email taken). Admin-only escape.
-   So Task 6 must treat "signed in, no profile" as a real state and prompt for a free name. At
-   that point a session exists, so the ordinary insert policy applies and no trigger is needed.
+Migration `20260901225208` skips profile creation when any of the three is absent. The account is
+left confirmed with no profile — the same state a lost `display_name` race already produces, and
+the one the screen already had to handle. Six database tests cover it; five of them failed against
+the pre-migration schema for exactly this reason.
 
-2. **`site_url` in `supabase/config.toml` is wrong.** It points at `:3000`; Vite serves on
-   `:5173`. With email confirmation required, that redirect is load-bearing — a local confirmation
-   link currently lands on a dead port. Fix it in Task 6.
+**Consequence worth knowing:** provider accounts never get a profile from the trigger, so terms
+acceptance is collected on the complete-your-profile form rather than only in front of the
+provider button. That is the only arrangement where `tos_accepted_at` is true for every account.
 
-3. **The key format is unverified against the client.** `app/.env.local` uses
-   `sb_publishable_…` (Supabase's newer format) rather than the legacy `eyJ…` anon JWT. Recent
-   `@supabase/supabase-js` accepts it; older versions expect the JWT. Task 5's first real check is
-   that the client authenticates at all. If it rejects the format, `supabase start` prints the
-   legacy `ANON_KEY` too — one-line change, not a redesign.
+### Two deviations from the plan, both deliberate
 
----
+- **Registration collects five things, not the plan's four.** `display_name` is `NOT NULL` and
+  unique and the trigger reads it from metadata; omitting it would have produced the same
+  `not_null_violation` lockout on the *email* path.
+- **The provider button says Discord, not Google.** One constant (`OAUTH_PROVIDER` in
+  `SignInScreen.tsx`) plus a dashboard toggle. Google was abandoned over Google Cloud billing.
 
 ## Blocked on the human — do not invent workarounds
 
@@ -83,10 +93,10 @@ is missing, report and stop.
       a schema migration, so **the GitHub integration will not carry it**. Local `config.toml`
       does not propagate. Without it, production auto-confirms and the profile trigger runs a path
       that was never tested — on real accounts.
-- [ ] **Choose an OAuth provider.** Google was abandoned: Google Cloud demanded billing. Discord
-      is recommended (free, and where competitive GO PvP actually organises — Silph Arena, local
-      leagues); GitHub also works. **This costs no code** — `signInWithOAuth({ provider })` is
-      provider-agnostic, so it is a dashboard toggle.
+- [ ] **Enable Discord in Supabase → Auth → Providers.** The code now asks for `discord` by
+      name. Until it is enabled the button returns a provider error; nothing else breaks. To use
+      GitHub or Google instead, change `OAUTH_PROVIDER` in `app/src/screens/SignInScreen.tsx` —
+      one constant, no other code.
 - [ ] **Confirm which branch the Supabase GitHub integration watches.** Merging M1a to that branch
       applies six migrations to the production database.
 - [ ] Grant the Supabase GitHub App access to `pokemon-fullstack-app` specifically (authorising the
@@ -141,7 +151,11 @@ Every one of these produced a real false result during the build.
    `isolation.test.ts` *and* `npm run rules:node`, which bundles and executes it under Node — the
    text scan alone cannot see transitive imports, which is how a Vite-only `import.meta.env`
    dependency slipped in once.
-7. **Vite reads env from `app/`, not the repo root.** `supabase/` is at the repo root; the Vite
+7. **A schema can be complete and still untested against a path nobody ran.** The profile
+   trigger passed 26 tests and was still incapable of accepting an OAuth signup, because every
+   test drove the email path. When a code path is gated behind a config toggle nobody has turned
+   on yet, its first real exercise is production.
+8. **Vite reads env from `app/`, not the repo root.** `supabase/` is at the repo root; the Vite
    project root is `app/`. Hence `--workdir ..` on the db scripts and `.` as the integration's
    working directory.
 

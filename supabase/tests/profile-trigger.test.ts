@@ -123,30 +123,72 @@ describe('the profile-creation trigger', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('fails on the unique display_name constraint rather than silently producing no profile', async () => {
-    const sharedName = `TakenName_${randomUUID().slice(0, 8)}`;
-    const firstId = await insertUnconfirmedUser({
-      displayName: sharedName,
-      goUsername: 'FirstGo',
-      birthDate: '1990-01-01',
+  /**
+   * The lockout regression. A display_name collision discovered AT
+   * CONFIRMATION TIME must not be able to fail the confirmation itself:
+   * confirming only proves email ownership, and failing that UPDATE (which
+   * is what a raised exception inside the row trigger does — it rolls back
+   * the whole statement, including email_confirmed_at) would strand the
+   * losing account permanently. They could never confirm (same collision
+   * every retry) and could never re-register (the email is already taken in
+   * auth.users). Only an administrator could clear that state.
+   *
+   * These three tests replace what was previously here: a test asserting
+   * the OPPOSITE — that confirmation should reject on a name collision.
+   * That was pinning the exact bug described above; once the trigger is
+   * fixed to swallow the collision, that assertion is simply wrong and was
+   * rewritten rather than kept passing by accident.
+   */
+  describe('a display_name collision discovered at confirmation', () => {
+    async function setUpCollision() {
+      const sharedName = `TakenName_${randomUUID().slice(0, 8)}`;
+      const ownerId = await insertUnconfirmedUser({
+        displayName: sharedName,
+        goUsername: 'FirstGo',
+        birthDate: '1990-01-01',
+      });
+      await confirm(ownerId);
+      expect(await sql(`select id from public.profiles where id = '${ownerId}'`)).toHaveLength(1);
+
+      const loserId = await insertUnconfirmedUser({
+        displayName: sharedName,
+        goUsername: 'SecondGo',
+        birthDate: '1990-02-02',
+      });
+
+      return { sharedName, ownerId, loserId };
+    }
+
+    it('still confirms the losing account rather than stranding it', async () => {
+      const { loserId } = await setUpCollision();
+
+      await expect(confirm(loserId)).resolves.not.toThrow();
+
+      const [row] = await sql<{ email_confirmed_at: string | null }>(
+        `select email_confirmed_at from auth.users where id = '${loserId}'`,
+      );
+      expect(row.email_confirmed_at).not.toBeNull();
     });
-    await confirm(firstId);
-    expect(await sql(`select id from public.profiles where id = '${firstId}'`)).toHaveLength(1);
 
-    const secondId = randomUUID();
-    createdIds.push(secondId);
-    await sql(
-      `insert into auth.users (id, email, raw_user_meta_data)
-       values (
-         '${secondId}',
-         '${secondId}@example.com',
-         '{"display_name":"${sharedName}","go_username":"SecondGo","birth_date":"1990-02-02"}'::jsonb
-       )`,
-    );
+    it('leaves the losing account with no profile row', async () => {
+      const { loserId } = await setUpCollision();
 
-    await expect(confirm(secondId)).rejects.toThrow(/duplicate key|unique constraint/i);
+      await confirm(loserId);
 
-    const rows = await sql(`select id from public.profiles where display_name = '${sharedName}'`);
-    expect(rows).toHaveLength(1);
+      const rows = await sql(`select id from public.profiles where id = '${loserId}'`);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('leaves the name owner unaffected', async () => {
+      const { sharedName, ownerId, loserId } = await setUpCollision();
+
+      await confirm(loserId);
+
+      const rows = await sql<{ display_name: string }>(
+        `select display_name from public.profiles where id = '${ownerId}'`,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].display_name).toBe(sharedName);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { displayName, parseRef, speciesOf } from '../lib/data';
+import { displayName, makeRef, parseRef, speciesOf } from '../lib/data';
 import { POKEMON_TYPES } from '../lib/pokemonTypes';
 import { addSpecies, removeRef, resolvePool, type Format, type SpeciesScope } from '../rules';
 import { Sprite } from './Sprite';
@@ -63,34 +63,74 @@ export function FormatSet({ format, onChange }: Props) {
       return next;
     });
 
-  // Species eligible to be added: legal in the base league at all, and not
-  // already resolved into the set. The league-membership half keeps the
-  // picker from offering something that would add nothing (a species the
-  // league itself never admits). The already-in-the-set half exists because
-  // `addSpecies` dedupes only by exact selector string (see rules/edits.ts):
-  // adding a species 'both' and then 'normal' would not narrow the first
-  // clause, it would append a second, redundant one. Rather than teach the
-  // picker to detect and merge that, it simply never offers a species that is
-  // already in the set — narrowing an existing member happens through the X
-  // buttons below, not through Add.
+  // Every league-legal species id, deduped, regardless of which of its forms
+  // are league-legal — the base to offer an add against. `pool: []` and
+  // `start: 'league'` peel off every clause the author has written so far, so
+  // this is the whole league's candidate set, not the format's current one.
   const leaguePool = useMemo(
     () => resolvePool({ ...format, pool: [], start: 'league' }).legal,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [format.base],
   );
-  const legalIds = useMemo(() => new Set(legal.map((r) => parseRef(r).id)), [legal]);
-  const addable = useMemo(() => {
-    const s = new Set<string>();
+
+  /**
+   * Per species, which scopes are still worth offering.
+   *
+   * Not a flat "already in the set, so hide it" — that was the bug this fixed.
+   * A species with only its Shadow legal still has a real gap (its Normal
+   * form), and hiding the species entirely took away the only discoverable
+   * way to close it — leaving just the advanced clause editor, the syntax
+   * path this whole control exists to keep people off.
+   *
+   * Reads legality the same way `typesOn` does in edits.ts: inspecting the
+   * *resolved* set rather than the raw clause list, because a species can end
+   * up partially in the set through clauses that never mention it by name — a
+   * type chip plus one X, say — and the resolved set is the only place that
+   * shows the true, current state at a glance.
+   *
+   * Four states, per species:
+   *   - both variants already legal        → not offered at all
+   *   - neither variant legal               → 'both', 'normal', and 'shadow'
+   *     (Shadow only where the species can have one)
+   *   - only Normal legal                   → 'shadow' only (if it can have one)
+   *   - only Shadow legal                   → 'normal' only
+   *
+   * A species with no Shadow form at all behaves as the first two rows
+   * collapse into: fully in the set once Normal is legal, otherwise offered
+   * as 'both' and 'normal' (equivalent for it, since no Shadow ref exists to
+   * distinguish them).
+   */
+  const offeredScopes = useMemo(() => {
+    const legalSet = new Set(legal);
+    const m = new Map<string, SpeciesScope[]>();
+    const seen = new Set<string>();
     for (const ref of leaguePool) {
-      const id = parseRef(ref).id;
-      if (!legalIds.has(id)) s.add(id);
+      const { id } = parseRef(ref);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const sp = speciesOf(id);
+      if (!sp) continue;
+
+      const normalLegal = legalSet.has(id);
+      const shadowLegal = sp.shadowEligible && legalSet.has(makeRef(id, true));
+
+      if (!sp.shadowEligible) {
+        if (!normalLegal) m.set(id, ['both', 'normal']);
+        continue;
+      }
+      if (normalLegal && shadowLegal) continue;
+      if (normalLegal && !shadowLegal) m.set(id, ['shadow']);
+      else if (!normalLegal && shadowLegal) m.set(id, ['normal']);
+      else m.set(id, ['both', 'normal', 'shadow']);
     }
-    return s;
-  }, [leaguePool, legalIds]);
+    return m;
+  }, [leaguePool, legal]);
+
+  const addable = useMemo(() => new Set(offeredScopes.keys()), [offeredScopes]);
 
   return (
     <div className="format-set">
-      <AddSpecies format={format} onChange={onChange} addable={addable} />
+      <AddSpecies format={format} onChange={onChange} addable={addable} offeredScopes={offeredScopes} />
 
       {legal.length === 0 ? (
         <p data-testid="set-empty" className="text-faint">
@@ -147,27 +187,39 @@ export function FormatSet({ format, onChange }: Props) {
   );
 }
 
+/** A scope's label in the picker, in the order the buttons render. */
+const SCOPE_LABEL: Record<SpeciesScope, string> = {
+  both: 'Whole species',
+  normal: 'Normal only',
+  shadow: 'Shadow only',
+};
+
 /**
  * Add one species, in a chosen scope.
  *
  * Three explicit buttons rather than a single "add" — whole species, normal
  * only, Shadow only — so the precision `addSpecies`'s `SpeciesScope` offers is
  * discoverable without teaching anyone the selector syntax that backs it
- * (`&!shadow`, `&shadow`). The Shadow-only button is left off entirely for a
- * species with no Shadow form: offering it would add a clause that can never
- * match anything, which is a harmless no-op but a confusing one.
+ * (`&!shadow`, `&shadow`). Only the scopes `offeredScopes` names for the
+ * picked species are shown: a species already fully in the set is filtered
+ * out of the search entirely (see `addable`), and one partially in it offers
+ * only the variant actually missing, rather than every scope regardless of
+ * what is already there.
  */
 function AddSpecies({
   format,
   onChange,
   addable,
+  offeredScopes,
 }: {
   format: Format;
   onChange: (next: Format) => void;
   addable: ReadonlySet<string>;
+  offeredScopes: ReadonlyMap<string, SpeciesScope[]>;
 }) {
   const [pick, setPick] = useState<string>('');
   const sp = pick ? speciesOf(pick) : undefined;
+  const scopes = pick ? (offeredScopes.get(parseRef(pick).id) ?? []) : [];
 
   const commit = (scope: SpeciesScope) => {
     if (!pick) return;
@@ -185,30 +237,20 @@ function AddSpecies({
         placeholder="Add a species…"
         restrictTo={addable}
       />
-      {sp && pick && (
+      {sp && pick && scopes.length > 0 && (
         <div className="add-species-scopes" role="group" aria-label={`Add ${displayName(pick)}`}>
           <span className="add-species-name">{displayName(pick)}</span>
-          <button type="button" className="btn chip-btn" data-testid="add-species-both" onClick={() => commit('both')}>
-            Whole species
-          </button>
-          <button
-            type="button"
-            className="btn chip-btn"
-            data-testid="add-species-normal"
-            onClick={() => commit('normal')}
-          >
-            Normal only
-          </button>
-          {sp.shadowEligible && (
+          {scopes.map((scope) => (
             <button
+              key={scope}
               type="button"
               className="btn chip-btn"
-              data-testid="add-species-shadow"
-              onClick={() => commit('shadow')}
+              data-testid={`add-species-${scope}`}
+              onClick={() => commit(scope)}
             >
-              Shadow only
+              {SCOPE_LABEL[scope]}
             </button>
-          )}
+          ))}
         </div>
       )}
     </div>

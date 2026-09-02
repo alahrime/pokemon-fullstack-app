@@ -332,3 +332,115 @@ updated `progress.md` from the commit.
 `.superpowers/sdd/2026-09-01-m1b-user-owned-saves/progress.md`, and this
 report were committed together as the fix-round-1 commit (see git log for
 the exact SHA).
+
+---
+
+## Fix round 2/5
+
+The re-review found that Finding 1 was NOT actually closed by round 1: the
+shrink test asserted the upsert payload and the delete *count*, but the
+harness's `eq`/`gt` were bare no-ops that recorded nothing. Nothing in the
+suite ever inspected what the delete chain was scoped or bounded by, so the
+test would still pass green if `.gt('slot', t.members.length)` were deleted
+outright, given the wrong bound, or if `.eq('team_id', id)` were dropped —
+the last of which is Finding 2's original zero-members bug, reappearing
+underneath a suite that looked like it covered this.
+
+### The fix
+
+1. **Made the scoping observable.** `eq` and `gt` in the `saves.test.ts`
+   harness now record their call into the same ordered `calls` array the
+   other chain methods already use — `{ table: name, op: 'eq' | 'gt',
+   payload: [col, val] }` — while staying chainable (still return `q`). This
+   is the minimum needed to assert *what* a delete was scoped/bounded by, not
+   just that a delete happened.
+
+2. **Asserted on the recorded values, not just presence.** The shrink test
+   (`editing a team upserts the surviving slots and deletes only what is
+   beyond them`) now additionally asserts the `team_members` delete chain was
+   scoped by `eq('team_id', 't1')` and bounded by `gt('slot', 2)` — the exact
+   bound, not merely that `gt` was called, since a wrong bound is the failure
+   mode that either strands rows (bound too high) or wipes the whole roster
+   (bound too low or `eq` missing).
+
+3. **Added the untested empty-roster edit case**, per the re-reviewer's
+   flag: `saveTeam({ id: 't1', ..., members: [] })` must still remove every
+   member. New test `editing a team to an empty roster removes every member`
+   asserts no upsert happened (nothing to write), one delete happened, scoped
+   by `eq('team_id', 't1')`, and bounded by `gt('slot', 0)` — every slot is
+   greater than 0, so every row qualifies.
+
+The two still-deferred Minors (`fast?.id ?? ''`, and `saveServerFormat`'s
+narrower owner_id coverage) were left untouched, as instructed.
+
+### Load-bearing verification (drop-and-confirm-failure)
+
+Per the method that worked for the ordering assertion in round 1, and per
+the coordinator's explicit ask — "what would the mock have to stop doing for
+the assertion to fail" — I ran three regressions against the real
+`saves.ts` and confirmed each one is caught by exactly the assertion meant
+to catch it, then restored and re-confirmed green byte-for-byte (`diff`
+against a pre-mutation backup) each time.
+
+**Regression A — drop `.gt(...)` entirely** (delete becomes unscoped by slot,
+i.e. `eq('team_id', id)` alone — the original data-loss shape):
+
+```
+cd app && ./node_modules/.bin/vitest run src/lib/__tests__/saves.test.ts
+```
+Before the drop: 9/9 passed. After:
+```
+Tests  2 failed | 7 passed (9)
+ × saved teams > editing a team upserts the surviving slots and deletes only what is beyond them
+   → expected undefined to deeply equal [ 'slot', 2 ]
+ × saved teams > editing a team to an empty roster removes every member
+   → expected undefined to deeply equal [ 'slot', +0 ]
+```
+Restored (`diff` against backup: identical); re-run: 9/9 passed again.
+
+**Regression B — wrong bound**, `gt('slot', t.members.length)` →
+`gt('slot', 0)` (always deletes as if the roster had shrunk to zero,
+regardless of actual size — the shrink case's exact failure mode):
+
+```
+Tests  1 failed | 8 passed (9)
+ × saved teams > editing a team upserts the surviving slots and deletes only what is beyond them
+   → expected [ 'slot', +0 ] to deeply equal [ 'slot', 2 ]
+```
+Note the empty-roster test correctly still passed here — `gt('slot', 0)` is
+exactly its correct bound, so the two new tests are properly complementary:
+the shrink test catches a bound that's wrong for a non-empty result, the
+empty-roster test catches the upsert-skip and delete-scope logic
+independently. Restored; re-run: 9/9 passed.
+
+Both regressions were reverted with `cp` from a pre-mutation backup and
+confirmed identical via `diff` before moving on, so no accidental drift was
+carried into the commit.
+
+### Commands and final output
+
+```
+cd app && ./node_modules/.bin/vitest run src/lib/__tests__/saves.test.ts > /tmp/fix5.log 2>&1; echo "EXIT=$?"
+```
+```
+EXIT=0
+ ✓ src/lib/__tests__/saves.test.ts (9 tests) 89ms
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+```
+
+```
+cd app && npm run check > /tmp/check5.log 2>&1; echo "EXIT=$?"
+```
+```
+EXIT=0
+ Test Files  76 passed (76)
+      Tests  1039 passed (1039)
+```
+
+(1038 from the previous round, plus the one new empty-roster test; `saves.ts`
+itself is byte-unchanged this round — the fix was entirely in making the
+existing scoping observable and asserting on it, plus the one new test case.)
+
+No stray `.gitignore` regression this round; only `saves.test.ts` and the
+coordinator-authored `progress.md` update were present to commit.

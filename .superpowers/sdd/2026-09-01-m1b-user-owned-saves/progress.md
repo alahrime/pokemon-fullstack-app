@@ -147,3 +147,18 @@ Task 3: minor (deferred): teamCodec's `fast?.id ?? ''` stores an empty string fo
 Task 3: minor (deferred): the "never writes an owner_id" assertion covers only saveTeam's insert
   branch, not its update branch or either saveServerFormat branch.
 Task 3: fix round 1/5 dispatched — resumed implementer aac0676e05c267d31. FIX_BASE bbec0ad.
+Task 3: fix round 1/5 (1 addressed, 1 open — commits bbec0ad..9caebf9). Ordering fix confirmed
+  real: upsert-before-scoped-delete with a position-based assertion (findIndex on the ordered call
+  list), and the implementer proved it load-bearing by reintroducing delete-first and watching that
+  test fail. Finding 1 NOT addressed: the update branch is now exercised, but the harness's `eq`
+  and `gt` are bare no-ops recording nothing, so no test inspects the delete's SCOPING. Dropping
+  `.gt('slot', n)` outright would leave every test green — the stranded-slot property, and its
+  mirror image of wiping the whole roster, are both still unguarded beneath a passing shrink test.
+Task 3: fix round 2/5 dispatched — make `eq`/`gt` record their arguments, assert the delete chain
+  is scoped by both `team_id` and `slot > n` with the bound value checked, add the edit-to-empty
+  case, and prove the new assertions load-bearing by dropping `.gt(...)` and confirming failure.
+  FIX_BASE 9caebf9.
+Note: `sdd-workspace` (line 39: `printf '*\n' > "$base/.gitignore"`) unconditionally overwrites
+  the ledger-tracking ignore rule with `*`, and `review-package` invokes it — so every review
+  package I generate clobbers it. Not the implementers' doing; two of them noticed and reverted it.
+  Restoring it after each review-package call rather than fighting the script.

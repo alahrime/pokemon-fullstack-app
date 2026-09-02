@@ -19,8 +19,8 @@ function harness(rows: Record<string, unknown[]>) {
   function table(name: string) {
     const q: Record<string, unknown> = {
       select: vi.fn(() => { calls.push({ table: name, op: 'select' }); return q; }),
-      eq: vi.fn(() => q),
-      gt: vi.fn(() => q),
+      eq: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'eq', payload: [col, val] }); return q; }),
+      gt: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'gt', payload: [col, val] }); return q; }),
       order: vi.fn(() => q),
       insert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'insert', payload }); return q; }),
       upsert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'upsert', payload }); return q; }),
@@ -80,7 +80,12 @@ describe('saved teams', () => {
   /**
    * The whole point: a roster that shrinks from three to two must not leave a
    * stale slot 3 behind. Both writes are asserted — a suite that only checked
-   * the upsert would pass even if the trailing-slot delete were deleted.
+   * the upsert would pass even if the trailing-slot delete were deleted. The
+   * scoping is asserted explicitly, by value, not merely that `eq`/`gt` were
+   * called: a delete scoped only by team_id would wipe the whole roster (the
+   * data-loss bug this design exists to avoid), and a wrong bound would
+   * strand or over-delete rows — either failure leaves the delete COUNT at 1,
+   * so the count alone cannot tell the two apart from a correct delete.
    */
   it('editing a team upserts the surviving slots and deletes only what is beyond them', async () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
@@ -96,6 +101,30 @@ describe('saved teams', () => {
     expect((upsert?.payload as { slot: number }[]).map((m) => m.slot)).toEqual([1, 2]);
     const deletes = calls.filter((c) => c.table === 'team_members' && c.op === 'delete');
     expect(deletes).toHaveLength(1);
+    const scopedByTeam = calls.find((c) => c.table === 'team_members' && c.op === 'eq');
+    expect(scopedByTeam?.payload).toEqual(['team_id', 't1']);
+    const boundedBySlot = calls.find((c) => c.table === 'team_members' && c.op === 'gt');
+    expect(boundedBySlot?.payload).toEqual(['slot', 2]);
+  });
+
+  /**
+   * Editing a team down to nothing is the shrink case taken to its limit:
+   * every member must go, the upsert is skipped (nothing to write), and the
+   * delete's bound becomes `gt('slot', 0)` — every slot is greater than 0, so
+   * every row qualifies. Nothing exercised this path before.
+   */
+  it('editing a team to an empty roster removes every member', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({ id: 't1', name: 'Mine', league: 'great', members: [] });
+    const upsert = calls.find((c) => c.table === 'team_members' && c.op === 'upsert');
+    expect(upsert).toBeUndefined();
+    const deletes = calls.filter((c) => c.table === 'team_members' && c.op === 'delete');
+    expect(deletes).toHaveLength(1);
+    const scopedByTeam = calls.find((c) => c.table === 'team_members' && c.op === 'eq');
+    expect(scopedByTeam?.payload).toEqual(['team_id', 't1']);
+    const boundedBySlot = calls.find((c) => c.table === 'team_members' && c.op === 'gt');
+    expect(boundedBySlot?.payload).toEqual(['slot', 0]);
   });
 
   /**

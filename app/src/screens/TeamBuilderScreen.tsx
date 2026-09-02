@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
-import { LEAGUE_BY_ID, conflictsOnTeam, displayName, parseRef, pickableFor, speciesOf } from '../lib/data';
+import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
+import { defaultSpreadFor } from '../lib/engine';
 import { teamPool } from '../lib/rankings';
 import { analyseShow6, analyseTeam, completionPool, suggestCompletions, suggestSwaps, weaknessesAgainst } from '../lib/teambuild';
 import type { SixSwap, Weakness } from '../lib/teambuild';
@@ -12,6 +13,9 @@ import { SpeciesSearch } from '../components/SpeciesSearch';
 import { AddPokemonModal, movesForChoice, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { BestTeams } from '../components/BestTeams';
 import { InfoPopover } from '../components/InfoPopover';
+import { useSession } from '../state/SessionContext';
+import { deleteTeam, listTeams, saveTeam, type SavedTeam } from '../lib/saves';
+import { decodeMember, encodeMember } from '../lib/teamCodec';
 import type { LeagueId } from '../lib/types';
 
 /**
@@ -177,8 +181,32 @@ function ThreatList({ threats }: { threats: { ref: string; lossRate: number; mea
   );
 }
 
+/**
+ * What a member saves as when it was never opened in the build picker.
+ *
+ * A ref added through the quick search beside the slots has no entry in
+ * `builds` — it is carrying the league's rated set implicitly, the same set
+ * `Slot` falls back to when `build` is undefined. Saving has no such fallback
+ * to lean on: `encodeMember` needs an actual `AddPokemonChoice`, so this
+ * reconstructs the one the modal would have opened on, rather than saving
+ * nothing or throwing.
+ */
+function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
+  const sp = speciesOf(refId);
+  if (!sp) return { ref: refId, chargeIds: [], fastIdx: 0, iv: { a: 0, d: 15, s: 15 } };
+  const rated = movesFor(sp, leagueId);
+  const spread = defaultSpreadFor(refId, leagueId, true);
+  return {
+    ref: refId,
+    fastIdx: Math.max(0, sp.fastMoves.findIndex((m) => m.id === rated.fast.id)),
+    chargeIds: rated.charges.map((c) => c.id),
+    iv: { a: spread.a, d: spread.d, s: spread.s },
+  };
+}
+
 export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const { state } = useAppState();
+  const { user } = useSession();
   const league = state.league;
   const [team, setTeam] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
@@ -271,6 +299,99 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const load = (refs: string[]) => {
     setTeam(refs.slice(0, size));
     invalidate();
+  };
+
+  /**
+   * The signed-in person's saved rosters for this account, `null` while the
+   * first fetch is still in flight or nobody is signed in. Distinct from `[]`
+   * (fetched, and empty) so the panel can say which one it is.
+   */
+  const [savedTeams, setSavedTeams] = useState<SavedTeam[] | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  /** Set when a load hit a move the current data no longer has — see decodeMember. */
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
+  /** A failed save, load-list fetch or delete — surfaced rather than left as
+   * an unhandled rejection nobody sees. */
+  const [savesError, setSavesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setSavedTeams(null);
+      return;
+    }
+    // Guards a fetch that outlives its own sign-in: signing out while the
+    // request is in flight must not resurrect `savedTeams` for a session that
+    // no longer exists.
+    let live = true;
+    listTeams()
+      .then((teams) => {
+        if (live) setSavedTeams(teams);
+      })
+      .catch((e: unknown) => {
+        if (live) setSavesError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [user]);
+
+  const saveRoster = async () => {
+    if (team.length === 0 || saving) return;
+    setSaving(true);
+    setSavesError(null);
+    try {
+      // Every member is encoded, whether it went through the build modal or
+      // not — `builds` has no entry for a ref added through the quick search,
+      // and `defaultChoice` is what that ref is actually carrying (the rated
+      // set `Slot` falls back to), not nothing.
+      const members = team.map((ref) => encodeMember(builds[ref] ?? defaultChoice(ref, league), league));
+      await saveTeam({ name: saveName.trim(), league, members });
+      setSaveName('');
+      setSavedTeams(await listTeams());
+    } catch (e) {
+      setSavesError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Sets both `team` and `builds` — and REPLACES rather than merges into
+  // either. See the comment on `add`/`t.includes` above: this screen has a
+  // history of a second write landing on top of the render the first one
+  // closed over, and dropping a member silently. A saved roster is a full
+  // roster, not an addition to whatever is already in the slots.
+  const loadSaved = (t: SavedTeam) => {
+    const nextTeam: string[] = [];
+    const nextBuilds: Record<string, AddPokemonChoice> = {};
+    const notices: string[] = [];
+    for (const stored of t.members) {
+      const { choice, unknownMove } = decodeMember(stored);
+      nextTeam.push(choice.ref);
+      nextBuilds[choice.ref] = choice;
+      // Falling back to a different move and saying nothing is how a saved
+      // team quietly becomes a different team — decodeMember already picked
+      // the fallback; this only has to name what it replaced.
+      if (unknownMove) {
+        notices.push(`${displayName(choice.ref)}'s saved fast move "${unknownMove}" no longer exists in the data.`);
+      }
+    }
+    setTeam(nextTeam.slice(0, size));
+    setBuilds(nextBuilds);
+    invalidate();
+    setSavedOpen(false);
+    setLoadNotice(notices.length > 0 ? notices.join(' ') : null);
+  };
+
+  const deleteSaved = async (t: SavedTeam) => {
+    if (!window.confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteTeam(t.id);
+      setSavedTeams(await listTeams());
+    } catch (e) {
+      setSavesError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const run = () => {
@@ -390,6 +511,70 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             restrictTo={selectable}
           />
         </div>
+        {user && (
+          <div className="team-saves">
+            <div className="team-saves-row">
+              <label className="hud-label" htmlFor="team-save-name">Save this roster</label>
+              <input
+                id="team-save-name"
+                className="input team-save-name"
+                placeholder="Name this roster"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+              />
+              <button className="btn btn-primary" disabled={team.length === 0 || saving} onClick={saveRoster}>
+                {saving ? 'Saving…' : 'Save roster'}
+              </button>
+              {/* Overlays the panel rather than growing it — a roster list that
+                  gets longer with use must not shove the slots above it down
+                  the page every time something new is saved. */}
+              <div className="team-load-picker">
+                <button
+                  type="button"
+                  className="btn move-picker-btn"
+                  aria-expanded={savedOpen}
+                  onClick={() => setSavedOpen((o) => !o)}
+                >
+                  Saved teams{savedTeams ? ` (${savedTeams.length})` : ''}
+                </button>
+                {savedOpen && (
+                  <div className="move-picker-panel team-load-panel">
+                    {savedTeams === null && <p className="text-faint">Loading…</p>}
+                    {savedTeams && savedTeams.length === 0 && (
+                      <p className="text-faint">No saved teams yet.</p>
+                    )}
+                    {savedTeams && savedTeams.length > 0 && (
+                      <ul className="team-load-list">
+                        {savedTeams.map((t) => (
+                          <li key={t.id} className="team-load-row">
+                            <button
+                              type="button"
+                              className="chip-btn team-load-name"
+                              onClick={() => loadSaved(t)}
+                              title="Load into the slots above"
+                            >
+                              {t.name}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => void deleteSaved(t)}
+                              title="Delete this saved team"
+                            >
+                              Delete
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {loadNotice && <p className="team-load-notice">{loadNotice}</p>}
+            {savesError && <p className="team-load-notice" role="alert">{savesError}</p>}
+          </div>
+        )}
         <div className="team-actions">
           {/* Two members, not a full roster. What beats a partial team and
               which swap answers it are per-member measurements — they do not

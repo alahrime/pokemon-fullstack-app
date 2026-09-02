@@ -1,0 +1,124 @@
+
+ RUN  v3.2.7 /Users/alilahrime/Downloads/paragon-iv/app
+
+ ❯ src/screens/__tests__/team-saves.test.tsx (7 tests | 6 failed) 3016ms
+   ✓ signed out > renders no save control, and the builder still works  844ms
+   × signed in > disables the save control on an empty roster 243ms
+     → expected undefined to be truthy
+   × signed in > enables saving once there are members, and saves both in slot order 521ms
+     → Cannot read properties of undefined (reading 'disabled')
+   × signed in > saves the name exactly as typed 410ms
+     → Unable to fire a "change" event - please provide a DOM element.
+   × signed in > replaces the roster outright when loading a saved team, not appending to it 526ms
+     → Unable to fire a "click" event - please provide a DOM element.
+   × signed in > names the move when a saved fast move no longer exists, rather than loading a different one silently 217ms
+     → Unable to fire a "click" event - please provide a DOM element.
+   × signed in > asks for confirmation before deleting, and calls deleteTeam only after confirming 255ms
+     → Unable to fire a "click" event - please provide a DOM element.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > disables the save control on an empty roster
+AssertionError: expected undefined to be truthy
+
+[32m- Expected:[39m 
+true
+
+[31m+ Received:[39m 
+undefined
+
+ ❯ src/screens/__tests__/team-saves.test.tsx:147:17
+    145|     const { container } = await mount(3, fakeSession('ash@example.com'…
+    146|     const btn = saveButton(container);
+    147|     expect(btn).toBeTruthy();
+       |                 ^
+    148|     expect(btn!.disabled).toBe(true);
+    149|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > enables saving once there are members, and saves both in slot order
+TypeError: Cannot read properties of undefined (reading 'disabled')
+ ❯ src/screens/__tests__/team-saves.test.tsx:155:32
+    153|     await pick(container, 'azumarill');
+    154|     await pick(container, 'registeel');
+    155|     expect(saveButton(container)!.disabled).toBe(false);
+       |                                ^
+    156| 
+    157|     fireEvent.change(nameInput(container), { target: { value: 'My Team…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > saves the name exactly as typed
+Error: Unable to fire a "change" event - please provide a DOM element.
+ ❯ createEvent node_modules/@testing-library/dom/dist/events.js:27:11
+ ❯ Function.createEvent.<computed> [as change] node_modules/@testing-library/dom/dist/events.js:106:38
+ ❯ Function.fireEvent.<computed> [as change] node_modules/@testing-library/dom/dist/events.js:110:68
+ ❯ Function.fireEvent.<computed> [as change] node_modules/@testing-library/react/dist/fire-event.js:15:52
+ ❯ src/screens/__tests__/team-saves.test.tsx:170:15
+    168|     const { container } = await mount(3, fakeSession('ash@example.com'…
+    169|     await pick(container, 'azumarill');
+    170|     fireEvent.change(nameInput(container), { target: { value: 'Rain Sq…
+       |               ^
+    171|     await act(async () => {
+    172|       fireEvent.click(saveButton(container)!);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > replaces the roster outright when loading a saved team, not appending to it
+Error: Unable to fire a "click" event - please provide a DOM element.
+ ❯ createEvent node_modules/@testing-library/dom/dist/events.js:27:11
+ ❯ Function.createEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:106:38
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:110:68
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/react/dist/fire-event.js:15:52
+ ❯ openSavedList src/screens/__tests__/team-saves.test.tsx:120:13
+    118| function openSavedList(container: HTMLElement) {
+    119|   const btn = [...container.querySelectorAll('button')].find((b) => /S…
+    120|   fireEvent.click(btn!);
+       |             ^
+    121| }
+    122| 
+ ❯ src/screens/__tests__/team-saves.test.tsx:191:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > names the move when a saved fast move no longer exists, rather than loading a different one silently
+Error: Unable to fire a "click" event - please provide a DOM element.
+ ❯ createEvent node_modules/@testing-library/dom/dist/events.js:27:11
+ ❯ Function.createEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:106:38
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:110:68
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/react/dist/fire-event.js:15:52
+ ❯ openSavedList src/screens/__tests__/team-saves.test.tsx:120:13
+    118| function openSavedList(container: HTMLElement) {
+    119|   const btn = [...container.querySelectorAll('button')].find((b) => /S…
+    120|   fireEvent.click(btn!);
+       |             ^
+    121| }
+    122| 
+ ❯ src/screens/__tests__/team-saves.test.tsx:218:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/screens/__tests__/team-saves.test.tsx > signed in > asks for confirmation before deleting, and calls deleteTeam only after confirming
+Error: Unable to fire a "click" event - please provide a DOM element.
+ ❯ createEvent node_modules/@testing-library/dom/dist/events.js:27:11
+ ❯ Function.createEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:106:38
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/dom/dist/events.js:110:68
+ ❯ Function.fireEvent.<computed> [as click] node_modules/@testing-library/react/dist/fire-event.js:15:52
+ ❯ openSavedList src/screens/__tests__/team-saves.test.tsx:120:13
+    118| function openSavedList(container: HTMLElement) {
+    119|   const btn = [...container.querySelectorAll('button')].find((b) => /S…
+    120|   fireEvent.click(btn!);
+       |             ^
+    121| }
+    122| 
+ ❯ src/screens/__tests__/team-saves.test.tsx:240:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 1 passed (7)
+   Start at  22:34:11
+   Duration  3.63s (transform 331ms, setup 48ms, collect 117ms, tests 3.02s, environment 254ms, prepare 29ms)
+

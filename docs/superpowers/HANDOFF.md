@@ -14,7 +14,7 @@ design authority; the plans argue from it.
 | **M0** — format rules engine + builder, offline | **Merged to main** (`00b0441`) |
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
-| M1b — user-owned saves (teams, formats migration) | Not started, not planned |
+| **M1b** — user-owned saves | **Merged to main locally, NOT PUSHED** — see below. |
 | M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
@@ -32,8 +32,8 @@ checkout. That is worth a decision either way; it has not been taken.
 ```bash
 colima start                      # the Docker runtime; Supabase local needs it
 cd app && npm run db:start        # 12 containers, PostgreSQL 17.6
-npm run check:db                  # 32 database tests
-npm run check                     # 1024 app tests, Docker-free
+npm run check:db                  # 63 database tests
+npm run check                     # 1066 app tests, Docker-free
 cd app && npm run db:stop         # ALWAYS stop it when done
 ```
 
@@ -103,6 +103,74 @@ That last row is the one worth repeating. An empty table returns `[]` whether RL
 "the table is there and returns nothing" proves nothing about protection. Only a **refused write**
 distinguishes them. Any future check of a deployed policy should attempt the thing that must fail.
 
+## M1b — done, merged locally, NOT deployed
+
+Fifteen commits are on `main` and **unpushed**. That is deliberate: pushing is what triggers the
+Supabase integration, and this branch adds **four migrations** that reach the production database
+the moment it happens. Nothing else is blocking — both gates are green on the merged tree
+(1066 app, 63 database).
+
+```bash
+git push origin main    # this deploys teams, team_members, formats, format_versions
+```
+
+**What it delivered.** `teams`/`team_members` and `formats`/`format_versions` behind owner-scoped
+policies; `format_versions` immutable by trigger, with UPDATE reaching the trigger (loud error) and
+DELETE denied by RLS (the parent cascade still works, because a cascade runs as the table owner).
+`app/src/lib/teamCodec.ts` converts between the builder's fast-move INDEX and the stored move ID —
+`species.json` is generated, so a stored index would silently repoint after a rebuild.
+`app/src/lib/saves.ts` is the data layer; the team builder saves and loads rosters; and
+`app/src/state/useFormats.ts` migrates localStorage formats to the server on first sign-in while
+leaving the signed-out path completely offline.
+
+### The bug that matters more than the feature
+
+Task 5 passed its review with 1056 green tests. Then the real end-to-end migration against Postgres
+turned two local formats into **four** server rows.
+
+React StrictMode mounts an effect, tears it down, and mounts it again. The migration's `live` flag
+guarded `setState` and not the upload loop, so the first run's uploads kept going after teardown
+while the second run read `MIGRATED_KEY` before the first had written to it. Both uploaded
+everything. **This is not a StrictMode artifact** — navigating away from Formats and back
+mid-migration reproduces it in production.
+
+Every unit test missed it because they all mount the hook once. The guard now lives in a
+module-scoped in-flight promise keyed by user id, because the thing that breaks is precisely the
+remount that React state does not survive. The test that pins it mounts twice concurrently and
+asserts the CALL COUNT.
+
+**The general lesson, worth more than the fix:** a suite that mounts a hook once cannot see a
+remount race, and no amount of green in it is evidence about one.
+
+## Follow-ups M1b deliberately left
+
+None block the deploy. Triaged by the whole-branch review.
+
+- **`saveTeam`'s update path is unreachable from the UI.** Saving a roster under an existing name
+  creates a second row; the update path exists, is tested, and has no caller. An "overwrite"
+  affordance is the natural next change.
+- **`saveServerFormat`'s version lookup is untestable in the current harness.** The mock's `order`
+  and `limit` do not reorder rows, so a reversed sort in *that* function still passes. It would
+  surface as a `unique (format_id, version)` violation on a user's third save.
+- **An `act()` warning about `SessionProvider`** is latent for every screen test using
+  `test/render.tsx`, which now mounts the provider. Console noise, not correctness; settle it in
+  the helper when someone is next in there.
+- **`rules_hash` stores a canonical serialization, not a hash** (`canonicalize()` returns a string).
+  The spec says so, but M2 partitions and indexes on that column — a `sha256` at the write site
+  would cost nothing now.
+- **`teamCodec` records `level` via `getEntry(..., league)` without `bestBuddy`**, while the builder
+  draws its spread from `defaultSpreadFor(..., true)`. Inert today (`decodeMember` ignores `level`),
+  but the column exists to detect a level that moved, and it cannot do that against an inconsistent
+  baseline.
+
+## When M2 arrives
+
+- **The `matches` FK to `format_versions` must be chosen deliberately — RESTRICT, not CASCADE.**
+  Owners can no longer delete a version, but that guarantee is only end-to-end if the FK cooperates.
+- **`rules_hash` becomes a trust boundary.** It is computed on the client today, which is fine while
+  nothing depends on it being honest. The moment the queue partitions by it, the coordinator must
+  recompute it rather than believe a client.
+
 ## Still outstanding
 
 - [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** It is `http://localhost:5173`
@@ -159,11 +227,15 @@ Every one of these produced a real false result during the build.
    `isolation.test.ts` *and* `npm run rules:node`, which bundles and executes it under Node — the
    text scan alone cannot see transitive imports, which is how a Vite-only `import.meta.env`
    dependency slipped in once.
-7. **A schema can be complete and still untested against a path nobody ran.** The profile
+7. **A test suite that mounts once cannot see a remount race.** M1b's format migration duplicated
+   every format under StrictMode's mount/unmount/mount, and 1056 green tests plus a full task
+   review missed it — the bug only exists across two overlapping mounts, which nothing in the suite
+   created. It was found by running the real thing against the real database.
+8. **A schema can be complete and still untested against a path nobody ran.** The profile
    trigger passed 26 tests and was still incapable of accepting an OAuth signup, because every
    test drove the email path. When a code path is gated behind a config toggle nobody has turned
    on yet, its first real exercise is production.
-8. **Vite reads env from `app/`, not the repo root.** `supabase/` is at the repo root; the Vite
+9. **Vite reads env from `app/`, not the repo root.** `supabase/` is at the repo root; the Vite
    project root is `app/`. Hence `--workdir ..` on the db scripts and `.` as the integration's
    working directory.
 

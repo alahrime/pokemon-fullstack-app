@@ -89,6 +89,8 @@ out.dataRev = createHash('sha256').update(payload).digest('hex').slice(0, 16);
 
 In `app/src/lib/data.ts`, beside the other top-level exports derived from the JSON:
 
+`app/src/lib/data.ts` already wraps the parsed JSON in `artefact<{moves, species}>(speciesRaw, 'species.json', ['moves','species'], 'npm run data')`, a guard whose stated purpose is turning "the compiler saw a typed field and the screen got `undefined`" into a loud named failure at import. Extend that call rather than casting past it — add `dataRev: string` to the type parameter **and** to the required-keys list, then:
+
 ```ts
 /**
  * Identifies the generated data this build carries.
@@ -97,8 +99,10 @@ In `app/src/lib/data.ts`, beside the other top-level exports derived from the JS
  * played on Friday must deal the same six, and the only way to notice that the
  * data moved underneath it is to have recorded which data it was.
  */
-export const DATA_REV: string = (raw as { dataRev?: string }).dataRev ?? 'unknown';
+export const DATA_REV: string = raw.dataRev;
 ```
+
+A `?? 'unknown'` fallback would defeat the point: this value exists so staleness is *noticed*, and a silent default is staleness going unnoticed.
 
 - [ ] **Step 5: Regenerate and verify determinism**
 

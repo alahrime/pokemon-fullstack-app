@@ -295,3 +295,33 @@ Task 5: minor (deferred): `migrating` now flips true->false on every signed-in m
   window and the screen ORs the two, but it is a drift from the flag's own documentation.
 Task 5: complete (commits 3958740..0e9cc53, review clean). 1057/1057 app, 63/63 db.
 ALL FIVE TASKS COMPLETE. Dispatching the final whole-branch review.
+
+## Final whole-branch review
+
+Dispatched on the most capable model. Verdict: NO Critical. Six Important. Recommendation was to
+fix two before merge; I ruled to fix ALL SIX, because each was a small, clearly-correct change with
+a traced consequence, and the branch is about to become a production deploy.
+  1. A saved team's league was stored, fetched, then silently DISCARDED on load — a Great-league
+     roster loaded under Ultra put Great IVs in an Ultra-capped slot with every derived stat wrong
+     and nothing said. The same failure the codec exists to prevent, arriving through another door.
+  2. Save roster accepted an empty name, writing a row whose Load button had no text.
+  3. listServerFormats fetched every version of every format (full rules jsonb) and picked the max
+     client-side, re-running after every save while every save appends a version.
+  4. No test asserted the appended version number, and the harness could not express one — a
+     reversed sort or a hardcoded next=1 passed everything, and would be a unique violation on the
+     user's THIRD save.
+  5. Format delete had no confirmation though it now cascades the whole version history.
+  6. A failed migration left a signed-in user with an empty list and no way to read it.
+Final fix wave: one dispatch, all six (commit 3b15564), 1066/1066. Scoped re-review: all six
+  ADDRESSED, no new breakage, and it independently verified the PostgREST `referencedTable` option
+  against the INSTALLED CLIENT'S RUNTIME SOURCE rather than its type declarations — a misspelled
+  option is silently ignored, so the types would not have caught it.
+Deferred-item triage by the final review: none of the seven must be fixed before merge. Item 6
+  (`migrating` drift) ruled Not a real issue; the rest fine to defer, with item 2 noted as partly
+  stale (saveTeam's update branch IS now covered).
+
+## Final state
+
+App gate: 1066/1066, EXIT=0. Database suite: 63/63, EXIT=0. Both re-run by me on the final commit.
+Branch feat/m1b-saves, 14 commits ahead of main. Local test account and its data removed.
+NOT MERGED — merging to main deploys four migrations to production, which is a stop-and-ask.

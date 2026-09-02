@@ -334,3 +334,136 @@ describe('signed in', () => {
     confirmSpy.mockRestore();
   });
 });
+
+/**
+ * Saving under a name that is already taken.
+ *
+ * `saveTeam`'s update path took an `id` from the day it was written and had no
+ * caller: every save from this screen omitted `id`, so every save inserted, and
+ * saving twice under one name left two rows with the same label in the load
+ * list and no way to tell them apart. These tests are about which of the two
+ * branches the screen reaches, so they assert on the `id` argument — the only
+ * thing that distinguishes them.
+ */
+describe('saving over an existing roster', () => {
+  const session = () => fakeSession('ash@example.com');
+
+  /** Build a roster and type `name` into the save box. */
+  async function rosterNamed(container: HTMLElement, name: string) {
+    await pick(container, 'azumarill');
+    await pick(container, 'registeel');
+    fireEvent.change(nameInput(container), { target: { value: name } });
+  }
+
+  it('asks first, then updates the existing row instead of inserting a second one', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'GL Squad', ['medicham'])]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'GL Squad');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+    const arg = savesApi.saveTeam.mock.calls[0][0] as { id?: string; name: string; members: { ref: string }[] };
+    expect(arg.id).toBe('t1');
+    expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel']);
+    confirmSpy.mockRestore();
+  });
+
+  it('writes nothing at all when the replacement is declined', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'GL Squad', ['medicham'])]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'GL Squad');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    // Not "inserted a copy instead" — declining a replacement means nothing is
+    // written, and the typed name stays put so it can be edited into a new one.
+    expect(savesApi.saveTeam).not.toHaveBeenCalled();
+    expect(nameInput(container).value).toBe('GL Squad');
+    confirmSpy.mockRestore();
+  });
+
+  it('treats a name differing only in case or surrounding space as the same roster', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'GL Squad', ['medicham'])]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, '  gl squad  ');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+    const arg = savesApi.saveTeam.mock.calls[0][0] as { id?: string; name: string };
+    expect(arg.id).toBe('t1');
+    // The typed spelling wins — they retyped it, so the row takes the new one.
+    expect(arg.name).toBe('gl squad');
+    confirmSpy.mockRestore();
+  });
+
+  it('inserts without asking when the name is free', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'GL Squad', ['medicham'])]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'A Different Name');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    // The guard that matters in the other direction: a prompt on every save,
+    // or an `id` on a fresh name, would silently overwrite an unrelated roster.
+    expect(confirmSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+    expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBeUndefined();
+    confirmSpy.mockRestore();
+  });
+
+  it('names both leagues when the roster being replaced was built for a different one', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'UL Squad', ['registeel'], 'ultra')]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'UL Squad');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    // saveTeam's update path rewrites `league`, so this replacement changes
+    // which cap the roster is judged under. Saying so is the difference
+    // between a replacement and a surprise.
+    const asked = confirmSpy.mock.calls[0][0] as string;
+    expect(asked).toContain('Ultra 2500');
+    expect(asked).toContain('Great 1500');
+    confirmSpy.mockRestore();
+  });
+
+  it('replaces the most recently updated row when older duplicates share the name', async () => {
+    // listTeams orders by updated_at descending, so the first match is the
+    // newest. Duplicates can exist from before this screen could overwrite.
+    savesApi.listTeams.mockResolvedValue([
+      savedTeam('newest', 'GL Squad', ['medicham']),
+      savedTeam('older', 'GL Squad', ['skarmory']),
+    ]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'GL Squad');
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+    expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBe('newest');
+    expect(confirmSpy.mock.calls[0][0] as string).toMatch(/2 saved rosters/i);
+    confirmSpy.mockRestore();
+  });
+});

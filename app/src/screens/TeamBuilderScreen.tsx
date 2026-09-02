@@ -204,6 +204,44 @@ function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
   };
 }
 
+/**
+ * The rosters a save under `name` would replace, newest first.
+ *
+ * Compared case-insensitively and trimmed, because "GL Squad" and "gl squad"
+ * are one roster to the person typing them and two rows to Postgres — nothing
+ * in the database forbids the duplicate, so the only thing standing between a
+ * name and a second identical entry in the load list is this comparison.
+ *
+ * `listTeams` orders by `updated_at` descending, so index 0 is the most
+ * recently touched. Ties are possible: anything saved before this screen could
+ * overwrite may already have left duplicates behind.
+ */
+function rostersNamed(saved: SavedTeam[] | null, name: string): SavedTeam[] {
+  const key = name.trim().toLowerCase();
+  if (key === '') return [];
+  return (saved ?? []).filter((t) => t.name.trim().toLowerCase() === key);
+}
+
+/**
+ * What to ask before replacing one. Says which roster, and names anything about
+ * the replacement that is not obvious from the slots on screen.
+ */
+function replacePrompt(target: SavedTeam, matchCount: number, league: LeagueId): string {
+  const parts = [`Replace "${target.name}" with the roster in the slots above?`];
+  // saveTeam's update path rewrites `league` along with the members, so this
+  // can change the cap the roster is judged under without touching a control
+  // that says so.
+  if (target.league !== league) {
+    const from = LEAGUE_BY_ID.get(target.league)?.label ?? target.league;
+    const into = LEAGUE_BY_ID.get(league)?.label ?? league;
+    parts.push(`It was saved for ${from}; this roster is ${into}.`);
+  }
+  if (matchCount > 1) {
+    parts.push(`${matchCount} saved rosters share that name — this replaces the most recently updated one.`);
+  }
+  return parts.join('\n\n');
+}
+
 export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const { state } = useAppState();
   const { user } = useSession();
@@ -339,6 +377,23 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
 
   const saveRoster = async () => {
     if (team.length === 0 || saving) return;
+    const name = saveName.trim();
+    // Saving under a name already in the list updates that roster instead of
+    // writing a second row with the same label — but only when asked for. The
+    // update path replaces every member, so an unprompted overwrite would be
+    // indistinguishable from losing a roster.
+    //
+    // This reads the list already in state rather than re-fetching: it is
+    // refreshed on sign-in and after every save and delete, which covers one
+    // browser. It does NOT close the window where a second tab inserts the
+    // same name between this check and the write — nothing but a unique index
+    // on (owner_id, name) can, and there is none.
+    const clashes = rostersNamed(savedTeams, name);
+    const target = clashes[0];
+    // Declining writes nothing at all. Falling back to an insert here would
+    // answer "don't replace it" with a duplicate, which is what this whole
+    // affordance exists to stop.
+    if (target && !window.confirm(replacePrompt(target, clashes.length, league))) return;
     setSaving(true);
     setSavesError(null);
     try {
@@ -347,7 +402,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       // and `defaultChoice` is what that ref is actually carrying (the rated
       // set `Slot` falls back to), not nothing.
       const members = team.map((ref) => encodeMember(builds[ref] ?? defaultChoice(ref, league), league));
-      await saveTeam({ name: saveName.trim(), league, members });
+      await saveTeam({ id: target?.id, name, league, members });
       setSaveName('');
       setSavedTeams(await listTeams());
     } catch (e) {

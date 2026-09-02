@@ -183,9 +183,19 @@ remount race, and no amount of green in it is evidence about one.
 
 None block the deploy. Triaged by the whole-branch review.
 
-- **`saveTeam`'s update path is unreachable from the UI.** Saving a roster under an existing name
-  creates a second row; the update path exists, is tested, and has no caller. An "overwrite"
-  affordance is the natural next change.
+- ~~**`saveTeam`'s update path is unreachable from the UI.**~~ **Done.** Saving under a name the
+  load list already holds now asks `Replace "X"…?` and takes the update path on yes; declining
+  writes nothing rather than answering "don't replace it" with a duplicate. Matching is trimmed and
+  case-insensitive, and the prompt names both leagues when they differ, because the update path
+  rewrites `league` along with the members. Two gaps stay open, both deliberate:
+  - **It cannot close the two-tab race.** The check reads the `savedTeams` already in state, so a
+    second tab inserting the same name between the check and the write still produces a duplicate.
+    Only a unique index on `(owner_id, lower(name))` closes it — a fifth migration, and therefore a
+    production deploy, which is why it is not in this change.
+  - **The update path has still never run against real Postgres.** `saves.test.ts` mocks the
+    Supabase client, so `upsert(…, { onConflict: 'team_id,slot' })` and the `gt('slot', n)` delete
+    are proven against a mock builder and nothing else. That is trap #7's exact shape — the M1b
+    duplicate-formats bug was also invisible to a green suite and visible in one real round trip.
 - **`saveServerFormat`'s version lookup is untestable in the current harness.** The mock's `order`
   and `limit` do not reorder rows, so a reversed sort in *that* function still passes. It would
   surface as a `unique (format_id, version)` violation on a user's third save.

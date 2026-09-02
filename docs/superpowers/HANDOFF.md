@@ -20,10 +20,13 @@ design authority; the plans argue from it.
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
 — read them, they carry the reasoning behind decisions that will otherwise look arbitrary.
 
-**Correction:** an earlier version of this file said those ledgers were tracked in git. They are
-not — `.superpowers/sdd/.gitignore` is `*`, so every ruling recorded there exists only on the
-machine that wrote it and reaches no clone, no reviewer and no future session on another
-checkout. That is worth a decision either way; it has not been taken.
+**They are tracked, and this paragraph used to say otherwise.** It claimed
+`.superpowers/sdd/.gitignore` was `*` and that the rulings never left the machine that wrote
+them. That was true until `26bb6a3` ("chore: track the decision ledgers, which were only ever
+local"), which committed 25 files across both milestones and rewrote that `.gitignore` to ignore
+only `*.diff` — the review diffs, which `git diff A..B` regenerates from commits this repository
+already has. `git ls-files .superpowers` is the check. The decision the paragraph said had not
+been taken was taken.
 
 ---
 
@@ -128,8 +131,28 @@ curl -s -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' \
   -d '{"name":"rls probe"}' "$URL/rest/v1/teams"
 ```
 
-Neither `$URL` nor `$KEY` for the hosted project is recorded anywhere in this repo —
-`app/.env.local` points at the local stack. Both come from the Supabase dashboard.
+**`$URL` is `https://kgfxzjgpjsiaxvlneufz.supabase.co`.** The project ref is not in this repo; it
+came from the Supabase GitHub App's check run, which is public on a public repo:
+
+```bash
+curl -s https://api.github.com/repos/alahrime/pokemon-fullstack-app/commits/main/check-runs \
+  | python3 -c "import json,sys; [print(c['name'],c['conclusion'],c['details_url']) for c in json.load(sys.stdin)['check_runs']]"
+```
+
+That check reports **success**, started `14:38:08Z` and completed `14:38:12Z` — 38 seconds after
+the push, matching M1a's ~45s. **Treat it as a report, not a measurement.** It says the
+integration ran and was happy; it does not say `teams` exists, and it says nothing whatsoever
+about whether a policy refuses an anonymous write. It is also named "Supabase Preview", which is
+the same check name the integration uses for preview branches.
+
+`$KEY` is still missing — the hosted publishable key is in neither the repo nor its history
+(`git log --all -S sb_publishable_` finds only test fixtures), and `app/.env.local` holds the
+local stack's. It is at
+`https://supabase.com/dashboard/project/kgfxzjgpjsiaxvlneufz/settings/api-keys`. Take the
+**publishable** key: the service-role key bypasses every policy in `supabase/migrations`, so
+check 2 run with it returns `201` and silently writes a junk row to production instead of proving
+anything. Without any key both endpoints answer `401 No API key found in request` — which does at
+least prove the project is up and routing.
 
 **What it delivered.** `teams`/`team_members` and `formats`/`format_versions` behind owner-scoped
 policies; `format_versions` immutable by trigger, with UPDATE reaching the trigger (loud error) and

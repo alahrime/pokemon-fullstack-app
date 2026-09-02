@@ -348,3 +348,186 @@ Files: `app/src/state/useFormats.ts`,
 `app/src/screens/__tests__/format-builder.test.tsx`, this report.
 `progress.md` again left unstaged, unchanged from the note in the original
 report.
+
+---
+
+# Fix round 2 — the migration double-uploaded across two overlapping mounts
+
+## The defect
+
+A real end-to-end run against Postgres (two formats seeded into
+`localStorage`, sign in, open Formats) landed **four** rows on the server,
+not two — each format twice. Root cause, confirmed by reading rather than
+guessing: the effect's `live` flag only ever guarded `setState` calls, never
+the upload loop itself. React StrictMode's mount → cleanup → mount-again (and
+any real remount of the Formats screen while a migration is still in flight)
+runs the hook's effect twice. The first run's teardown sets `live = false`,
+but its `await saveServerFormat(...)` calls are already in flight and keep
+going. The second run's effect starts a fresh closure with its own
+`live = true`, calls `readMigrated()` before the first run has written
+anything, computes the same `missing` list, and uploads all of it again.
+`live` cannot help here — it's a variable on one effect closure, and the
+second mount doesn't share it.
+
+I arrived at this session with the fix already on disk, uncommitted, from the
+interrupted implementer who worked out the same root cause and wrote the
+ruling: the guard has to live in module scope, because module scope is the
+only thing that survives a remount. `app/src/state/useFormats.ts` already had
+`inFlightMigrations = new Map<string, Promise<void>>()`, with `migrate()`
+storing the in-flight attempt in the map *synchronously*, before its first
+`await`, so a second call for the same user id — arriving in the very next
+tick — sees the entry and awaits the existing attempt instead of starting a
+new one. I kept that shape exactly as found; it is correct and this round's
+new test (below) exists to prove it, not to re-derive it.
+
+## What I actually changed
+
+**1. Closed the unhandled rejection (the one open defect on arrival).**
+
+`vitest run src/state/__tests__/use-formats.test.tsx` reported "10 passed"
+but exited 1, from an unhandled rejection in the `'a failed upload'` test.
+Cause: `migrate()`'s cleanup line was
+
+```ts
+void attempt.finally(() => { /* delete from the map */ });
+```
+
+`attempt` itself was never the problem — every caller reaches it through its
+own `await migrate(...)` inside `run()`'s try/catch, which attaches a real
+handler and lets a rejection surface through `error` normally. The problem is
+that `.finally()` returns a *new*, *derived* promise that rejects with the
+same reason whenever `attempt` rejects, and nothing held a reference to that
+derived promise — Node reported *it*, not `attempt`, as unhandled.
+
+Fix, in `app/src/state/useFormats.ts`:
+
+```ts
+attempt
+  .finally(() => {
+    if (inFlightMigrations.get(userId) === attempt) {
+      inFlightMigrations.delete(userId);
+    }
+  })
+  .catch(() => {
+    // No-op: attempt itself is already handled by every caller's own
+    // await; this only silences the derived promise `.finally()` returns.
+  });
+```
+
+This is the "no-op catch on the promise you store, real rejection still
+observed through each awaiter's own await" shape, applied to the *derived*
+promise rather than `attempt` — `attempt` is stored in the map unmodified, so
+nothing about this changes what any caller observes when it awaits `attempt`.
+
+Verified all three required properties hold:
+- A failed migration still surfaces through `error` — the existing `'a failed
+  upload'` test, unchanged, still asserts `api.error` matches `/network is
+  down/` and passes.
+- `MIGRATED_KEY` is still left untouched on failure — same test, still
+  asserts `localStorage.getItem(MIGRATED_KEY)` is `null`.
+- No unhandled rejection remains — confirmed by exit code, not the summary
+  line (below).
+
+**2. Wrote the concurrency test** — `use-formats.test.tsx`, new describe
+block `'two mounts of the same signed-in user, overlapping mid-migration'`,
+placed second in the file (immediately after the existing ordering test, so
+the two safety-property tests sit together). It:
+
+- Seeds two local formats.
+- Replaces `saveServerFormat`'s mock with one that hands back a fresh
+  *deferred* promise on every call, so the test — not real timing — decides
+  when each upload resolves.
+- Mounts the hook once (`first`), waits for exactly one `saveServerFormat`
+  call, and stops there — the first upload is deliberately left unresolved.
+- Mounts the hook a **second time**, same signed-in user, while that upload
+  is still pending — this is the exact race the module-level lock exists
+  for.
+- Flushes a few microtask ticks and asserts `saveServerFormat` is *still*
+  called only once — if the second mount had raced ahead and started its own
+  migration, this is where it would show up, before either upload resolves.
+- Resolves the uploads one at a time and waits for both mounts to reach
+  `loading: false`.
+- Final assertion: `saveServerFormat` was called **exactly twice** total
+  (once per local format, not once per format per mount), with the exact two
+  names, sorted.
+
+The count assertion is deliberately what's checked, not the resulting
+formats list — per the brief's own warning, a mock that upserts by name would
+leave two rows behind whether it was called two times or four, so only the
+call count distinguishes "one shared attempt" from "two raced attempts."
+
+**3. Proved it load-bearing** — reverted the guard by commenting out the
+`existing`/`if` early-return in `migrate()` (so every call always starts a
+fresh attempt, restoring the pre-fix behaviour), reran the single test file,
+restored the guard, reran again.
+
+Before (guard disabled):
+
+```
+ × two mounts of the same signed-in user, overlapping mid-migration > calls saveServerFormat exactly once per local format across both mounts, not once per mount 20ms
+   → expected "spy" to be called 1 times, but got 2 times
+ ...
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+```
+
+It fails at the earlier "no new call yet" assertion — the second mount races
+ahead and calls `saveServerFormat` again before either upload has resolved,
+exactly the mechanism from the real Postgres run, caught even before the
+final call-count assertion is reached.
+
+After (guard restored):
+
+```
+ ✓ src/state/__tests__/use-formats.test.tsx (11 tests) 277ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+```
+
+## Commands and output
+
+```
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx > /tmp/baseline_before_fix.log 2>&1; echo "EXIT=$?"
+EXIT=1   # "10 passed" summary, unhandled rejection from the pre-existing failed-upload test — confirms the state on arrival
+
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx > /tmp/after_fix.log 2>&1; echo "EXIT=$?"
+EXIT=0   # after closing the unhandled rejection, before adding the concurrency test — 10 passed, clean exit
+
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx > /tmp/concurrency_green2.log 2>&1; echo "EXIT=$?"
+EXIT=0   # after adding the concurrency test — 11 passed, clean exit
+
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx > /tmp/revert_red.log 2>&1; echo "EXIT=$?"
+EXIT=1   # guard temporarily disabled — 1 failed | 10 passed, the concurrency test failing as shown above
+
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx > /tmp/restored_green.log 2>&1; echo "EXIT=$?"
+EXIT=0   # guard restored — 11 passed, clean exit
+
+cd app && npm run check > /tmp/check9.log 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+
+Full gate:
+
+```
+ Test Files  78 passed (78)
+      Tests  1057 passed (1057)
+```
+
+1056 (previous total) + 1 new concurrency test = 1057. `grep -ic unhandled
+/tmp/check9.log` → `0`. tsc, oxlint, themes, token-parity, verify-data,
+audit:spreads, and rules:node all ran as part of `check` and passed. The one
+`stderr` line in the log (`"An update to SessionProvider inside a test was
+not wrapped in act(...)"`, `team-builder.test.tsx`) is the same pre-existing,
+already-triaged warning Task 4's and fix round 1's reports both note — it
+does not fail the test or the gate, and is unrelated to this round's change.
+
+## Files changed this round
+
+`app/src/state/useFormats.ts` (the `.catch(() => {})` on the `.finally()`
+chain — everything else in this file's diff from `HEAD` is the interrupted
+implementer's own guard, kept as found), `app/src/state/__tests__/use-formats.test.tsx`
+(new concurrency describe block), this report.
+
+`progress.md` again left unstaged, per the standing note in both prior
+sections of this report.

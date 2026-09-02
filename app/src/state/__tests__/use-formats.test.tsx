@@ -154,6 +154,82 @@ describe('migration ordering — the safety property', () => {
   });
 });
 
+/**
+ * The defect this round exists to fix: React StrictMode (or a real remount —
+ * a user navigating off the Formats screen and straight back while a
+ * migration is still uploading) mounts this hook twice for the SAME signed-in
+ * user before the first mount's migration has finished. Each mount used to
+ * read `MIGRATED_KEY` independently, see it empty, and upload every local
+ * format itself — two formats became four server rows.
+ *
+ * A test that only checks the end state ("both formats ended up on the
+ * server") cannot see this: four calls and two calls both leave two rows
+ * behind if `saveServerFormat`'s mock is a naive upsert-by-name. The count of
+ * calls to `saveServerFormat` is the only thing that distinguishes "shared
+ * one attempt" from "raced two attempts," which is why this test asserts
+ * that count directly rather than the resulting list.
+ */
+describe('two mounts of the same signed-in user, overlapping mid-migration', () => {
+  function deferred<T>() {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  }
+
+  it('calls saveServerFormat exactly once per local format across both mounts, not once per mount', async () => {
+    const { formatStore, SessionProvider, useFormats } = await harness(fakeSession('ash@example.com'));
+    formatStore.saveFormat('Format A', FORMAT);
+    formatStore.saveFormat('Format B', FORMAT);
+
+    // Each call to saveServerFormat gets its own controllable promise, so the
+    // test decides exactly when each upload resolves rather than racing
+    // against real microtask timing.
+    const pending: ReturnType<typeof deferred<string>>[] = [];
+    savesApi.saveServerFormat.mockImplementation(() => {
+      const d = deferred<string>();
+      pending.push(d);
+      return d.promise;
+    });
+
+    // First mount starts the migration and stalls on Format A's upload,
+    // which has not been resolved yet.
+    const first = await mountFormats(useFormats, SessionProvider);
+    await waitFor(() => expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(1));
+
+    // Second mount, for the SAME user id, arrives while that upload is still
+    // in flight — the exact race the module-level lock exists to close.
+    const second = await mountFormats(useFormats, SessionProvider);
+
+    // Let any microtask queued by the second mount's effect run before
+    // asserting nothing new was called — if the guard were missing, the
+    // second mount's own `readMigrated()` + upload loop would fire here.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(1);
+
+    // Resolve the uploads one at a time, the way real network responses
+    // would arrive, and let both mounts settle.
+    pending[0].resolve('server-a');
+    await waitFor(() => expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(2));
+    pending[1].resolve('server-b');
+    await waitFor(() => expect((first.result.current as { loading: boolean }).loading).toBe(false));
+    await waitFor(() => expect((second.result.current as { loading: boolean }).loading).toBe(false));
+
+    // The assertion that actually distinguishes "shared one attempt" from
+    // "two independent attempts": exactly one call per local format, not one
+    // per (format × mount).
+    expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(2);
+    const names = savesApi.saveServerFormat.mock.calls.map((c) => (c[0] as { name: string }).name).sort();
+    expect(names).toEqual(['Format A', 'Format B']);
+
+    first.unmount();
+    second.unmount();
+  });
+});
+
 describe('signed out', () => {
   it('source is local, formats come from formatStore, and saving writes to localStorage and never touches the client', async () => {
     const { formatStore, SessionProvider, useFormats } = await harness(null);

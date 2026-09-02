@@ -46,6 +46,73 @@ function messageOf(e: unknown): string {
 }
 
 /**
+ * One migration attempt per signed-in user, held OUTSIDE React state and
+ * shared across every mount of this hook.
+ *
+ * The bug this guards against: two mounts of the SAME hook — React
+ * StrictMode's synchronous mount/cleanup/mount-again, or a real remount from
+ * navigating away and back while a migration is still in flight — each call
+ * `readMigrated()` before either has written anything, each compute the same
+ * `missing` list, and each upload every one of them. `live` cannot catch
+ * this: it is a flag on ONE effect closure, and the second mount is a
+ * different closure with its own fresh `live = true`, unaware the first
+ * run's uploads are still going. The only thing that survives a remount is
+ * module scope, so the lock has to live here, not in a hook.
+ *
+ * Keyed by user id so a different signed-in user gets an independent
+ * attempt, and cleared when an attempt settles so a LATER sign-in — by the
+ * same user, after signing out and creating new local work — starts a fresh
+ * one rather than being locked out forever by the first.
+ */
+const inFlightMigrations = new Map<string, Promise<void>>();
+
+function migrate(userId: string, local: { id: string; name: string; format: Format }[]): Promise<void> {
+  const existing = inFlightMigrations.get(userId);
+  if (existing) return existing;
+
+  const attempt = (async () => {
+    const migrated = readMigrated();
+    const missing = local.filter((f) => !migrated.includes(f.id));
+    const done = [...migrated];
+    for (const f of missing) {
+      // eslint-disable-next-line no-await-in-loop -- one at a time, on
+      // purpose: MIGRATED_KEY must only ever record an id whose upload has
+      // already resolved, and a concurrent batch would make that ordering
+      // unobservable per-format.
+      await saveServerFormat({ name: f.name, format: f.format });
+      done.push(f.id);
+      writeMigrated(done);
+    }
+  })();
+
+  // Stored SYNCHRONOUSLY, before this function returns and before `attempt`
+  // reaches its first `await` — a second call for the same user id arriving
+  // before this attempt settles, even one arriving in the very next
+  // synchronous tick (StrictMode's remount), MUST see this entry already
+  // present. That is the entire property this fixes.
+  inFlightMigrations.set(userId, attempt);
+  // `attempt` itself is fine: every caller reaches it via `await
+  // migrate(...)` inside `run()`'s own try/catch, which attaches a real
+  // handler and surfaces a rejection through `error` as usual. The problem
+  // is this cleanup chain: `.finally()` returns a NEW derived promise that
+  // rejects with the same reason if `attempt` rejects, and nothing else
+  // holds a reference to THAT promise — Node reports it as unhandled even
+  // though `attempt` was handled everywhere it matters. The trailing
+  // `.catch(() => {})` only silences that derived promise; it does not touch
+  // `attempt`, so it can't hide the rejection from anyone awaiting it.
+  attempt
+    .finally(() => {
+      if (inFlightMigrations.get(userId) === attempt) {
+        inFlightMigrations.delete(userId);
+      }
+    })
+    .catch(() => {
+      // No-op: see comment above.
+    });
+  return attempt;
+}
+
+/**
  * Formats for the signed-in user: local for a signed-out visitor, server for
  * a signed-in one, with a one-way migration between the two the first time a
  * local-format author signs in.
@@ -83,23 +150,10 @@ export function useFormats(): FormatsApi {
           return;
         }
 
-        const migrated = readMigrated();
-        const local = listFormats();
-        const missing = local.filter((f) => !migrated.includes(f.id));
-
-        if (missing.length > 0) {
-          if (live) setMigrating(true);
-          const done = [...migrated];
-          for (const f of missing) {
-            // eslint-disable-next-line no-await-in-loop -- one at a time, on
-            // purpose: MIGRATED_KEY must only ever record an id whose upload
-            // has already resolved, and a concurrent batch would make that
-            // ordering unobservable per-format.
-            await saveServerFormat({ name: f.name, format: f.format });
-            done.push(f.id);
-            writeMigrated(done);
-          }
-        }
+        if (live) setMigrating(true);
+        // Whatever mount actually does the uploading, EVERY mount for this
+        // user id awaits the same shared attempt — see `migrate` above.
+        await migrate(user.id, listFormats());
 
         const server = await listServerFormats();
         if (!live) return;

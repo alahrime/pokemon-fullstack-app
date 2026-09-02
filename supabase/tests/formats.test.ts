@@ -112,20 +112,22 @@ describe('format policies', () => {
 
   describe('immutability', () => {
     /**
-     * No policy grants UPDATE at all (see the format_versions_undeletable
-     * migration), so RLS itself denies this before the row ever reaches the
-     * trigger — silently filtering to zero affected rows rather than
-     * raising. That's a stronger guarantee than the trigger alone: the
-     * trigger is what stops the table owner (see below), but for a signed-in
-     * client RLS is the first line of defense. The proof is survival, not an
-     * exception — same shape as the "undeletable" tests below.
+     * The owner's UPDATE is granted by RLS (see the
+     * format_versions_update_reaches_the_trigger migration) precisely so it
+     * reaches format_versions_immutable and is refused loudly, by name,
+     * rather than silently filtered to zero rows. Asserting the thrown
+     * error is therefore the stronger of the two checks a caller could make
+     * — it proves the caller finds out — with a survival check alongside it
+     * as belt-and-suspenders proof the row itself never changed.
      */
     it('refuses to rewrite a version, even for its owner', async () => {
       const id = await formatFor(userA);
       await versionFor(id);
-      await asUser({ sub: userA })(
-        `update public.format_versions set rules_hash = 'tampered' where format_id = '${id}'`,
-      );
+      await expect(
+        asUser({ sub: userA })(
+          `update public.format_versions set rules_hash = 'tampered' where format_id = '${id}'`,
+        ),
+      ).rejects.toThrow(/immutable/);
       const [row] = await sql<{ rules_hash: string }>(
         `select rules_hash from public.format_versions where format_id = '${id}'`,
       );

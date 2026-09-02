@@ -222,3 +222,129 @@ Files: `app/src/state/useFormats.ts`,
 `progress.md` was left unstaged — it already carried the coordinator's own
 running notes on this task at the time I started, and updating it is the
 coordinator's bookkeeping, not mine to commit alongside the source change.
+
+---
+
+# Fix round 1 — signed-out Save no longer duplicates on a second click
+
+## What changed
+
+**Finding (Important, from review):** `FormatsApi.save` returned
+`Promise<void>`, discarding the id that both storage paths already had in
+hand (`formatStore.saveFormat` returns a `StoredFormat` with `.id`;
+`saveServerFormat` resolves to the row's id). `FormatBuilderScreen` only ever
+set `editing` from `onLoad`/`onNew`, never from a save's result, so a second
+Save click without reloading minted a duplicate entry instead of updating the
+first — a regression on the signed-out path versus the pre-hook behaviour,
+which is the one constraint this task could not touch.
+
+**Interface change**, per the ruling: `FormatsApi.save` is now
+`(name: string, format: Format, id?: string) => Promise<string>`.
+
+- `app/src/state/useFormats.ts`: the local branch of `save` returns
+  `entry.id` from `saveFormat`'s result. The server branch returns the id
+  `saveServerFormat` resolves to. On a failed server save, it returns `id ??
+  ''` — the id it already had, unchanged, rather than inventing one; this
+  keeps a retry-with-the-same-id path intact, and the screen treats an empty
+  string as "nothing to switch to," never overwriting `editing` with a bad
+  value. `remove`'s signature is untouched (`Promise<void>`), not part of the
+  finding.
+- `app/src/screens/FormatBuilderScreen.tsx`: `onSave` now does
+  `void save(...).then((savedId) => { if (savedId) setEditing(savedId); })`,
+  restoring the pre-hook behaviour that a second Save-without-reload updates
+  the entry just created rather than creating another one.
+
+**Test-harness fix required by the above:** the `.then(...)` continuation
+that applies `savedId` resolves as a microtask *after* the synchronous click
+handler returns, which is outside the implicit `act()` a bare
+`fireEvent.click` gets. Two `format-builder.test.tsx` tests that click Save
+(`'saves a named format to storage'`, `'lists a saved format and loads it
+back'`) were converted to `async` and now wrap that specific click in
+`await act(async () => { fireEvent.click(...) })`, matching the pattern
+already used elsewhere in this codebase for a state update that crosses a
+microtask boundary. Confirmed this was necessary and not cosmetic: before the
+`act` wrap, both tests produced a NEW `"An update to FormatBuilderScreen ...
+was not wrapped in act(...)"` warning that did not exist before this fix
+round (checked against the prior run's log); after the wrap, that warning is
+gone and only the pre-existing, already-deferred `SessionProvider` warning
+remains, in exactly the three tests that never click Save.
+
+## Covering tests
+
+Both added to `use-formats.test.tsx`, asserting counts/arguments rather than
+"a save happened":
+
+1. **Signed out** — `describe('signed out', ...)` →
+   `'a second save without reloading updates the same entry rather than
+   creating a duplicate'`. Saves `'Format A'`, captures the returned id, saves
+   again as `'Format A v2'` with that id, then asserts
+   `formatStore.listFormats()` has **length 1** and that one entry's name is
+   `'Format A v2'`. Length is what distinguishes update from duplicate — an
+   assertion that merely checked the second save "did something" would have
+   passed under the broken (pre-fix) version too.
+2. **Signed in** — new `describe('a second save without reloading, signed
+   in', ...)` → `"passes the id the first save's server row got, not
+   undefined, so the server updates rather than duplicates"`. First save's
+   `saveServerFormat` call is asserted to have `id: undefined` (a fresh
+   create); the id it resolves to is captured; the second save is asserted to
+   call `saveServerFormat` a second time with that exact id (not `undefined`)
+   and the new name.
+
+Both were run against the pre-fix code path mentally per the ruling's
+reproduction steps and match: with the old `Promise<void>` signature neither
+test could even compile against the intended assertions (no id to capture),
+which is itself informative — the old interface made the correct test
+impossible to write, not just easy to skip.
+
+## Commands and output
+
+```
+cd app && ./node_modules/.bin/vitest run src/state/__tests__/use-formats.test.tsx src/screens/__tests__/format-builder.test.tsx > /tmp/fix8.log 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+
+```
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+```
+
+(10 in `use-formats.test.tsx` — 8 original + 2 new; 5 in
+`format-builder.test.tsx`, unchanged in count, two converted to `async`.)
+
+```
+cd app && npm run check > /tmp/check8.log 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+
+```
+ Test Files  78 passed (78)
+      Tests  1056 passed (1056)
+```
+
+1054 (previous total) + 2 new = 1056, exactly as expected. tsc, oxlint,
+themes, token-parity, verify-data, audit:spreads, and rules:node all passed
+as part of `check`.
+
+## Deferred (left alone, per the ruling)
+
+- The pre-existing `"update to SessionProvider ... not wrapped in act(...)"`
+  warning in the three `format-builder.test.tsx` tests that don't click Save
+  — same class Task 4's report already documented, reserved for final
+  review.
+- The multi-item partial-failure migration scenario (format A uploads, format
+  B's upload rejects) — not covered by any test in this file; the existing
+  failed-upload test uses a single local format. Reserved for final review
+  per the coordinator's instruction.
+
+## Commit
+
+```
+8a02d84 fix(formats): a second Save updates, it does not duplicate
+```
+
+Files: `app/src/state/useFormats.ts`,
+`app/src/state/__tests__/use-formats.test.tsx`,
+`app/src/screens/FormatBuilderScreen.tsx`,
+`app/src/screens/__tests__/format-builder.test.tsx`, this report.
+`progress.md` again left unstaged, unchanged from the note in the original
+report.

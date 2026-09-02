@@ -205,3 +205,130 @@ No concerns beyond that stray, unrelated `.gitignore` edit (already
 reverted, not committed). The implementation is exactly what the brief
 specified, both new tests genuinely distinguish the round-trip case from the
 unknown-move case as required, and both gates are green with no regression.
+
+---
+
+## Fix round 1/5
+
+Review of Task 3 came back spec-compliant with two Important findings, both
+ruled real by the coordinator, both defects in the plan (the brief) rather
+than in how it was executed:
+
+**Finding 1 — `saveTeam`'s update (edit) path had zero test coverage.** Every
+existing test called `saveTeam` without an `id`, so only the create branch
+ever ran. The delete-then-reinsert exists specifically so a roster shrinking
+from three members to two does not leave a stale slot 3 behind, and nothing
+guarded it.
+
+**Finding 2 — that path was non-atomic and genuinely lossy.** It updated the
+team, deleted every existing member row, then inserted the new ones — three
+separate network calls, no transaction. An insert that failed after the
+delete had already succeeded would leave the team with zero members when the
+user only meant to rename it.
+
+### The fix
+
+The coordinator's ruling explicitly rejected wrapping this in an RPC/stored
+procedure (a new migration and server function to close a window that a
+reordering closes for free) and specified inverting the write order instead.
+`app/src/lib/saves.ts`'s `saveTeam` update branch now:
+
+1. Upserts the new members at slots `1..n` — `.upsert(rows, { onConflict:
+   'team_id,slot' })`, an explicit conflict target rather than the default,
+   which overwrites the `(team_id, slot)` rows that already exist.
+2. Then deletes only what's left beyond the new length —
+   `.delete().eq('team_id', id).gt('slot', t.members.length)`.
+
+The `teams` row update (name, league, `updated_at`) is unchanged, and the
+create branch is unchanged (still a plain `.insert(...)` for a brand-new
+team's members).
+
+The code carries a comment explaining why the order is load-bearing: a
+failed upsert leaves the *old* roster untouched (nothing lost); a failed
+delete after a successful upsert leaves stale extra slots, which are visible
+and fixable by saving again — strictly better than delete-first's window,
+where a failed insert after a successful delete leaves the team with zero
+members. The empty-roster case (`members: []`) still works under this order:
+the upsert is skipped (nothing to write), and the delete removes every slot
+greater than `0`, i.e. all of them.
+
+### Covering tests added to `app/src/lib/__tests__/saves.test.ts`
+
+1. `editing a team upserts the surviving slots and deletes only what is
+   beyond them` — the shrink case. Saves a team with `id: 't1'` and two
+   members, asserts the `team_members` upsert payload carries exactly slots
+   `[1, 2]`, and separately asserts exactly one `team_members` delete call
+   happened (scoped by `team_id`/`gt('slot', …)` inside the implementation;
+   the harness's `eq`/`gt` are chainable no-ops that only `saveTeam` itself
+   composes correctly).
+2. `upserts the new roster before deleting the slots it no longer needs` —
+   the ordering test. Asserts the index of the `team_members` upsert call in
+   the harness's ordered `calls` list is strictly less than the index of the
+   `team_members` delete call. **Verified this test is load-bearing, not
+   decorative**: I temporarily swapped the delete and upsert back to
+   delete-first in `saves.ts`, reran the suite, and this specific test failed
+   (`expected 2 to be less than 1`) while every other test in the file still
+   passed — confirming it is the only test that would catch a regression
+   back to the unsafe order. The swap was then reverted and the file
+   diffed byte-for-byte against the pre-swap version to confirm a clean
+   restore.
+3. `never writes an owner_id from the client when editing, either` — extends
+   the existing create-branch-only assertion to the update branch, checking
+   both the `teams` update payload and the `team_members` upsert payload for
+   the absence of `owner_id`.
+
+The harness gained one method, `gt: vi.fn(() => q)`, chainable and shaped
+exactly like the existing `eq` — the minimum needed to execute
+`.delete().eq(...).gt(...)`.
+
+The two Minor findings (`fast?.id ?? ''`'s falsy-`unknownMove` edge case, and
+the owner_id assertion's narrow `saveServerFormat` coverage) were left
+untouched per the ruling — deferred to the final review's triage.
+
+### Commands and output
+
+Covering tests:
+
+```
+cd app && ./node_modules/.bin/vitest run src/lib/__tests__/saves.test.ts > /tmp/fix4.log 2>&1; echo "EXIT=$?"
+```
+
+```
+EXIT=0
+ ✓ src/lib/__tests__/saves.test.ts (8 tests) 78ms
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+```
+
+Full app gate:
+
+```
+cd app && npm run check > /tmp/check4.log 2>&1; echo "EXIT=$?"
+```
+
+```
+EXIT=0
+ Test Files  76 passed (76)
+      Tests  1038 passed (1038)
+```
+
+(1035 from before this round, plus the 3 new `saveTeam`-edit tests.)
+
+### Another recurrence of the same stray `.gitignore` edit
+
+`.superpowers/sdd/.gitignore` had reverted itself to a bare `*` again
+(content identical to the one found and reverted in the initial task-3
+pass), alongside a legitimate coordinator-authored update to `progress.md`
+recording this fix round's ruling. The `progress.md` change was kept — it's
+real ledger content, not mine to discard. The `.gitignore` regression was
+reverted again with `git checkout -- .superpowers/sdd/.gitignore`, for the
+same reason as before: it contradicts the repo's own committed convention
+(`26bb6a3`) and would have silently excluded this very report and the
+updated `progress.md` from the commit.
+
+### Commit
+
+`app/src/lib/saves.ts`, `app/src/lib/__tests__/saves.test.ts`,
+`.superpowers/sdd/2026-09-01-m1b-user-owned-saves/progress.md`, and this
+report were committed together as the fix-round-1 commit (see git log for
+the exact SHA).

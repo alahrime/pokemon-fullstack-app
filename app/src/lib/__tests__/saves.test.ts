@@ -20,6 +20,7 @@ function harness(rows: Record<string, unknown[]>) {
     const q: Record<string, unknown> = {
       select: vi.fn(() => { calls.push({ table: name, op: 'select' }); return q; }),
       eq: vi.fn(() => q),
+      gt: vi.fn(() => q),
       order: vi.fn(() => q),
       insert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'insert', payload }); return q; }),
       upsert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'upsert', payload }); return q; }),
@@ -74,6 +75,65 @@ describe('saved teams', () => {
     // is a value the policy then has to agree with, which is a second source of
     // truth for who owns a row.
     expect(Object.keys(insert?.payload as object)).not.toContain('owner_id');
+  });
+
+  /**
+   * The whole point: a roster that shrinks from three to two must not leave a
+   * stale slot 3 behind. Both writes are asserted — a suite that only checked
+   * the upsert would pass even if the trailing-slot delete were deleted.
+   */
+  it('editing a team upserts the surviving slots and deletes only what is beyond them', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({
+      id: 't1', name: 'Mine', league: 'great',
+      members: [
+        { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
+        { ref: 'registeel', fast_move: 'LOCK_ON', charge_moves: [], iv_attack: 1, iv_defense: 14, iv_stamina: 15, level: 41 },
+      ],
+    });
+    const upsert = calls.find((c) => c.table === 'team_members' && c.op === 'upsert');
+    expect((upsert?.payload as { slot: number }[]).map((m) => m.slot)).toEqual([1, 2]);
+    const deletes = calls.filter((c) => c.table === 'team_members' && c.op === 'delete');
+    expect(deletes).toHaveLength(1);
+  });
+
+  /**
+   * The ordering IS the fix for the data-loss window: upsert first means a
+   * failed upsert leaves the old roster untouched, and a failed delete after
+   * it leaves stale extra slots rather than an empty team. A refactor that
+   * swapped this back to delete-then-insert would pass every other test here
+   * while reopening the window, so the order itself has to be asserted.
+   */
+  it('upserts the new roster before deleting the slots it no longer needs', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({
+      id: 't1', name: 'Mine', league: 'great',
+      members: [
+        { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
+      ],
+    });
+    const upsertIdx = calls.findIndex((c) => c.table === 'team_members' && c.op === 'upsert');
+    const deleteIdx = calls.findIndex((c) => c.table === 'team_members' && c.op === 'delete');
+    expect(upsertIdx).toBeGreaterThanOrEqual(0);
+    expect(deleteIdx).toBeGreaterThanOrEqual(0);
+    expect(upsertIdx).toBeLessThan(deleteIdx);
+  });
+
+  it('never writes an owner_id from the client when editing, either', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({
+      id: 't1', name: 'Mine', league: 'great',
+      members: [
+        { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
+      ],
+    });
+    const update = calls.find((c) => c.table === 'teams' && c.op === 'update');
+    expect(Object.keys(update?.payload as object)).not.toContain('owner_id');
+    const upsert = calls.find((c) => c.table === 'team_members' && c.op === 'upsert');
+    expect(Object.keys((upsert?.payload as { team_id: string }[])[0])).not.toContain('owner_id');
   });
 });
 

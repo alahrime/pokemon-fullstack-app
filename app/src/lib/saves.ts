@@ -45,10 +45,31 @@ export async function saveTeam(t: {
       .update({ name: t.name, league: t.league, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw new Error(error.message);
-    // Slots are positional and the roster may have shrunk, so the old rows go
-    // rather than being upserted over — an upsert would leave a stale slot 3
-    // behind when a three becomes a two.
-    const { error: clearError } = await supabase.from('team_members').delete().eq('team_id', id);
+    // UPSERT the new slots BEFORE deleting anything beyond the new length —
+    // never delete-then-insert. The two writes are not one transaction, so
+    // their order decides which failure direction is recoverable. Upsert
+    // first: if the upsert fails, the OLD roster is untouched — nothing is
+    // lost. Delete second, scoped to slots past the new length: if that
+    // delete fails, the team is left with stale extra slots, which is
+    // visible and easy to clean up by saving again. Reversing this order —
+    // delete all, then insert — has a window where an insert failing after
+    // a successful delete leaves the team with ZERO members, which is silent
+    // data loss for someone who only meant to rename it. Do not "simplify"
+    // this back to delete-first.
+    if (t.members.length > 0) {
+      const { error: upsertError } = await supabase
+        .from('team_members')
+        .upsert(
+          t.members.map((m, i) => ({ ...m, team_id: id, slot: i + 1 })),
+          { onConflict: 'team_id,slot' },
+        );
+      if (upsertError) throw new Error(upsertError.message);
+    }
+    const { error: clearError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('team_id', id)
+      .gt('slot', t.members.length);
     if (clearError) throw new Error(clearError.message);
   } else {
     const { data, error } = await supabase
@@ -58,12 +79,12 @@ export async function saveTeam(t: {
       .single();
     if (error) throw new Error(error.message);
     id = (data as { id: string }).id;
-  }
-  if (t.members.length > 0) {
-    const { error } = await supabase
-      .from('team_members')
-      .insert(t.members.map((m, i) => ({ ...m, team_id: id, slot: i + 1 })));
-    if (error) throw new Error(error.message);
+    if (t.members.length > 0) {
+      const { error: insertError } = await supabase
+        .from('team_members')
+        .insert(t.members.map((m, i) => ({ ...m, team_id: id, slot: i + 1 })));
+      if (insertError) throw new Error(insertError.message);
+    }
   }
   return id;
 }

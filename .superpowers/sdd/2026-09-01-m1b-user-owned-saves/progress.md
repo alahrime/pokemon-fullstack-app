@@ -117,3 +117,33 @@ Task 2: fix round 2/5 (1 addressed, 0 open — commits c8af5ae..413a961). UPDATE
   reaches the trigger and raises loudly, DELETE still ungranted, cascade test untouched, and the
   bent test restored to `rejects.toThrow(/immutable/)` with a survival check kept alongside.
 Task 2: complete (commits 44732fe..413a961, review clean). 63/63 db tests.
+Task 3: implemented (commit bbec0ad, 1035/1035 app gate, 63/63 db unaffected). TDD evidence
+  genuine — real "Cannot find module" RED for both modules before the source existed.
+Task 3: implementer also caught and reverted a stray uncommitted edit to .superpowers/sdd/.gitignore
+  that would have silently un-tracked every ledger. Verified independently: ignore intact, 20
+  ledger files tracked, tree clean.
+Task 3: review — spec ✅, quality NEEDS FIXES. 2 Important (both plan-mandated), 2 Minor.
+Task 3: Ruling on Important #1 (saveTeam's update path untested): REAL, fix it. The delete-then-
+  reinsert exists precisely so a roster shrinking from three to two does not strand a stale slot 3,
+  and no test calls saveTeam with an id at all — so the one behaviour the design was built for is
+  unguarded. My plan's own test list omitted it; the implementer copied it faithfully.
+Task 3: Ruling on Important #2 (the update path is non-atomic): REAL, and I am fixing it rather
+  than documenting it. As written it updates the team, deletes ALL members, then inserts — with no
+  transaction. An insert that fails after the delete succeeds leaves the team with zero members
+  when the user only meant to edit it. I wrote that sequence into the plan.
+  Rejected: wrapping it in an RPC/stored procedure. That is a new migration and a server function
+  to remove a window a reordering closes for free.
+  The fix is to invert the order so there is never a moment with no members: UPSERT the new members
+  at slots 1..n (the (team_id, slot) primary key makes this an overwrite), THEN delete only the
+  slots beyond n. A failed upsert leaves the old roster untouched; a failed delete leaves stale
+  extra slots, which are visible and recoverable rather than an empty team. Strictly better than
+  delete-first in both failure directions.
+  Cost if wrong: upsert semantics depend on the composite PK being the conflict target, so the fix
+  names it explicitly; if that is wrong the shrink test fails loudly rather than silently.
+Task 3: minor (deferred): teamCodec's `fast?.id ?? ''` stores an empty string for an unresolvable
+  fast move, so decode returns unknownMove = '' — falsy, and indistinguishable from "no problem" to
+  a caller doing `if (unknownMove)`. Unreachable from the UI today. Same loud-vs-silent class the
+  codec exists to serve; worth the final review's triage.
+Task 3: minor (deferred): the "never writes an owner_id" assertion covers only saveTeam's insert
+  branch, not its update branch or either saveServerFormat branch.
+Task 3: fix round 1/5 dispatched — resumed implementer aac0676e05c267d31. FIX_BASE bbec0ad.

@@ -102,8 +102,12 @@ export const DATA_REV: string = (raw as { dataRev?: string }).dataRev ?? 'unknow
 
 - [ ] **Step 5: Regenerate and verify determinism**
 
-Run: `cd app && npm run data > /tmp/data.log 2>&1; echo "EXIT=$?" && git diff --stat src/data/species.json`
-Expected: EXIT=0, and `species.json` shows the added `dataRev` key only. Run `npm run data` a second time and confirm `git diff` reports no further change — that is the determinism assertion, and a differing rev between two runs means the hash input is unstable.
+Run: `cd app && node scripts/build-data.mjs > /tmp/data.log 2>&1; echo "EXIT=$?" && git diff --stat src/data/species.json`
+Expected: EXIT=0, and `species.json` shows the added `dataRev` key only.
+
+**`build-data.mjs` alone, NOT `npm run data`.** That script is the first stage of a chain — `build-data → best-spreads → matrix → teams → summary` — whose later stages take upwards of half an hour (`teams` alone burned 108 minutes of CPU when this was measured). None of them writes `dataRev`, and none is affected by a new key in `species.json`, so running them proves nothing about the hash and costs the whole afternoon.
+
+Then run `node scripts/build-data.mjs` a SECOND time and confirm `git diff --stat src/data/species.json` reports no change — that is the determinism assertion, and a differing rev between two runs means the hash input is unstable. Fix that rather than working around it: an unstable rev poisons every `data_rev` value downstream.
 
 - [ ] **Step 6: Run the test and the gate**
 

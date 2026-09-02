@@ -35,7 +35,17 @@ interface RawSpecies
 const raw = artefact<{
   moves: Record<string, FastMove & ChargeMove>;
   species: RawSpecies[];
-}>(speciesRaw, 'species.json', ['moves', 'species'], 'npm run data');
+  dataRev: string;
+}>(speciesRaw, 'species.json', ['moves', 'species', 'dataRev'], 'npm run data');
+
+/**
+ * Identifies the generated data this build carries.
+ *
+ * Matches and scheduled offers pin it: a random draw agreed on Tuesday and
+ * played on Friday must deal the same six, and the only way to notice that the
+ * data moved underneath it is to have recorded which data it was.
+ */
+export const DATA_REV: string = raw.dataRev;
 
 export const SPECIES: Species[] = raw.species.map((s) => ({
   ...s,

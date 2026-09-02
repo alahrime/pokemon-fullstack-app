@@ -32,6 +32,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '../../data-src');
@@ -415,7 +416,16 @@ for (const lg of LEAGUES) {
     .map(([id]) => id);
 }
 
-fs.writeFileSync(path.join(OUT, 'species.json'), JSON.stringify({ moves: moveTable, species }));
+const out = { moves: moveTable, species };
+
+// A stable identity for this data build. Taken over the payload with the key
+// order the writer already fixes, so regenerating unchanged inputs yields the
+// same rev — `verify-data` asserts species.json is byte-identical across
+// rebuilds and this must not be what breaks it.
+const payload = JSON.stringify({ moves: out.moves, species: out.species });
+out.dataRev = createHash('sha256').update(payload).digest('hex').slice(0, 16);
+
+fs.writeFileSync(path.join(OUT, 'species.json'), JSON.stringify(out));
 fs.writeFileSync(path.join(OUT, 'opponents.json'), JSON.stringify(opponents, null, 2));
 
 // ── report ─────────────────────────────────────────────────────────────────

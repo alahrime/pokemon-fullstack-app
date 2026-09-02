@@ -34,6 +34,10 @@ describe('roster', () => {
     expect(SPECIES.length).toBeGreaterThan(1000);
     expect(SPECIES_BY_ID.size).toBe(SPECIES.length);
   });
+  it('exposes a data revision that identifies this build', async () => {
+    const { DATA_REV } = await import('../data');
+    expect(DATA_REV).toMatch(/^[0-9a-f]{16}$/);
+  });
   it('ROSTER includes shadows and BASE_ROSTER does not', () => {
     expect(ROSTER.length).toBeGreaterThan(BASE_ROSTER.length);
     expect(BASE_ROSTER.every((r) => !r.shadow)).toBe(true);

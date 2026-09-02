@@ -195,8 +195,13 @@ None block the deploy. Triaged by the whole-branch review.
     matches the client's own `name.trim().toLowerCase()`; an index on bare `name` would accept
     `"  gl squad  "` after the prompt had already called it taken, which is two rules disagreeing
     about what a duplicate is. `saveTeam` maps that `23505` to a sentence naming the roster and
-    passes every other write error through untouched. **This is the fifth migration and it has NOT
-    been pushed** — see the deploy note below.
+    passes every other write error through untouched. **Pushed and deployed** 2026-09-02 18:50Z
+    (`6d82156`); the integration reported success in six seconds and the five tables still answer
+    `200` with anonymous writes still refused `42501`. **The index itself is NOT measured in
+    production** — an anonymous INSERT is stopped by RLS long before it reaches a unique index, so
+    proving it needs a signed-in owner, exactly like the immutability trigger. It is proven
+    locally: four database tests, plus two concurrent `saveTeam` calls on one account where one
+    won, one came back with the sentence, and one row existed.
   - ~~**The update path has never run against real Postgres.**~~ **It has now.** `saves.test.ts`
     mocks the Supabase client, so `upsert(…, { onConflict: 'team_id,slot' })` and the
     `gt('slot', n)` delete had only ever been checked against a mock builder that agrees with

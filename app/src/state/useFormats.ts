@@ -162,6 +162,15 @@ export function useFormats(): FormatsApi {
       } catch (e) {
         if (!live) return;
         setError(messageOf(e));
+        // Additive, not replacing: a failed migration upload or a failed
+        // listServerFormats leaves this catch with formats still at its
+        // initial `[]` and nothing to say why. The user's local formats are
+        // still sitting on disk right where `migrate()` left them (it never
+        // deletes what it uploads) — show those rather than an empty screen
+        // that gives no sign anything is wrong except the separate `error`
+        // string.
+        setFormats(listFormats().map((f) => ({ id: f.id, name: f.name, format: f.format })));
+        setSource('local');
       } finally {
         if (live) {
           setLoading(false);

@@ -366,6 +366,16 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     const nextTeam: string[] = [];
     const nextBuilds: Record<string, AddPokemonChoice> = {};
     const notices: string[] = [];
+    // A roster saved for one league is built around that league's IV spread
+    // and CP cap — loading it while viewing a different league silently
+    // fields IVs that were never capped for the league they are about to be
+    // judged in. The load still happens (the roster is a legitimate starting
+    // point in any league), but it must not happen quietly.
+    if (t.league !== league) {
+      const from = LEAGUE_BY_ID.get(t.league)?.label ?? t.league;
+      const into = LEAGUE_BY_ID.get(league)?.label ?? league;
+      notices.push(`"${t.name}" was saved for ${from}, not ${into} — its IVs and CP cap were built for the other league.`);
+    }
     for (const stored of t.members) {
       const { choice, unknownMove } = decodeMember(stored);
       nextTeam.push(choice.ref);
@@ -522,7 +532,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
               />
-              <button className="btn btn-primary" disabled={team.length === 0 || saving} onClick={saveRoster}>
+              <button className="btn btn-primary" disabled={team.length === 0 || saveName.trim() === '' || saving} onClick={saveRoster}>
                 {saving ? 'Saving…' : 'Save roster'}
               </button>
               {/* Overlays the panel rather than growing it — a roster list that
@@ -555,6 +565,9 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                             >
                               {t.name}
                             </button>
+                            <span className="team-load-league text-faint">
+                              {LEAGUE_BY_ID.get(t.league)?.label ?? t.league}
+                            </span>
                             <button
                               type="button"
                               className="btn btn-sm"

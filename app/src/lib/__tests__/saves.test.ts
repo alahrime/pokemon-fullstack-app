@@ -21,12 +21,16 @@ function harness(rows: Record<string, unknown[]>) {
       select: vi.fn(() => { calls.push({ table: name, op: 'select' }); return q; }),
       eq: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'eq', payload: [col, val] }); return q; }),
       gt: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'gt', payload: [col, val] }); return q; }),
-      order: vi.fn(() => q),
+      // Recorded like every other modifier below, not a bare no-op: a caller
+      // relying on referenced-table ordering (see the `listServerFormats`
+      // test) needs its exact arguments visible, not just that `order` was
+      // called with something.
+      order: vi.fn((col: string, opts?: unknown) => { calls.push({ table: name, op: 'order', payload: [col, opts] }); return q; }),
       insert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'insert', payload }); return q; }),
       upsert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'upsert', payload }); return q; }),
       update: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'update', payload }); return q; }),
       delete: vi.fn(() => { calls.push({ table: name, op: 'delete' }); return q; }),
-      limit: vi.fn(() => q),
+      limit: vi.fn((n: number, opts?: unknown) => { calls.push({ table: name, op: 'limit', payload: [n, opts] }); return q; }),
       single: vi.fn(async () => ({ data: rows[name]?.[0] ?? null, error: null })),
       then: (res: (v: unknown) => unknown) => Promise.resolve({ data: rows[name] ?? [], error: null }).then(res),
     };
@@ -168,11 +172,32 @@ describe('saved teams', () => {
 
 describe('saved formats', () => {
   it('appends a version rather than updating one', async () => {
-    const { calls } = harness({ formats: [{ id: 'f1' }], format_versions: [{ version: 3 }] });
+    const { calls } = harness({ formats: [{ id: 'f1' }], format_versions: [{ version: 3 }, { version: 1 }] });
     const { saveServerFormat } = await import('../saves');
     await saveServerFormat({ id: 'f1', name: 'Air Ban', format: FORMAT });
     expect(calls.some((c) => c.table === 'format_versions' && c.op === 'insert')).toBe(true);
     expect(calls.some((c) => c.table === 'format_versions' && c.op === 'upsert')).toBe(false);
+  });
+
+  /**
+   * `next = prior[0].version + 1`, computed from an `.order('version', {
+   * ascending: false }).limit(1)` chain. Nothing before this asserted the
+   * appended NUMBER — only that some insert happened — so a reversed sort, a
+   * dropped `.order`, or a hardcoded `next = 1` all passed every test in this
+   * file. A wrong version here is a `unique (format_id, version)` violation
+   * on the user's third save, not a cosmetic miscount.
+   *
+   * Proved load-bearing by temporarily hardcoding `next = 1` in
+   * `saveServerFormat`: this assertion failed (`1` !== `4`) with that
+   * mutation in place, and passes again with the real computation restored —
+   * see the fix report for the before/after run.
+   */
+  it('computes the next version from the highest existing version, not just any row', async () => {
+    const { calls } = harness({ formats: [{ id: 'f1' }], format_versions: [{ version: 3 }, { version: 1 }] });
+    const { saveServerFormat } = await import('../saves');
+    await saveServerFormat({ id: 'f1', name: 'Air Ban', format: FORMAT });
+    const insert = calls.find((c) => c.table === 'format_versions' && c.op === 'insert');
+    expect((insert?.payload as { version: number }).version).toBe(4);
   });
 
   it('stores the canonical hash alongside the rules', async () => {
@@ -182,5 +207,55 @@ describe('saved formats', () => {
     await saveServerFormat({ id: 'f1', name: 'Air Ban', format: FORMAT });
     const v = calls.find((c) => c.table === 'format_versions' && c.op === 'insert');
     expect((v?.payload as { rules_hash: string }).rules_hash).toBe(canonicalize(FORMAT));
+  });
+});
+
+describe('listServerFormats', () => {
+  /**
+   * The embed used to pull every version's full `rules` jsonb for every
+   * format, only to sort client-side and throw all but the newest away — a
+   * payload that grows linearly with a user's edit history for data thrown
+   * away on the next line, re-fetched after every save AND every delete.
+   * PostgREST's referenced-table ordering avoids the over-fetch, but only if
+   * the client actually asks for it on the FORMAT_VERSIONS table specifically
+   * — asserting real argument values here, not merely that `order`/`limit`
+   * were called with something, is what would catch a `referencedTable` typo
+   * or a modifier applied to the wrong query.
+   */
+  it('orders and limits the embedded versions by referencedTable, not just the top-level query', async () => {
+    const { calls } = harness({
+      formats: [{ id: 'f1', name: 'Air Ban', format_versions: [{ version: 3, rules: FORMAT, rules_hash: 'h3' }] }],
+    });
+    const { listServerFormats } = await import('../saves');
+    await listServerFormats();
+
+    const versionOrder = calls.find(
+      (c) => c.table === 'formats' && c.op === 'order' && (c.payload as unknown[])[0] === 'version',
+    );
+    expect(versionOrder?.payload).toEqual(['version', { referencedTable: 'format_versions', ascending: false }]);
+
+    const versionLimit = calls.find((c) => c.table === 'formats' && c.op === 'limit');
+    expect(versionLimit?.payload).toEqual([1, { referencedTable: 'format_versions' }]);
+  });
+
+  it('still returns the highest version when the embed hands back more than one row', async () => {
+    // The client-side backstop: even if the referenced-table limit above were
+    // ever bypassed, listServerFormats must not report a stale version as
+    // current.
+    harness({
+      formats: [
+        {
+          id: 'f1',
+          name: 'Air Ban',
+          format_versions: [
+            { version: 1, rules: FORMAT, rules_hash: 'h1' },
+            { version: 3, rules: FORMAT, rules_hash: 'h3' },
+          ],
+        },
+      ],
+    });
+    const { listServerFormats } = await import('../saves');
+    const formats = await listServerFormats();
+    expect(formats).toEqual([{ id: 'f1', name: 'Air Ban', format: FORMAT, version: 3, rulesHash: 'h3' }]);
   });
 });

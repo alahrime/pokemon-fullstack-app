@@ -162,3 +162,136 @@ Note: `sdd-workspace` (line 39: `printf '*\n' > "$base/.gitignore"`) uncondition
   the ledger-tracking ignore rule with `*`, and `review-package` invokes it — so every review
   package I generate clobbers it. Not the implementers' doing; two of them noticed and reverted it.
   Restoring it after each review-package call rather than fighting the script.
+Task 3: fix round 2/5 (1 addressed, 0 open — commits 9caebf9..ce3c519). Harness now records eq/gt
+  arguments; shrink and new empty-roster tests assert exact scoping and bound values. Re-reviewer
+  traced all three mutation directions independently — drop `.gt`, wrong bound, drop `.eq` — and
+  each now fails at least one assertion. saves.ts byte-unchanged this round; no other chain
+  disturbed by the recording.
+Task 3: complete (commits 413a961..ce3c519, review clean). 1039/1039 app, 63/63 db.
+Task 4: Ruling: the browser measurement in Task 4's Step 5 stays with ME, not the implementer.
+  The Browser pane is a session-level resource I already have open on the dev server, and two
+  agents driving it would interleave; the repo's own guidance is also that panels closing on an
+  outside click cannot be opened in one tool call and measured in another. The implementer does
+  implementation, jsdom tests and the gate; I measure the rendered result myself before calling
+  the task complete. Cost if wrong: one verification step happens in the controller rather than
+  the subagent, and I report it as mine.
+Task 4: implemented (commit 3958740, 1046/1046 app gate). Implementer also added SessionProvider to
+  the shared test/render.tsx harness — outside the brief's file list but required, since
+  TeamBuilderScreen now calls useSession() and 33 tests in 6 files broke without it. Safe because
+  M1a already stubs @supabase/supabase-js suite-wide in test/setup.ts, so this adds no network.
+Task 4: BROWSER VERIFICATION done by me, per the ruling above. Against the real local stack with a
+  real confirmed account signed in through the app's own screen:
+  - signed out: no save UI offered (#team-save-name absent)
+  - signed in: save UI present; saving a roster hit the real database and returned "Saved teams (1)"
+    with no error
+  - overlay-not-expand HOLDS, measured not eyeballed: opening the saved-teams panel moved the
+    element below it by 0.0px (665.2 -> 665.2), scrollHeight grew 0, panel computed position
+    `absolute`
+  - full round trip: after a page reload the session persisted, the saved roster was listed, and
+    loading it back refilled the roster
+  My first probe reported "no save UI while signed in" — that was MY wrong selector (#team-name vs
+  the actual #team-save-name, "Save" vs "Save roster"), not a defect. Recorded because a less
+  careful reading of that output would have opened a fix round against working code.
+Task 4: review — spec ✅, quality Approved. No Critical, no Important. Reviewer independently
+  confirmed the replace-vs-append test is load-bearing (pre-populates with different species and
+  asserts scoped to .team-slots), that loadSaved sets BOTH team and builds, that the unknown-move
+  notice runs through a real unmocked decodeMember, and that the render.tsx nesting matches
+  App.tsx's real order.
+Task 4: minor (deferred): the act() console warning in team-builder.test.tsx is NEW, not
+  "pre-existing" as the report claimed — renderApp did not mount SessionProvider at all before this
+  change, so a synchronous test now renders and asserts before SessionContext's getSession()
+  microtask resolves. Benign and gate-green, but test output should be pristine; the final review
+  should triage whether to silence it.
+Task 4: minor (deferred): saving under an existing name creates a second row rather than updating
+  (saveTeam is always called without an id), so saveTeam's update path — the one Task 3 fixed and
+  tested — is currently unreachable from the UI.
+Task 4: minor (deferred): the unknown-move notice prints the raw move id; save/delete refetch the
+  whole list rather than updating local state.
+Task 4: complete (commits ce3c519..3958740, review clean). 1046/1046 app.
+Task 5: implementer ae743bcb1cf46f490 was terminated mid-task by an API session rate limit (not a
+  capability failure). Assessed the wreckage rather than re-dispatching blind: useFormats.ts (169
+  lines) and use-formats.test.tsx (291 lines) survived uncommitted, all eight brief behaviours are
+  real it() blocks with the marking-after-success ordering test written FIRST, and the file runs
+  8/8 green. FormatBuilderScreen.tsx untouched; nothing committed; HEAD still 3958740.
+  Ruling: RESUME the same agent rather than dispatch a fresh one. The failure was infrastructure,
+  its context is intact, and the remaining work (wire the screen, gate, commit) is the part that
+  most needs to know why the hook is shaped as it is. A fresh implementer would have to re-derive
+  that from a 460-line diff it did not write.
+  Cost if wrong: the resumed agent's context is large, so if it stalls again the fallback is a
+  fresh implementer carrying the report file as its memory.
+Task 5: implemented (commit 290bcb2, 1054/1054 app gate). Migration mechanics verified correct and
+  genuinely tested — the reviewer independently traced the ordering assertion against a reversed
+  implementation and confirmed it inverts and fails, so the safety property is real.
+Task 5: review — spec ❌, quality NEEDS FIXES. 1 Important (plan-mandated) + 2 Minor.
+Task 5: Ruling: the Important finding is REAL and blocks the task. Signed-out Save now DUPLICATES
+  instead of updating: `editing` is set only by onLoad/onNew, and nothing sets it after a save,
+  because `FormatsApi.save` returns Promise<void> and discards the id `formatStore.saveFormat`
+  hands back. Before this diff the screen called setEditing(entry.id) on every save. So: create a
+  format, Save, edit, Save again — and a signed-out user now has two formats where they had one.
+  That is a regression in the exact behaviour this task was required to leave untouched, and the
+  fact that my own brief specified Promise<void> is what caused it, not an excuse for it.
+  The fix is to change the interface I wrote: `save` returns Promise<string>, the saved format's
+  id, and the screen sets `editing` from it. Both paths already have an id to hand back —
+  formatStore.saveFormat returns a StoredFormat and saveServerFormat returns the id — so the void
+  return was throwing away something both sides already knew. Rejected as worse: diffing the
+  formats list before and after to infer which entry is new (fragile, and ambiguous for two
+  formats with the same name), and a separate lastSavedId field (extra state for a value the call
+  already produces).
+  Cost if wrong: one more field crosses the hook's boundary than the brief imagined, which is the
+  boundary the brief got wrong.
+Task 5: minor (deferred, now SECOND occurrence): the act() SessionProvider warning has appeared in
+  format-builder.test.tsx as well as team-builder.test.tsx, each time newly introduced by wrapping
+  a previously-bare test file in SessionProvider. Two occurrences make this a pattern rather than
+  an incident — the final review should decide whether to settle it centrally in the render helper
+  rather than let each new screen test reintroduce it.
+Task 5: minor (deferred): no test for a MULTI-item partial migration failure (first upload
+  succeeds, a later one fails). Single-item failure is covered. This is the exact silent-duplication
+  mode the plan's own known-risk section names.
+Task 5: fix round 1/5 dispatched — resumed implementer ae743bcb1cf46f490. FIX_BASE 290bcb2.
+Task 5: fix round 1/5 (1 addressed, 0 open — commits 290bcb2..f9b3712). `save` now returns the id,
+  the screen sets `editing` from it, and both required tests assert the right discriminator: COUNT
+  for signed-out (toHaveLength(1)) and the ARGUMENT identity for signed-in (second call carries the
+  first call's id, not undefined). Re-reviewer confirmed no existing assertion was loosened — the
+  two Save tests became async but their assertions are byte-identical — and that the one consumer
+  handles the new return without a floating promise.
+Task 5: complete (commits 3958740..f9b3712, review clean). 1056/1056 app.
+ALL FIVE TASKS COMPLETE. Next: my own verification of the migration against a real database, then
+  the final whole-branch review.
+Task 5: CRITICAL DEFECT found by my own database verification, after the task review had passed and
+  all 1056 unit tests were green. Seeded two local formats, signed in, opened Formats: the server
+  received FOUR — "Air Ban" and "Ground Cup" twice each. This is exactly the silent-duplication
+  failure the plan's known-risk section named, and no test caught it.
+  MECHANISM (confirmed by reading the effect, not guessed): the migration's `live` flag guards
+  setState only, never the upload loop. React StrictMode mounts the effect, tears it down, and
+  mounts again; the teardown sets live=false for the first run but its awaits keep running, and the
+  second run calls readMigrated() before the first has written anything. Both see an empty
+  MIGRATED_KEY and both upload every format.
+  NOT merely a StrictMode artifact: any remount of the Formats screen while a migration is in
+  flight — navigating away and back — reproduces this in production.
+  Why every test missed it: the unit tests mount the hook ONCE. The concurrency only exists across
+  two overlapping mounts, which no test in the file creates.
+Task 5: Ruling: this blocks the branch and goes back for a fix round. The guard must live OUTSIDE
+  React state, because the whole problem is that React state does not survive the remount that
+  causes it: a module-scoped in-flight promise keyed by user id, so a second mount AWAITS the
+  first migration instead of starting a second one. Rejected: re-reading MIGRATED_KEY inside the
+  loop (narrows the window, does not close it — both runs can sit between read and write), and
+  relying on `live` (it cannot help; the second run is a different closure with its own live=true).
+  Cost if wrong: a module-level singleton is process-wide rather than per-hook, which is correct
+  here precisely because the resource being protected — localStorage plus the user's server rows —
+  is also process-wide.
+Task 5: fix round 2/5 (1 addressed, 0 open — commits f9b3712..0e9cc53). Module-scoped
+  inFlightMigrations Map keyed by user id, written SYNCHRONOUSLY before the first await so a second
+  mount awaits the existing promise instead of re-reading MIGRATED_KEY. Re-reviewer independently
+  re-derived that the new concurrency test creates genuine overlap (deferred promise, first upload
+  left unresolved, mid-flight toHaveBeenCalledTimes(1) assertion) and would catch the race; also
+  confirmed the .catch(() => {}) is attached to the DERIVED .finally() promise, so it silences only
+  the orphan and cannot swallow what a real awaiter observes. Unhandled rejection closed; gate
+  EXIT=0, 1057 tests.
+Task 5: MY END-TO-END RE-VERIFICATION against the real database, from the same starting state that
+  previously produced four rows: exactly TWO formats, one version each; local copies preserved;
+  MIGRATED_KEY records both ids; and a SECOND sign-in adds nothing (still 2 — idempotent).
+Task 5: minor (deferred): `migrating` now flips true->false on every signed-in mount rather than
+  only when something needs migrating — inert today because `loading` already covers the same
+  window and the screen ORs the two, but it is a drift from the flag's own documentation.
+Task 5: complete (commits 3958740..0e9cc53, review clean). 1057/1057 app, 63/63 db.
+ALL FIVE TASKS COMPLETE. Dispatching the final whole-branch review.

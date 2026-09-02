@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { FormatBuilderScreen } from '../FormatBuilderScreen';
 import { listFormats } from '../../state/formatStore';
@@ -99,5 +99,39 @@ describe('FormatBuilderScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /load Air Ban/i }));
     expect(screen.getAllByTestId('clause-row')).toHaveLength(1);
+  });
+
+  /**
+   * `remove` was carried over unchanged from the localStorage version, where
+   * an accidental click just meant re-typing a format. On this branch it
+   * calls `deleteServerFormat` for a signed-in author, which cascades the
+   * format's whole version history irrecoverably — a bigger blast radius
+   * with no confirmation guarding it, unlike the team builder's delete on
+   * this same branch. `listFormats()` (real localStorage, signed-out path)
+   * is what actually distinguishes "confirm blocked the delete" from
+   * "confirm did nothing" — a spy call count alone would pass even if the
+   * screen ignored the returned `false`.
+   */
+  it('asks for confirmation before deleting a saved format, and only deletes after confirming', async () => {
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'water' }));
+    fireEvent.change(screen.getByLabelText(/format name/i), { target: { value: 'Air Ban' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^save/i }));
+    });
+    expect(listFormats()).toHaveLength(1);
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: /delete air ban/i }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(listFormats()).toHaveLength(1);
+
+    confirmSpy.mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /delete air ban/i }));
+    });
+    expect(listFormats()).toHaveLength(0);
+
+    confirmSpy.mockRestore();
   });
 });

@@ -5935,3 +5935,11 @@ th.bt-matrix-head { text-align: center; }
   border-left: var(--border-strong) solid var(--color-accent-2-700);
   padding-left: var(--space-3);
 }
+/* The league a saved roster was built for, beside its name in the load list —
+   a Great roster's IVs are not what an Ultra cap would have chosen, so which
+   league it belongs to has to be visible before it is loaded, not just on
+   the notice that fires afterward. */
+.team-load-league {
+  flex: none;
+  font-size: var(--text-xs);
+}

@@ -79,12 +79,12 @@ function choiceFor(ref: string): AddPokemonChoice {
   };
 }
 
-function savedTeam(id: string, name: string, refs: string[]): SavedTeam {
+function savedTeam(id: string, name: string, refs: string[], league: SavedTeam['league'] = 'great'): SavedTeam {
   return {
     id,
     name,
-    league: 'great',
-    members: refs.map((r) => encodeMember(choiceFor(r), 'great')),
+    league,
+    members: refs.map((r) => encodeMember(choiceFor(r), league)),
   };
 }
 
@@ -148,13 +148,16 @@ describe('signed in', () => {
     expect(btn!.disabled).toBe(true);
   });
 
-  it('enables saving once there are members, and saves both in slot order', async () => {
+  it('enables saving once there are members AND a name, and saves both in slot order', async () => {
     const { container } = await mount(3, fakeSession('ash@example.com'));
     await pick(container, 'azumarill');
     await pick(container, 'registeel');
-    expect(saveButton(container)!.disabled).toBe(false);
+    // Members alone are not enough — a blank name would write a row whose
+    // Load button has no text (Finding 2).
+    expect(saveButton(container)!.disabled).toBe(true);
 
     fireEvent.change(nameInput(container), { target: { value: 'My Team' } });
+    expect(saveButton(container)!.disabled).toBe(false);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -162,6 +165,13 @@ describe('signed in', () => {
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
     const arg = savesApi.saveTeam.mock.calls[0][0] as { name: string; league: string; members: { ref: string }[] };
     expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel']);
+  });
+
+  it('keeps save disabled for a whitespace-only name, even with members added', async () => {
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    await pick(container, 'azumarill');
+    fireEvent.change(nameInput(container), { target: { value: '   ' } });
+    expect(saveButton(container)!.disabled).toBe(true);
   });
 
   it('saves the name exactly as typed', async () => {
@@ -233,6 +243,69 @@ describe('signed in', () => {
     ]);
     // ...but the missing move is named, not silently swapped for a different one.
     expect(container.textContent).toMatch(/MADE_UP_MOVE_ID/);
+  });
+
+  it("shows each saved team's league beside its name", async () => {
+    savesApi.listTeams.mockResolvedValue([
+      savedTeam('t1', 'GL Squad', ['medicham'], 'great'),
+      savedTeam('t2', 'UL Squad', ['registeel'], 'ultra'),
+    ]);
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    openSavedList(container);
+    const rows = await waitFor(() => {
+      const r = [...container.querySelectorAll('.team-load-row')];
+      if (r.length < 2) throw new Error('saved team rows not rendered yet');
+      return r;
+    });
+    const glRow = rows.find((r) => /GL Squad/.test(r.textContent ?? ''))!;
+    const ulRow = rows.find((r) => /UL Squad/.test(r.textContent ?? ''))!;
+    expect(glRow.querySelector('.team-load-league')?.textContent).toMatch(/great/i);
+    expect(ulRow.querySelector('.team-load-league')?.textContent).toMatch(/ultra/i);
+  });
+
+  /**
+   * The screen defaults to Great League (AppState's default). Loading a team
+   * saved for a different league must not silently field Great-capped IVs in
+   * an Ultra slot — see the comment on `loadSaved`. This reuses `loadNotice`,
+   * the same mechanism already used for a vanished fast move, rather than a
+   * second notice channel.
+   */
+  it('warns via the load notice when loading a team saved for a different league', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'UL Squad', ['registeel'], 'ultra')]);
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    openSavedList(container);
+    const loadBtn = await waitFor(() => {
+      const b = [...container.querySelectorAll('.team-load-row button')].find((x) =>
+        /UL Squad/i.test(x.textContent ?? ''),
+      );
+      if (!b) throw new Error('saved team row not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    fireEvent.click(loadBtn);
+
+    // The load still happens...
+    expect([...container.querySelectorAll('.team-slots .pc-name')].map((n) => n.textContent)).toEqual([
+      'Registeel',
+    ]);
+    // ...but it is not silent: the notice names both leagues involved.
+    const notice = container.querySelector('.team-load-notice')?.textContent ?? '';
+    expect(notice).toMatch(/UL Squad/);
+    expect(notice).toMatch(/ultra/i);
+  });
+
+  it('does not warn when loading a team saved for the league already selected', async () => {
+    savesApi.listTeams.mockResolvedValue([savedTeam('t1', 'GL Squad', ['medicham'], 'great')]);
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    openSavedList(container);
+    const loadBtn = await waitFor(() => {
+      const b = [...container.querySelectorAll('.team-load-row button')].find((x) =>
+        /GL Squad/i.test(x.textContent ?? ''),
+      );
+      if (!b) throw new Error('saved team row not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    fireEvent.click(loadBtn);
+    expect(container.querySelector('.team-load-notice')).toBeNull();
   });
 
   it('asks for confirmation before deleting, and calls deleteTeam only after confirming', async () => {

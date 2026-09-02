@@ -106,12 +106,23 @@ export async function listServerFormats(): Promise<SavedFormat[]> {
   const { data, error } = await supabase
     .from('formats')
     .select('id, name, format_versions(version, rules, rules_hash)')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    // Every save appends a version, so a format with a long edit history has
+    // a `format_versions` row per edit — and this list re-runs after every
+    // save and delete. Without these, the embed pulls every version's full
+    // `rules` jsonb only to throw all but the newest away on the next line.
+    // PostgREST orders and limits the embedded table itself when told which
+    // table the modifier applies to.
+    .order('version', { referencedTable: 'format_versions', ascending: false })
+    .limit(1, { referencedTable: 'format_versions' });
   if (error) throw new Error(error.message);
   return (data ?? []).flatMap((row) => {
     const r = row as { id: string; name: string; format_versions: { version: number; rules: Format; rules_hash: string }[] };
     // The current version is the highest one; there is no pointer column to
-    // disagree with it.
+    // disagree with it. The query above should already hand back only that
+    // one row, but re-selecting the max client-side costs nothing and is a
+    // correctness backstop if the referenced-table ordering above ever
+    // regresses.
     const latest = [...r.format_versions].sort((a, b) => b.version - a.version)[0];
     if (!latest) return [];
     return [{ id: r.id, name: r.name, format: latest.rules, version: latest.version, rulesHash: latest.rules_hash }];

@@ -372,7 +372,7 @@ describe('a failed upload', () => {
     const { result } = await mountFormats(useFormats, SessionProvider);
     await waitFor(() => expect((result.current as { loading: boolean }).loading).toBe(false));
 
-    const api = result.current as { error: string | null };
+    const api = result.current as { error: string | null; formats: { id: string; name: string }[]; source: string };
     expect(api.error).toBeTruthy();
     expect(api.error).toMatch(/network is down/);
 
@@ -381,6 +381,30 @@ describe('a failed upload', () => {
     // The local copy is unaffected by the failed attempt, so a retry has
     // something to retry.
     expect(formatStore.listFormats().map((f) => f.id)).toContain(a.id);
+
+    // Additive, not a blank screen: the catch used to return with `formats`
+    // stuck at its initial `[]`, leaving a signed-in user whose local
+    // formats are sitting right there on disk staring at nothing and no clue
+    // why. This is the assertion that actually distinguishes the fix — the
+    // three above all held even when `formats` stayed empty.
+    expect(api.formats.map((f) => f.id)).toContain(a.id);
+    expect(api.source).toBe('local');
+  });
+
+  it('falls back to local formats when listServerFormats fails even though the migration itself succeeded', async () => {
+    // A distinct path through the same catch: every local format uploads
+    // fine, and the failure is the read immediately after.
+    savesApi.listServerFormats.mockRejectedValue(new Error('gateway timeout'));
+    const { formatStore, SessionProvider, useFormats } = await harness(fakeSession('ash@example.com'));
+    const a = formatStore.saveFormat('Format A', FORMAT);
+
+    const { result } = await mountFormats(useFormats, SessionProvider);
+    await waitFor(() => expect((result.current as { loading: boolean }).loading).toBe(false));
+
+    const api = result.current as { error: string | null; formats: { id: string; name: string }[]; source: string };
+    expect(api.error).toMatch(/gateway timeout/);
+    expect(api.formats.map((f) => f.id)).toContain(a.id);
+    expect(api.source).toBe('local');
   });
 });
 

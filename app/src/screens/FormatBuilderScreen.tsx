@@ -76,6 +76,16 @@ export function FormatBuilderScreen() {
     setEditing(undefined);
   };
 
+  // `remove` now issues `deleteServerFormat` for a signed-in author, which
+  // cascades the format's entire version history irrecoverably — a bigger
+  // blast radius than the localStorage version this screen carried the
+  // unconfirmed click over from. The team builder's delete on this same
+  // branch confirms; this brings the two into agreement.
+  const onDelete = (s: SavedEntry) => {
+    if (!window.confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
+    void remove(s.id);
+  };
+
   return (
     <>
       <ScreenHeader
@@ -180,7 +190,7 @@ export function FormatBuilderScreen() {
                 <button
                   type="button"
                   className="btn chip-btn"
-                  onClick={() => void remove(s.id)}
+                  onClick={() => onDelete(s)}
                 >
                   Delete {s.name}
                 </button>

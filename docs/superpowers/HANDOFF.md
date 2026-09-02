@@ -14,7 +14,7 @@ design authority; the plans argue from it.
 | **M0** — format rules engine + builder, offline | **Merged to main** (`00b0441`) |
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
-| **M1b** — user-owned saves | **Merged to main locally, NOT PUSHED** — see below. |
+| **M1b** — user-owned saves | **Merged and pushed to `main`** (`0c4441b`, 2026-09-02 07:37 -0700) — production apply **not verified**, see below. |
 | M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
@@ -103,16 +103,33 @@ That last row is the one worth repeating. An empty table returns `[]` whether RL
 "the table is there and returns nothing" proves nothing about protection. Only a **refused write**
 distinguishes them. Any future check of a deployed policy should attempt the thing that must fail.
 
-## M1b — done, merged locally, NOT deployed
+## M1b — done, pushed, production apply NOT verified
 
-Fifteen commits are on `main` and **unpushed**. That is deliberate: pushing is what triggers the
-Supabase integration, and this branch adds **four migrations** that reach the production database
-the moment it happens. Nothing else is blocking — both gates are green on the merged tree
-(1066 app, 63 database).
+**Correction to this file's previous state.** It said fifteen commits were unpushed and deliberately
+held. They were pushed at **2026-09-02 07:37:34 -0700** — 88 seconds after the commit that wrote
+that sentence (`0c4441b`, the same SHA now on `origin/main`). Both gates were green on the merged
+tree before the push (1066 app, 63 database).
+
+Pushing `main` is what triggers the Supabase integration, so the branch's **four migrations**
+— `teams`, `formats`, `format_versions_undeletable`,
+`format_versions_update_reaches_the_trigger` — have reached the production database, or are on
+their way there. M1a measured that apply at roughly 45 seconds after the push.
+
+**Nobody has measured the hosted project since.** M1a's rule applies unchanged: an empty table
+returns `[]` whether RLS is on or off, so only a **refused write** proves protection. Run both
+checks against `teams`, `team_members`, `formats` and `format_versions`:
 
 ```bash
-git push origin main    # this deploys teams, team_members, formats, format_versions
+# 1. the table is there:  expect 200, not PGRST205
+curl -s -o /dev/null -w '%{http_code}\n' -H "apikey: $KEY" "$URL/rest/v1/teams?select=id&limit=1"
+
+# 2. RLS is enforcing:    expect 42501 new row violates row-level security policy
+curl -s -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' \
+  -d '{"name":"rls probe"}' "$URL/rest/v1/teams"
 ```
+
+Neither `$URL` nor `$KEY` for the hosted project is recorded anywhere in this repo —
+`app/.env.local` points at the local stack. Both come from the Supabase dashboard.
 
 **What it delivered.** `teams`/`team_members` and `formats`/`format_versions` behind owner-scoped
 policies; `format_versions` immutable by trigger, with UPDATE reaching the trigger (loud error) and

@@ -14,7 +14,7 @@ design authority; the plans argue from it.
 | **M0** — format rules engine + builder, offline | **Merged to main** (`00b0441`) |
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
-| **M1b** — user-owned saves | **Merged and pushed to `main`** (`0c4441b`, 2026-09-02 07:37 -0700) — production apply **not verified**, see below. |
+| **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
 | M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
@@ -106,53 +106,50 @@ That last row is the one worth repeating. An empty table returns `[]` whether RL
 "the table is there and returns nothing" proves nothing about protection. Only a **refused write**
 distinguishes them. Any future check of a deployed policy should attempt the thing that must fail.
 
-## M1b — done, pushed, production apply NOT verified
+## M1b — done, pushed, and verified in production
 
 **Correction to this file's previous state.** It said fifteen commits were unpushed and deliberately
 held. They were pushed at **2026-09-02 07:37:34 -0700** — 88 seconds after the commit that wrote
-that sentence (`0c4441b`, the same SHA now on `origin/main`). Both gates were green on the merged
-tree before the push (1066 app, 63 database).
+that sentence (`0c4441b`, the same SHA that reached `origin/main`). Both gates were green on the
+merged tree before the push (1066 app, 63 database).
 
-Pushing `main` is what triggers the Supabase integration, so the branch's **four migrations**
-— `teams`, `formats`, `format_versions_undeletable`,
-`format_versions_update_reaches_the_trigger` — have reached the production database, or are on
-their way there. M1a measured that apply at roughly 45 seconds after the push.
-
-**Nobody has measured the hosted project since.** M1a's rule applies unchanged: an empty table
-returns `[]` whether RLS is on or off, so only a **refused write** proves protection. Run both
-checks against `teams`, `team_members`, `formats` and `format_versions`:
-
-```bash
-# 1. the table is there:  expect 200, not PGRST205
-curl -s -o /dev/null -w '%{http_code}\n' -H "apikey: $KEY" "$URL/rest/v1/teams?select=id&limit=1"
-
-# 2. RLS is enforcing:    expect 42501 new row violates row-level security policy
-curl -s -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' \
-  -d '{"name":"rls probe"}' "$URL/rest/v1/teams"
-```
-
-**`$URL` is `https://kgfxzjgpjsiaxvlneufz.supabase.co`.** The project ref is not in this repo; it
-came from the Supabase GitHub App's check run, which is public on a public repo:
+The hosted project is **`https://kgfxzjgpjsiaxvlneufz.supabase.co`**. The ref is in no file here;
+it came from the Supabase GitHub App's check run, which is public on a public repo:
 
 ```bash
 curl -s https://api.github.com/repos/alahrime/pokemon-fullstack-app/commits/main/check-runs \
   | python3 -c "import json,sys; [print(c['name'],c['conclusion'],c['details_url']) for c in json.load(sys.stdin)['check_runs']]"
 ```
 
-That check reports **success**, started `14:38:08Z` and completed `14:38:12Z` — 38 seconds after
-the push, matching M1a's ~45s. **Treat it as a report, not a measurement.** It says the
-integration ran and was happy; it does not say `teams` exists, and it says nothing whatsoever
-about whether a policy refuses an anonymous write. It is also named "Supabase Preview", which is
-the same check name the integration uses for preview branches.
+That check reported **success** at `14:38:12Z`, 38 seconds after the push. **It is a report, not a
+measurement** — it says the integration ran and was happy, and nothing about whether a table exists
+or a policy refuses a write. It is also named "Supabase Preview", the name the integration uses for
+preview branches. What follows is the measurement.
 
-`$KEY` is still missing — the hosted publishable key is in neither the repo nor its history
-(`git log --all -S sb_publishable_` finds only test fixtures), and `app/.env.local` holds the
-local stack's. It is at
-`https://supabase.com/dashboard/project/kgfxzjgpjsiaxvlneufz/settings/api-keys`. Take the
-**publishable** key: the service-role key bypasses every policy in `supabase/migrations`, so
-check 2 run with it returns `201` and silently writes a junk row to production instead of proving
-anything. Without any key both endpoints answer `401 No API key found in request` — which does at
-least prove the project is up and routing.
+### Measured against the hosted project, 2026-09-02
+
+`$KEY` is the **publishable** key from
+`https://supabase.com/dashboard/project/kgfxzjgpjsiaxvlneufz/settings/api-keys`. Never the
+service-role key: it bypasses every policy in `supabase/migrations`, so check 2 run with it returns
+`201` and writes a junk row to production instead of proving anything.
+
+| Thing | How it was proven |
+|---|---|
+| The four migrations applied | `GET /rest/v1/{teams,team_members,formats,format_versions}` → `200`, not `PGRST205`. `profiles` and `friend_codes` still `200`, so M1a did not regress. |
+| **RLS enforcing on all four** | anonymous `POST` to each → `401` / **`42501 new row violates row-level security policy`**, on `teams`, `team_members`, `formats`, `format_versions` and `profiles` alike. Nothing was created; a `42501` inserts no row. |
+| It is RLS, not a missing GRANT | the message is the **policy** one. `permission denied for table …` — also `42501` — would mean `anon` was never granted the table, which protects the same rows for a different reason and would stop protecting them the moment a grant was added. |
+| The refusal is not a constraint confound | `owner_id` is `not null default auth.uid()`, which is NULL for `anon`, so an omitted `owner_id` could fail on the NOT NULL alone. Forcing `owner_id` to a nonexistent uuid — a row that would otherwise die on the FK — returns the **same** `42501`. RLS is evaluated ahead of both. |
+| Signup config unchanged | `/auth/v1/settings` → `mailer_autoconfirm: false`, `discord: true`, `disable_signup: false`. |
+
+**Two guarantees this could NOT prove, and why.** `format_versions` being undeletable and the
+immutability trigger both need a **signed-in owner** to exercise. Anonymous `UPDATE`/`DELETE` are
+filtered to zero rows by the SELECT policy and return `204` whether or not the guarantee holds —
+the same trap as an empty `SELECT`. Both are proven locally by `npm run check:db` and neither has
+been proven in production. Proving them needs a confirmed account, which production does not yet
+have.
+
+**`profiles` returns `[]` because production has no accounts at all**, not because a policy hid
+them. An empty table proves nothing either way — that is the whole reason check 2 exists.
 
 **What it delivered.** `teams`/`team_members` and `formats`/`format_versions` behind owner-scoped
 policies; `format_versions` immutable by trigger, with UPDATE reaching the trigger (loud error) and
@@ -213,11 +210,14 @@ None block the deploy. Triaged by the whole-branch review.
 
 ## Still outstanding
 
-- [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** It is `http://localhost:5173`
-      today, which is correct only while nothing is deployed. Forgotten, it sends every confirmation
-      link and OAuth return for real users to a laptop. The accounts still confirm — the token is
-      verified at Supabase before the redirect — so it fails as a dead page rather than a failed
-      signup, which is exactly the shape of a problem that survives a launch.
+- [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** Still `http://localhost:5173`
+      — measured 2026-09-02, not assumed: `GET /auth/v1/verify?token=invalid&type=signup` on the
+      hosted project `303`s to `http://localhost:5173/#error=access_denied&error_code=otp_expired`.
+      The database is now live ahead of any frontend, so this gap is open from here on. Forgotten,
+      it sends every confirmation link and OAuth return for real users to a laptop. The accounts
+      still confirm — the token is verified at Supabase before the redirect — so it fails as a dead
+      page rather than a failed signup, which is exactly the shape of a problem that survives a
+      launch.
 - [ ] The Supabase GitHub App is granted `pokemon-fullstack-app` and deploys on every push to
       `main`. **Merging to `main` is now a production database deploy, every time.** Treat any
       future migration as an outward-facing change.

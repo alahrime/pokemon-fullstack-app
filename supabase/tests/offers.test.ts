@@ -78,6 +78,11 @@ describe('match offer policies', () => {
    * thrown exception; it's that the write touched nothing (0 rows, RETURNING
    * empty) while the superuser connection shows the row still holds its
    * original terms.
+   *
+   * That alone can't tell "the taker was denied" apart from "nobody can
+   * update this table" — a typo in the proposer's own policy would leave the
+   * taker's update at 0 rows too, for the wrong reason. The third leg closes
+   * that gap: the proposer, on the very same row and column, succeeds.
    */
   it('refuses a taker editing the offer\'s terms', async () => {
     const [o] = await offer('public');
@@ -87,6 +92,14 @@ describe('match offer policies', () => {
     expect(written).toHaveLength(0);
     expect(await sql<{ league: string }>(`select league from public.match_offers where id = '${o.id}'`)).toEqual([
       { league: 'great' },
+    ]);
+    // Same row, same column, different actor: the proposer can.
+    const proposerWrite = await asUser({ sub: proposer })<{ id: string }>(
+      `update public.match_offers set league = 'master' where id = '${o.id}' returning id`,
+    );
+    expect(proposerWrite).toHaveLength(1);
+    expect(await sql<{ league: string }>(`select league from public.match_offers where id = '${o.id}'`)).toEqual([
+      { league: 'master' },
     ]);
   });
 

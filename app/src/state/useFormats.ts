@@ -12,7 +12,7 @@ export interface FormatsApi {
   loading: boolean;
   migrating: boolean;
   error: string | null;
-  save: (name: string, format: Format, id?: string) => Promise<void>;
+  save: (name: string, format: Format, id?: string) => Promise<string>;
   remove: (id: string) => Promise<void>;
 }
 
@@ -128,18 +128,24 @@ export function useFormats(): FormatsApi {
   const save = useCallback(
     async (name: string, format: Format, id?: string) => {
       if (!user) {
-        saveFormat(name, format, id);
+        const entry = saveFormat(name, format, id);
         setFormats(listFormats().map((f) => ({ id: f.id, name: f.name, format: f.format })));
         setSource('local');
-        return;
+        return entry.id;
       }
       try {
-        await saveServerFormat({ id, name, format });
+        const savedId = await saveServerFormat({ id, name, format });
         const server = await listServerFormats();
         setFormats(server.map((s) => ({ id: s.id, name: s.name, format: s.format })));
         setSource('server');
+        return savedId;
       } catch (e) {
         setError(messageOf(e));
+        // The caller (the screen) still awaits a string back; without a
+        // saved id to report, the id it already had is the correct thing to
+        // hand back — it lets a retry with the SAME id go through as an
+        // update rather than minting a duplicate on the next click.
+        return id ?? '';
       }
     },
     [user],

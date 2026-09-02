@@ -53,7 +53,15 @@ export function FormatBuilderScreen() {
 
   const onSave = () => {
     if (blocked) return;
-    void save(name.trim(), format, editing);
+    // Capture the saved id and start editing it, so a second Save without
+    // reloading updates this same entry instead of minting a duplicate — the
+    // same behaviour the pre-hook synchronous version had via saveFormat's
+    // return value. A failed save resolves with the id unchanged (or '' for
+    // a brand-new one that never got an id), which the falsy check below
+    // correctly ignores rather than clobbering `editing` with a bad value.
+    void save(name.trim(), format, editing).then((savedId) => {
+      if (savedId) setEditing(savedId);
+    });
   };
 
   const onLoad = (s: SavedEntry) => {

@@ -165,7 +165,7 @@ describe('signed out', () => {
     const api = result.current as {
       source: string;
       formats: { name: string }[];
-      save: (name: string, format: Format, id?: string) => Promise<void>;
+      save: (name: string, format: Format, id?: string) => Promise<string>;
     };
     expect(api.source).toBe('local');
     expect(api.formats.map((f) => f.name)).toEqual(['Local One']);
@@ -180,6 +180,36 @@ describe('signed out', () => {
     expect(savesApi.listServerFormats).not.toHaveBeenCalled();
     expect(savesApi.saveServerFormat).not.toHaveBeenCalled();
     expect(savesApi.deleteServerFormat).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The regression a first pass of this hook shipped: `save` returned
+   * `Promise<void>`, so the screen had nowhere to learn the id a fresh save
+   * had just been given, and a second Save without reloading minted a new
+   * entry instead of updating the first. The count is what distinguishes an
+   * update from a duplicate — asserting only that a second save "did
+   * something" would pass under either behaviour.
+   */
+  it('a second save without reloading updates the same entry rather than creating a duplicate', async () => {
+    const { formatStore, SessionProvider, useFormats } = await harness(null);
+    const { result } = await mountFormats(useFormats, SessionProvider);
+    await waitFor(() => expect((result.current as { loading: boolean }).loading).toBe(false));
+
+    const api = result.current as {
+      save: (name: string, format: Format, id?: string) => Promise<string>;
+    };
+
+    let editing: string | undefined;
+    await act(async () => {
+      editing = await api.save('Format A', FORMAT);
+    });
+    await act(async () => {
+      await api.save('Format A v2', FORMAT, editing);
+    });
+
+    const all = formatStore.listFormats();
+    expect(all).toHaveLength(1);
+    expect(all[0].name).toBe('Format A v2');
   });
 });
 
@@ -287,5 +317,39 @@ describe('migration with nothing local', () => {
 
     expect(savesApi.saveServerFormat).not.toHaveBeenCalled();
     expect(localStorage.getItem(MIGRATED_KEY)).toBeNull();
+  });
+});
+
+describe('a second save without reloading, signed in', () => {
+  it("passes the id the first save's server row got, not undefined, so the server updates rather than duplicates", async () => {
+    const { SessionProvider, useFormats } = await harness(fakeSession('ash@example.com'));
+    const { result } = await mountFormats(useFormats, SessionProvider);
+    await waitFor(() => expect((result.current as { loading: boolean }).loading).toBe(false));
+
+    const api = result.current as {
+      save: (name: string, format: Format, id?: string) => Promise<string>;
+    };
+
+    let editing: string | undefined;
+    await act(async () => {
+      editing = await api.save('Format A', FORMAT);
+    });
+    // The default beforeEach mock resolves every saveServerFormat call to
+    // the same fixed id — good enough here, since what is under test is
+    // whether the SCREEN-LEVEL id round-trips into the second call's
+    // argument, not what the server happens to hand back.
+    expect(editing).toBeTruthy();
+    expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(1);
+    expect((savesApi.saveServerFormat.mock.calls[0][0] as { id?: string }).id).toBeUndefined();
+
+    await act(async () => {
+      await api.save('Format A v2', FORMAT, editing);
+    });
+
+    expect(savesApi.saveServerFormat).toHaveBeenCalledTimes(2);
+    const secondCallArg = savesApi.saveServerFormat.mock.calls[1][0] as { id?: string; name: string };
+    expect(secondCallArg.id).toBe(editing);
+    expect(secondCallArg.id).not.toBeUndefined();
+    expect(secondCallArg.name).toBe('Format A v2');
   });
 });

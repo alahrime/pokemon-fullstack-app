@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { FormatBuilderScreen } from '../FormatBuilderScreen';
 import { listFormats } from '../../state/formatStore';
 import { SessionProvider } from '../../state/SessionContext';
@@ -51,13 +51,19 @@ describe('FormatBuilderScreen', () => {
     expect(Number(screen.getByTestId('pool-count').textContent)).toBeLessThan(before);
   });
 
-  it('saves a named format to storage', () => {
+  it('saves a named format to storage', async () => {
     renderScreen();
     // An empty-start format has an empty legal pool, which `lintFormat` flags
     // as an error and Save refuses to act on — give it something legal first.
     fireEvent.click(screen.getByRole('button', { name: 'water' }));
     fireEvent.change(screen.getByLabelText(/format name/i), { target: { value: 'Air Ban' } });
-    fireEvent.click(screen.getByRole('button', { name: /^save/i }));
+    // Save is async now (useFormats()) — even on the signed-out path, its
+    // returned id is applied via a `.then(...)` that resolves on a microtask
+    // after the click, so it has to be awaited inside `act` for the
+    // resulting `setEditing` to be captured rather than leaking a warning.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^save/i }));
+    });
     const saved = listFormats();
     expect(saved).toHaveLength(1);
     expect(saved[0].name).toBe('Air Ban');
@@ -73,7 +79,7 @@ describe('FormatBuilderScreen', () => {
     expect(listFormats()).toEqual([]);
   });
 
-  it('lists a saved format and loads it back', () => {
+  it('lists a saved format and loads it back', async () => {
     renderScreen();
     fireEvent.change(screen.getByLabelText(/format name/i), { target: { value: 'Air Ban' } });
     openAdvanced();
@@ -82,7 +88,9 @@ describe('FormatBuilderScreen', () => {
     // a deny clause is still an empty legal pool, which blocks Save.
     fireEvent.click(screen.getByTestId('clause-effect')); // deny -> allow
     fireEvent.change(screen.getByTestId('clause-select'), { target: { value: 'flying' } });
-    fireEvent.click(screen.getByRole('button', { name: /^save/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^save/i }));
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /new format/i }));
     // The disclosure itself does not reset with "new format" — only the

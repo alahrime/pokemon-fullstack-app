@@ -14,7 +14,12 @@ const FORMAT: Format = {
   selection: { mode: 'open' },
 };
 
-function harness(rows: Record<string, unknown[]>) {
+/**
+ * `errors` fails one table's writes the way PostgREST does — a code plus the
+ * text it puts in `message`. Without it every query in this harness succeeds,
+ * so nothing here could ever exercise a failure branch.
+ */
+function harness(rows: Record<string, unknown[]>, errors: Record<string, { code: string; message: string }> = {}) {
   const calls: { table: string; op: string; payload?: unknown }[] = [];
   function table(name: string) {
     const q: Record<string, unknown> = {
@@ -31,8 +36,9 @@ function harness(rows: Record<string, unknown[]>) {
       update: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'update', payload }); return q; }),
       delete: vi.fn(() => { calls.push({ table: name, op: 'delete' }); return q; }),
       limit: vi.fn((n: number, opts?: unknown) => { calls.push({ table: name, op: 'limit', payload: [n, opts] }); return q; }),
-      single: vi.fn(async () => ({ data: rows[name]?.[0] ?? null, error: null })),
-      then: (res: (v: unknown) => unknown) => Promise.resolve({ data: rows[name] ?? [], error: null }).then(res),
+      single: vi.fn(async () => ({ data: rows[name]?.[0] ?? null, error: errors[name] ?? null })),
+      then: (res: (v: unknown) => unknown) =>
+        Promise.resolve({ data: rows[name] ?? [], error: errors[name] ?? null }).then(res),
     };
     return q;
   }
@@ -54,6 +60,32 @@ describe('saved teams', () => {
     expect(teams).toHaveLength(1);
     expect(teams[0].name).toBe('Mine');
     expect(teams[0].members[0].ref).toBe('azumarill');
+  });
+
+  /**
+   * The duplicate the builder's prompt cannot catch: a second tab inserted the
+   * name after this one read its list. `teams_owner_name_uniq` refuses it, and
+   * what comes back is `duplicate key value violates unique constraint …`,
+   * which is not a sentence to put in front of someone who named a roster.
+   */
+  it('names the roster when the database refuses a duplicate name', async () => {
+    harness({ teams: [] }, {
+      teams: { code: '23505', message: 'duplicate key value violates unique constraint "teams_owner_name_uniq"' },
+    });
+    const { saveTeam } = await import('../saves');
+    await expect(saveTeam({ name: 'GL Squad', league: 'great', members: [] })).rejects.toThrow(
+      /A roster called "GL Squad" already exists/,
+    );
+  });
+
+  it('passes an unrelated write failure through untouched', async () => {
+    // The guard on the other side: swallowing every write error into one
+    // friendly sentence would hide a connection failure behind a name clash.
+    harness({ teams: [] }, { teams: { code: '08006', message: 'could not connect to server' } });
+    const { saveTeam } = await import('../saves');
+    await expect(saveTeam({ name: 'GL Squad', league: 'great', members: [] })).rejects.toThrow(
+      /could not connect to server/,
+    );
   });
 
   it('writes members in slot order, one row each', async () => {

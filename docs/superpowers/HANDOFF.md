@@ -190,10 +190,13 @@ None block the deploy. Triaged by the whole-branch review.
   writes nothing rather than answering "don't replace it" with a duplicate. Matching is trimmed and
   case-insensitive, and the prompt names both leagues when they differ, because the update path
   rewrites `league` along with the members. Two gaps stay open, both deliberate:
-  - **It cannot close the two-tab race.** The check reads the `savedTeams` already in state, so a
-    second tab inserting the same name between the check and the write still produces a duplicate.
-    Only a unique index on `(owner_id, lower(name))` closes it — a fifth migration, and therefore a
-    production deploy, which is why it is not in this change.
+  - ~~**It cannot close the two-tab race.**~~ **Closed by migration `20260902163500`** —
+    `teams_owner_name_uniq`, a unique index on `(owner_id, lower(btrim(name)))`. The expression
+    matches the client's own `name.trim().toLowerCase()`; an index on bare `name` would accept
+    `"  gl squad  "` after the prompt had already called it taken, which is two rules disagreeing
+    about what a duplicate is. `saveTeam` maps that `23505` to a sentence naming the roster and
+    passes every other write error through untouched. **This is the fifth migration and it has NOT
+    been pushed** — see the deploy note below.
   - ~~**The update path has never run against real Postgres.**~~ **It has now.** `saves.test.ts`
     mocks the Supabase client, so `upsert(…, { onConflict: 'team_id,slot' })` and the
     `gt('slot', n)` delete had only ever been checked against a mock builder that agrees with

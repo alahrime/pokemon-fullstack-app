@@ -1,0 +1,29 @@
+-- One roster name per owner.
+--
+-- The team builder asks before replacing a roster whose name is already taken,
+-- and takes saveTeam's update path when told to. That check reads the roster
+-- list already in the browser, which is enough for one tab and cannot be enough
+-- for two: both read a list without the name, both decide it is free, and both
+-- insert. Only the database sees both writes, so only the database can refuse
+-- the second.
+--
+-- `lower(btrim(name))`, not bare `name`, because the client compares
+-- `name.trim().toLowerCase()`. An index on the raw column would accept
+-- "  gl squad  " after the prompt had already called it taken — two rules
+-- disagreeing about what a duplicate is, which is worse than having only one.
+--
+-- Owner-scoped: names are personal, and two people may both keep a "GL Squad".
+--
+-- This is an INDEX rather than a table constraint because a unique constraint
+-- cannot be written over an expression. It enforces exactly the same thing, and
+-- its name is what PostgREST puts in the 23505 it returns, which is what the
+-- save path matches on.
+create unique index teams_owner_name_uniq on public.teams (owner_id, lower(btrim(name)));
+
+-- Note for anyone applying this to a database that already holds duplicates:
+-- index creation FAILS on existing violations rather than picking a winner,
+-- which is the right behaviour — deciding which of someone's two identically
+-- named rosters to destroy is not a migration's call. Production held no rows
+-- at all when this was written (no accounts yet), and a local stack is
+-- disposable via `npm run db:reset`. A database with real duplicates needs a
+-- deliberate rename pass first.

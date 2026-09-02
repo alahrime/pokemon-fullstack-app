@@ -32,6 +32,30 @@ export async function listTeams(): Promise<SavedTeam[]> {
   });
 }
 
+/**
+ * A write failure, made sayable.
+ *
+ * A duplicate name reaching Postgres means the builder's own check missed it —
+ * a second tab, or a list this tab read before that tab wrote. The index that
+ * catches it is `teams_owner_name_uniq` (migration `20260902163500`), and what
+ * PostgREST hands back is `duplicate key value violates unique constraint
+ * "teams_owner_name_uniq"`, which is not a sentence to put in front of someone
+ * who just named a roster.
+ *
+ * Matched on the constraint NAME as well as the code, so that a future unique
+ * index on this table does not quietly inherit a message about roster names.
+ * Everything else is passed through verbatim: folding every write error into
+ * one friendly line would hide a connection failure behind a name clash.
+ */
+function writeError(error: { code?: string; message: string }, name: string): Error {
+  if (error.code === '23505' && error.message.includes('teams_owner_name_uniq')) {
+    return new Error(
+      `A roster called "${name}" already exists. Open the saved list to refresh it, then save again to replace that roster.`,
+    );
+  }
+  return new Error(error.message);
+}
+
 export async function saveTeam(t: {
   id?: string;
   name: string;
@@ -44,7 +68,7 @@ export async function saveTeam(t: {
       .from('teams')
       .update({ name: t.name, league: t.league, updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) throw writeError(error, t.name);
     // UPSERT the new slots BEFORE deleting anything beyond the new length —
     // never delete-then-insert. The two writes are not one transaction, so
     // their order decides which failure direction is recoverable. Upsert
@@ -77,7 +101,7 @@ export async function saveTeam(t: {
       .insert({ name: t.name, league: t.league })
       .select('id')
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw writeError(error, t.name);
     id = (data as { id: string }).id;
     if (t.members.length > 0) {
       const { error: insertError } = await supabase

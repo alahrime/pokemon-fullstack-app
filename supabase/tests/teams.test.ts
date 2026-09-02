@@ -147,6 +147,51 @@ describe('team policies', () => {
     ).rejects.toThrow(/team_members_iv_range/);
   });
 
+  /**
+   * The duplicate the builder's overwrite prompt cannot prevent on its own.
+   *
+   * That prompt compares against the roster list already in the browser, so two
+   * tabs — or one tab whose list is stale — both see "no such name" and both
+   * insert. The client cannot close that window; only the database can, because
+   * only the database sees both writes.
+   *
+   * Trimmed and lower-cased to match the client's own comparison exactly
+   * (`name.trim().toLowerCase()` in TeamBuilderScreen). An index on bare `name`
+   * would let "  GL Squad" through a check that had already called it taken,
+   * which is worse than no index: the two rules would disagree.
+   */
+  it('refuses a second roster with the same name for one owner', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+    await expect(
+      asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`),
+    ).rejects.toThrow(/teams_owner_name_uniq/);
+  });
+
+  it('refuses one that differs only in case or surrounding space', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+    await expect(
+      asUser({ sub: userA })(`insert into public.teams (name, league) values ('  gl squad  ', 'ultra')`),
+    ).rejects.toThrow(/teams_owner_name_uniq/);
+  });
+
+  /** Names are personal. Two people may both have a "GL Squad". */
+  it('lets a different owner hold the same name', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+    const rows = await asUser({ sub: userB })<{ id: string }>(
+      `insert into public.teams (name, league) values ('GL Squad', 'great') returning id`,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  /** The rename path has to keep working, or overwriting is the only way to save. */
+  it('still lets an owner rename a roster to a name nobody holds', async () => {
+    const id = await teamFor(userA);
+    const rows = await asUser({ sub: userA })<{ name: string }>(
+      `update public.teams set name = 'Renamed' where id = '${id}' returning name`,
+    );
+    expect(rows[0].name).toBe('Renamed');
+  });
+
   it('rejects a third charge move', async () => {
     const id = await teamFor(userA);
     await expect(

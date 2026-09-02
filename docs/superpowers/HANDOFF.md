@@ -89,20 +89,34 @@ provider button. That is the only arrangement where `tos_accepted_at` is true fo
 The controller cannot create accounts or handle credentials. If a task needs one of these and it
 is missing, report and stop.
 
-- [ ] **Enable "Confirm email" on the hosted Supabase project.** It is a GoTrue auth setting, not
+- [x] ~~**Enable "Confirm email" on the hosted Supabase project.**~~ DONE, verified 2026-09-01:
+      `/auth/v1/settings` reports `mailer_autoconfirm: false`. It is a GoTrue auth setting, not
       a schema migration, so **the GitHub integration will not carry it**. Local `config.toml`
       does not propagate. Without it, production auto-confirms and the profile trigger runs a path
       that was never tested — on real accounts.
-- [ ] **Enable Discord in Supabase → Auth → Providers.** The code now asks for `discord` by
+- [x] ~~**Enable Discord in Supabase → Auth → Providers.**~~ DONE, verified 2026-09-01:
+      `/auth/v1/settings` reports `"discord": true`, and `/auth/v1/authorize?provider=discord`
+      redirects to Discord, which accepts the client_id and callback rather than rejecting them.
+      Superseded note follows for reference:
+      **Enable Discord in Supabase → Auth → Providers.** The code now asks for `discord` by
       name. Until it is enabled the button returns a provider error; nothing else breaks. To use
       GitHub or Google instead, change `OAUTH_PROVIDER` in `app/src/screens/SignInScreen.tsx` —
       one constant, no other code.
+- [ ] **Set the hosted project's Site URL.** Authentication → URL Configuration. Verified 2026-09-01
+      as still `http://localhost:3000` (probed by asking `/auth/v1/verify` for an invalid token and
+      reading where it bounced to). Fixing `supabase/config.toml` fixed the LOCAL stack only; the
+      hosted project keeps its own copy and the GitHub integration does not carry Auth config.
+      Site URL → `http://localhost:5173`, and add `http://localhost:5173/**` to Redirect URLs —
+      the client passes `redirectTo: window.location.origin`, and an origin that is not
+      allow-listed is silently replaced by Site URL.
 - [ ] **Confirm which branch the Supabase GitHub integration watches.** Merging M1a to that branch
-      applies six migrations to the production database.
+      applies SEVEN migrations to the production database. Production currently has none of them:
+      `/rest/v1/profiles` answers PGRST205 (no such table), so this would be a clean first apply
+      with no existing rows to conflict with.
 - [ ] Grant the Supabase GitHub App access to `pokemon-fullstack-app` specifically (authorising the
       account is not the same as granting the repo).
 
-**Do not merge M1a to main until the first and third are settled.** This is a deliberate departure
+**Do not merge M1a to main until the remaining unticked items are settled.** This is a deliberate departure
 from the standing "ship gate-green work" preference: merging is no longer neutral, because the
 GitHub integration turns it into a production schema deploy.
 

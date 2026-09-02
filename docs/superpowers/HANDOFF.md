@@ -106,9 +106,15 @@ is missing, report and stop.
       as still `http://localhost:3000` (probed by asking `/auth/v1/verify` for an invalid token and
       reading where it bounced to). Fixing `supabase/config.toml` fixed the LOCAL stack only; the
       hosted project keeps its own copy and the GitHub integration does not carry Auth config.
-      Site URL → `http://localhost:5173`, and add `http://localhost:5173/**` to Redirect URLs —
-      the client passes `redirectTo: window.location.origin`, and an origin that is not
-      allow-listed is silently replaced by Site URL.
+      Site URL → `http://localhost:5173`. Redirect URLs → add BOTH `http://localhost:5173` and
+      `http://localhost:5173/**`: the client passes `redirectTo: window.location.origin`, which is
+      the bare origin with no path, and an origin that is not allow-listed is silently replaced by
+      Site URL rather than refused.
+- [ ] **AT DEPLOY TIME: change that Site URL to the real domain.** It points at a laptop, which is
+      correct only while nothing is deployed. Forgotten, it sends every confirmation link and
+      every OAuth return for real users to `localhost:5173`. The accounts still confirm — the
+      token is verified at Supabase before the redirect — so the failure looks like a dead page
+      rather than a broken signup, which is why it can survive a launch unnoticed.
 - [ ] **Confirm which branch the Supabase GitHub integration watches.** Merging M1a to that branch
       applies SEVEN migrations to the production database. Production currently has none of them:
       `/rest/v1/profiles` answers PGRST205 (no such table), so this would be a clean first apply

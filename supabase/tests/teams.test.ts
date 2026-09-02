@@ -41,6 +41,13 @@ describe('team policies', () => {
     expect(rows).toHaveLength(1);
   });
 
+  it('defaults owner_id to the signed-in user, since the client never sends it', async () => {
+    const rows = await asUser({ sub: userA })<{ owner_id: string }>(
+      `insert into public.teams (name, league) values ('Defaulted', 'great') returning owner_id`,
+    );
+    expect(rows[0].owner_id).toBe(userA);
+  });
+
   it('refuses a team inserted on someone else\'s behalf', async () => {
     await expect(
       asUser({ sub: userB })(

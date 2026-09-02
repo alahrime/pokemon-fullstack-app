@@ -111,14 +111,25 @@ describe('format policies', () => {
   });
 
   describe('immutability', () => {
+    /**
+     * No policy grants UPDATE at all (see the format_versions_undeletable
+     * migration), so RLS itself denies this before the row ever reaches the
+     * trigger — silently filtering to zero affected rows rather than
+     * raising. That's a stronger guarantee than the trigger alone: the
+     * trigger is what stops the table owner (see below), but for a signed-in
+     * client RLS is the first line of defense. The proof is survival, not an
+     * exception — same shape as the "undeletable" tests below.
+     */
     it('refuses to rewrite a version, even for its owner', async () => {
       const id = await formatFor(userA);
       await versionFor(id);
-      await expect(
-        asUser({ sub: userA })(
-          `update public.format_versions set rules_hash = 'tampered' where format_id = '${id}'`,
-        ),
-      ).rejects.toThrow(/immutable/);
+      await asUser({ sub: userA })(
+        `update public.format_versions set rules_hash = 'tampered' where format_id = '${id}'`,
+      );
+      const [row] = await sql<{ rules_hash: string }>(
+        `select rules_hash from public.format_versions where format_id = '${id}'`,
+      );
+      expect(row.rules_hash).toBe('hash-1');
     });
 
     /** Holds against the superuser too, which is the point of a trigger. */
@@ -142,6 +153,45 @@ describe('format policies', () => {
       const id = await formatFor(userA);
       await versionFor(id, 1);
       await expect(versionFor(id, 1)).rejects.toThrow(/duplicate key/);
+    });
+  });
+
+  describe('undeletable', () => {
+    /**
+     * RLS filters a denied DELETE to zero affected rows rather than raising,
+     * so the proof is that the row survived — not that an error was thrown.
+     */
+    it("refuses an owner's direct delete of a version", async () => {
+      const id = await formatFor(userA);
+      await versionFor(id, 1);
+      await asUser({ sub: userA })(
+        `delete from public.format_versions where format_id = '${id}'`,
+      );
+      const rows = await sql(`select version from public.format_versions where format_id = '${id}'`);
+      expect(rows).toHaveLength(1);
+    });
+
+    /**
+     * Every other fixture in this file inserts versions via the superuser
+     * `sql()` helper, which bypasses RLS entirely — so without this test,
+     * nothing here proves an owner can append a version through the policy
+     * they're actually granted, only that the superuser bypass can.
+     */
+    it('lets an owner append a version to their own format through RLS', async () => {
+      const id = await formatFor(userA);
+      const rows = await asUser({ sub: userA })<{ id: string }>(
+        `insert into public.format_versions (format_id, version, rules, rules_hash)
+         values ('${id}', 1, ${RULES}, 'hash-1') returning id`,
+      );
+      expect(rows).toHaveLength(1);
+    });
+
+    it("removes a format's versions when its owner deletes the format, via the parent's cascade", async () => {
+      const id = await formatFor(userA);
+      await versionFor(id, 1);
+      await asUser({ sub: userA })(`delete from public.formats where id = '${id}'`);
+      const rows = await sql(`select version from public.format_versions where format_id = '${id}'`);
+      expect(rows).toHaveLength(0);
     });
   });
 });

@@ -13,7 +13,7 @@ design authority; the plans argue from it.
 |---|---|
 | **M0** — format rules engine + builder, offline | **Merged to main** (`00b0441`) |
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
-| **M1a** — accounts and identity | **Complete** (Tasks 1–6) on `feat/m1a-accounts`, **NOT merged** — see the blockers below. |
+| **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
 | M1b — user-owned saves (teams, formats migration) | Not started, not planned |
 | M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
 
@@ -84,47 +84,35 @@ provider button. That is the only arrangement where `tos_accepted_at` is true fo
 - **The provider button says Discord, not Google.** One constant (`OAUTH_PROVIDER` in
   `SignInScreen.tsx`) plus a dashboard toggle. Google was abandoned over Google Cloud billing.
 
-## Blocked on the human — do not invent workarounds
+## M1a is deployed — what was verified, and how
 
-The controller cannot create accounts or handle credentials. If a task needs one of these and it
-is missing, report and stop.
+Merged to `main` as a fast-forward at `42c6d27`. The Supabase GitHub integration watches `main`
+with "Deploy to production" on, so the merge applied all seven migrations to the production
+database. Everything below was **measured against the hosted project**, not read off a dashboard.
 
-- [x] ~~**Enable "Confirm email" on the hosted Supabase project.**~~ DONE, verified 2026-09-01:
-      `/auth/v1/settings` reports `mailer_autoconfirm: false`. It is a GoTrue auth setting, not
-      a schema migration, so **the GitHub integration will not carry it**. Local `config.toml`
-      does not propagate. Without it, production auto-confirms and the profile trigger runs a path
-      that was never tested — on real accounts.
-- [x] ~~**Enable Discord in Supabase → Auth → Providers.**~~ DONE, verified 2026-09-01:
-      `/auth/v1/settings` reports `"discord": true`, and `/auth/v1/authorize?provider=discord`
-      redirects to Discord, which accepts the client_id and callback rather than rejecting them.
-      Superseded note follows for reference:
-      **Enable Discord in Supabase → Auth → Providers.** The code now asks for `discord` by
-      name. Until it is enabled the button returns a provider error; nothing else breaks. To use
-      GitHub or Google instead, change `OAUTH_PROVIDER` in `app/src/screens/SignInScreen.tsx` —
-      one constant, no other code.
-- [ ] **Set the hosted project's Site URL.** Authentication → URL Configuration. Verified 2026-09-01
-      as still `http://localhost:3000` (probed by asking `/auth/v1/verify` for an invalid token and
-      reading where it bounced to). Fixing `supabase/config.toml` fixed the LOCAL stack only; the
-      hosted project keeps its own copy and the GitHub integration does not carry Auth config.
-      Site URL → `http://localhost:5173`. Redirect URLs → add BOTH `http://localhost:5173` and
-      `http://localhost:5173/**`: the client passes `redirectTo: window.location.origin`, which is
-      the bare origin with no path, and an origin that is not allow-listed is silently replaced by
-      Site URL rather than refused.
-- [ ] **AT DEPLOY TIME: change that Site URL to the real domain.** It points at a laptop, which is
-      correct only while nothing is deployed. Forgotten, it sends every confirmation link and
-      every OAuth return for real users to `localhost:5173`. The accounts still confirm — the
-      token is verified at Supabase before the redirect — so the failure looks like a dead page
-      rather than a broken signup, which is why it can survive a launch unnoticed.
-- [ ] **Confirm which branch the Supabase GitHub integration watches.** Merging M1a to that branch
-      applies SEVEN migrations to the production database. Production currently has none of them:
-      `/rest/v1/profiles` answers PGRST205 (no such table), so this would be a clean first apply
-      with no existing rows to conflict with.
-- [ ] Grant the Supabase GitHub App access to `pokemon-fullstack-app` specifically (authorising the
-      account is not the same as granting the repo).
+| Thing | How it was proven |
+|---|---|
+| Confirm email on | `/auth/v1/settings` → `mailer_autoconfirm: false` |
+| Discord enabled | `/auth/v1/settings` → `"discord": true`; `/auth/v1/authorize?provider=discord` 302s to Discord, which accepts the client_id and callback |
+| Site URL correct | `/auth/v1/verify` with an invalid token bounces to `http://localhost:5173/#error=…` |
+| Migrations applied | `/rest/v1/profiles` went from `PGRST205` (no such table) to `200` about 45s after the push |
+| Schema shape correct | selecting all seven columns returns `200`, not `column does not exist` |
+| **RLS enforcing** | an anonymous INSERT is refused `42501 new row violates row-level security policy`, and creates nothing |
 
-**Do not merge M1a to main until the remaining unticked items are settled.** This is a deliberate departure
-from the standing "ship gate-green work" preference: merging is no longer neutral, because the
-GitHub integration turns it into a production schema deploy.
+That last row is the one worth repeating. An empty table returns `[]` whether RLS is on or off, so
+"the table is there and returns nothing" proves nothing about protection. Only a **refused write**
+distinguishes them. Any future check of a deployed policy should attempt the thing that must fail.
+
+## Still outstanding
+
+- [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** It is `http://localhost:5173`
+      today, which is correct only while nothing is deployed. Forgotten, it sends every confirmation
+      link and OAuth return for real users to a laptop. The accounts still confirm — the token is
+      verified at Supabase before the redirect — so it fails as a dead page rather than a failed
+      signup, which is exactly the shape of a problem that survives a launch.
+- [ ] The Supabase GitHub App is granted `pokemon-fullstack-app` and deploys on every push to
+      `main`. **Merging to `main` is now a production database deploy, every time.** Treat any
+      future migration as an outward-facing change.
 
 ---
 

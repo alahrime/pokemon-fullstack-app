@@ -310,3 +310,15 @@ Task 6: entry chunk measured after adding @supabase/supabase-js at the root: 514
   corrected rather than left to mislead.
 M1a TASKS 1-6 COMPLETE. Merge ruling from Task 4 STANDS: still blocked on the hosted project's
   Confirm email setting and on knowing which branch the Supabase GitHub integration watches.
+M1a MERGED to main (42c6d27, fast-forward) and DEPLOYED to production, after all four
+  preconditions were verified by probing the hosted project rather than trusting the dashboard:
+  mailer_autoconfirm false, discord true (and Discord itself accepts the client_id/callback pair),
+  Site URL bouncing to localhost:5173, and the integration confirmed watching main with deploy-to-
+  production on. Migrations landed ~45s after the push: /rest/v1/profiles went PGRST205 -> 200.
+  Production verified: all seven columns present, friend_codes deployed, and RLS ENFORCING --
+  an anonymous insert is refused 42501 and creates nothing.
+  Ruling: an empty table returns [] whether RLS is on or off, so a successful SELECT proves
+  nothing about protection. Only the refused WRITE distinguishes them. Any future check of a
+  deployed policy must attempt the thing that must fail.
+  Merging to main is now a production database deploy on every push. Future migrations are
+  outward-facing changes and should be treated as such.

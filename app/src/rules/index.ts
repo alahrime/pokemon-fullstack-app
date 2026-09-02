@@ -9,6 +9,7 @@
  * that disagrees with the client is worse than no validator.
  */
 export { canonicalize } from './canonical';
+export { rulesHash } from './hash';
 export { compileSelector, type RefTerm } from './selector';
 export { compileBuildSelector, type BuildTerm } from './buildSelector';
 export { resolvePool, type PoolResolution } from './pool';

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { canonicalize, type Format } from '../rules';
+import { rulesHash, type Format } from '../rules';
 import type { LeagueId } from './types';
 import type { StoredMember } from './teamCodec';
 
@@ -179,7 +179,7 @@ export async function saveServerFormat(f: { id?: string; name: string; format: F
     format_id: id,
     version: next,
     rules: f.format,
-    rules_hash: canonicalize(f.format),
+    rules_hash: await rulesHash(f.format),
   });
   if (error) throw new Error(error.message);
   return id;

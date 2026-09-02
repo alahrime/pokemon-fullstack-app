@@ -232,13 +232,14 @@ describe('saved formats', () => {
     expect((insert?.payload as { version: number }).version).toBe(4);
   });
 
-  it('stores the canonical hash alongside the rules', async () => {
+  it('stores the sha256 digest of the canonical rules, not the string itself', async () => {
     const { calls } = harness({ formats: [{ id: 'f1' }], format_versions: [{ version: 0 }] });
     const { saveServerFormat } = await import('../saves');
-    const { canonicalize } = await import('../../rules');
+    const { rulesHash } = await import('../../rules');
     await saveServerFormat({ id: 'f1', name: 'Air Ban', format: FORMAT });
     const v = calls.find((c) => c.table === 'format_versions' && c.op === 'insert');
-    expect((v?.payload as { rules_hash: string }).rules_hash).toBe(canonicalize(FORMAT));
+    expect((v?.payload as { rules_hash: string }).rules_hash).toBe(await rulesHash(FORMAT));
+    expect((v?.payload as { rules_hash: string }).rules_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 

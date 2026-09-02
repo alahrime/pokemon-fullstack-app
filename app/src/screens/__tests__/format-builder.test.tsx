@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FormatBuilderScreen } from '../FormatBuilderScreen';
 import { listFormats } from '../../state/formatStore';
+import { SessionProvider } from '../../state/SessionContext';
 
 beforeEach(() => localStorage.clear());
 
@@ -10,17 +11,32 @@ function openAdvanced() {
   fireEvent.click(screen.getByRole('button', { name: /advanced: raw rule list/i }));
 }
 
+/**
+ * `FormatBuilderScreen` now reads `useFormats()`, which reads `useSession()` —
+ * rendering it bare throws on the missing context. `setup.ts` mocks
+ * `@supabase/supabase-js` suite-wide and settles signed-out, so this
+ * `SessionProvider` talks to that stub and never reaches a network, the same
+ * way `test/render.tsx`'s `renderApp` does for other screens.
+ */
+function renderScreen() {
+  return render(
+    <SessionProvider>
+      <FormatBuilderScreen />
+    </SessionProvider>,
+  );
+}
+
 describe('FormatBuilderScreen', () => {
   it('opens on a new format with nothing yet in the pool', () => {
     // New formats start from `start: 'empty'` (Task 4): the type chips and the
     // species picker build the pool up, rather than the author's first move
     // always being to carve exceptions out of the whole league.
-    render(<FormatBuilderScreen />);
+    renderScreen();
     expect(Number(screen.getByTestId('pool-count').textContent)).toBe(0);
   });
 
   it('adding a deny clause shrinks the pool', () => {
-    render(<FormatBuilderScreen />);
+    renderScreen();
     openAdvanced();
     // An empty-start format's pool count is already 0, so a deny clause needs
     // something legal to bite into first: an allow rule for water.
@@ -36,7 +52,7 @@ describe('FormatBuilderScreen', () => {
   });
 
   it('saves a named format to storage', () => {
-    render(<FormatBuilderScreen />);
+    renderScreen();
     // An empty-start format has an empty legal pool, which `lintFormat` flags
     // as an error and Save refuses to act on — give it something legal first.
     fireEvent.click(screen.getByRole('button', { name: 'water' }));
@@ -48,7 +64,7 @@ describe('FormatBuilderScreen', () => {
   });
 
   it('refuses to save while an error diagnostic stands', () => {
-    render(<FormatBuilderScreen />);
+    renderScreen();
     fireEvent.change(screen.getByLabelText(/format name/i), { target: { value: 'Broken' } });
     openAdvanced();
     fireEvent.click(screen.getByRole('button', { name: /add rule/i }));
@@ -58,7 +74,7 @@ describe('FormatBuilderScreen', () => {
   });
 
   it('lists a saved format and loads it back', () => {
-    render(<FormatBuilderScreen />);
+    renderScreen();
     fireEvent.change(screen.getByLabelText(/format name/i), { target: { value: 'Air Ban' } });
     openAdvanced();
     fireEvent.click(screen.getByRole('button', { name: /add rule/i }));

@@ -1,0 +1,32 @@
+
+ RUN  v3.2.7 /Users/alilahrime/Downloads/paragon-iv/app
+
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/state/__tests__/use-formats.test.tsx [ src/state/__tests__/use-formats.test.tsx ]
+Error: Failed to resolve import "../useFormats" from "src/state/__tests__/use-formats.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/alilahrime/Downloads/paragon-iv/app/src/state/__tests__/use-formats.test.tsx:63:52
+  38 |    const formatStore = await import("../formatStore");
+  39 |    const { SessionProvider } = await import("../SessionContext");
+  40 |    const { useFormats, MIGRATED_KEY } = await import("../useFormats");
+     |                                                      ^
+  41 |    return { formatStore, SessionProvider, useFormats, MIGRATED_KEY };
+  42 |  }
+ ❯ TransformPluginContext._formatLog node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  22:51:22
+   Duration  687ms (transform 25ms, setup 69ms, collect 0ms, tests 0ms, environment 405ms, prepare 34ms)
+

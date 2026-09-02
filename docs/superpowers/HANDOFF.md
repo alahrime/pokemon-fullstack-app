@@ -192,10 +192,18 @@ None block the deploy. Triaged by the whole-branch review.
     second tab inserting the same name between the check and the write still produces a duplicate.
     Only a unique index on `(owner_id, lower(name))` closes it — a fifth migration, and therefore a
     production deploy, which is why it is not in this change.
-  - **The update path has still never run against real Postgres.** `saves.test.ts` mocks the
-    Supabase client, so `upsert(…, { onConflict: 'team_id,slot' })` and the `gt('slot', n)` delete
-    are proven against a mock builder and nothing else. That is trap #7's exact shape — the M1b
-    duplicate-formats bug was also invisible to a green suite and visible in one real round trip.
+  - ~~**The update path has never run against real Postgres.**~~ **It has now.** `saves.test.ts`
+    mocks the Supabase client, so `upsert(…, { onConflict: 'team_id,slot' })` and the
+    `gt('slot', n)` delete had only ever been checked against a mock builder that agrees with
+    whatever it is told — trap #7's exact shape. A throwaway script bundled the **real**
+    `saves.ts` through esbuild (`--define:import.meta.env=…` supplies what Vite normally
+    replaces) and ran it against the local stack as a real confirmed account, created through
+    the real signup-and-mailbox path rather than an admin shortcut, so `handle_confirmed_user()`
+    made the profile that `teams.owner_id` references. Nine checks, all passing: the insert wrote
+    three members in slot order; the update returned the same id, left exactly one row, replaced
+    both members and the league, and left `team_members` holding slots 1 and 2 — the shrink from
+    three to two is what exercises the delete; and saving the same name **without** an id still
+    produced a second row, which is the duplicate the prompt above now stands in front of.
 - **`saveServerFormat`'s version lookup is untestable in the current harness.** The mock's `order`
   and `limit` do not reorder rows, so a reversed sort in *that* function still passes. It would
   surface as a `unique (format_id, version)` violation on a user's third save.

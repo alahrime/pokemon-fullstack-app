@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { encodeMember, decodeMember } from '../teamCodec';
 import { speciesOf } from '../data';
+import { defaultSpreadFor } from '../engine';
 
 /**
  * The index/id conversion, which is the whole reason this module exists.
@@ -50,6 +51,45 @@ describe('team member codec', () => {
     });
     expect(unknownMove).toBe('BULLET_PUNCH');
     expect(choice.ref).toBe('not_a_pokemon');
+  });
+
+  /**
+   * The stored level has to be derived from the SAME table the spread came
+   * from, and every producer of a choice on the team path reads the best-buddy
+   * one: `defaultSpreadFor(ref, league, true)` in the builder's `defaultChoice`
+   * and in the add modal, `bestSpreadFor(ref, league, true)` beside it. Reading
+   * the other table records a level for IVs that were never chosen against it —
+   * half a level out in Great, a full level in Ultra.
+   *
+   * The column exists to detect a level that MOVED after a data rebuild. A
+   * baseline that disagrees with the builder on the day it was written cannot
+   * do that: every roster looks like it has already drifted.
+   *
+   * `getTable` applies eligibility itself (`levelCapIdx` honours both the flag
+   * and `bestBuddyEligible`), which is why none of those callers guard it and
+   * this one must not either.
+   */
+  it.each([
+    ['great' as const, 'medicham'],
+    ['ultra' as const, 'skarmory'],
+  ])('records the level against the same table the builder drew the spread from (%s, %s)', (league, ref) => {
+    const spread = defaultSpreadFor(ref, league, true);
+    const stored = encodeMember(
+      { ref, chargeIds: [], fastIdx: 0, iv: { a: spread.a, d: spread.d, s: spread.s } },
+      league,
+    );
+    expect(stored.level).toBe(spread.lvl);
+  });
+
+  it('still records a level for a species best buddy cannot lift', () => {
+    // Not every species reaches past 50, and the table caps rather than
+    // refusing. The flag must not turn an ordinary member's level into null.
+    const spread = defaultSpreadFor('bastiodon', 'great', true);
+    const stored = encodeMember(
+      { ref: 'bastiodon', chargeIds: [], fastIdx: 0, iv: { a: spread.a, d: spread.d, s: spread.s } },
+      'great',
+    );
+    expect(stored.level).toBe(spread.lvl);
   });
 
   it('keeps both charge moves in order', () => {

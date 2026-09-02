@@ -24,9 +24,19 @@ export function encodeMember(choice: AddPokemonChoice, league: LeagueId): Stored
   const fast = species?.fastMoves[choice.fastIdx];
   // Level is recorded, not authoritative — the engine derives it from the IVs
   // and the cap. Stored so a later data change that moves it can be seen.
+  //
+  // `true` for best buddy, because every producer of a choice on this path
+  // draws its spread from that table: `defaultSpreadFor(ref, league, true)` in
+  // the builder and the add modal, `bestSpreadFor(ref, league, true)` beside
+  // it. Reading the other table recorded a level for IVs that were never
+  // chosen against it — 50 where the builder said 50.5 in Great, 51 in Ultra —
+  // which made every roster look like it had already drifted and left this
+  // column unable to detect the drift it exists for. `getTable` applies
+  // eligibility itself, so this needs no `bestBuddyEligible` guard, which is
+  // why none of those callers has one either.
   let level: number | null = null;
   try {
-    level = getEntry(choice.ref, choice.iv, league).entry.lvl;
+    level = getEntry(choice.ref, choice.iv, league, true).entry.lvl;
   } catch {
     // An unknown ref has no table. The member is still worth storing.
   }

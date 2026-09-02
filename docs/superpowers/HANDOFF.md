@@ -144,9 +144,11 @@ service-role key: it bypasses every policy in `supabase/migrations`, so check 2 
 **Two guarantees this could NOT prove, and why.** `format_versions` being undeletable and the
 immutability trigger both need a **signed-in owner** to exercise. Anonymous `UPDATE`/`DELETE` are
 filtered to zero rows by the SELECT policy and return `204` whether or not the guarantee holds —
-the same trap as an empty `SELECT`. Both are proven locally by `npm run check:db` and neither has
-been proven in production. Proving them needs a confirmed account, which production does not yet
-have.
+the same trap as an empty `SELECT`. Proving them needs a confirmed account, which production does
+not yet have. They have since been driven **locally** through the real client as a signed-in
+owner — the UPDATE came back `a format version is immutable; append a new version instead`, the
+DELETE removed nothing of the three, and deleting the parent format still cascaded them away —
+which is stronger than `check:db`'s SQL and still not production.
 
 **`profiles` returns `[]` because production has no accounts at all**, not because a policy hid
 them. An empty table proves nothing either way — that is the whole reason check 2 exists.
@@ -204,19 +206,29 @@ None block the deploy. Triaged by the whole-branch review.
     both members and the league, and left `team_members` holding slots 1 and 2 — the shrink from
     three to two is what exercises the delete; and saving the same name **without** an id still
     produced a second row, which is the duplicate the prompt above now stands in front of.
-- **`saveServerFormat`'s version lookup is untestable in the current harness.** The mock's `order`
-  and `limit` do not reorder rows, so a reversed sort in *that* function still passes. It would
-  surface as a `unique (format_id, version)` violation on a user's third save.
+- ~~**`saveServerFormat`'s version lookup is untestable in the current harness.**~~ **Answered by
+  measurement, not by a new mock.** The mock's `order` and `limit` still do not reorder rows, so
+  that harness still cannot judge this function — the fix was to stop asking it. Three saves
+  against the local stack through the real module: the third appended `version = 3` instead of
+  colliding on `unique (format_id, version)`, the table held `[1, 2, 3]`, and `listServerFormats`
+  returned version 3 with the newest rules — which also exercises the `referencedTable` ordering
+  against real PostgREST for the first time. Same throwaway-script recipe as the `saveTeam` one.
+  The harness gap is real and remains: a regression here would still pass `npm run check`.
 - **An `act()` warning about `SessionProvider`** is latent for every screen test using
   `test/render.tsx`, which now mounts the provider. Console noise, not correctness; settle it in
   the helper when someone is next in there.
 - **`rules_hash` stores a canonical serialization, not a hash** (`canonicalize()` returns a string).
   The spec says so, but M2 partitions and indexes on that column — a `sha256` at the write site
   would cost nothing now.
-- **`teamCodec` records `level` via `getEntry(..., league)` without `bestBuddy`**, while the builder
-  draws its spread from `defaultSpreadFor(..., true)`. Inert today (`decodeMember` ignores `level`),
-  but the column exists to detect a level that moved, and it cannot do that against an inconsistent
-  baseline.
+- ~~**`teamCodec` records `level` via `getEntry(..., league)` without `bestBuddy`.**~~ **Fixed.**
+  It was a real off-by-a-level, not a theoretical one: every roster stored a level derived from a
+  table its IVs were never chosen against — Great League medicham `50` where the builder said
+  `50.5`, Ultra a full level out at `50` against `51`. `encodeMember` now passes `true`, matching
+  `defaultSpreadFor(ref, league, true)` in the builder and the add modal and
+  `bestSpreadFor(ref, league, true)` beside them; `getTable` applies eligibility itself, which is
+  why none of those callers guards it. Two `it.each` cases pin it and failed first at exactly
+  those numbers. Rows written before this carry the old baseline — harmless while `decodeMember`
+  ignores `level`, and worth knowing if anything ever starts reading it.
 
 ## When M2 arrives
 

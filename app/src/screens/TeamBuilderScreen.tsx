@@ -216,10 +216,21 @@ function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
  * recently touched. Ties are possible: anything saved before this screen could
  * overwrite may already have left duplicates behind.
  */
-function rostersNamed(saved: SavedTeam[] | null, name: string): SavedTeam[] {
+/**
+ * `size` is checked here too, not only trusted from the server-side
+ * `.eq('size', size)` in `listTeams` — belt and suspenders. `listTeams` being
+ * scoped is what stops a roster of the other size from ever reaching
+ * `savedTeams` in the first place, but this is the line that actually decides
+ * whether to offer a replace, and a stale fetch or a future regression in
+ * that scoping should not be able to resurrect the bug this whole screen
+ * exists to close (task 5b, ledger Ruling 13): a same-named roster from the
+ * OTHER size matching here is exactly what let a 3-roster save delete three
+ * members of a 6-roster nobody was looking at.
+ */
+function rostersNamed(saved: SavedTeam[] | null, name: string, size: 3 | 6): SavedTeam[] {
   const key = name.trim().toLowerCase();
   if (key === '') return [];
-  return (saved ?? []).filter((t) => t.name.trim().toLowerCase() === key);
+  return (saved ?? []).filter((t) => t.size === size && t.name.trim().toLowerCase() === key);
 }
 
 /**
@@ -280,6 +291,15 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     [league, team],
   );
   const full = team.length === size;
+  /**
+   * Why the save control is disabled when the roster is non-empty but not
+   * exactly `size` yet — shown the same way a blank name gets a reason (see
+   * `team-save-hint` below). Silent before this: the only gate was
+   * `team.length === 0`, so a 1-of-6 saved without anything on screen saying
+   * it was incomplete (task 5b).
+   */
+  const saveIncompleteReason =
+    team.length > 0 && team.length < size ? `Add ${size - team.length} more to save this roster.` : null;
 
   const invalidate = () => {
     setReport(null);
@@ -363,7 +383,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     // request is in flight must not resurrect `savedTeams` for a session that
     // no longer exists.
     let live = true;
-    listTeams()
+    listTeams(size)
       .then((teams) => {
         if (live) setSavedTeams(teams);
       })
@@ -373,10 +393,14 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     return () => {
       live = false;
     };
-  }, [user]);
+  }, [user, size]);
 
   const saveRoster = async () => {
-    if (team.length === 0 || saving) return;
+    // A complete roster, not merely a non-empty one — see the button's own
+    // `disabled` condition below, which this mirrors. `team.length === 0`
+    // alone (the old check) let a 1-of-6 be saved with nothing to say it was
+    // incomplete (task 5b).
+    if (team.length !== size || saving) return;
     const name = saveName.trim();
     // Saving under a name already in the list updates that roster instead of
     // writing a second row with the same label — but only when asked for. The
@@ -388,7 +412,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     // browser. It does NOT close the window where a second tab inserts the
     // same name between this check and the write — nothing but a unique index
     // on (owner_id, name) can, and there is none.
-    const clashes = rostersNamed(savedTeams, name);
+    const clashes = rostersNamed(savedTeams, name, size);
     const target = clashes[0];
     // Declining writes nothing at all. Falling back to an insert here would
     // answer "don't replace it" with a duplicate, which is what this whole
@@ -402,9 +426,9 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       // and `defaultChoice` is what that ref is actually carrying (the rated
       // set `Slot` falls back to), not nothing.
       const members = team.map((ref) => encodeMember(builds[ref] ?? defaultChoice(ref, league), league));
-      await saveTeam({ id: target?.id, name, league, members });
+      await saveTeam({ id: target?.id, name, league, size, members });
       setSaveName('');
-      setSavedTeams(await listTeams());
+      setSavedTeams(await listTeams(size));
     } catch (e) {
       setSavesError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -453,7 +477,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     if (!window.confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
     try {
       await deleteTeam(t.id);
-      setSavedTeams(await listTeams());
+      setSavedTeams(await listTeams(size));
     } catch (e) {
       setSavesError(e instanceof Error ? e.message : String(e));
     }
@@ -587,7 +611,12 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
               />
-              <button className="btn btn-primary" disabled={team.length === 0 || saveName.trim() === '' || saving} onClick={saveRoster}>
+              <button
+                className="btn btn-primary"
+                disabled={team.length !== size || saveName.trim() === '' || saving}
+                title={saveIncompleteReason ?? undefined}
+                onClick={saveRoster}
+              >
                 {saving ? 'Saving…' : 'Save roster'}
               </button>
               {/* Overlays the panel rather than growing it — a roster list that
@@ -639,6 +668,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                 )}
               </div>
             </div>
+            {saveIncompleteReason && <p className="team-save-hint text-faint">{saveIncompleteReason}</p>}
             {loadNotice && <p className="team-load-notice">{loadNotice}</p>}
             {savesError && <p className="team-load-notice" role="alert">{savesError}</p>}
           </div>

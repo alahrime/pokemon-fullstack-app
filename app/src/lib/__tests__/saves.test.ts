@@ -51,15 +51,33 @@ beforeEach(() => vi.resetModules());
 describe('saved teams', () => {
   it('reads a team and its members into one object', async () => {
     harness({
-      teams: [{ id: 't1', name: 'Mine', league: 'great',
+      teams: [{ id: 't1', name: 'Mine', league: 'great', size: 3,
         team_members: [{ slot: 1, ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: ['ICE_BEAM'],
           iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 }] }],
     });
     const { listTeams } = await import('../saves');
-    const teams = await listTeams();
+    const teams = await listTeams(3);
     expect(teams).toHaveLength(1);
     expect(teams[0].name).toBe('Mine');
+    expect(teams[0].size).toBe(3);
     expect(teams[0].members[0].ref).toBe('azumarill');
+  });
+
+  /**
+   * The scoping that makes the overwrite prompt safe again (task 5b — ledger
+   * Ruling 13). Both builders share one screen and one unfiltered `listTeams`
+   * used to let a 3-roster save offer to replace a same-named 6-roster, and
+   * `saveTeam`'s update path deletes every slot past the new length — three
+   * members gone for a screen the person was not even looking at. Filtering
+   * server-side means a GBL mount never sees a Show 6 roster in the first
+   * place, so the name-only match in the screen can never cross sizes.
+   */
+  it('filters by size server-side rather than trusting the caller to ignore the rest', async () => {
+    const { calls } = harness({ teams: [] });
+    const { listTeams } = await import('../saves');
+    await listTeams(3);
+    const eq = calls.find((c) => c.table === 'teams' && c.op === 'eq');
+    expect(eq?.payload).toEqual(['size', 3]);
   });
 
   /**
@@ -73,7 +91,7 @@ describe('saved teams', () => {
       teams: { code: '23505', message: 'duplicate key value violates unique constraint "teams_owner_name_uniq"' },
     });
     const { saveTeam } = await import('../saves');
-    await expect(saveTeam({ name: 'GL Squad', league: 'great', members: [] })).rejects.toThrow(
+    await expect(saveTeam({ name: 'GL Squad', league: 'great', size: 3, members: [] })).rejects.toThrow(
       /A roster called "GL Squad" already exists/,
     );
   });
@@ -83,7 +101,7 @@ describe('saved teams', () => {
     // friendly sentence would hide a connection failure behind a name clash.
     harness({ teams: [] }, { teams: { code: '08006', message: 'could not connect to server' } });
     const { saveTeam } = await import('../saves');
-    await expect(saveTeam({ name: 'GL Squad', league: 'great', members: [] })).rejects.toThrow(
+    await expect(saveTeam({ name: 'GL Squad', league: 'great', size: 3, members: [] })).rejects.toThrow(
       /could not connect to server/,
     );
   });
@@ -92,7 +110,7 @@ describe('saved teams', () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
     await saveTeam({
-      name: 'Mine', league: 'great',
+      name: 'Mine', league: 'great', size: 3,
       members: [
         { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
         { ref: 'registeel', fast_move: 'LOCK_ON', charge_moves: [], iv_attack: 1, iv_defense: 14, iv_stamina: 15, level: 41 },
@@ -102,10 +120,31 @@ describe('saved teams', () => {
     expect((members?.payload as { slot: number }[]).map((m) => m.slot)).toEqual([1, 2]);
   });
 
+  /**
+   * Task 5b: `size` is what the database now filters `listTeams` by and
+   * checks against (3 or 6). It has to actually leave the client on both
+   * write paths, or every saved roster lands with no size to be scoped by.
+   */
+  it('sends size on the insert path', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({ name: 'Mine', league: 'great', size: 6, members: [] });
+    const insert = calls.find((c) => c.table === 'teams' && c.op === 'insert');
+    expect((insert?.payload as { size: number }).size).toBe(6);
+  });
+
+  it('sends size on the update path', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    await saveTeam({ id: 't1', name: 'Mine', league: 'great', size: 6, members: [] });
+    const update = calls.find((c) => c.table === 'teams' && c.op === 'update');
+    expect((update?.payload as { size: number }).size).toBe(6);
+  });
+
   it('never writes an owner_id from the client', async () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
-    await saveTeam({ name: 'Mine', league: 'great', members: [] });
+    await saveTeam({ name: 'Mine', league: 'great', size: 3, members: [] });
     const insert = calls.find((c) => c.table === 'teams' && c.op === 'insert');
     // owner_id comes from a column default of auth.uid(); a client-supplied one
     // is a value the policy then has to agree with, which is a second source of
@@ -127,7 +166,7 @@ describe('saved teams', () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
     await saveTeam({
-      id: 't1', name: 'Mine', league: 'great',
+      id: 't1', name: 'Mine', league: 'great', size: 3,
       members: [
         { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
         { ref: 'registeel', fast_move: 'LOCK_ON', charge_moves: [], iv_attack: 1, iv_defense: 14, iv_stamina: 15, level: 41 },
@@ -152,7 +191,7 @@ describe('saved teams', () => {
   it('editing a team to an empty roster removes every member', async () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
-    await saveTeam({ id: 't1', name: 'Mine', league: 'great', members: [] });
+    await saveTeam({ id: 't1', name: 'Mine', league: 'great', size: 3, members: [] });
     const upsert = calls.find((c) => c.table === 'team_members' && c.op === 'upsert');
     expect(upsert).toBeUndefined();
     const deletes = calls.filter((c) => c.table === 'team_members' && c.op === 'delete');
@@ -174,7 +213,7 @@ describe('saved teams', () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
     await saveTeam({
-      id: 't1', name: 'Mine', league: 'great',
+      id: 't1', name: 'Mine', league: 'great', size: 3,
       members: [
         { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
       ],
@@ -190,7 +229,7 @@ describe('saved teams', () => {
     const { calls } = harness({ teams: [{ id: 't1' }] });
     const { saveTeam } = await import('../saves');
     await saveTeam({
-      id: 't1', name: 'Mine', league: 'great',
+      id: 't1', name: 'Mine', league: 'great', size: 3,
       members: [
         { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
       ],

@@ -7,6 +7,7 @@ export interface SavedTeam {
   id: string;
   name: string;
   league: LeagueId;
+  size: 3 | 6;
   members: StoredMember[];
 }
 
@@ -14,19 +15,29 @@ export interface SavedTeam {
  * `owner_id` is never sent from here. It defaults to `auth.uid()` in the
  * database, so who owns a row is decided in one place; a client-supplied owner
  * is a second source of truth the policy then has to agree with.
+ *
+ * `size` is required, not optional: GBL and Show 6 render the same
+ * TeamBuilderScreen and used to share one unfiltered list, which is how a
+ * same-named 6-roster ended up in the GBL picker's overwrite prompt and lost
+ * three members to a 3-roster save (task 5b, ledger Ruling 13). Filtering
+ * server-side with `.eq('size', size)` means a screen never even RECEIVES a
+ * roster of the other size — the scoping the overwrite prompt now depends on
+ * for its safety happens here, not as a client-side afterthought.
  */
-export async function listTeams(): Promise<SavedTeam[]> {
+export async function listTeams(size: 3 | 6): Promise<SavedTeam[]> {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, league, team_members(slot, ref, fast_move, charge_moves, iv_attack, iv_defense, iv_stamina, level)')
+    .select('id, name, league, size, team_members(slot, ref, fast_move, charge_moves, iv_attack, iv_defense, iv_stamina, level)')
+    .eq('size', size)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {
-    const r = row as { id: string; name: string; league: LeagueId; team_members: (StoredMember & { slot: number })[] };
+    const r = row as { id: string; name: string; league: LeagueId; size: 3 | 6; team_members: (StoredMember & { slot: number })[] };
     return {
       id: r.id,
       name: r.name,
       league: r.league,
+      size: r.size,
       members: [...r.team_members].sort((a, b) => a.slot - b.slot),
     };
   });
@@ -60,13 +71,14 @@ export async function saveTeam(t: {
   id?: string;
   name: string;
   league: LeagueId;
+  size: 3 | 6;
   members: StoredMember[];
 }): Promise<string> {
   let id = t.id;
   if (id) {
     const { error } = await supabase
       .from('teams')
-      .update({ name: t.name, league: t.league, updated_at: new Date().toISOString() })
+      .update({ name: t.name, league: t.league, size: t.size, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw writeError(error, t.name);
     // UPSERT the new slots BEFORE deleting anything beyond the new length —
@@ -98,7 +110,7 @@ export async function saveTeam(t: {
   } else {
     const { data, error } = await supabase
       .from('teams')
-      .insert({ name: t.name, league: t.league })
+      .insert({ name: t.name, league: t.league, size: t.size })
       .select('id')
       .single();
     if (error) throw writeError(error, t.name);

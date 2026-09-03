@@ -79,11 +79,18 @@ function choiceFor(ref: string): AddPokemonChoice {
   };
 }
 
-function savedTeam(id: string, name: string, refs: string[], league: SavedTeam['league'] = 'great'): SavedTeam {
+function savedTeam(
+  id: string,
+  name: string,
+  refs: string[],
+  league: SavedTeam['league'] = 'great',
+  size: SavedTeam['size'] = 3,
+): SavedTeam {
   return {
     id,
     name,
     league,
+    size,
     members: refs.map((r) => encodeMember(choiceFor(r), league)),
   };
 }
@@ -157,19 +164,28 @@ describe('signed in', () => {
     expect(saveButton(container)!.disabled).toBe(true);
 
     fireEvent.change(nameInput(container), { target: { value: 'My Team' } });
+    // A name alone is not enough either now: two of three, named, still is
+    // not a saveable roster (task 5b) — today's only check was
+    // `team.length === 0`, which let a 1-of-6 be saved.
+    expect(saveButton(container)!.disabled).toBe(true);
+
+    await pick(container, 'skarmory');
     expect(saveButton(container)!.disabled).toBe(false);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
 
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
-    const arg = savesApi.saveTeam.mock.calls[0][0] as { name: string; league: string; members: { ref: string }[] };
-    expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel']);
+    const arg = savesApi.saveTeam.mock.calls[0][0] as { name: string; league: string; size: number; members: { ref: string }[] };
+    expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel', 'skarmory']);
+    expect(arg.size).toBe(3);
   });
 
-  it('keeps save disabled for a whitespace-only name, even with members added', async () => {
+  it('keeps save disabled for a whitespace-only name, even with a complete roster', async () => {
     const { container } = await mount(3, fakeSession('ash@example.com'));
     await pick(container, 'azumarill');
+    await pick(container, 'registeel');
+    await pick(container, 'skarmory');
     fireEvent.change(nameInput(container), { target: { value: '   ' } });
     expect(saveButton(container)!.disabled).toBe(true);
   });
@@ -177,6 +193,8 @@ describe('signed in', () => {
   it('saves the name exactly as typed', async () => {
     const { container } = await mount(3, fakeSession('ash@example.com'));
     await pick(container, 'azumarill');
+    await pick(container, 'registeel');
+    await pick(container, 'skarmory');
     fireEvent.change(nameInput(container), { target: { value: 'Rain Squad' } });
     await act(async () => {
       fireEvent.click(saveButton(container)!);
@@ -184,6 +202,92 @@ describe('signed in', () => {
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
     const arg = savesApi.saveTeam.mock.calls[0][0] as { name: string };
     expect(arg.name).toBe('Rain Squad');
+  });
+
+  /**
+   * Task 5b's save gate: `team.length === size`, not merely `> 0`. This is
+   * what closes the 1-of-6-save hole — the old check let a wildly partial
+   * roster be written, silently, as long as it had at least one member and a
+   * name.
+   */
+  describe('the save control requires a complete roster', () => {
+    it('stays disabled for a partial GBL team of three, even named, and says why', async () => {
+      const { container } = await mount(3, fakeSession('ash@example.com'));
+      await pick(container, 'azumarill');
+      fireEvent.change(nameInput(container), { target: { value: 'Partial' } });
+      const btn = saveButton(container)!;
+      expect(btn.disabled).toBe(true);
+      // Says why, the way the blank-name case does — a disabled control with
+      // no visible reason is indistinguishable from a broken one.
+      expect(container.textContent).toMatch(/add 2 more to save/i);
+    });
+
+    it('enables at exactly three for GBL, not before and not by allowing a fourth', async () => {
+      const { container } = await mount(3, fakeSession('ash@example.com'));
+      await pick(container, 'azumarill');
+      await pick(container, 'registeel');
+      fireEvent.change(nameInput(container), { target: { value: 'Full Three' } });
+      expect(saveButton(container)!.disabled).toBe(true);
+      await pick(container, 'skarmory');
+      expect(saveButton(container)!.disabled).toBe(false);
+    });
+
+    it('stays disabled for a partial Show 6 roster, even named, and says why', async () => {
+      const { container } = await mount(6, fakeSession('ash@example.com'));
+      await pick(container, 'azumarill');
+      await pick(container, 'registeel');
+      fireEvent.change(nameInput(container), { target: { value: 'Partial Six' } });
+      const btn = saveButton(container)!;
+      expect(btn.disabled).toBe(true);
+      expect(container.textContent).toMatch(/add 4 more to save/i);
+    });
+
+    it('enables at exactly six for Show 6, and sends size 6', async () => {
+      const { container } = await mount(6, fakeSession('ash@example.com'));
+      for (const r of ['azumarill', 'registeel', 'medicham', 'bastiodon', 'skarmory', 'whiscash']) {
+        await pick(container, r);
+      }
+      fireEvent.change(nameInput(container), { target: { value: 'Full Six' } });
+      expect(saveButton(container)!.disabled).toBe(false);
+      await act(async () => {
+        fireEvent.click(saveButton(container)!);
+      });
+      await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+      const arg = savesApi.saveTeam.mock.calls[0][0] as { size: number; members: { ref: string }[] };
+      expect(arg.size).toBe(6);
+      expect(arg.members).toHaveLength(6);
+    });
+  });
+
+  /**
+   * The scoping that makes the overwrite prompt safe again. Before this, both
+   * builders shared one unfiltered `listTeams()`, so a same-named roster from
+   * the OTHER builder's size would show up as a match — and the overwrite
+   * this screen offers deletes every slot past the new length (see the brief
+   * and ledger Ruling 13). `listTeams` mocked here to actually honour the
+   * `size` argument, the way the real server-side `.eq('size', size)` would,
+   * so this test fails the way production would fail if the screen ever
+   * stopped passing its own size through.
+   */
+  it("never shows a Show 6 roster in the GBL picker, because listTeams is asked for size 3 only", async () => {
+    const sixRoster = savedTeam(
+      't-six',
+      'Shared Name',
+      ['azumarill', 'registeel', 'medicham', 'bastiodon', 'skarmory', 'whiscash'],
+      'great',
+      6,
+    );
+    savesApi.listTeams.mockImplementation(async (size: number) => (size === 6 ? [sixRoster] : []));
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    expect(savesApi.listTeams).toHaveBeenCalledWith(3);
+    openSavedList(container);
+    await waitFor(() => expect(container.querySelector('.team-load-panel')).toBeTruthy());
+    expect(container.textContent).not.toMatch(/Shared Name/);
+  });
+
+  it('asks listTeams for its own size on mount', async () => {
+    await mount(6, fakeSession('ash@example.com'));
+    expect(savesApi.listTeams).toHaveBeenCalledWith(6);
   });
 
   it('replaces the roster outright when loading a saved team, not appending to it', async () => {
@@ -348,10 +452,11 @@ describe('signed in', () => {
 describe('saving over an existing roster', () => {
   const session = () => fakeSession('ash@example.com');
 
-  /** Build a roster and type `name` into the save box. */
+  /** Build a full roster (exactly `size`, here always 3) and type `name` into the save box. */
   async function rosterNamed(container: HTMLElement, name: string) {
     await pick(container, 'azumarill');
     await pick(container, 'registeel');
+    await pick(container, 'skarmory');
     fireEvent.change(nameInput(container), { target: { value: name } });
   }
 
@@ -369,7 +474,37 @@ describe('saving over an existing roster', () => {
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
     const arg = savesApi.saveTeam.mock.calls[0][0] as { id?: string; name: string; members: { ref: string }[] };
     expect(arg.id).toBe('t1');
-    expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel']);
+    expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel', 'skarmory']);
+    confirmSpy.mockRestore();
+  });
+
+  /**
+   * Task 5b's whole point. Before the list was scoped by size, this exact
+   * scenario — a same-named roster of the OTHER size sitting in `savedTeams`
+   * — is what let a 3-roster save offer to replace a 6-roster, and the
+   * update path then deletes every slot past 3. `listTeams` is scoped
+   * server-side now, so this roster would never really reach a `size=3`
+   * mount's `savedTeams` — but the match itself is asserted here too
+   * (defense in depth against a stale fetch or a future regression in that
+   * scoping), by forcing exactly the state a scoping bug would produce.
+   */
+  it('does not offer to replace a same-named roster of a different size', async () => {
+    savesApi.listTeams.mockResolvedValue([
+      savedTeam('t-six', 'GL Squad', ['medicham', 'skarmory', 'bastiodon', 'whiscash', 'registeel', 'azumarill'], 'great', 6),
+    ]);
+    const { container } = await mount(3, session());
+    await rosterNamed(container, 'GL Squad');
+
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    await act(async () => {
+      fireEvent.click(saveButton(container)!);
+    });
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
+    // No id: this is an insert, not the update path that would delete the
+    // six's slots 4-6.
+    expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBeUndefined();
     confirmSpy.mockRestore();
   });
 

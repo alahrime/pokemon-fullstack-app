@@ -25,25 +25,25 @@ describe('team policies', () => {
     await sql(`delete from public.teams where owner_id in ('${userA}', '${userB}')`);
   });
 
-  async function teamFor(owner: string): Promise<string> {
+  async function teamFor(owner: string, size: 3 | 6 = 6): Promise<string> {
     const [row] = await sql<{ id: string }>(
-      `insert into public.teams (owner_id, name, league)
-       values ('${owner}', 'Test Roster', 'great') returning id`,
+      `insert into public.teams (owner_id, name, league, size)
+       values ('${owner}', 'Test Roster', 'great', ${size}) returning id`,
     );
     return row.id;
   }
 
   it('lets an owner insert their own team', async () => {
     const rows = await asUser({ sub: userA })<{ id: string }>(
-      `insert into public.teams (owner_id, name, league)
-       values ('${userA}', 'Mine', 'great') returning id`,
+      `insert into public.teams (owner_id, name, league, size)
+       values ('${userA}', 'Mine', 'great', 6) returning id`,
     );
     expect(rows).toHaveLength(1);
   });
 
   it('defaults owner_id to the signed-in user, since the client never sends it', async () => {
     const rows = await asUser({ sub: userA })<{ owner_id: string }>(
-      `insert into public.teams (name, league) values ('Defaulted', 'great') returning owner_id`,
+      `insert into public.teams (name, league, size) values ('Defaulted', 'great', 6) returning owner_id`,
     );
     expect(rows[0].owner_id).toBe(userA);
   });
@@ -51,8 +51,8 @@ describe('team policies', () => {
   it('refuses a team inserted on someone else\'s behalf', async () => {
     await expect(
       asUser({ sub: userB })(
-        `insert into public.teams (owner_id, name, league)
-         values ('${userA}', 'Not mine', 'great')`,
+        `insert into public.teams (owner_id, name, league, size)
+         values ('${userA}', 'Not mine', 'great', 6)`,
       ),
     ).rejects.toThrow(/row-level security/);
   });
@@ -160,25 +160,41 @@ describe('team policies', () => {
    * would let "  GL Squad" through a check that had already called it taken,
    * which is worse than no index: the two rules would disagree.
    */
-  it('refuses a second roster with the same name for one owner', async () => {
-    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+  it('refuses a second roster with the same name and size for one owner', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('GL Squad', 'great', 3)`);
     await expect(
-      asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`),
+      asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('GL Squad', 'great', 3)`),
     ).rejects.toThrow(/teams_owner_name_uniq/);
   });
 
-  it('refuses one that differs only in case or surrounding space', async () => {
-    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+  it('refuses one that differs only in case or surrounding space, at the same size', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('GL Squad', 'great', 3)`);
     await expect(
-      asUser({ sub: userA })(`insert into public.teams (name, league) values ('  gl squad  ', 'ultra')`),
+      asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('  gl squad  ', 'ultra', 3)`),
     ).rejects.toThrow(/teams_owner_name_uniq/);
   });
 
   /** Names are personal. Two people may both have a "GL Squad". */
   it('lets a different owner hold the same name', async () => {
-    await asUser({ sub: userA })(`insert into public.teams (name, league) values ('GL Squad', 'great')`);
+    await asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('GL Squad', 'great', 3)`);
     const rows = await asUser({ sub: userB })<{ id: string }>(
-      `insert into public.teams (name, league) values ('GL Squad', 'great') returning id`,
+      `insert into public.teams (name, league, size) values ('GL Squad', 'great', 3) returning id`,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  /**
+   * The whole point of widening the index to (owner_id, size, name): a GBL
+   * "Core" and a Show 6 "Core" are two different rosters now that each
+   * builder only ever sees its own size, and forbidding the shared name would
+   * be a restriction the UI could never explain. Asserted alongside the
+   * same-size duplicate rejection above, not instead of it — an index that
+   * simply permitted everything would pass this half alone.
+   */
+  it('lets one owner hold the same name at two different sizes', async () => {
+    await asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('GL Squad', 'great', 3)`);
+    const rows = await asUser({ sub: userA })<{ id: string }>(
+      `insert into public.teams (name, league, size) values ('GL Squad', 'great', 6) returning id`,
     );
     expect(rows).toHaveLength(1);
   });
@@ -201,5 +217,40 @@ describe('team policies', () => {
          values ('${id}', 1, 'azumarill', 'BUBBLE', '{"A","B","C"}', 0, 15, 15)`,
       ),
     ).rejects.toThrow(/team_members_charge_count/);
+  });
+
+  /**
+   * Task 5b: size is a consequence of the screen a roster was saved from, not
+   * a stored guess (ledger Ruling 13). Every insert above already supplies it
+   * because the column is NOT NULL with no default — these tests are the ones
+   * that pin down the column's own rules rather than relying on it as a side
+   * effect of another test passing.
+   */
+  describe('team size', () => {
+    it('rejects a team with no size at all', async () => {
+      await expect(
+        asUser({ sub: userA })(`insert into public.teams (name, league) values ('No Size', 'great')`),
+      ).rejects.toThrow(/null value in column "size"|violates not-null constraint/);
+    });
+
+    it('rejects a size outside 3 or 6', async () => {
+      await expect(
+        asUser({ sub: userA })(`insert into public.teams (name, league, size) values ('Bad Size', 'great', 4)`),
+      ).rejects.toThrow(/teams_size/);
+    });
+
+    it('accepts a size of 3', async () => {
+      const rows = await asUser({ sub: userA })<{ size: number }>(
+        `insert into public.teams (name, league, size) values ('Three', 'great', 3) returning size`,
+      );
+      expect(rows[0].size).toBe(3);
+    });
+
+    it('accepts a size of 6', async () => {
+      const rows = await asUser({ sub: userA })<{ size: number }>(
+        `insert into public.teams (name, league, size) values ('Six', 'great', 6) returning size`,
+      );
+      expect(rows[0].size).toBe(6);
+    });
   });
 });

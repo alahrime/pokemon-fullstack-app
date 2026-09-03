@@ -37,6 +37,9 @@ const FormatBuilderScreen = lazy(() =>
 // the entry chunk — SessionProvider is mounted at the root below, so the client
 // is in the entry chunk either way. Only this screen's own code is deferred.
 const SignInScreen = lazy(() => import('./screens/SignInScreen').then((m) => ({ default: m.SignInScreen })));
+const MatchmakingScreen = lazy(() =>
+  import('./screens/MatchmakingScreen').then((m) => ({ default: m.MatchmakingScreen })),
+);
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -133,6 +136,8 @@ function Screens() {
       return <LazyScreen key="moves"><MovesScreen /></LazyScreen>;
     case 'formats':
       return <LazyScreen key="formats"><FormatBuilderScreen /></LazyScreen>;
+    case 'matchmaking':
+      return <LazyScreen key="matchmaking"><MatchmakingScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

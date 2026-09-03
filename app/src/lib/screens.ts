@@ -96,6 +96,18 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Author a format clause by clause, and watch the legal pool move as you type.',
   },
   {
+    id: 'matchmaking',
+    label: 'Matches',
+    kicker: 'Opponents',
+    // Not --type-fighting: the Battle screen already carries it, and every
+    // screen needs a distinct hue for colour to identify a section (see
+    // src/lib/__tests__/screens.test.ts). Ghost fits a blind queue anyway —
+    // the opponent is unseen until the pairing lands.
+    glyph: '⚔',
+    hue: 'var(--type-ghost)',
+    blurb: 'Queue for a blind match, browse an open offer, or schedule one for later.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',

@@ -3,7 +3,7 @@ import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'account';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 

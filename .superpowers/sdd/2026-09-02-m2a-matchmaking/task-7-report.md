@@ -97,3 +97,68 @@ Committed as a single commit on `feat/m2a-matchmaking` (branch was already check
 git add app/src/lib/matchmaking.ts app/src/lib/__tests__/matchmaking.test.ts
 git commit -m "feat(matchmaking): the client data layer for queue, offers and matches"
 ```
+
+## Fix round 1
+
+Two Important findings from review, both addressed. Scope held to `app/src/lib/matchmaking.ts` and its test file, as instructed.
+
+### Important 1 — `leaveQueue()` now carries its own filter
+
+**Choice: filter by the caller's own `user_id`, read via `getSession()`** (not by re-reading `myQueueEntry()`'s id first). This mirrors `myMatches()`'s existing need for the same session read (see Important 2), so both functions share one pattern rather than the module having two different ways to learn "who is this". `deleteTeam` in `saves.ts` was the deciding precedent: it filters `.eq('id', id)` even though its own RLS policy scopes correctly on its own — that redundant predicate on a DELETE is this codebase's established discipline, not the "never send the owner column" rule (that one is about INSERT establishing ownership; this is defence in depth on a DELETE that already has an owner).
+
+```ts
+export async function leaveQueue(): Promise<void> {
+  const { data, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  const userId = data.session?.user.id;
+  if (!userId) throw new Error('you must be signed in to leave the queue');
+  const { error } = await supabase.from('queue_entries').delete().eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+```
+
+The `if (!userId) throw` guard is new behavior introduced by this fix, not scope creep: without it, a signed-out caller would fall through to the old unfiltered-delete shape by omission. It has its own test (`refuses to leave a queue nobody signed into`).
+
+The test that used to describe this was rewritten — its old form (`leaves the queue with a plain delete — RLS, not a client-supplied filter, scopes it to one row`) asserted only that *some* delete happened, which would have kept passing after the fix with a docstring now describing the opposite of the code. Replaced with `scopes the delete to the caller's own user_id, read from the session`, which asserts the `eq` call's exact column and value (`['user_id', 'me']`), plus the new signed-out test.
+
+### Important 2 — `myMatches()` now uses `getSession()`, not `getUser()`
+
+`getUser()` was a real network round trip revalidating the JWT against the Auth server on every call to `myMatches()`, adding a failure mode (a transient network error aborting a read for an id the caller already has) that shouldn't exist. Switched to `getSession()`, following `SessionContext.tsx`'s explicit precedent for preferring the cheap local read:
+
+```ts
+export async function myMatches(): Promise<Match[]> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  const me = sessionData.session?.user.id;
+  ...
+```
+
+No behavioral change to the opponent-derivation logic itself (the null-user guard there is a deferred Minor, left untouched) — only the source of `me` changed. The existing `myMatches` tests (`reports the OTHER player as the opponent...`, `maps every field Task 8 destructures`) needed no changes beyond the harness mock switching from `auth.getUser` to `auth.getSession`.
+
+### Test harness change
+
+`pkg.client.auth` now exposes `getSession` instead of `getUser`, shaped as `{ data: { session: meId ? { user: { id: meId } } : null }, error: null }` — `getSession()`'s real return shape nests `user` under `session`, unlike `getUser()`'s flatter `{ data: { user } }`. `harness`'s third parameter (`meId`) now also accepts `null` to model a signed-out caller, exercised by the new `leaveQueue` guard test.
+
+### Covering test output
+
+`cd app && ./node_modules/.bin/vitest run src/lib/__tests__/matchmaking.test.ts` → 21/21 passed (20 before this round, +1 for the signed-out `leaveQueue` guard):
+
+```
+ RUN  v3.2.7 /Users/alilahrime/Downloads/paragon-iv/app
+
+ ✓ src/lib/__tests__/matchmaking.test.ts (21 tests) 182ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  19:04:04
+   Duration  765ms (transform 94ms, setup 48ms, collect 103ms, tests 182ms, environment 252ms, prepare 38ms)
+```
+
+### Gate
+
+`cd app && npm run check > /tmp/task-7-fix-gate.log 2>&1; echo "EXIT=$?"` → **EXIT=0**. Full pipeline (`tsc -b && oxlint && themes && tokens && verify && audit:spreads && rules:node && verify:coordinator-bundle && test`) green: `Test Files 80 passed (80)` / `Tests 1112 passed (1112)`.
+
+### Deferred (per instructions, not touched)
+
+- Minor: null-user guard in the opponent derivation in `myMatches` (`r.player_a === me` when `me` is `undefined`).
+- Minor: a note about the red evidence.

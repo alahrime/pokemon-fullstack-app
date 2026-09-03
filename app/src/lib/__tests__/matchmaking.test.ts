@@ -19,10 +19,13 @@ const FORMAT: Format = {
  * PostgREST does — a code plus the text it puts in `message`. `rpc` is new
  * here: `saves.ts` never called it, but `accept_offer`/`confirm_offer` are
  * functions, not table writes, so this module needs a recorder for them too.
- * `auth.getUser` is also new: `myMatches` has no `opponent_id` column to read
- * — a match row only has `player_a`/`player_b` — so the module has to ask who
- * is signed in to know which one is "me". Defaults to a signed-in user id of
- * 'me'; pass a different id to test the other side of a match.
+ * `auth.getSession` is also new: `myMatches` has no `opponent_id` column to
+ * read — a match row only has `player_a`/`player_b` — so the module has to
+ * ask who is signed in to know which one is "me", and `leaveQueue` needs the
+ * same id to filter its delete. `getSession` (a local read), not `getUser`
+ * (a network round trip to the Auth server) — see `SessionContext.tsx`.
+ * Defaults to a signed-in user id of 'me'; pass a different id, or `null` for
+ * signed-out, to test the other cases.
  */
 function harness(
   rows: Record<string, unknown[]>,
@@ -54,7 +57,7 @@ function harness(
       return { data: 'm1', error: null };
     }),
     auth: {
-      getUser: vi.fn(async () => ({ data: { user: meId ? { id: meId } : null }, error: null })),
+      getSession: vi.fn(async () => ({ data: { session: meId ? { user: { id: meId } } : null }, error: null })),
     },
   };
   return { calls };
@@ -96,11 +99,26 @@ describe('queue', () => {
     expect(id).toBe('q1');
   });
 
-  it('leaves the queue with a plain delete — RLS, not a client-supplied filter, scopes it to one row', async () => {
+  /**
+   * `deleteTeam` in `saves.ts` filters its delete with `.eq('id', id)` even
+   * though RLS scopes it correctly on its own — that redundant predicate is
+   * this codebase's established discipline for a DELETE. Asserting only that
+   * *some* delete happened would pass whether or not that filter exists, so
+   * this checks the filter's column and value explicitly.
+   */
+  it('scopes the delete to the caller\'s own user_id, read from the session', async () => {
     const { calls } = harness({});
     const { leaveQueue } = await import('../matchmaking');
     await leaveQueue();
     expect(calls.some((c) => c.table === 'queue_entries' && c.op === 'delete')).toBe(true);
+    const eq = calls.find((c) => c.table === 'queue_entries' && c.op === 'eq');
+    expect(eq?.payload).toEqual(['user_id', 'me']);
+  });
+
+  it('refuses to leave a queue nobody signed into', async () => {
+    harness({}, {}, null);
+    const { leaveQueue } = await import('../matchmaking');
+    await expect(leaveQueue()).rejects.toThrow(/must be signed in/);
   });
 
   it('reports no entry when the table has none for this user', async () => {

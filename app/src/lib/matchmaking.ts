@@ -69,12 +69,27 @@ export async function joinQueue(a: {
 }
 
 /**
- * No filter is sent — `queue_entries_one_per_user` guarantees at most one row
- * is even visible to this user under RLS, so an unscoped delete removes that
- * one row and nothing belonging to anyone else.
+ * Filtered by the caller's own `user_id`, read from the local session —
+ * `saves.ts`'s `deleteTeam` filters its delete with `.eq('id', id)` even
+ * though its RLS policy also scopes correctly on its own, and that is this
+ * codebase's established discipline for a DELETE: a redundant predicate that
+ * matches what RLS already computes is ordinary defence in depth, not a
+ * second source of truth the way a client-supplied owner on INSERT would be.
+ * Without it, this call is literally "delete every queue entry you can see",
+ * and its safety would rest entirely on one RLS policy staying exactly as
+ * written across every future migration.
+ *
+ * `getSession()`, not `getUser()`: a local read of the already-verified
+ * session, not a network round trip that revalidates the JWT against the
+ * Auth server on every call — the same choice `SessionContext.tsx` makes and
+ * explains.
  */
 export async function leaveQueue(): Promise<void> {
-  const { error } = await supabase.from('queue_entries').delete();
+  const { data, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  const userId = data.session?.user.id;
+  if (!userId) throw new Error('you must be signed in to leave the queue');
+  const { error } = await supabase.from('queue_entries').delete().eq('user_id', userId);
   if (error) throw new Error(error.message);
 }
 
@@ -105,12 +120,18 @@ export async function myQueueEntry(): Promise<QueueEntry | null> {
  * `matches` has no `opponent_id` column — only `player_a`/`player_b`, since a
  * match row is symmetric and belongs to neither side more than the other.
  * Working out which one is "the opponent" needs to know who is signed in, so
- * this reads the live session rather than trusting either column by position.
+ * this reads the local session rather than trusting either column by
+ * position.
+ *
+ * `getSession()`, not `getUser()`: `getUser()` is a real network round trip
+ * that revalidates the JWT against the Auth server, and would abort this
+ * whole read on a transient network error for an id the caller already has
+ * locally. `SessionContext.tsx` makes the same choice for the same reason.
  */
 export async function myMatches(): Promise<Match[]> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError) throw new Error(userError.message);
-  const me = userData.user?.id;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  const me = sessionData.session?.user.id;
   const { data, error } = await supabase
     .from('matches')
     .select('id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, source, created_at')

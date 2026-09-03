@@ -477,4 +477,29 @@ describe('pairing', () => {
       ),
     ).toEqual([{ accepted_by: null, accepted_team: ['T'] }]);
   });
+
+  /**
+   * The gap the constraint choice above opens: accepted_by can become null
+   * on an offer still sitting in 'accepted', because nothing about deleting
+   * the taker's account touches `state`. confirm_offer() must recognise that
+   * rather than reach the matches INSERT with a null player_b, which would
+   * surface as a raw NOT NULL violation instead of a clean domain error.
+   */
+  it('refuses to confirm an accepted offer whose taker no longer exists', async () => {
+    const t = randomUUID();
+    await makeUser(t, `PT_${t.slice(0, 8)}`);
+    const o = await offer(', scheduled_for', `, now() + interval '2 days'`);
+    await asUser({ sub: t })(`select public.accept_offer('${o.id}', '["T"]'::jsonb)`);
+    await sql(`delete from auth.users where id = '${t}'`);
+    expect(
+      await sql<{ state: string; accepted_by: string | null }>(
+        `select state, accepted_by from public.match_offers where id = '${o.id}'`,
+      ),
+    ).toEqual([{ state: 'accepted', accepted_by: null }]);
+
+    await expect(asUser({ sub: a })(`select public.confirm_offer('${o.id}')`)).rejects.toThrow(
+      /no longer exists/,
+    );
+    expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
+  });
 });

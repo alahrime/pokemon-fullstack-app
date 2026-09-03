@@ -217,8 +217,8 @@ concurrency tests for flakiness: also `EXIT=0`, also 103/103, same shape
 ### Gates
 
 ```
-cd app && npm run check:db > /tmp/db.log 2>&1; echo "EXIT=$?"   → EXIT=0  (7 files, 103 tests)
-cd app && npm run check > /tmp/gate.log 2>&1; echo "EXIT=$?"    → EXIT=0  (79 files, 1081 tests — tsc, oxlint, themes, tokens, verify, audit:spreads, rules:node, full test suite)
+cd app && npm run check:db > /tmp/db-green.log 2>&1; echo "EXIT=$?"   → EXIT=0  (7 files, 103 tests — full output above)
+cd app && npm run check > /tmp/gate.log 2>&1; echo "EXIT=$?"          → EXIT=0  (79 files, 1081 tests — tsc, oxlint, themes, tokens, verify, audit:spreads, rules:node, full test suite)
 ```
 
 ### Database left clean
@@ -260,3 +260,105 @@ explicitly still pending and depends on the `service_role` grants added
 here), so I did not push or fast-forward this branch into `main` — that
 belongs at milestone handoff, not mid-milestone, consistent with how M1b's
 handoff was structured (local commits, merge/push at the end).
+
+## Fix round 1
+
+One Important finding from review, addressed. Compliance: spec compliant, no
+Critical.
+
+**Finding:** `confirm_offer` never checked `accepted_by is null` before using
+it as `matches.player_b`. Because the `accepted_team`/`accepted_by` invariant
+was chosen to be one-directional (deliberately — see the decision above), a
+scheduled offer that reaches `state = 'accepted'` and then has its taker's
+account deleted keeps sitting in `'accepted'` with `accepted_by` null and
+`accepted_team` intact. A proposer confirming inside the expiry window then
+hit `matches.player_b`'s `NOT NULL` constraint as a raw Postgres error instead
+of a clean domain error. Reachable, untested, not corruption (the insert rolls
+back).
+
+**Fix — migration:**
+`supabase/migrations/20260903011151_confirm_offer_guards_deleted_taker.sql`,
+a `create or replace function public.confirm_offer(...)` (no `db reset`, per
+the standing constraint) adding one guard before the INSERT:
+
+```sql
+if o.accepted_by is null then raise exception 'the person who accepted this offer no longer exists'; end if;
+```
+
+**Decision — do not also lapse the offer here.** `sweep_expired()` already
+reaches this exact row once `expires_at` passes (`state in ('open',
+'accepted')`), so the terminal `'lapsed'` transition already has one owner,
+already tested. Having `confirm_offer` additionally mutate `state` on this
+error path would duplicate that responsibility for no real gain: the window
+is time-bounded regardless, and a proposer who retries before expiry just
+gets the same clean error again rather than a different one. Keeping
+`confirm_offer` as "confirm or raise a clean error" and leaving all
+terminal-state transitions to the sweep keeps a single place responsible for
+each.
+
+**Fix — test:** added `refuses to confirm an accepted offer whose taker no
+longer exists` to `supabase/tests/pairing.test.ts`, immediately after `still
+lets the taker delete their account after accepting` (same setup: a
+scheduled offer, a throwaway user `t`, `accept_offer` as `t`, then `delete
+from auth.users where id = t`). It additionally confirms the offer is left
+at `state: 'accepted', accepted_by: null` — the exact reachable state the
+finding described — then calls `confirm_offer` as the proposer and asserts
+the clean error (`/no longer exists/`) rather than a NOT NULL violation, and
+that no match row was created. Cleans up nothing extra: the throwaway
+user's cascade removes its own profile row, and the offer row is caught by
+the file's existing `afterEach` (`delete from match_offers where proposer_id
+in (a,b,c)` — this offer's proposer is `a`).
+
+**Commands and output** (unique log path per the coordinator's instruction):
+
+```
+$ cd app && ./node_modules/.bin/supabase migration up --workdir .. > /tmp/task-5-fix-mig.log 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+```
+Connecting to local database...
+Applying migration 20260903011151_confirm_offer_guards_deleted_taker.sql...
+{"applied":["/Users/alilahrime/Downloads/paragon-iv/supabase/migrations/20260903011151_confirm_offer_guards_deleted_taker.sql"],"message":"Migrations applied"}
+```
+
+```
+$ cd app && npm run check:db > /tmp/task-5-fix-db.log 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+```
+ ✓ ../supabase/tests/profile-trigger.test.ts (13 tests) 90ms
+ ✓ ../supabase/tests/offers.test.ts (6 tests) 112ms
+ ✓ ../supabase/tests/queue.test.ts (8 tests) 127ms
+ ✓ ../supabase/tests/formats.test.ts (17 tests) 150ms
+ ✓ ../supabase/tests/teams.test.ts (18 tests) 160ms
+ ✓ ../supabase/tests/rls.test.ts (19 tests) 176ms
+ ✓ ../supabase/tests/pairing.test.ts (23 tests) 1062ms
+   ✓ pairing > makes a second accept wait for the row rather than declaring it missing  660ms
+
+ Test Files  7 passed (7)
+      Tests  104 passed (104)
+```
+
+Ran a second time immediately after (same command, output at the same log
+path) to check for flakes with the new test in place: also `EXIT=0`, also
+104/104. Also isolated the new test by name (`vitest run ... -t "refuses to
+confirm an accepted offer whose taker no longer exists"`, output at
+`/tmp/task-5-fix-covering-test.log`) to confirm it, specifically, passes:
+
+```
+ ✓ ../supabase/tests/pairing.test.ts > pairing > refuses to confirm an accepted offer whose taker no longer exists 41ms
+ Test Files  1 passed | 6 skipped (7)
+      Tests  1 passed | 103 skipped (104)
+```
+
+Post-run direct query confirmed the database left clean: `pg_locks where not
+granted` = 0, `queue_entries` = 0, `match_offers` = 0, `matches` = 0.
+
+No `db reset` run at any point in this fix round — only `supabase migration
+up` (one targeted `create or replace function`) and `npm run check:db`.
+
+**Stale citation corrected:** the "Gates" section above cited `/tmp/db.log`
+for the `check:db` run; that path was never the one containing this task's
+evidence (it was another agent's leftover run from an earlier time). The line
+now cites `/tmp/db-green.log`, the file that was actually quoted in full
+immediately above it in this report.

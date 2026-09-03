@@ -387,3 +387,160 @@ scheduled-vs-live negative assertion keys on an exclamation mark.
    action this screen takes, but a proposer sitting on the page while someone accepts still has to
    reload (or act) to see it. That is a strictly better failure than the old one — the state is now
    recoverable at all — but it is not live.
+
+---
+
+# Task 8 — fix round 2 (I1, I2)
+
+Two new Important problems introduced by fix round 1. Both are the same mistake: fix round 1
+made a saved format the price of admission to the whole screen, when it is only the price of
+JOINING or POSTING.
+
+## Status
+
+Done. `cd app && npm run check > /tmp/task-8-fix2-gate.log 2>&1` → **EXIT=0**, 81 files,
+**1147 passed** (was 1140). Screen suite 27, `lib/matchmaking` 27, `lib/saves` 19.
+
+## I1 — Accept was gated on the ACCEPTER having a saved format
+
+`accept_offer(p_offer, p_team)` takes no format: the OFFER's `format_version_id` is what the match
+is played under. Accept is now its own predicate, with no reference to `chosen`:
+
+```ts
+const canAccept = (o: Offer) => !!user && o.proposerId !== user.id && team.length === o.rosterSize;
+```
+
+`rosterReady` (`!!chosen && team.length === rosterSize`) is now documented as the JOIN/POST gate
+only. The button's `disabled` and `title` both come from `canAccept`; the title is
+`This offer is played with a roster of ${o.rosterSize}`, which replaces the "Add 0 more to accept"
+absurdity — that string was the old title arithmetic running against `DEFAULT_ROSTER_SIZE` for
+someone who had no format for it to fall back from.
+
+## I2 — the accept roster is now sized by the offer
+
+**Route taken, as asked:** `rosterSize` added to `Offer` (so `MyOffer` inherits it), derived from
+the length of the roster the offer was POSTED with — `listOpenOffers` and `myOffers` both now
+select `team`.
+
+**Why not `format_versions.rules`, which would be the direct answer:** RLS. The only policy that
+opens a version to a non-owner is "versions of a public format are readable by anyone signed in",
+and `formats.visibility` defaults to `private`. An embed would therefore return null for exactly
+the strangers' offers this number exists to size. The posted roster is legible under the same
+whole-row policy that shows the offer at all, and the proposer built it under that offer's own
+format, so its length is that format's `composition.size` as actually exercised. Only the count
+crosses out of `matchmaking.ts` — the members themselves are dropped in the mapper, so this screen
+cannot render an opponent's roster by accident.
+
+**Follow-on the finding implies but did not name:** capping the picker at your own format's size
+would make a larger offer permanently unacceptable — the F1 rule wearing the roster's clothes
+instead of the button's. So the picker's cap is now
+`rosterCapacity = Math.max(rosterSize, ...offers.map(o => o.rosterSize))`, the slot grid renders
+`Math.max(rosterSize, team.length)` slots (a member with no slot is a member nobody can remove),
+and the truncation effect keys on capacity rather than on your own size.
+
+## Mutation evidence
+
+### I1 — `canAccept` re-gated on the accepter's own format
+
+`team.length === o.rosterSize` → `rosterReady`
+
+```
+… -t "lets someone with no saved format of their own accept an open offer"    EXIT=1
+
+AssertionError: expected true to be false // Object.is equality
+- Expected  false
++ Received  true
+ ❯ src/screens/__tests__/matchmaking.test.tsx:461:32
+     461|     expect(acceptBtn.disabled).toBe(false);
+```
+
+An assertion about the control's state, not a `waitFor` diagnostic — the weakness called out in
+round 1. Restored → `EXIT=0`, `Tests  1 passed | 25 skipped (26)`.
+
+### I2 — the accept gate sized by your own format
+
+`team.length === o.rosterSize` → `team.length === rosterSize`
+
+```
+… -t "sizes the roster it accepts with by the offer"                          EXIT=1
+
+AssertionError: expected true to be false // Object.is equality
+ ❯ src/screens/__tests__/matchmaking.test.tsx:496:32
+     496|     expect(acceptBtn.disabled).toBe(false);
+```
+
+Restored → `EXIT=0`.
+
+### I2, the mismatch itself — a permissive gate that lets six into a three
+
+This mutation is why a fourth test exists. The one above only proves a gate is present; `>=` is
+the shape that would still admit the exact roster the finding names, and nothing downstream
+rejects it.
+
+`team.length === o.rosterSize` → `team.length >= o.rosterSize`
+
+```
+… -t "refuses to send a six-strong roster into a three-member offer"          EXIT=1
+
+AssertionError: expected false to be true // Object.is equality
+ ❯ src/screens/__tests__/matchmaking.test.tsx:541:32
+     541|     expect(acceptBtn.disabled).toBe(true);
+```
+
+Restored (verified with `diff -q`) → `EXIT=0`, `Tests  1 passed | 26 skipped (27)`.
+
+### I2, library half — `rosterSize` hardcoded in `listOpenOffers`
+
+```
+… -t "reports how big a roster each offer wants"                              EXIT=1
+
+AssertionError: expected [ 3, 3 ] to deeply equal [ 3, 6 ]
+ ❯ src/lib/__tests__/matchmaking.test.ts:259:70
+```
+
+### I2, library half — `rosterSize` hardcoded in `myOffers`
+
+**This one caught a hole in my own method and is worth recording.** My first attempt at the
+`listOpenOffers` mutation matched the wrong function (the anchor text landed in `myOffers`), the
+covering test passed, and `EXIT=0` looked briefly like "the mutation survived". It was not: I had
+broken a function that test does not call. Verifying WHICH function the mutation landed in — not
+merely that a mutation was applied — is part of the technique.
+
+Mutating `myOffers` on purpose then exposed a second hole: its fixture used a 3-member team for
+both rows, so a hardcoded `3` satisfied it. The fixture now gives the second row six members, and:
+
+```
+… -t "carries state, scheduledFor, acceptedBy and matchId through for both sides"   EXIT=1
+
+AssertionError: expected [ { id: 'o1', …(9) }, …(1) ] to deeply equal [ { id: 'o1', …(9) }, …(1) ]
+-     "rosterSize": 6,
++     "rosterSize": 3,
+ ❯ src/lib/__tests__/matchmaking.test.ts:319:30
+```
+
+Restored → `EXIT=0`, all 27 lib tests pass.
+
+## Deferred by ruling — recorded, not touched
+
+No team is validated against the format's POOL anywhere (`pickableFor` ignores `format.pool`), so a
+saved "Fossil Cup" can be queued with Azumarill. Ruled deferred: doing it properly means the
+coordinator calling `validateTeam`, which M2a scoped out, and a client-side-only check would be
+theatre since the client is what is not trusted. Left alone deliberately.
+
+Still deferred from round 1: a successful confirm renders no acknowledgement; `justAccepted` is
+never cleared; the scheduled-vs-live negative assertion keys on an exclamation mark.
+
+## Concerns
+
+1. **`rosterSize` is the posted roster's length, not the format's declared `composition.size`.**
+   They agree for every offer this screen creates. They would diverge if an offer were ever posted
+   with a roster of the wrong length by some other client — in which case this screen faithfully
+   asks for a matching wrong length. The authoritative fix is the same coordinator-side
+   `validateTeam` that the pool ruling defers, so I have not tried to half-do it here.
+2. **Both listings now pull the full `team` jsonb to take its length.** Small (3–6 members per
+   offer), and the alternative is a migration adding a generated column, which I could not test
+   without resetting the local stack. Worth revisiting if the board ever pages.
+3. **`rosterCapacity` lets the picker exceed your own format's size** while an oversized offer is on
+   the board. Join stays correctly disabled until the roster is exactly your format's size, but
+   someone who built six for an offer and then wants to queue must remove three. The alternative
+   was a dead end, which is worse.

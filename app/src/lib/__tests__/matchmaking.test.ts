@@ -210,6 +210,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          team: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
         },
       ],
     });
@@ -219,10 +220,62 @@ describe('offers', () => {
       {
         id: 'o1', proposerId: 'p1', league: 'great', formatVersionId: 'v1',
         scheduledFor: null, expiresAt: '2026-09-02T13:00:00Z', state: 'open', acceptedBy: null,
+        rosterSize: 3,
       },
     ]);
     const leagueFilter = calls.find((c) => c.table === 'match_offers' && c.op === 'eq' && (c.payload as unknown[])[0] === 'league');
     expect(leagueFilter?.payload).toEqual(['league', 'great']);
+  });
+
+  /**
+   * `accept_offer(p_offer, p_team)` takes no format: the OFFER's
+   * `format_version_id` is what the match is played under, so how big a
+   * roster an accepter needs is the offer's business and not theirs. Nothing
+   * downstream would catch the mismatch either — the coordinator recomputes
+   * `rules_hash` and never looks at `team`.
+   *
+   * The size comes from the posted roster's length rather than from the
+   * format's `composition.size`, because `format_versions` is readable only
+   * for a format whose `visibility = 'public'` and a saved format defaults to
+   * `private` — embedding the rules would return null for exactly the
+   * strangers' offers this number is for.
+   */
+  it('reports how big a roster each offer wants, from the roster it was posted with', async () => {
+    harness({
+      match_offers: [
+        {
+          id: 'o-three', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
+        },
+        {
+          id: 'o-six', proposer_id: 'p2', league: 'great', format_version_id: 'v2',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
+        },
+      ],
+    });
+    const { listOpenOffers } = await import('../matchmaking');
+    expect((await listOpenOffers('great')).map((o) => o.rosterSize)).toEqual([3, 6]);
+  });
+
+  it('asks for the team it sizes that from, and reports zero rather than NaN without one', async () => {
+    const { calls } = harness({
+      match_offers: [
+        {
+          id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+        },
+      ],
+    });
+    const { listOpenOffers } = await import('../matchmaking');
+    const [o] = await listOpenOffers('great');
+    // A zero disables the accept control; an undefined length would sail
+    // through `team.length === o.rosterSize` as NaN and disable it too, but
+    // silently and for the wrong reason.
+    expect(o.rosterSize).toBe(0);
+    const select = calls.find((c) => c.table === 'match_offers' && c.op === 'select');
+    expect(select?.payload).toMatch(/\bteam\b/);
   });
 
   /**
@@ -250,11 +303,15 @@ describe('offers', () => {
           id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
           scheduled_for: '2026-09-05T18:00:00Z', expires_at: '2026-09-05T19:00:00Z',
           state: 'accepted', accepted_by: 'them', match_id: null,
+          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
         },
         {
           id: 'o2', proposer_id: 'them', league: 'great', format_version_id: 'fv1',
           scheduled_for: null, expires_at: '2026-09-05T19:00:00Z',
           state: 'converted', accepted_by: 'me', match_id: 'm9',
+          // Six, deliberately differing from the three above: two rows mapped
+          // from one function, and a constant would satisfy only one of them.
+          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
         },
       ],
     });
@@ -263,12 +320,12 @@ describe('offers', () => {
       {
         id: 'o1', proposerId: 'me', league: 'great', formatVersionId: 'fv1',
         scheduledFor: '2026-09-05T18:00:00Z', expiresAt: '2026-09-05T19:00:00Z',
-        state: 'accepted', acceptedBy: 'them', matchId: null,
+        state: 'accepted', acceptedBy: 'them', matchId: null, rosterSize: 3,
       },
       {
         id: 'o2', proposerId: 'them', league: 'great', formatVersionId: 'fv1',
         scheduledFor: null, expiresAt: '2026-09-05T19:00:00Z',
-        state: 'converted', acceptedBy: 'me', matchId: 'm9',
+        state: 'converted', acceptedBy: 'me', matchId: 'm9', rosterSize: 6,
       },
     ]);
   });

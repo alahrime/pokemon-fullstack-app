@@ -121,6 +121,7 @@ function offer(over: Partial<Offer>): Offer {
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     state: 'open',
     acceptedBy: null,
+    rosterSize: 3,
     ...over,
   };
 }
@@ -154,6 +155,7 @@ function myOffer(over: Partial<MyOffer>): MyOffer {
     state: 'open',
     acceptedBy: null,
     matchId: null,
+    rosterSize: 3,
     ...over,
   };
 }
@@ -431,6 +433,150 @@ describe('signed in — the open offer board', () => {
     // Read back, not remembered: what this panel shows has to survive the
     // reload that throws every piece of session state away.
     await waitFor(() => expect(mmApi.myOffers.mock.calls.length).toBeGreaterThan(before));
+  });
+});
+
+/**
+ * Accepting is the OFFER's business, not yours.
+ *
+ * `accept_offer(p_offer, p_team)` takes no format argument: the offer's own
+ * `format_version_id` governs the match. So neither a saved format of your
+ * own nor its `composition.size` may have any say in whether, or with what,
+ * you accept — the first locks out everyone who has none, and the second
+ * quietly sends a roster of the wrong length into someone else's offer.
+ */
+describe('signed in — accepting an offer', () => {
+  it('lets someone with no saved format of their own accept an open offer', async () => {
+    savesApi.listServerFormats.mockResolvedValue([]);
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-open', rosterSize: 3 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-open"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+
+    const acceptBtn = container.querySelector('[data-offer-id="off-open"] .offer-accept') as HTMLButtonElement;
+    expect(acceptBtn).toBeTruthy();
+    // The database would take this person: they need no format to accept one.
+    expect(acceptBtn.disabled).toBe(false);
+    // And never the tooltip that used to sit on a permanently dead control.
+    expect(acceptBtn.getAttribute('title') ?? '').not.toMatch(/add 0 more/i);
+
+    await act(async () => {
+      fireEvent.click(acceptBtn);
+    });
+    await waitFor(() => expect(mmApi.acceptOffer).toHaveBeenCalledTimes(1));
+    expect((mmApi.acceptOffer.mock.calls[0][1] as unknown[]).length).toBe(3);
+    // Their own Join is still, correctly, not on offer — that one does need a
+    // format. The two gates are separate, which is the whole point.
+    expect(container.querySelector('.queue-join')).toBeFalsy();
+  });
+
+  it('sizes the roster it accepts with by the offer, not by your own format', async () => {
+    // Your format wants six; this offer is played with three.
+    savesApi.listServerFormats.mockResolvedValue([
+      savedFormat({
+        format: {
+          schema: RULES_SCHEMA,
+          base: 'great',
+          pool: [],
+          composition: { size: 6, uniqueSpecies: true },
+          selection: { mode: 'open' },
+        },
+      }),
+    ]);
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-three', rosterSize: 3 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-three"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+
+    const acceptBtn = container.querySelector('[data-offer-id="off-three"] .offer-accept') as HTMLButtonElement;
+    expect(acceptBtn.disabled).toBe(false);
+    // Sized by your own six-member format, Join is not ready at three — the
+    // contrast is the assertion: one control says yes and the other says no,
+    // on the same roster, because they answer to different formats.
+    expect((container.querySelector('.queue-join') as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      fireEvent.click(acceptBtn);
+    });
+    await waitFor(() => expect(mmApi.acceptOffer).toHaveBeenCalledTimes(1));
+    // Three, because the offer is played with three. Nothing downstream would
+    // have rejected six: the coordinator recomputes rules_hash and never
+    // inspects the roster.
+    expect((mmApi.acceptOffer.mock.calls[0][1] as unknown[]).length).toBe(3);
+  });
+
+  it('refuses to send a six-strong roster into a three-member offer', async () => {
+    // The exact mismatch nothing downstream would catch: `accept_offer` stores
+    // whatever roster it is handed as `matches.team_b`, and the coordinator
+    // recomputes `rules_hash` without ever inspecting `team`. A gate written
+    // as "at least as many as the offer wants" would let this through.
+    savesApi.listServerFormats.mockResolvedValue([
+      savedFormat({
+        format: {
+          schema: RULES_SCHEMA,
+          base: 'great',
+          pool: [],
+          composition: { size: 6, uniqueSpecies: true },
+          selection: { mode: 'open' },
+        },
+      }),
+    ]);
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-three', rosterSize: 3 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-three"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+    await pick(container, 'medicham');
+    await pick(container, 'swampert');
+    await pick(container, 'bastiodon');
+    // Six picked, under your own six-member format, which is legitimate — and
+    // Join is ready. It is Accept that must not be.
+    expect((container.querySelector('.queue-join') as HTMLButtonElement).disabled).toBe(false);
+    const acceptBtn = container.querySelector('[data-offer-id="off-three"] .offer-accept') as HTMLButtonElement;
+    expect(acceptBtn.disabled).toBe(true);
+    expect(acceptBtn.getAttribute('title')).toMatch(/roster of 3/i);
+  });
+
+  it('refuses to accept with a roster of the wrong length, and says what the offer wants', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-six', rosterSize: 6 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-six"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+    const acceptBtn = container.querySelector('[data-offer-id="off-six"] .offer-accept') as HTMLButtonElement;
+    expect(acceptBtn.disabled).toBe(true);
+    expect(acceptBtn.getAttribute('title')).toMatch(/roster of 6/i);
+  });
+
+  it('lets the roster grow past your own format to reach a bigger offer', async () => {
+    // Otherwise a six-member offer is unacceptable no matter what you pick,
+    // which is the "control that cannot succeed" rule wearing the roster's
+    // clothes: your own three-member format would cap the picker at three.
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-six', rosterSize: 6 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-six"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+    await pick(container, 'medicham');
+    await pick(container, 'swampert');
+    await pick(container, 'bastiodon');
+    // Every member picked is rendered in a slot — a member with no slot is a
+    // member nobody can remove.
+    expect(container.querySelectorAll('.team-slots > *').length).toBeGreaterThanOrEqual(6);
+    const acceptBtn = container.querySelector('[data-offer-id="off-six"] .offer-accept') as HTMLButtonElement;
+    expect(acceptBtn.disabled).toBe(false);
+    await act(async () => {
+      fireEvent.click(acceptBtn);
+    });
+    await waitFor(() => expect(mmApi.acceptOffer).toHaveBeenCalledTimes(1));
+    expect((mmApi.acceptOffer.mock.calls[0][1] as unknown[]).length).toBe(6);
   });
 });
 

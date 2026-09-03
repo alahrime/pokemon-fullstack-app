@@ -36,6 +36,22 @@ export interface Offer {
   expiresAt: string;
   state: OfferState;
   acceptedBy: string | null;
+  /**
+   * How many members a roster accepting THIS offer needs — the length of the
+   * roster the proposer posted, which they built under this offer's own
+   * format. The accepter's own saved format has no say: `accept_offer` takes
+   * no format argument, and the offer's `format_version_id` is what the match
+   * is played under.
+   *
+   * Derived from `team` rather than from `format_versions.rules`, and that is
+   * a real constraint rather than laziness: versions are readable only for a
+   * format whose `visibility = 'public'` ("versions of a public format are
+   * readable by anyone signed in"), and a saved format defaults to `private`.
+   * Embedding the rules would hand back null for most offers on the board —
+   * precisely for the strangers whose offers this number exists to size. The
+   * team is readable under the same row policy that shows the offer at all.
+   */
+  rosterSize: number;
 }
 
 /**
@@ -177,7 +193,7 @@ export async function myMatches(): Promise<Match[]> {
 export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
   const { data, error } = await supabase
     .from('match_offers')
-    .select('id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by')
+    .select('id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, team')
     .eq('league', league)
     .eq('state', 'open')
     .order('created_at', { ascending: false });
@@ -192,6 +208,7 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       expires_at: string;
       state: OfferState;
       accepted_by: string | null;
+      team: StoredMember[] | null;
     };
     return {
       id: r.id,
@@ -202,6 +219,11 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       expiresAt: r.expires_at,
       state: r.state,
       acceptedBy: r.accepted_by,
+      // The count, not the members. `match_offers`' select policy is
+      // whole-row, so the proposer's roster is legible to anyone who can see
+      // the offer — but this screen has no business rendering it, and what
+      // never leaves this function cannot be rendered by accident.
+      rosterSize: (r.team ?? []).length,
     };
   });
 }
@@ -240,7 +262,7 @@ export async function myOffers(): Promise<MyOffer[]> {
   const { data, error } = await supabase
     .from('match_offers')
     .select(
-      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, match_id',
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, match_id, team',
     )
     .or(`proposer_id.eq.${me},accepted_by.eq.${me}`)
     .order('created_at', { ascending: false });
@@ -256,6 +278,7 @@ export async function myOffers(): Promise<MyOffer[]> {
       state: OfferState;
       accepted_by: string | null;
       match_id: string | null;
+      team: StoredMember[] | null;
     };
     return {
       id: r.id,
@@ -267,6 +290,7 @@ export async function myOffers(): Promise<MyOffer[]> {
       state: r.state,
       acceptedBy: r.accepted_by,
       matchId: r.match_id,
+      rosterSize: (r.team ?? []).length,
     };
   });
 }

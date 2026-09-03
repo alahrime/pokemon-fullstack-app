@@ -124,27 +124,44 @@ export function MatchmakingScreen() {
   const chosen = leagueFormats.find((f) => f.id === chosenId) ?? leagueFormats[0] ?? null;
   const rosterSize = chosen ? chosen.format.composition.size : DEFAULT_ROSTER_SIZE;
 
+  // Declared here rather than with the board below because the roster's own
+  // capacity depends on it — see `rosterCapacity`.
+  const [offers, setOffers] = useState<Offer[] | null>(null);
+
   // --- the roster, built locally on this screen ---------------------------
   const [team, setTeam] = useState<string[]>([]);
+  /**
+   * The most members this roster could need: your own format's size, or the
+   * largest offer on the board. Capping at your own size would make a bigger
+   * offer permanently unacceptable — no amount of picking would reach its
+   * length — which is the "control that cannot succeed" rule again, wearing
+   * the roster's clothes instead of the button's.
+   */
+  const rosterCapacity = Math.max(rosterSize, ...(offers ?? []).map((o) => o.rosterSize));
   const selectable = useMemo(
     () => new Set(pickableFor(league).filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r)))),
     [league, team],
   );
   const add = (ref: string) => {
     setTeam((t) =>
-      t.includes(ref) || t.length >= rosterSize || t.some((m) => conflictsOnTeam(m, ref)) ? t : [...t, ref],
+      t.includes(ref) || t.length >= rosterCapacity || t.some((m) => conflictsOnTeam(m, ref)) ? t : [...t, ref],
     );
   };
   const clear = (i: number) => setTeam((t) => t.filter((_, n) => n !== i));
   const buildTeam = (): StoredMember[] => team.map((ref) => encodeMember(defaultChoice(ref, league), league));
+  /**
+   * Ready to JOIN or POST — both of which are queued under your own chosen
+   * format, so both need one. Accepting is deliberately not this: see
+   * `canAccept`.
+   */
   const rosterReady = !!chosen && team.length === rosterSize;
 
-  // A format with a smaller roster leaves members past its size unreachable —
-  // invisible in the slots, but still counted, so the roster could never be
-  // "ready" again without a member nobody can see being removed.
+  // Nothing may sit past the capacity: a member the slots do not render is a
+  // member nobody can remove, and it still counts towards every length check
+  // on this screen.
   useEffect(() => {
-    setTeam((t) => (t.length > rosterSize ? t.slice(0, rosterSize) : t));
-  }, [rosterSize]);
+    setTeam((t) => (t.length > rosterCapacity ? t.slice(0, rosterCapacity) : t));
+  }, [rosterCapacity]);
 
   // --- the blind queue ------------------------------------------------------
   const [entry, setEntry] = useState<QueueEntry | null>(null);
@@ -246,7 +263,6 @@ export function MatchmakingScreen() {
   };
 
   // --- the open offer board --------------------------------------------------
-  const [offers, setOffers] = useState<Offer[] | null>(null);
   const [justAccepted, setJustAccepted] = useState<{ offerId: string; matchId: string | null } | null>(null);
   const [postOpen, setPostOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState('');
@@ -292,8 +308,20 @@ export function MatchmakingScreen() {
     };
   }, [user]);
 
+  /**
+   * Accepting is governed by the OFFER, not by you. `accept_offer(p_offer,
+   * p_team)` takes no format: the offer's own `format_version_id` is what the
+   * match is played under, so a saved format of your own is not needed to
+   * accept one, and requiring it locked out everyone who has none — the
+   * database would have taken them. The roster has to be the size the OFFER
+   * wants for the same reason; sizing it by your own format would let a
+   * 6-strong roster into a 3-member offer, which nothing downstream rejects
+   * (the coordinator recomputes `rules_hash` and never inspects `team`).
+   */
+  const canAccept = (o: Offer) => !!user && o.proposerId !== user.id && team.length === o.rosterSize;
+
   const accept = async (o: Offer) => {
-    if (!user || o.proposerId === user.id || !rosterReady || busy) return;
+    if (!canAccept(o) || busy) return;
     setBusy(true);
     setNotice(null);
     try {
@@ -412,8 +440,11 @@ export function MatchmakingScreen() {
         <div className="hud-label">
           Your roster for {LEAGUE_BY_ID.get(league)?.label ?? league}
         </div>
+        {/* Your own format's size, but never fewer slots than the roster
+            actually holds — someone building up to a larger offer must be
+            able to see, and remove, every member they picked. */}
         <div className="team-slots">
-          {Array.from({ length: rosterSize }, (_, i) => {
+          {Array.from({ length: Math.max(rosterSize, team.length) }, (_, i) => {
             const r = team[i] ?? null;
             return r ? (
               <PokemonCard key={i} refId={r} league={league} size="compact" onClick={() => clear(i)} title="Click to remove" />
@@ -513,8 +544,13 @@ export function MatchmakingScreen() {
                     <button
                       type="button"
                       className="btn chip-btn offer-accept"
-                      disabled={!rosterReady || busy}
-                      title={!rosterReady ? `Add ${rosterSize - team.length} more to accept` : undefined}
+                      // Not `rosterReady`: that asks whether YOU could post,
+                      // and accepting is the offer's business, not your
+                      // format's.
+                      disabled={!canAccept(o) || busy}
+                      title={
+                        canAccept(o) ? undefined : `This offer is played with a roster of ${o.rosterSize}`
+                      }
                       onClick={() => void accept(o)}
                     >
                       Accept

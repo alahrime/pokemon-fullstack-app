@@ -24,6 +24,8 @@ export interface Match {
   createdAt: string;
 }
 
+export type OfferState = 'open' | 'accepted' | 'confirmed' | 'lapsed' | 'converted';
+
 export interface Offer {
   id: string;
   proposerId: string;
@@ -32,8 +34,18 @@ export interface Offer {
   /** Null for the live board; a timestamp for a scheduled proposal. */
   scheduledFor: string | null;
   expiresAt: string;
-  state: 'open' | 'accepted' | 'confirmed' | 'lapsed' | 'converted';
+  state: OfferState;
   acceptedBy: string | null;
+}
+
+/**
+ * An offer the signed-in person is party to. The extra field over `Offer` is
+ * the match it became: an offer only carries one once it has been confirmed
+ * (or, for a live offer, converted on acceptance), so a null `matchId` beside
+ * `state = 'accepted'` is precisely the handshake still waiting on someone.
+ */
+export interface MyOffer extends Offer {
+  matchId: string | null;
 }
 
 /**
@@ -178,7 +190,7 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       format_version_id: string;
       scheduled_for: string | null;
       expires_at: string;
-      state: 'open' | 'accepted' | 'confirmed' | 'lapsed' | 'converted';
+      state: OfferState;
       accepted_by: string | null;
     };
     return {
@@ -190,6 +202,71 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       expiresAt: r.expires_at,
       state: r.state,
       acceptedBy: r.accepted_by,
+    };
+  });
+}
+
+/**
+ * Every offer the signed-in person is party to — the ones they proposed AND
+ * the ones they accepted — in every state, not just `open`.
+ *
+ * `listOpenOffers` cannot do this job and must not be widened to try. An
+ * offer leaves `state = 'open'` the instant someone accepts it, so a proposer
+ * whose only view of their own proposal was the open board loses sight of it
+ * at exactly the moment it needs their confirmation — the offer then lapses
+ * on its own expiry and the match is never created. The taker is stranded the
+ * same way: their acceptance is a row they can no longer see. Both sides need
+ * to rediscover the handshake on a fresh page load, from the database, which
+ * is what this reads.
+ *
+ * `match_id` is selected here and nowhere else: it is the only thing that
+ * distinguishes "confirmed, and here is the match it became" from a state
+ * string alone.
+ *
+ * Both halves of the OR are already readable under the existing policies —
+ * "an offer belongs to the person who proposed it" covers the proposer's own
+ * rows in any state, and "a public offer is readable by anyone signed in"
+ * covers the taker's. The filter is not what makes this safe; it is what
+ * keeps the answer to "mine" from being "everyone's".
+ *
+ * `getSession()`, not `getUser()`: a local read of the already-verified
+ * session, the same choice `leaveQueue` and `myMatches` make above.
+ */
+export async function myOffers(): Promise<MyOffer[]> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  const me = sessionData.session?.user.id;
+  if (!me) throw new Error('you must be signed in to list your offers');
+  const { data, error } = await supabase
+    .from('match_offers')
+    .select(
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, match_id',
+    )
+    .or(`proposer_id.eq.${me},accepted_by.eq.${me}`)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => {
+    const r = row as {
+      id: string;
+      proposer_id: string;
+      league: LeagueId;
+      format_version_id: string;
+      scheduled_for: string | null;
+      expires_at: string;
+      state: OfferState;
+      accepted_by: string | null;
+      match_id: string | null;
+    };
+    return {
+      id: r.id,
+      proposerId: r.proposer_id,
+      league: r.league,
+      formatVersionId: r.format_version_id,
+      scheduledFor: r.scheduled_for,
+      expiresAt: r.expires_at,
+      state: r.state,
+      acceptedBy: r.accepted_by,
+      matchId: r.match_id,
     };
   });
 }

@@ -194,3 +194,196 @@ constraints.
 4. Each match row renders the plain text "Match paired" rather than the opponent's display name —
    `Match.opponentId` is a profile id, not a species ref or display name, and no lookup for a
    profile's display name was in scope here.
+
+---
+
+# Task 8 — fix round (F1–F5)
+
+Fresh implementer; the original ran on a rate-capped model. Review returned spec ❌ with four
+Important findings; F5 was folded in because it depends on the same work.
+
+## Status
+
+Done. `cd app && npm run check > /tmp/task-8-fix-gate.log 2>&1` → **EXIT=0**, 81 files,
+**1140 passed** (was 1125; +15 net). Screen suite 22 tests, `lib/matchmaking` 25, `lib/saves` 19.
+
+## The ruling, implemented first, because F2 and F5 both stand on it
+
+M2a queues under a format the person has **saved on the server**. Canonical league formats are
+deferred to the ranked milestone. So:
+
+- `app/src/lib/saves.ts` — `listServerFormats` now selects `format_versions(id, …)` and
+  `SavedFormat` carries `versionId` (`format_versions.id`, a different table from `id`, which is
+  `formats.id`).
+- `app/src/screens/MatchmakingScreen.tsx` — the `canonical:${league}` placeholder is **gone**. The
+  screen reads `listServerFormats()`, filters to formats whose `format.base` is the league on
+  screen, renders them as `.seg-btn` chips, and passes the chosen one's `versionId` and `format`
+  to `joinQueue`/`createOffer`. Roster size now comes from the chosen format's
+  `composition.size` rather than a constant, and a roster longer than a newly chosen format's size
+  is truncated (otherwise members past the size are invisible but still counted, and the roster can
+  never be "ready" again).
+- With no saved format for this league: a `.no-formats` message, and **no Join and no Post control
+  at all** — same rule as F1.
+
+## F1 — a Confirm control that could only fail
+
+Confirm now renders only for `proposed && o.state === 'accepted'`. A live offer goes
+`open → converted` on acceptance and never reaches `accepted`, and `confirm_offer` raises
+`'only the proposer confirms'` for the taker, so Confirm anywhere else was a button whose whole
+behaviour was to print raw Postgres text at someone.
+
+## F2 — the dead end on both sides
+
+New listing function in `app/src/lib/matchmaking.ts`:
+
+```ts
+export interface MyOffer extends Offer { matchId: string | null }
+export async function myOffers(): Promise<MyOffer[]>
+```
+
+`getSession()` (never `getUser()`), throws `new Error(error.message)`, types the PostgREST row at
+the boundary, sends no owner column. Filters
+`.or('proposer_id.eq.<me>,accepted_by.eq.<me>')` — proposed **or** accepted, in **every** state —
+and selects `match_id` on top of `listOpenOffers`'s columns, since a state string alone cannot say
+which match a confirmed offer became. Both halves are already readable under the existing policies
+("an offer belongs to the person who proposed it" for the proposer, "a public offer is readable by
+anyone signed in" for the taker).
+
+The screen's `posted` session state is deleted. The panel (`.my-offer-list`) is driven by
+`myOffers()`, loaded on mount and re-read after post / accept / confirm. Status text is written
+from the reader's own side — `accepted` is "Confirm it to make it a match" to the proposer and
+"awaiting the proposer's confirmation" to the taker; telling either one the other's sentence is how
+someone waits for a handshake that was waiting for them.
+
+Also covered in `app/src/lib/__tests__/matchmaking.test.ts` with the existing `harness` (extended
+by an `or` recorder, and `select` now records its column list): four new tests — the filter shape,
+the full field mapping for both sides, the presence of `match_id`/`scheduled_for`/`accepted_by`/
+`state` in the select, and the signed-out refusal.
+
+## F3 — the offer board no longer expands
+
+`app/src/styles/components.css` gains a Matchmaking section. `.offer-list` (and `.my-offer-list`)
+now carry `max-height: 240px; overflow-y: auto`, written out as complete standalone rules rather
+than grouped with `.match-list`, so the cap lives in the one rule anyone comes here to read (the
+`.team-slots` trap). Existing tokens only — `--space-1/2/3`, `--text-sm`, `--font-mono`,
+`--color-accent`, `--color-accent-2-700`, `--border-strong`. No new colour literals.
+
+## F4 — mutation evidence
+
+Nothing here was proved by a collective import failure. Each assertion was watched to fail against
+a deliberately broken implementation, then watched to pass once restored.
+
+### F1 — `{proposed && o.state === 'accepted' && …}` → `{proposed && …}`
+
+```
+./node_modules/.bin/vitest run src/screens/__tests__/matchmaking.test.tsx \
+  -t "offers no Confirm on an offer nobody has accepted yet"    EXIT=1
+
+ FAIL  … > offers no Confirm on an offer nobody has accepted yet
+AssertionError: expected …(2) to have a length of +0 but got 2
+- Expected  0
++ Received  2
+ ❯ src/screens/__tests__/matchmaking.test.tsx:511:58
+```
+
+Restored → `EXIT=0`, `Tests  1 passed | 21 skipped (22)`.
+
+### F2 — the effect's `myOffers()` → `Promise.resolve([])` (i.e. back to session-only state)
+
+```
+… -t "handshake survives a reload"                              EXIT=1
+⎯ Failed Tests 4 ⎯
+ FAIL  … > rediscovers an offer awaiting your confirmation, and confirms it
+Error: offer row not rendered yet
+ FAIL  … > tells the taker their acceptance is waiting on the proposer, and gives them no Confirm
+Error: offer row not rendered yet
+ FAIL  … > offers no Confirm on an offer nobody has accepted yet
+Error: not rendered yet
+ FAIL  … > shows a confirmed offer as a match rather than as something still to do
+Error: offer row not rendered yet
+      Tests  4 failed | 18 skipped (22)
+```
+
+Restored → `EXIT=0`, `Tests  4 passed | 18 skipped (22)`.
+
+### F2, library half — `.or(proposer|accepted)` → `.eq('proposer_id', me).eq('state','open')`
+
+```
+./node_modules/.bin/vitest run src/lib/__tests__/matchmaking.test.ts \
+  -t "lists offers I proposed and offers I accepted"             EXIT=1
+
+AssertionError: expected undefined to be 'proposer_id.eq.me,accepted_by.eq.me'
+ ❯ src/lib/__tests__/matchmaking.test.ts:241:25
+```
+
+Restored → `EXIT=0`, `Tests  1 passed | 24 skipped (25)`.
+
+### F3 — `max-height` and `overflow-y` deleted from `.offer-list`
+
+```
+… -t "caps the open board"                                       EXIT=1
+
+AssertionError: expected '.offer-list {\n  list-style: none;\n …' to match /max-height:\s*\d/
++ Received:
+".offer-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}"
+ ❯ src/screens/__tests__/matchmaking.test.tsx:549:18
+```
+
+Restored (byte-for-byte, verified with `diff -q`) → `EXIT=0`, `Tests  1 passed | 21 skipped (22)`.
+
+### F5 — `formatVersionId: chosen.versionId` → `` `canonical:${league}` ``
+
+```
+… -t "joins the queue with the roster and format on screen"      EXIT=1
+
+AssertionError: expected 'canonical:great' to be 'fv-great-2' // Object.is equality
+ ❯ src/screens/__tests__/matchmaking.test.tsx:229:33
+```
+
+Restored → `EXIT=0`, `Tests  1 passed | 21 skipped (22)`.
+
+The old assertion (`typeof … === 'string'` and `.length > 0`) passed against `canonical:great`
+throughout — which is the point of F5.
+
+## F5 — the join assertion, tightened
+
+`expect(arg.formatVersionId).toBe('fv-great-2')`, plus `.not.toBe('f-great')` (the format id — the
+wrong table, and a mistake that would fail the foreign key just as quietly), plus
+`expect(arg.format).toEqual(savedFormat().format)`. Two more screen tests: no Join when there are
+no saved formats, and "queues under the format that was chosen, not the first one listed" (clicks
+the second chip, asserts `fv-cup-7`). In `saves.test.ts`, `listServerFormats` now asserts
+`versionId === 'fv-3'` from the winning version's row, `versionId !== id`, and that the embed
+actually asks for `format_versions(id …)`.
+
+## Deferred, as instructed — not touched
+
+A successful confirm renders no acknowledgement; `justAccepted` is never cleared; the
+scheduled-vs-live negative assertion keys on an exclamation mark.
+
+## Uncertain
+
+1. **The `.or()` filter interpolates the session user id into a PostgREST filter string.** It is a
+   uuid from the local session, not user input, and both halves are independently enforced by RLS,
+   so a malformed value can only fail the query. It is still the first `.or()` in this codebase —
+   if there is a house preference for two round trips over an interpolated filter, this is the
+   place it would apply.
+2. **Roster size now follows `composition.size`.** Nothing in Task 7's API or the DB validates a
+   roster against the format at queue time (`matches.rounds check (rounds in (3,5))` is rounds, not
+   roster), so this is the client being honest rather than a constraint being satisfied. A format
+   with an unusual size will render that many slots.
+3. **`useFormats()` is still not the source here** — it merges local and server formats and drops
+   `versionId`, so this screen calls `listServerFormats()` directly. That means a format saved only
+   in localStorage (signed out, never migrated) does not appear on this screen. Correct, I think —
+   you cannot queue under rules the server has never seen — but it is a visible difference from the
+   Formats screen.
+4. **`match_offers` has no realtime subscription.** The panel is accurate on load and after every
+   action this screen takes, but a proposer sitting on the page while someone accepts still has to
+   reload (or act) to see it. That is a strictly better failure than the old one — the state is now
+   recoverable at all — but it is not live.

@@ -5943,3 +5943,96 @@ th.bt-matrix-head { text-align: center; }
   flex: none;
   font-size: var(--text-xs);
 }
+
+/* --- Matchmaking ------------------------------------------------------- */
+
+.format-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.matchmaking-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+.queue-status {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+.match-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+/* The board is bounded and scrolls INSIDE that bound. An open offer board
+   grows on its own — offers arrive from other people while this screen sits
+   open — and an unbounded list would push the Post control and the panels
+   under it down the page mid-click, moving the target out from under the
+   pointer. Same reason the post form overlays instead of expanding.
+   Written out in full rather than grouped with .match-list above: this is the
+   rule anyone comes here to read, and a cap that lives in one rule while the
+   selector also appears in another is the .team-slots trap. */
+.offer-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+/* Bounded for the same reason: your own offers accumulate as you post them. */
+.my-offer-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.match-row,
+.offer-row,
+.my-offer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+}
+.offer-when,
+.my-offer-when {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+}
+.friend-code {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+}
+.offer-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* No --danger token in this design system — the secondary signal colour every
+   theme defines is what a message like this uses instead (see
+   .team-load-notice above, the precedent this copies). */
+.matchmaking-notice {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-accent-2-700);
+  border-left: var(--border-strong) solid var(--color-accent-2-700);
+  padding-left: var(--space-3);
+}

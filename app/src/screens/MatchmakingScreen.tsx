@@ -8,7 +8,6 @@ import { useSession } from '../state/SessionContext';
 import { LEAGUE_BY_ID, conflictsOnTeam, movesFor, pickableFor, speciesOf } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 import { encodeMember, type StoredMember } from '../lib/teamCodec';
-import { RULES_SCHEMA, type Format } from '../rules';
 import type { LeagueId } from '../lib/types';
 import {
   acceptOffer,
@@ -18,12 +17,15 @@ import {
   leaveQueue,
   listOpenOffers,
   myMatches,
+  myOffers,
   myQueueEntry,
   opponentFriendCode,
   type Match,
+  type MyOffer,
   type Offer,
   type QueueEntry,
 } from '../lib/matchmaking';
+import { listServerFormats, type SavedFormat } from '../lib/saves';
 
 /**
  * The Matchmaking screen: three answers to one question — who do I play next
@@ -31,49 +33,26 @@ import {
  * offers anyone can browse and accept, and scheduled proposals that need
  * both sides to confirm before they become a match.
  *
- * The roster is built right here rather than loaded from a saved team: this
- * screen's "Consumes" list is deliberately narrow (Task 7's matchmaking API,
- * `useSession`, `LEAGUE_BY_ID`), and pulling in `lib/saves`' saved-team and
- * saved-format machinery would have meant mocking a second module boundary
- * this screen's tests were never asked to cover. What is built here is
- * scored under the league's own rated moveset — the same fallback `Slot`
- * uses on `TeamBuilderScreen` for a member that was never opened in a build
- * picker.
+ * **What you queue under.** M2a queues with a format the person has SAVED ON
+ * THE SERVER, chosen here by name. Canonical per-league league formats are
+ * deferred to the ranked milestone: the spec ties them to ranked play, M2a
+ * has no rating, and partitioning the queue by `rules_hash` already means two
+ * people who authored the same rules meet each other. So `formatVersionId` is
+ * a real `format_versions.id` from `listServerFormats`, not a placeholder —
+ * the earlier `canonical:${league}` string was a value no foreign key could
+ * ever have accepted. Someone with no saved format for this league is told
+ * so and offered no control that could only fail.
  *
- * `formatVersionId`/`format` are the "canonical league format" the design
- * spec describes for the open queue: the whole base league, no extra
- * clauses. See the KNOWN GAP note on `canonicalFormatVersionId` below —
- * there is currently no code anywhere, in this screen or elsewhere, that can
- * produce or discover a *real* `format_versions.id` for it.
+ * The roster is built right here rather than loaded from a saved team, and
+ * scored under the league's own rated moveset — the same fallback `Slot` uses
+ * on `TeamBuilderScreen` for a member that was never opened in a build
+ * picker. How many members it needs comes from the chosen format's
+ * `composition.size`, not a constant: the format is the thing that says how
+ * big a roster is.
  */
 
-const ROSTER_SIZE = 3;
-
-function canonicalFormat(league: LeagueId): Format {
-  return {
-    schema: RULES_SCHEMA,
-    base: league,
-    start: 'league',
-    pool: [],
-    composition: { size: ROSTER_SIZE, uniqueSpecies: true },
-    selection: { mode: 'open' },
-  };
-}
-
-/**
- * KNOWN GAP, reported rather than papered over (see task-8-report.md): a
- * `format_version_id` is a foreign key into `format_versions`, and nothing
- * in this codebase today can produce or discover a real one for a league's
- * canonical, unrestricted ruleset — there is no seed migration for it, and
- * `lib/saves.ts`'s `listServerFormats` doesn't expose `format_versions.id`
- * for a custom saved format either (only `formats.id`, a different table).
- * This placeholder keeps the shape of the write honest rather than hiding
- * the gap; `joinQueue`/`createOffer` will fail their foreign key against a
- * real database until that plumbing exists.
- */
-function canonicalFormatVersionId(league: LeagueId): string {
-  return `canonical:${league}`;
-}
+/** Only until a format is chosen — the empty slots have to be some number. */
+const DEFAULT_ROSTER_SIZE = 3;
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -101,10 +80,49 @@ function queueStatusText(entry: QueueEntry): string {
   return entry.verifiedHash ? 'Queued and eligible to pair.' : 'Queued — awaiting verification.';
 }
 
+/**
+ * Where an offer has got to, said from the reader's own side of it. The two
+ * sides are not symmetric: `accepted` is "your move" to the proposer and
+ * "waiting on them" to the taker, and telling either one the other's sentence
+ * is how someone sits waiting for a handshake that was waiting for them.
+ */
+function offerStatusText(o: MyOffer, proposed: boolean): string {
+  switch (o.state) {
+    case 'open':
+      return proposed ? 'Posted — nobody has accepted it yet.' : 'Still open.';
+    case 'accepted':
+      return proposed
+        ? 'Someone accepted. Confirm it to make it a match.'
+        : "You accepted — awaiting the proposer's confirmation.";
+    case 'confirmed':
+    case 'converted':
+      return 'Confirmed — this is a match now.';
+    case 'lapsed':
+      return 'Lapsed — the window closed before it was confirmed.';
+  }
+}
+
 export function MatchmakingScreen() {
   const { state } = useAppState();
   const { user } = useSession();
   const league = state.league;
+
+  // --- the format being queued under --------------------------------------
+  // Null while loading, [] once loaded and empty — a distinction the screen
+  // renders, since "you have no saved formats" is a wrong thing to say to
+  // someone whose formats simply have not arrived yet.
+  const [savedFormats, setSavedFormats] = useState<SavedFormat[] | null>(null);
+  const [chosenId, setChosenId] = useState<string | null>(null);
+
+  const leagueFormats = useMemo(
+    () => (savedFormats ?? []).filter((f) => f.format.base === league),
+    [savedFormats, league],
+  );
+  // Filtered to this league's own formats: `league` is what the queue and the
+  // board are partitioned on, and offering a Master format while the screen
+  // says Great would queue someone under rules they are not looking at.
+  const chosen = leagueFormats.find((f) => f.id === chosenId) ?? leagueFormats[0] ?? null;
+  const rosterSize = chosen ? chosen.format.composition.size : DEFAULT_ROSTER_SIZE;
 
   // --- the roster, built locally on this screen ---------------------------
   const [team, setTeam] = useState<string[]>([]);
@@ -114,12 +132,19 @@ export function MatchmakingScreen() {
   );
   const add = (ref: string) => {
     setTeam((t) =>
-      t.includes(ref) || t.length >= ROSTER_SIZE || t.some((m) => conflictsOnTeam(m, ref)) ? t : [...t, ref],
+      t.includes(ref) || t.length >= rosterSize || t.some((m) => conflictsOnTeam(m, ref)) ? t : [...t, ref],
     );
   };
   const clear = (i: number) => setTeam((t) => t.filter((_, n) => n !== i));
   const buildTeam = (): StoredMember[] => team.map((ref) => encodeMember(defaultChoice(ref, league), league));
-  const rosterReady = team.length === ROSTER_SIZE;
+  const rosterReady = !!chosen && team.length === rosterSize;
+
+  // A format with a smaller roster leaves members past its size unreachable —
+  // invisible in the slots, but still counted, so the roster could never be
+  // "ready" again without a member nobody can see being removed.
+  useEffect(() => {
+    setTeam((t) => (t.length > rosterSize ? t.slice(0, rosterSize) : t));
+  }, [rosterSize]);
 
   // --- the blind queue ------------------------------------------------------
   const [entry, setEntry] = useState<QueueEntry | null>(null);
@@ -133,9 +158,20 @@ export function MatchmakingScreen() {
       setEntry(null);
       setMatches(null);
       setCodes({});
+      setSavedFormats(null);
       return;
     }
     let live = true;
+    void listServerFormats()
+      .then((f) => {
+        if (live) setSavedFormats(f);
+      })
+      .catch((e: unknown) => {
+        if (live) {
+          setSavedFormats([]);
+          setNotice(messageOf(e));
+        }
+      });
     void myQueueEntry()
       .then((e) => {
         if (live) setEntry(e);
@@ -171,14 +207,17 @@ export function MatchmakingScreen() {
   }, [matches]);
 
   const join = async () => {
-    if (!rosterReady || entry || busy) return;
+    if (!chosen || !rosterReady || entry || busy) return;
     setBusy(true);
     setNotice(null);
     try {
+      // The version id, not the format id: what two people agreed to play is
+      // an immutable version, so editing this format afterwards cannot change
+      // the rules of a match already queued under it.
       await joinQueue({
         league,
-        formatVersionId: canonicalFormatVersionId(league),
-        format: canonicalFormat(league),
+        formatVersionId: chosen.versionId,
+        format: chosen.format,
         team: buildTeam(),
       });
       setEntry(await myQueueEntry());
@@ -211,17 +250,18 @@ export function MatchmakingScreen() {
   const [justAccepted, setJustAccepted] = useState<{ offerId: string; matchId: string | null } | null>(null);
   const [postOpen, setPostOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState('');
-  // Offers this screen has posted this session, so a Confirm control can be
-  // offered for them. There is no function anywhere in `lib/matchmaking` to
-  // list "offers I proposed" (only `listOpenOffers`, scoped to `state =
-  // 'open'`, which an accepted offer has already left) — see the report.
-  // Confirming one nobody has actually accepted yet simply answers with
-  // whatever error `confirm_offer` raises; that is surfaced, not hidden.
-  const [posted, setPosted] = useState<{ id: string; scheduledFor: string | null }[]>([]);
+  // Every offer this person is party to, READ FROM THE DATABASE — proposed or
+  // accepted, in whatever state. Not session state: an offer leaves
+  // `state = 'open'` the moment someone accepts it, so a panel driven by what
+  // this tab happened to post would forget the handshake on reload, and
+  // `listOpenOffers` would never hand it back. That is the offer lapsing and
+  // the match never being created.
+  const [mine, setMine] = useState<MyOffer[] | null>(null);
 
   useEffect(() => {
     if (!user) {
       setOffers(null);
+      setMine(null);
       return;
     }
     let live = true;
@@ -237,6 +277,21 @@ export function MatchmakingScreen() {
     };
   }, [user, league]);
 
+  useEffect(() => {
+    if (!user) return;
+    let live = true;
+    void myOffers()
+      .then((o) => {
+        if (live) setMine(o);
+      })
+      .catch((e: unknown) => {
+        if (live) setNotice(messageOf(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [user]);
+
   const accept = async (o: Offer) => {
     if (!user || o.proposerId === user.id || !rosterReady || busy) return;
     setBusy(true);
@@ -245,6 +300,9 @@ export function MatchmakingScreen() {
       const matchId = await acceptOffer(o.id, buildTeam());
       setOffers((prev) => (prev ? prev.filter((x) => x.id !== o.id) : prev));
       setJustAccepted({ offerId: o.id, matchId });
+      // Re-read what this person is party to: the offer just accepted is now
+      // one of them, and this is the read that will still find it tomorrow.
+      setMine(await myOffers());
       // A live offer resolves to a match id immediately; a scheduled one
       // returns null and stays `accepted`, not a match, until the proposer
       // confirms — rendering null as "matched" would put a battle on
@@ -258,7 +316,7 @@ export function MatchmakingScreen() {
   };
 
   const post = async (scheduled: boolean) => {
-    if (!rosterReady || busy) return;
+    if (!chosen || !rosterReady || busy) return;
     let scheduledFor: Date | undefined;
     if (scheduled) {
       if (!scheduleAt) {
@@ -270,17 +328,19 @@ export function MatchmakingScreen() {
     setBusy(true);
     setNotice(null);
     try {
-      const id = await createOffer({
+      await createOffer({
         league,
-        formatVersionId: canonicalFormatVersionId(league),
-        format: canonicalFormat(league),
+        formatVersionId: chosen.versionId,
+        format: chosen.format,
         team: buildTeam(),
         scheduledFor,
       });
-      setPosted((p) => [...p, { id, scheduledFor: scheduledFor ? scheduledFor.toISOString() : null }]);
       setPostOpen(false);
       setScheduleAt('');
       setOffers(await listOpenOffers(league));
+      // Read the new offer back rather than remembering it here: what this
+      // panel shows has to be there after a reload too.
+      setMine(await myOffers());
     } catch (e) {
       setNotice(messageOf(e));
     } finally {
@@ -293,7 +353,7 @@ export function MatchmakingScreen() {
     setNotice(null);
     try {
       await confirmOffer(id);
-      setPosted((p) => p.filter((o) => o.id !== id));
+      setMine(await myOffers());
       setMatches(await myMatches());
     } catch (e) {
       setNotice(messageOf(e));
@@ -322,11 +382,38 @@ export function MatchmakingScreen() {
       />
 
       <div className="panel panel-strong">
+        <div className="hud-label">Format for {LEAGUE_BY_ID.get(league)?.label ?? league}</div>
+        {savedFormats === null && <p className="text-faint">Reading your saved formats…</p>}
+        {savedFormats !== null && leagueFormats.length === 0 && (
+          <p className="text-muted no-formats">
+            You have no saved format for this league. Author one on the Formats screen and save it to your
+            account — a match is played under a saved format, so there is nothing to queue with until then.
+          </p>
+        )}
+        {leagueFormats.length > 0 && (
+          <div className="format-choices">
+            {leagueFormats.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className="btn seg-btn format-choice"
+                data-format-id={f.id}
+                aria-pressed={chosen?.id === f.id}
+                onClick={() => setChosenId(f.id)}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel panel-strong">
         <div className="hud-label">
           Your roster for {LEAGUE_BY_ID.get(league)?.label ?? league}
         </div>
         <div className="team-slots">
-          {Array.from({ length: ROSTER_SIZE }, (_, i) => {
+          {Array.from({ length: rosterSize }, (_, i) => {
             const r = team[i] ?? null;
             return r ? (
               <PokemonCard key={i} refId={r} league={league} size="compact" onClick={() => clear(i)} title="Click to remove" />
@@ -358,15 +445,20 @@ export function MatchmakingScreen() {
         </p>
         {entry && <p className="queue-status">{queueStatusText(entry)}</p>}
         <div className="matchmaking-actions">
-          <button
-            type="button"
-            className="btn btn-primary queue-join"
-            disabled={!rosterReady || !!entry || busy}
-            title={!rosterReady ? `Add ${ROSTER_SIZE - team.length} more to queue` : undefined}
-            onClick={() => void join()}
-          >
-            {busy ? 'Working…' : 'Join queue'}
-          </button>
+          {/* No Join at all without a format to join under: `format_version_id`
+              is NOT NULL and a foreign key, so the call could only fail. Same
+              rule as the Accept control on one's own offer. */}
+          {chosen && (
+            <button
+              type="button"
+              className="btn btn-primary queue-join"
+              disabled={!rosterReady || !!entry || busy}
+              title={!rosterReady ? `Add ${rosterSize - team.length} more to queue` : undefined}
+              onClick={() => void join()}
+            >
+              {busy ? 'Working…' : 'Join queue'}
+            </button>
+          )}
           {entry && (
             <button type="button" className="btn" disabled={busy} onClick={() => void leave()}>
               Leave queue
@@ -422,7 +514,7 @@ export function MatchmakingScreen() {
                       type="button"
                       className="btn chip-btn offer-accept"
                       disabled={!rosterReady || busy}
-                      title={!rosterReady ? `Add ${ROSTER_SIZE - team.length} more to accept` : undefined}
+                      title={!rosterReady ? `Add ${rosterSize - team.length} more to accept` : undefined}
                       onClick={() => void accept(o)}
                     >
                       Accept
@@ -435,8 +527,10 @@ export function MatchmakingScreen() {
         )}
 
         {/* Overlays the panel rather than growing it — the board must not
-            shove anything below it down the page as offers arrive. */}
+            shove anything below it down the page as offers arrive. The list
+            above is bounded and scrolls for the same reason. */}
         <div className="move-picker">
+          {chosen && (
           <button
             type="button"
             className="btn move-picker-btn"
@@ -445,7 +539,8 @@ export function MatchmakingScreen() {
           >
             Post an offer
           </button>
-          {postOpen && (
+          )}
+          {chosen && postOpen && (
             <div className="move-picker-panel offer-post-panel">
               <button
                 type="button"
@@ -476,23 +571,43 @@ export function MatchmakingScreen() {
         </div>
       </div>
 
-      {posted.length > 0 && (
+      {mine && mine.length > 0 && (
         <div className="panel">
-          <div className="hud-label">Your posted offers</div>
+          <div className="hud-label">Your offers</div>
           <p className="text-muted">
-            A scheduled offer becomes a match only once you confirm it here after someone accepts.
+            Every offer you proposed or accepted, read back from the server — so a scheduled proposal is
+            still here, and still confirmable, on your next visit.
           </p>
-          <ul className="posted-offer-list">
-            {posted.map((o) => (
-              <li key={o.id} className="posted-offer-row">
-                <span>
-                  {o.scheduledFor ? `Scheduled for ${new Date(o.scheduledFor).toLocaleString()}` : 'Posted to the open board'}
-                </span>
-                <button type="button" className="btn" disabled={busy} onClick={() => void confirm(o.id)}>
-                  Confirm
-                </button>
-              </li>
-            ))}
+          <ul className="my-offer-list">
+            {mine.map((o) => {
+              const proposed = o.proposerId === user.id;
+              return (
+                <li key={o.id} className="my-offer-row" data-my-offer-id={o.id} data-offer-state={o.state}>
+                  <span className="my-offer-when">
+                    {o.scheduledFor
+                      ? `Scheduled for ${new Date(o.scheduledFor).toLocaleString()}`
+                      : 'Posted to the open board'}
+                  </span>
+                  <span className="text-faint my-offer-status">{offerStatusText(o, proposed)}</span>
+                  {/* Confirm ONLY for the proposer of an offer someone has
+                      actually accepted. confirm_offer raises "only the
+                      proposer confirms" for the taker and "this offer has not
+                      been accepted yet" for every other state, so a Confirm
+                      anywhere else is a button whose entire behaviour is to
+                      print raw Postgres text at someone. */}
+                  {proposed && o.state === 'accepted' && (
+                    <button
+                      type="button"
+                      className="btn chip-btn offer-confirm"
+                      disabled={busy}
+                      onClick={() => void confirm(o.id)}
+                    >
+                      Confirm
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

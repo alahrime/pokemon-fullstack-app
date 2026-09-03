@@ -135,13 +135,21 @@ export interface SavedFormat {
   name: string;
   format: Format;
   version: number;
+  /**
+   * `format_versions.id` for that version — a different table from `id`
+   * above, which is `formats.id`. This is the one a queue entry or a match
+   * offer points its `format_version_id` foreign key at: what two people
+   * agreed to play is an immutable VERSION, not a format whose next save
+   * would silently change the rules of a match already in flight.
+   */
+  versionId: string;
   rulesHash: string;
 }
 
 export async function listServerFormats(): Promise<SavedFormat[]> {
   const { data, error } = await supabase
     .from('formats')
-    .select('id, name, format_versions(version, rules, rules_hash)')
+    .select('id, name, format_versions(id, version, rules, rules_hash)')
     .order('updated_at', { ascending: false })
     // Every save appends a version, so a format with a long edit history has
     // a `format_versions` row per edit — and this list re-runs after every
@@ -153,7 +161,11 @@ export async function listServerFormats(): Promise<SavedFormat[]> {
     .limit(1, { referencedTable: 'format_versions' });
   if (error) throw new Error(error.message);
   return (data ?? []).flatMap((row) => {
-    const r = row as { id: string; name: string; format_versions: { version: number; rules: Format; rules_hash: string }[] };
+    const r = row as {
+      id: string;
+      name: string;
+      format_versions: { id: string; version: number; rules: Format; rules_hash: string }[];
+    };
     // The current version is the highest one; there is no pointer column to
     // disagree with it. The query above should already hand back only that
     // one row, but re-selecting the max client-side costs nothing and is a
@@ -161,7 +173,16 @@ export async function listServerFormats(): Promise<SavedFormat[]> {
     // regresses.
     const latest = [...r.format_versions].sort((a, b) => b.version - a.version)[0];
     if (!latest) return [];
-    return [{ id: r.id, name: r.name, format: latest.rules, version: latest.version, rulesHash: latest.rules_hash }];
+    return [
+      {
+        id: r.id,
+        name: r.name,
+        format: latest.rules,
+        version: latest.version,
+        versionId: latest.id,
+        rulesHash: latest.rules_hash,
+      },
+    ];
   });
 }
 

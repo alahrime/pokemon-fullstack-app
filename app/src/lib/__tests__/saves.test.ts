@@ -23,7 +23,7 @@ function harness(rows: Record<string, unknown[]>, errors: Record<string, { code:
   const calls: { table: string; op: string; payload?: unknown }[] = [];
   function table(name: string) {
     const q: Record<string, unknown> = {
-      select: vi.fn(() => { calls.push({ table: name, op: 'select' }); return q; }),
+      select: vi.fn((cols?: unknown) => { calls.push({ table: name, op: 'select', payload: cols }); return q; }),
       eq: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'eq', payload: [col, val] }); return q; }),
       gt: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'gt', payload: [col, val] }); return q; }),
       // Recorded like every other modifier below, not a bare no-op: a caller
@@ -320,14 +320,51 @@ describe('listServerFormats', () => {
           id: 'f1',
           name: 'Air Ban',
           format_versions: [
-            { version: 1, rules: FORMAT, rules_hash: 'h1' },
-            { version: 3, rules: FORMAT, rules_hash: 'h3' },
+            { id: 'fv-1', version: 1, rules: FORMAT, rules_hash: 'h1' },
+            { id: 'fv-3', version: 3, rules: FORMAT, rules_hash: 'h3' },
           ],
         },
       ],
     });
     const { listServerFormats } = await import('../saves');
     const formats = await listServerFormats();
-    expect(formats).toEqual([{ id: 'f1', name: 'Air Ban', format: FORMAT, version: 3, rulesHash: 'h3' }]);
+    expect(formats).toEqual([
+      { id: 'f1', name: 'Air Ban', format: FORMAT, version: 3, versionId: 'fv-3', rulesHash: 'h3' },
+    ]);
+  });
+
+  /**
+   * `versionId` is `format_versions.id`, and `id` is `formats.id` — two
+   * different tables. Matchmaking's `format_version_id` is a foreign key into
+   * the first; handing it the second would fail the key, and handing it the
+   * WRONG version's id would put two people in a match under rules neither of
+   * them is looking at. So this asserts the exact row it came from, and
+   * asserts it is not the format id.
+   */
+  it('surfaces the id of the version it returned, not the id of the format', async () => {
+    harness({
+      formats: [
+        {
+          id: 'f1',
+          name: 'Air Ban',
+          format_versions: [
+            { id: 'fv-1', version: 1, rules: FORMAT, rules_hash: 'h1' },
+            { id: 'fv-3', version: 3, rules: FORMAT, rules_hash: 'h3' },
+          ],
+        },
+      ],
+    });
+    const { listServerFormats } = await import('../saves');
+    const [f] = await listServerFormats();
+    expect(f.versionId).toBe('fv-3');
+    expect(f.versionId).not.toBe(f.id);
+  });
+
+  it('asks for the version id in the embed, or there is nothing to surface', async () => {
+    const { calls } = harness({ formats: [] });
+    const { listServerFormats } = await import('../saves');
+    await listServerFormats();
+    const select = calls.find((c) => c.table === 'formats' && c.op === 'select');
+    expect(select?.payload).toMatch(/format_versions\(\s*id\b/);
   });
 });

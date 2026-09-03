@@ -35,8 +35,11 @@ function harness(
   const calls: { table: string; op: string; payload?: unknown }[] = [];
   function table(name: string) {
     const q: Record<string, unknown> = {
-      select: vi.fn(() => { calls.push({ table: name, op: 'select' }); return q; }),
+      select: vi.fn((cols?: unknown) => { calls.push({ table: name, op: 'select', payload: cols }); return q; }),
       eq: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'eq', payload: [col, val] }); return q; }),
+      // `myOffers` asks for two columns at once ("proposed by me OR accepted
+      // by me"), which PostgREST spells as a single `or` filter string.
+      or: vi.fn((filter: string) => { calls.push({ table: name, op: 'or', payload: filter }); return q; }),
       gt: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'gt', payload: [col, val] }); return q; }),
       order: vi.fn((col: string, opts?: unknown) => { calls.push({ table: name, op: 'order', payload: [col, opts] }); return q; }),
       insert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'insert', payload }); return q; }),
@@ -220,6 +223,72 @@ describe('offers', () => {
     ]);
     const leagueFilter = calls.find((c) => c.table === 'match_offers' && c.op === 'eq' && (c.payload as unknown[])[0] === 'league');
     expect(leagueFilter?.payload).toEqual(['league', 'great']);
+  });
+
+  /**
+   * The proposer's half of the handshake has no other way home. An offer
+   * leaves `state = 'open'` the moment it is accepted, so `listOpenOffers`
+   * stops returning it exactly when the proposer needs to confirm it — and a
+   * screen that only remembered what it posted this session forgets on
+   * reload. These four tests hold the shape that lets both sides rediscover
+   * it from the database instead.
+   */
+  it('lists offers I proposed and offers I accepted, not just open ones', async () => {
+    const { calls } = harness({ match_offers: [] });
+    const { myOffers } = await import('../matchmaking');
+    await myOffers();
+    const or = calls.find((c) => c.table === 'match_offers' && c.op === 'or');
+    expect(or?.payload).toBe('proposer_id.eq.me,accepted_by.eq.me');
+    // Scoping this to `open` would reintroduce the dead end it exists to fix.
+    expect(calls.some((c) => c.table === 'match_offers' && c.op === 'eq' && (c.payload as unknown[])[1] === 'open')).toBe(false);
+  });
+
+  it('carries state, scheduledFor, acceptedBy and matchId through for both sides', async () => {
+    harness({
+      match_offers: [
+        {
+          id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
+          scheduled_for: '2026-09-05T18:00:00Z', expires_at: '2026-09-05T19:00:00Z',
+          state: 'accepted', accepted_by: 'them', match_id: null,
+        },
+        {
+          id: 'o2', proposer_id: 'them', league: 'great', format_version_id: 'fv1',
+          scheduled_for: null, expires_at: '2026-09-05T19:00:00Z',
+          state: 'converted', accepted_by: 'me', match_id: 'm9',
+        },
+      ],
+    });
+    const { myOffers } = await import('../matchmaking');
+    expect(await myOffers()).toEqual([
+      {
+        id: 'o1', proposerId: 'me', league: 'great', formatVersionId: 'fv1',
+        scheduledFor: '2026-09-05T18:00:00Z', expiresAt: '2026-09-05T19:00:00Z',
+        state: 'accepted', acceptedBy: 'them', matchId: null,
+      },
+      {
+        id: 'o2', proposerId: 'them', league: 'great', formatVersionId: 'fv1',
+        scheduledFor: null, expiresAt: '2026-09-05T19:00:00Z',
+        state: 'converted', acceptedBy: 'me', matchId: 'm9',
+      },
+    ]);
+  });
+
+  it('asks the database for match_id, so a confirmed offer can name the match it became', async () => {
+    // A state string alone cannot say WHICH match a confirmed offer became.
+    const { calls } = harness({ match_offers: [] });
+    const { myOffers } = await import('../matchmaking');
+    await myOffers();
+    const select = calls.find((c) => c.table === 'match_offers' && c.op === 'select');
+    expect(select?.payload).toMatch(/\bmatch_id\b/);
+    expect(select?.payload).toMatch(/\bscheduled_for\b/);
+    expect(select?.payload).toMatch(/\baccepted_by\b/);
+    expect(select?.payload).toMatch(/\bstate\b/);
+  });
+
+  it('refuses to list the offers of nobody in particular', async () => {
+    harness({}, {}, null);
+    const { myOffers } = await import('../matchmaking');
+    await expect(myOffers()).rejects.toThrow(/must be signed in/);
   });
 
   it('never sends proposer_id — the database default decides who owns the offer', async () => {

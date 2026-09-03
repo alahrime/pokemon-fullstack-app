@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { render, act, fireEvent, cleanup, waitFor, type RenderResult } from '@testing-library/react';
 import type { Session } from '@supabase/supabase-js';
-import type { QueueEntry, Match, Offer } from '../../lib/matchmaking';
+import type { QueueEntry, Match, MyOffer, Offer } from '../../lib/matchmaking';
+import type { SavedFormat } from '../../lib/saves';
+import { RULES_SCHEMA } from '../../rules';
 
 /**
  * The Matchmaking screen: the blind queue, the open offer board, and
@@ -23,12 +26,22 @@ const mmApi = vi.hoisted(() => ({
   myQueueEntry: vi.fn(),
   myMatches: vi.fn(),
   listOpenOffers: vi.fn(),
+  myOffers: vi.fn(),
   createOffer: vi.fn(),
   acceptOffer: vi.fn(),
   confirmOffer: vi.fn(),
   opponentFriendCode: vi.fn(),
 }));
 vi.mock('../../lib/matchmaking', () => mmApi);
+
+/**
+ * `../../lib/saves` is mocked the same way, for the same reason — and it is
+ * mocked at all because a queue entry's `format_version_id` is a foreign key
+ * into `format_versions`, so the screen has to get a real one from somewhere.
+ * M2a's answer is a format the person saved to their account.
+ */
+const savesApi = vi.hoisted(() => ({ listServerFormats: vi.fn() }));
+vi.mock('../../lib/saves', () => savesApi);
 
 const pkg = vi.hoisted(() => ({ client: null as unknown }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => pkg.client }));
@@ -112,6 +125,39 @@ function offer(over: Partial<Offer>): Offer {
   };
 }
 
+function savedFormat(over: Partial<SavedFormat> = {}): SavedFormat {
+  return {
+    id: 'f-great',
+    name: 'Great League Open',
+    version: 2,
+    versionId: 'fv-great-2',
+    rulesHash: 'h2',
+    format: {
+      schema: RULES_SCHEMA,
+      base: 'great',
+      pool: [],
+      composition: { size: 3, uniqueSpecies: true },
+      selection: { mode: 'open' },
+    },
+    ...over,
+  };
+}
+
+function myOffer(over: Partial<MyOffer>): MyOffer {
+  return {
+    id: 'mine-x',
+    proposerId: 'u1',
+    league: 'great',
+    formatVersionId: 'fv-great-2',
+    scheduledFor: null,
+    expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    state: 'open',
+    acceptedBy: null,
+    matchId: null,
+    ...over,
+  };
+}
+
 function match(over: Partial<Match>): Match {
   return {
     id: 'm-x',
@@ -132,10 +178,12 @@ beforeEach(() => {
   mmApi.myQueueEntry.mockReset().mockResolvedValue(null);
   mmApi.myMatches.mockReset().mockResolvedValue([]);
   mmApi.listOpenOffers.mockReset().mockResolvedValue([]);
+  mmApi.myOffers.mockReset().mockResolvedValue([]);
   mmApi.createOffer.mockReset().mockResolvedValue('o1');
   mmApi.acceptOffer.mockReset().mockResolvedValue('m1');
   mmApi.confirmOffer.mockReset().mockResolvedValue('m1');
   mmApi.opponentFriendCode.mockReset().mockResolvedValue(null);
+  savesApi.listServerFormats.mockReset().mockResolvedValue([savedFormat()]);
 });
 afterEach(cleanup);
 
@@ -172,9 +220,45 @@ describe('signed in — the blind queue', () => {
     };
     expect(arg.league).toBe('great');
     expect(arg.team.map((m) => m.ref)).toEqual(['azumarill', 'registeel', 'skarmory']);
-    expect(typeof arg.formatVersionId).toBe('string');
-    expect(arg.formatVersionId.length).toBeGreaterThan(0);
-    expect(arg.format.base).toBe('great');
+    // The EXACT version id of the saved format on screen. "a non-empty
+    // string" was the earlier assertion, and it passed against the
+    // `canonical:great` placeholder that no foreign key could ever have
+    // accepted — an assertion no wrong value could fail is not coverage.
+    // `versionId` is `format_versions.id`; `id` is `formats.id`, a different
+    // table, and sending that one would fail the key just as quietly.
+    expect(arg.formatVersionId).toBe('fv-great-2');
+    expect(arg.formatVersionId).not.toBe('f-great');
+    expect(arg.format).toEqual(savedFormat().format);
+  });
+
+  it('offers no Join at all when there is no saved format to join under', async () => {
+    savesApi.listServerFormats.mockResolvedValue([]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => expect(container.querySelector('.no-formats')).toBeTruthy());
+    // `format_version_id` is NOT NULL and a foreign key: with nothing to put
+    // in it, joining could only fail. Same rule as Accept on one's own offer.
+    expect(container.querySelector('.queue-join')).toBeFalsy();
+    expect(container.textContent).toMatch(/no saved format/i);
+  });
+
+  it('queues under the format that was chosen, not the first one listed', async () => {
+    savesApi.listServerFormats.mockResolvedValue([
+      savedFormat(),
+      savedFormat({ id: 'f-cup', name: 'Fossil Cup', versionId: 'fv-cup-7' }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const second = await waitFor(() => {
+      const b = container.querySelector('[data-format-id="f-cup"]');
+      if (!b) throw new Error('format choices not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    fireEvent.click(second);
+    await pickThree(container);
+    await act(async () => {
+      fireEvent.click(container.querySelector('.queue-join') as HTMLButtonElement);
+    });
+    await waitFor(() => expect(mmApi.joinQueue).toHaveBeenCalledTimes(1));
+    expect((mmApi.joinQueue.mock.calls[0][0] as { formatVersionId: string }).formatVersionId).toBe('fv-cup-7');
   });
 
   it('distinguishes queued-awaiting-verification from queued-and-eligible', async () => {
@@ -326,7 +410,7 @@ describe('signed in — the open offer board', () => {
     expect(arg.team.map((m) => m.ref)).toEqual(['azumarill', 'registeel', 'skarmory']);
   });
 
-  it('schedules an offer for later with a scheduledFor date, and offers a Confirm control once posted', async () => {
+  it('schedules an offer for later with a scheduledFor date, and re-reads its own offers from the server', async () => {
     const { container } = await mount(fakeSession('u1', 'ash@example.com'));
     await pickThree(container);
     const toggle = [...container.querySelectorAll('button')].find((b) => /Post an offer/i.test(b.textContent ?? ''))!;
@@ -335,22 +419,148 @@ describe('signed in — the open offer board', () => {
     const future = new Date(Date.now() + 3 * 86_400_000);
     const local = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}T12:00`;
     fireEvent.change(dtInput, { target: { value: local } });
+    const before = mmApi.myOffers.mock.calls.length;
     const scheduleBtn = [...container.querySelectorAll('button')].find((b) => /^Schedule$/i.test(b.textContent ?? ''))!;
     await act(async () => {
       fireEvent.click(scheduleBtn);
     });
     await waitFor(() => expect(mmApi.createOffer).toHaveBeenCalledTimes(1));
-    const arg = mmApi.createOffer.mock.calls[0][0] as { scheduledFor?: Date };
+    const arg = mmApi.createOffer.mock.calls[0][0] as { scheduledFor?: Date; formatVersionId: string };
     expect(arg.scheduledFor).toBeInstanceOf(Date);
+    expect(arg.formatVersionId).toBe('fv-great-2');
+    // Read back, not remembered: what this panel shows has to survive the
+    // reload that throws every piece of session state away.
+    await waitFor(() => expect(mmApi.myOffers.mock.calls.length).toBeGreaterThan(before));
+  });
+});
 
-    const confirmBtn = await waitFor(() => {
-      const b = [...container.querySelectorAll('.posted-offer-row button')].find((x) => /Confirm/i.test(x.textContent ?? ''));
-      if (!b) throw new Error('confirm button not rendered yet');
-      return b as HTMLButtonElement;
+/**
+ * The handshake, after a reload.
+ *
+ * A scheduled offer needs two acts by two people, minutes or days apart, and
+ * neither of them is likely to still have this tab open. `listOpenOffers`
+ * cannot carry it: the offer leaves `state = 'open'` the moment it is
+ * accepted, which is exactly when the proposer needs to see it. Everything
+ * these tests mount is a FRESH screen that posted nothing this session — the
+ * panel is driven by what `myOffers` reports, or it is driven by nothing.
+ */
+describe('signed in — the handshake survives a reload', () => {
+  it('rediscovers an offer awaiting your confirmation, and confirms it', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({
+        id: 'off-accepted',
+        proposerId: 'u1',
+        acceptedBy: 'someone-else',
+        state: 'accepted',
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-accepted"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
     });
+    expect(row.textContent).toMatch(/confirm it to make it a match/i);
+    const confirmBtn = row.querySelector('.offer-confirm') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
     await act(async () => {
       fireEvent.click(confirmBtn);
     });
-    await waitFor(() => expect(mmApi.confirmOffer).toHaveBeenCalledWith('o1'));
+    await waitFor(() => expect(mmApi.confirmOffer).toHaveBeenCalledWith('off-accepted'));
+  });
+
+  it('tells the taker their acceptance is waiting on the proposer, and gives them no Confirm', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({
+        id: 'off-theirs',
+        proposerId: 'someone-else',
+        acceptedBy: 'u1',
+        state: 'accepted',
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-theirs"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
+    });
+    expect(row.textContent).toMatch(/awaiting the proposer/i);
+    // `confirm_offer` raises "only the proposer confirms" for the taker.
+    expect(row.querySelector('.offer-confirm')).toBeFalsy();
+  });
+
+  it('offers no Confirm on an offer nobody has accepted yet', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({ id: 'off-open-live', proposerId: 'u1', state: 'open' }),
+      myOffer({
+        id: 'off-open-sched',
+        proposerId: 'u1',
+        state: 'open',
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-my-offer-id="off-open-live"]')) throw new Error('not rendered yet');
+    });
+    // A live offer goes open -> converted on acceptance and never reaches
+    // `accepted`, so confirm_offer would raise "this offer has not been
+    // accepted yet" every single time and print that sentence at the person.
+    expect(container.querySelectorAll('.offer-confirm')).toHaveLength(0);
+    expect(container.textContent).toMatch(/nobody has accepted it yet/i);
+  });
+
+  it('shows a confirmed offer as a match rather than as something still to do', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({ id: 'off-done', proposerId: 'u1', acceptedBy: 'someone-else', state: 'converted', matchId: 'm9' }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-done"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
+    });
+    expect(row.textContent).toMatch(/this is a match now/i);
+    expect(row.querySelector('.offer-confirm')).toBeFalsy();
+  });
+});
+
+/**
+ * jsdom applies no stylesheet, so nothing here asserts a rendered box. What a
+ * test CAN hold is the rule itself, read as text — the established pattern in
+ * this repo (see `add-modal-size.test.tsx`). The board grows on its own as
+ * other people post to it; without a bound and its own scroll it pushes the
+ * Post control and every panel below it down the page while someone is
+ * reaching for them.
+ */
+describe('the offer board is bounded, not expanding', () => {
+  const css = readFileSync('src/styles/components.css', 'utf8');
+
+  function block(selector: string): string {
+    const i = css.search(new RegExp(`^\\${selector}\\s*\\{`, 'm'));
+    expect(i, `${selector} not found at the top level`).toBeGreaterThan(-1);
+    return css.slice(i, css.indexOf('}', i) + 1);
+  }
+
+  it('caps the open board and scrolls inside that cap', () => {
+    const rule = block('.offer-list');
+    expect(rule).toMatch(/max-height:\s*\d/);
+    expect(rule).toMatch(/overflow-y:\s*auto/);
+  });
+
+  it('caps your own offer list the same way', () => {
+    const rule = block('.my-offer-list');
+    expect(rule).toMatch(/max-height:\s*\d/);
+    expect(rule).toMatch(/overflow-y:\s*auto/);
+  });
+
+  it('declares each of those selectors once at the top level', () => {
+    // The .team-slots lesson: two rules for one selector, and the edit lands
+    // on whichever you read rather than whichever wins.
+    for (const sel of ['.offer-list', '.my-offer-list']) {
+      expect(css.match(new RegExp(`^\\${sel}\\s*\\{`, 'gm')) ?? [], sel).toHaveLength(1);
+    }
   });
 });

@@ -281,6 +281,36 @@ describe('signed in — the blind queue', () => {
     expect(container.textContent).not.toMatch(/eligible to pair/i);
   });
 
+  /**
+   * I4. A queue entry lives ten minutes and `sweep_expired` deletes it on the
+   * next coordinator tick; nothing re-reads this panel. Past `expiresAt` the
+   * row on screen is a memory, and "queued and eligible to pair" is a claim
+   * about the future that has already been falsified — the person is not
+   * queued at all and is being told they are.
+   *
+   * The fixture is a VERIFIED entry on purpose: an unverified one would show
+   * "awaiting verification" for the wrong reason, and the assertion would pass
+   * without the expiry branch existing. Verified plus expired is the only
+   * combination where the two branches disagree.
+   */
+  it('stops calling an expired queue entry eligible, though the row is still on screen', async () => {
+    mmApi.myQueueEntry.mockResolvedValue({
+      id: 'q1',
+      league: 'great',
+      formatVersionId: 'v1',
+      verifiedHash: 'abc123',
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    } satisfies QueueEntry);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const status = await waitFor(() => {
+      const p = container.querySelector('.queue-status');
+      if (!p) throw new Error('queue status not rendered yet');
+      return p;
+    });
+    expect(status.textContent).toBe('The queue window closed — join again to keep looking.');
+    expect(container.textContent).not.toMatch(/eligible to pair/i);
+  });
+
   it('shows a verified entry as eligible, not awaiting', async () => {
     mmApi.myQueueEntry.mockResolvedValue({
       id: 'q1',
@@ -726,6 +756,74 @@ describe('signed in — the handshake survives a reload', () => {
     // accepted yet" every single time and print that sentence at the person.
     expect(container.querySelectorAll('.offer-confirm')).toHaveLength(0);
     expect(container.textContent).toMatch(/nobody has accepted it yet/i);
+  });
+
+  /**
+   * I3, first half. `confirm_offer` raises 'this offer has expired' on an
+   * accepted offer past its window, and expiry is a coordinator SWEEP rather
+   * than a trigger — so the row sits in state 'accepted' until the next tick,
+   * and `myOffers()` never re-reads on its own. A tab left open shows an
+   * enabled Confirm indefinitely, and pressing it can only print raw Postgres
+   * text at the person.
+   *
+   * The fixture differs from the passing confirm test above in `expiresAt`
+   * alone: same proposer, same state, same acceptedBy. So the control
+   * disappearing here is the expiry branch and nothing else.
+   */
+  it('replaces Confirm with a reason once the window has closed on an accepted offer', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({
+        id: 'off-late',
+        proposerId: 'u1',
+        acceptedBy: 'someone-else',
+        state: 'accepted',
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+      }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-late"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
+    });
+    expect(row.querySelector('.offer-confirm')).toBeFalsy();
+    expect(row.querySelector('.offer-blocked')?.textContent).toBe('The window closed before this was confirmed.');
+    // And the status line stops instructing the person to do a thing there is
+    // no longer a control for.
+    expect(row.textContent).not.toMatch(/confirm it to make it a match/i);
+    expect(row.textContent).toMatch(/the window closed before it was confirmed/i);
+  });
+
+  /**
+   * I3, second half, and the one that exists only because a migration was
+   * written to produce it. `accepted_by` is `on delete set null`, so a taker
+   * who accepts and then deletes their account leaves the offer in state
+   * 'accepted' with nobody attached; nothing about account deletion touches
+   * `state`. Migration 20260903011151 exists for exactly this and does nothing
+   * else — it turns a raw NOT NULL violation on `matches.player_b` into a
+   * sentence — and until this branch the only way to reach that sentence was
+   * to press a button that could not work.
+   */
+  it('replaces Confirm with a reason when whoever accepted has deleted their account', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({
+        id: 'off-ghost',
+        proposerId: 'u1',
+        acceptedBy: null,
+        state: 'accepted',
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-ghost"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
+    });
+    expect(row.querySelector('.offer-confirm')).toBeFalsy();
+    expect(row.querySelector('.offer-blocked')?.textContent).toBe('Whoever accepted it no longer has an account.');
+    expect(mmApi.confirmOffer).not.toHaveBeenCalled();
   });
 
   it('shows a confirmed offer as a match rather than as something still to do', async () => {

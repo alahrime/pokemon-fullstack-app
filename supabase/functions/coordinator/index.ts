@@ -29,7 +29,40 @@ Deno.serve(async () => {
 
     for (const row of data ?? []) {
       const r = row as unknown as { id: string; claimed_hash: string; format_versions: { rules: unknown } };
-      const actual = await rulesHash(r.format_versions.rules);
+      let actual: string;
+      try {
+        actual = await rulesHash(r.format_versions.rules);
+      } catch {
+        // `format_versions.rules` is `jsonb not null` with no shape
+        // constraint, and `canonicalize()` dereferences `f.pool.map(...)`,
+        // `f.composition` and `f.selection` unguarded. Anyone can save `{}`
+        // there. Unwrapped, the TypeError rejects this handler — which does
+        // not merely skip the row: the `pair_queue_entries` and
+        // `sweep_expired` calls sit AFTER this loop, so the whole tick dies,
+        // the row keeps `verified_hash null` and is re-read every minute
+        // forever, and one user permanently disables verification, pairing
+        // and expiry for everybody. The catch is the whole point; what to do
+        // inside it is the smaller question.
+        //
+        // DELETE, on the same branch as a wrong hash, rather than skip.
+        // `claimed_hash` asserts a value derived from these rules. If the
+        // rules cannot be canonicalized at all then no client running this
+        // same code could have derived ANY hash from them, so the claim is
+        // not merely wrong, it is unverifiable by construction — the same
+        // consequence as a lie, reached by a different route, and the row can
+        // never become eligible however many ticks it sees.
+        //
+        // Skipping is the tempting answer and it is the one that rots. A
+        // skipped queue entry does expire out within ten minutes, but a
+        // skipped OFFER does not: `sweep_expired` moves it to 'lapsed' and
+        // leaves the row, and this query filters on `verified_hash is null`
+        // with no state filter, so every unhashable offer ever posted stays
+        // in the candidate set permanently and eventually fills the 200-row
+        // window — starving every honest row behind it. That is the same
+        // denial this catch exists to prevent, arriving more slowly.
+        await admin.from(table).delete().eq('id', r.id);
+        continue;
+      }
       if (actual !== r.claimed_hash) {
         // The claim was wrong. Drop the entry rather than correcting it: a
         // client that computed a different hash disagrees with the server about

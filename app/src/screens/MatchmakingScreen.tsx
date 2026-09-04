@@ -74,6 +74,15 @@ function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
 }
 
 function queueStatusText(entry: QueueEntry): string {
+  // Expiry FIRST, and for the same reason the offer board checks it first: an
+  // entry lives ten minutes, `sweep_expired` deletes it on the next tick, and
+  // nothing re-reads this panel. Past `expiresAt` the row on screen is a
+  // memory, and "eligible to pair" is a claim about the future that has
+  // already been falsified — the person is not queued at all and is being
+  // told they are.
+  if (Date.parse(entry.expiresAt) <= Date.now()) {
+    return 'The queue window closed — join again to keep looking.';
+  }
   // `verifiedHash` is null until the coordinator recomputes it; only a
   // verified entry is eligible to pair. Saying "queued" alone would imply a
   // match is imminent when it may not even be checked yet.
@@ -110,6 +119,40 @@ function unacceptableReason(o: Offer): string | null {
 }
 
 /**
+ * Why the proposer of an offer somebody has ALREADY accepted still cannot
+ * confirm it. `unacceptableReason`'s job, for the other half of the handshake.
+ *
+ * `confirm_offer` has five ways to raise and this screen checked two of them:
+ * `proposed` covers 'only the proposer confirms' and `state === 'accepted'`
+ * covers 'this offer has not been accepted yet'. The other two are below, and
+ * both are reachable — one of them exists only because a migration was written
+ * to produce it.
+ */
+function unconfirmableReason(o: MyOffer): string | null {
+  // In `confirm_offer`'s own order, so the reason shown is the reason the
+  // database would actually give.
+  //
+  // Expiry is a coordinator SWEEP, not a trigger, and `myOffers()` never
+  // re-reads on its own — so an accepted offer past `expiresAt` sits here
+  // showing an enabled Confirm for as long as the tab stays open, not for the
+  // minute a verification lag would cost.
+  if (Date.parse(o.expiresAt) <= Date.now()) {
+    return 'The window closed before this was confirmed.';
+  }
+  // `accepted_by` is `on delete set null`: a taker who accepts and then
+  // deletes their account leaves the offer in state 'accepted' with nobody
+  // attached, and nothing about account deletion touches `state`. Migration
+  // 20260903011151 exists for exactly this and does nothing else — it turns a
+  // raw NOT NULL violation on `matches.player_b` into a sentence — and this
+  // screen selected `accepted_by` and ignored it, so the only way to reach
+  // that sentence was to press a button that could not work.
+  if (o.acceptedBy === null) {
+    return 'Whoever accepted it no longer has an account.';
+  }
+  return null;
+}
+
+/**
  * "Add 2 more to queue", "Remove 3 to post" — never "Add -3 more".
  *
  * `verb` is what the control the hint hangs off actually does. Every control
@@ -142,9 +185,19 @@ function offerStatusText(o: MyOffer, proposed: boolean): string {
         ? 'Posted — being checked before anyone can accept it.'
         : 'Posted — nobody has accepted it yet.';
     case 'accepted':
-      return proposed
+      // Both of the next two sentences are instructions to WAIT for something
+      // that is no longer coming, and an instruction beside a control that is
+      // not there is worse than no sentence at all. `sweep_expired` will move
+      // this row to 'lapsed' on the next tick and say so itself; until then
+      // the screen has to.
+      if (Date.parse(o.expiresAt) <= Date.now()) {
+        return 'Accepted, but the window closed before it was confirmed.';
+      }
+      if (!proposed) return "You accepted — awaiting the proposer's confirmation.";
+      // "Confirm it" is only worth saying where a Confirm exists.
+      return unconfirmableReason(o) === null
         ? 'Someone accepted. Confirm it to make it a match.'
-        : "You accepted — awaiting the proposer's confirmation.";
+        : 'Someone accepted.';
     case 'confirmed':
     case 'converted':
       return 'Confirmed — this is a match now.';
@@ -707,6 +760,8 @@ export function MatchmakingScreen() {
           <ul className="my-offer-list">
             {mine.map((o) => {
               const proposed = o.proposerId === user.id;
+              const confirmable = proposed && o.state === 'accepted';
+              const confirmBlocked = confirmable ? unconfirmableReason(o) : null;
               return (
                 <li key={o.id} className="my-offer-row" data-my-offer-id={o.id} data-offer-state={o.state}>
                   <span className="my-offer-when">
@@ -716,21 +771,26 @@ export function MatchmakingScreen() {
                   </span>
                   <span className="text-faint my-offer-status">{offerStatusText(o, proposed)}</span>
                   {/* Confirm ONLY for the proposer of an offer someone has
-                      actually accepted. confirm_offer raises "only the
-                      proposer confirms" for the taker and "this offer has not
-                      been accepted yet" for every other state, so a Confirm
-                      anywhere else is a button whose entire behaviour is to
-                      print raw Postgres text at someone. */}
-                  {proposed && o.state === 'accepted' && (
-                    <button
-                      type="button"
-                      className="btn chip-btn offer-confirm"
-                      disabled={busy}
-                      onClick={() => void confirm(o.id)}
-                    >
-                      Confirm
-                    </button>
-                  )}
+                      actually accepted, and only when confirm_offer's other
+                      two raises are also out of the way. A Confirm anywhere
+                      else is a button whose entire behaviour is to print raw
+                      Postgres text at someone — and the reason takes the
+                      control's place rather than sitting in a tooltip on a
+                      dead one, the same shape the board uses. */}
+                  {confirmable &&
+                    (confirmBlocked ? (
+                      <span className="text-faint offer-blocked">{confirmBlocked}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn chip-btn offer-confirm"
+                        disabled={busy}
+                        title={busy ? BUSY_HINT : undefined}
+                        onClick={() => void confirm(o.id)}
+                      >
+                        Confirm
+                      </button>
+                    ))}
                 </li>
               );
             })}

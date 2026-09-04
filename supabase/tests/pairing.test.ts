@@ -256,7 +256,7 @@ describe('pairing', () => {
 
   it('records the taker\'s own team as team_b, not an empty roster', async () => {
     const o = await offer();
-    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`);
+    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`);
     expect(
       await sql<{ team_a: unknown; team_b: unknown; source: string }>(
         `select team_a, team_b, source from public.matches where ${mine()}`,
@@ -267,6 +267,60 @@ describe('pairing', () => {
         `select state, accepted_team from public.match_offers where id = '${o.id}'`,
       ),
     ).toEqual([{ state: 'converted', accepted_team: ['B'] }]);
+  });
+
+  /**
+   * The offer path's `data_rev` check (I1). `pair_queue_entries` has refused
+   * to pair across data builds since Task 5 and says why — a random draw both
+   * sides compute must deal from the same pool — but `accept_offer` never
+   * received the taker's build and never compared it, so `matches.data_rev`
+   * was the PROPOSER's alone and the taker was entered into a match whose draw
+   * they cannot reproduce.
+   *
+   * Nothing else in this file can fail this way: every other test here uses
+   * one build, so dropping the check would leave them all green — the same
+   * argument the queue-side version of this test makes.
+   */
+  it('refuses an accept from a client on a different data build', async () => {
+    const o = await offer();
+    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev2')`)).rejects.toThrow(
+      /different data build/,
+    );
+    expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
+    // The offer is untouched and still acceptable by someone on the right
+    // build — a refusal, not a consumption.
+    expect(await sql<{ state: string }>(`select state from public.match_offers where id = '${o.id}'`)).toEqual([
+      { state: 'open' },
+    ]);
+  });
+
+  /**
+   * `is distinct from`, not `<>`. A null build on either side must REFUSE, and
+   * `<>` against a null evaluates to null, which `if` treats as false and
+   * falls straight through into creating the match. The explicit null guard at
+   * the top of the function is what this actually reaches, and both are
+   * asserted so swapping the operator cannot pass on the guard alone.
+   */
+  it('refuses an accept that names no data build at all', async () => {
+    const o = await offer();
+    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, null)`)).rejects.toThrow(
+      /data build you are accepting on/,
+    );
+    expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
+  });
+
+  /**
+   * The 2-argument form is DROPPED, not left beside the new one as an
+   * overload — otherwise the unchecked path stays reachable by any client that
+   * simply omits the argument, which is the same shape of defect as the one
+   * being fixed. Postgres resolves overloads by arity, so this is the only way
+   * to observe that decision holding.
+   */
+  it('no longer offers a 2-argument accept_offer that would skip the check', async () => {
+    const o = await offer();
+    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`)).rejects.toThrow(
+      /function public\.accept_offer\(unknown, jsonb\) does not exist/,
+    );
   });
 
   /**
@@ -283,7 +337,7 @@ describe('pairing', () => {
       client.begin(async (tx) => {
         await tx.unsafe('set local role authenticated');
         await tx.unsafe(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: who })]);
-        return tx.unsafe(`select public.accept_offer('${o.id}', '${team}'::jsonb)`);
+        return tx.unsafe(`select public.accept_offer('${o.id}', '${team}'::jsonb, 'rev1')`);
       });
     const results = await Promise.allSettled([accept(c1, b, '["B"]'), accept(c2, c, '["C"]')]);
     await Promise.all([c1.end(), c2.end()]);
@@ -319,7 +373,7 @@ describe('pairing', () => {
       accepting = runner.begin(async (tx) => {
         await tx.unsafe('set local role authenticated');
         await tx.unsafe(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: b })]);
-        return tx.unsafe(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`);
+        return tx.unsafe(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`);
       });
       const early = await Promise.race([
         accepting.then(() => 'settled').catch((e: Error) => `failed: ${e.message}`),
@@ -336,7 +390,7 @@ describe('pairing', () => {
 
   it('holds a scheduled offer until the proposer confirms it too', async () => {
     const o = await offer(', scheduled_for', `, now() + interval '2 days'`);
-    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`);
+    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`);
     // One-sided acceptance is not a match.
     expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
     expect(
@@ -355,14 +409,14 @@ describe('pairing', () => {
 
   it('lets nobody but the proposer confirm a scheduled offer', async () => {
     const o = await offer(', scheduled_for', `, now() + interval '2 days'`);
-    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`);
+    await asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`);
     await expect(asUser({ sub: c })(`select public.confirm_offer('${o.id}')`)).rejects.toThrow(/only the proposer/);
     expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
   });
 
   it('refuses to let someone accept their own offer', async () => {
     const o = await offer();
-    await expect(asUser({ sub: a })(`select public.accept_offer('${o.id}', '["A"]'::jsonb)`)).rejects.toThrow(
+    await expect(asUser({ sub: a })(`select public.accept_offer('${o.id}', '["A"]'::jsonb, 'rev1')`)).rejects.toThrow(
       /cannot accept your own offer/,
     );
   });
@@ -372,7 +426,7 @@ describe('pairing', () => {
       `insert into public.match_offers (proposer_id, format_version_id, claimed_hash, league, team, data_rev, visibility)
        values ('${a}', '${versionId}', 'cc', 'great', '["A"]'::jsonb, 'rev1', 'public') returning id`,
     );
-    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`)).rejects.toThrow(
+    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`)).rejects.toThrow(
       /not been verified/,
     );
     expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
@@ -380,7 +434,7 @@ describe('pairing', () => {
 
   it('refuses an accept with no team at all', async () => {
     const o = await offer();
-    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', null)`)).rejects.toThrow(
+    await expect(asUser({ sub: b })(`select public.accept_offer('${o.id}', null, 'rev1')`)).rejects.toThrow(
       /team you are accepting with/,
     );
     expect(await sql(`select id from public.matches where ${mine()}`)).toHaveLength(0);
@@ -388,7 +442,7 @@ describe('pairing', () => {
 
   it('refuses an accept from a request carrying no identity', async () => {
     const o = await offer();
-    await expect(asRole('authenticated')(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`)).rejects.toThrow(
+    await expect(asRole('authenticated')(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`)).rejects.toThrow(
       /signed in/,
     );
   });
@@ -428,7 +482,7 @@ describe('pairing', () => {
 
   it('refuses an accept from a request with no session at all', async () => {
     const o = await offer();
-    await expect(asRole('anon')(`select public.accept_offer('${o.id}', '["B"]'::jsonb)`)).rejects.toThrow(
+    await expect(asRole('anon')(`select public.accept_offer('${o.id}', '["B"]'::jsonb, 'rev1')`)).rejects.toThrow(
       /permission denied/,
     );
   });
@@ -469,7 +523,7 @@ describe('pairing', () => {
     const t = randomUUID();
     await makeUser(t, `PT_${t.slice(0, 8)}`);
     const o = await offer(', scheduled_for', `, now() + interval '2 days'`);
-    await asUser({ sub: t })(`select public.accept_offer('${o.id}', '["T"]'::jsonb)`);
+    await asUser({ sub: t })(`select public.accept_offer('${o.id}', '["T"]'::jsonb, 'rev1')`);
     await expect(sql(`delete from auth.users where id = '${t}'`)).resolves.toBeDefined();
     expect(
       await sql<{ accepted_by: string | null; accepted_team: unknown }>(
@@ -489,7 +543,7 @@ describe('pairing', () => {
     const t = randomUUID();
     await makeUser(t, `PT_${t.slice(0, 8)}`);
     const o = await offer(', scheduled_for', `, now() + interval '2 days'`);
-    await asUser({ sub: t })(`select public.accept_offer('${o.id}', '["T"]'::jsonb)`);
+    await asUser({ sub: t })(`select public.accept_offer('${o.id}', '["T"]'::jsonb, 'rev1')`);
     await sql(`delete from auth.users where id = '${t}'`);
     expect(
       await sql<{ state: string; accepted_by: string | null }>(

@@ -697,13 +697,21 @@ async function main(): Promise<void> {
     const offerId = await as(alice, () =>
       createOffer({ league: 'great', formatVersionId: alice.versionId, format: RULES, team: alice.team, scheduledFor: when }),
     );
-    // Backdate the window. `createOffer` cannot take expires_at, and the
-    // proposer's own "an offer belongs to the person who proposed it" policy is
-    // what permits this — it is a client-authorized write, not an admin one.
+    // Backdate the window, as ADMIN. It used to be alice's own write, on the
+    // grounds that "an offer belongs to the person who proposed it" permits
+    // it — and that was true, which is precisely the Critical this branch
+    // then had to fix: UPDATE is now revoked from `authenticated`, because a
+    // proposer able to edit their own offer's columns is a proposer able to
+    // set `accepted_by` to a stranger and confirm a match against them. The
+    // test harness needs the clock moved; it does not need a client to be
+    // able to move it, and pretending otherwise is what let the hole sit.
     const past = new Date(Date.now() - 60 * 1000).toISOString();
-    const moved = await as(alice, async () =>
-      supabase.from('match_offers').update({ expires_at: past }).eq('id', offerId).select('id, expires_at').single(),
-    );
+    const moved = await admin
+      .from('match_offers')
+      .update({ expires_at: past })
+      .eq('id', offerId)
+      .select('id, expires_at')
+      .single();
     if (moved.error) throw new Error(`could not backdate the offer: ${moved.error.message}`);
 
     const before = await admin.from('matches').select('id');

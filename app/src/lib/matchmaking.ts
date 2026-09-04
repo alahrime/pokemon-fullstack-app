@@ -344,18 +344,31 @@ export async function createOffer(a: {
 }
 
 /**
- * Goes through `accept_offer(p_offer, p_team)`, never a client UPDATE: the
- * function holds the row lock while it checks state, and a taker permitted to
- * write this row directly would be a taker permitted to edit the terms they
- * are agreeing to. `p_team` is the taker's own roster — `matches.team_b` is
- * NOT NULL for a live offer, and there is no column policy that would let a
- * taker stage it any other way.
+ * Goes through `accept_offer(p_offer, p_team, p_data_rev)`, never a client
+ * UPDATE: the function holds the row lock while it checks state, and a taker
+ * permitted to write this row directly would be a taker permitted to edit the
+ * terms they are agreeing to — and, as the branch review measured, to forge an
+ * acceptance in someone else's name. `p_team` is the taker's own roster —
+ * `matches.team_b` is NOT NULL for a live offer, and there is no column policy
+ * that would let a taker stage it any other way.
+ *
+ * `p_data_rev` is `DATA_REV`, this build's data revision, and it is not
+ * optional: the function refuses an offer posted on a different build.
+ * `joinQueue` and `createOffer` both write `DATA_REV` into their own row and
+ * `pair_queue_entries` refuses to pair across builds; accepting is the third
+ * way into a match and has to answer the same question. Sent as an argument
+ * rather than read from the offer, because the whole point is that the two
+ * might disagree.
  *
  * Returns the new match id for a live offer, or null for a scheduled one —
  * that offer is `accepted`, not yet a match, until the proposer confirms.
  */
 export async function acceptOffer(id: string, team: StoredMember[]): Promise<string | null> {
-  const { data, error } = await supabase.rpc('accept_offer', { p_offer: id, p_team: team });
+  const { data, error } = await supabase.rpc('accept_offer', {
+    p_offer: id,
+    p_team: team,
+    p_data_rev: DATA_REV,
+  });
   if (error) throw new Error(error.message);
   return data as string | null;
 }

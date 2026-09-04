@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { sql, asUser, asAnon } from './helpers';
+import { sql, asUser, asAnon, refusal, rollingBack, PRIVILEGE_DENIED, POLICY_DENIED } from './helpers';
 
 describe('queue and match policies', () => {
   const userA = randomUUID();
@@ -53,6 +53,92 @@ describe('queue and match policies', () => {
         `insert into public.queue_entries (user_id, league, format_version_id, claimed_hash, team, data_rev)
          values ('${userA}', 'great', '${versionId}', 'aa', '[]'::jsonb, 'rev1')`),
     ).rejects.toThrow(/row-level security/);
+  });
+
+  /**
+   * C1, measured against this database before the fix: a plain authenticated
+   * user inserted a queue entry that already carried its own `verified_hash`
+   * and it returned INSERT 0 1.
+   *
+   * That is the whole trust boundary. `pair_queue_entries` only ever pairs
+   * rows where `verified_hash is not null`, and the coordinator only ever
+   * READS rows where it `is null` — so a self-verified row is never
+   * recomputed, never examined, and pairs on the next tick with whatever
+   * `claimed_hash` its author felt like typing. Verification was, until the
+   * fix, something a client could simply decline.
+   *
+   * The refusal is the POLICY class, named explicitly: the WITH CHECK clause
+   * rejects the row. The insert immediately above this test is the control —
+   * identical in every respect but this column, and it succeeds.
+   */
+  it('refuses a queue entry that arrives already verified', async () => {
+    const denied = await refusal(() =>
+      asUser({ sub: userA })(
+        `insert into public.queue_entries (league, format_version_id, claimed_hash, verified_hash, team, data_rev)
+         values ('great', '${versionId}', 'I-NEVER-COMPUTED-THIS', 'forged-verified-hash', '[]'::jsonb, 'rev1')`),
+    );
+    expect(denied.code).toBe('42501');
+    expect(denied.message).toMatch(POLICY_DENIED);
+    expect(await sql(`select id from public.queue_entries where user_id = '${userA}'`)).toHaveLength(0);
+  });
+
+  /**
+   * The other route to the same column: join honestly, then edit. Both have to
+   * be shut or neither is.
+   *
+   * A DIFFERENT class of refusal from the one above, and the distinction is
+   * the point — `authenticated` holds no UPDATE grant on this table at all, so
+   * this is raised as `permission denied for table queue_entries` before any
+   * row is considered, rather than being silently filtered to 0 rows the way
+   * an excluded USING clause would be.
+   */
+  it('refuses its owner editing verified_hash onto an entry after the fact', async () => {
+    await enqueue(userA);
+    const denied = await refusal(() =>
+      asUser({ sub: userA })(
+        `update public.queue_entries set verified_hash = 'forged-verified-hash' where user_id = '${userA}'`),
+    );
+    expect(denied.code).toBe('42501');
+    expect(denied.message).toMatch(PRIVILEGE_DENIED);
+    expect(denied.message).not.toMatch(POLICY_DENIED);
+    expect(
+      await sql<{ verified_hash: string | null }>(
+        `select verified_hash from public.queue_entries where user_id = '${userA}'`,
+      ),
+    ).toEqual([{ verified_hash: null }]);
+  });
+
+  /**
+   * TRUNCATE, found while measuring the two Criticals and in the same family.
+   * The default grant included it, and TRUNCATE does not consult row-level
+   * security at all — so one signed-in client could empty every user's queue
+   * with a single statement, and RLS would not have been asked.
+   *
+   * Rolled back regardless of outcome: this suite runs against the partner's
+   * real local database, and a test that emptied their queue to prove it
+   * could would be the defect rather than the check for it.
+   */
+  it('refuses a client truncating the whole queue, which RLS would never have seen', async () => {
+    await enqueue(userA);
+    const denied = await refusal(() =>
+      // Wrapped in a transaction that ALWAYS rolls back, so a regression here
+      // reports itself instead of emptying the partner's queue to prove it
+      // could. TRUNCATE is transactional, and the privilege check runs when
+      // the statement executes, so the evidence is identical either way. The
+      // sentinel is what keeps the two apart: without it, "the truncate ran
+      // and we undid it" and "the truncate was refused" both look like a
+      // rejected promise.
+      rollingBack(async (tx) => {
+        await tx.unsafe('set local role authenticated');
+        await tx.unsafe(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: userA })]);
+        await tx.unsafe(`truncate public.queue_entries`);
+      }),
+    );
+    expect(denied.code).toBe('42501');
+    expect(denied.message).toMatch(PRIVILEGE_DENIED);
+    // Still there — and since the block above can only have rolled back, this
+    // is the refusal's doing rather than the rollback's.
+    expect(await sql(`select id from public.queue_entries where user_id = '${userA}'`)).toHaveLength(1);
   });
 
   it('hides a queue entry from everyone but its owner', async () => {

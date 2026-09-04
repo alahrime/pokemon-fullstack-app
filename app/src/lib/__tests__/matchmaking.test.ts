@@ -446,10 +446,34 @@ describe('offers', () => {
   it('calls accept_offer with the offer id and the taker team as separate args', async () => {
     const { calls } = harness({});
     const { acceptOffer } = await import('../matchmaking');
+    const { DATA_REV } = await import('../data');
     const team = [{ ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 }];
     await acceptOffer('o1', team);
     const rpc = calls.find((c) => c.table === 'rpc' && c.op === 'accept_offer')!;
-    expect(rpc.payload).toEqual({ p_offer: 'o1', p_team: team });
+    expect(rpc.payload).toEqual({ p_offer: 'o1', p_team: team, p_data_rev: DATA_REV });
+  });
+
+  /**
+   * Accepting is the THIRD way into a match, and until this branch it was the
+   * only one that never said which data build it was on. `joinQueue` and
+   * `createOffer` both write `DATA_REV` into their own row and
+   * `pair_queue_entries` refuses to pair across builds; `accept_offer` now
+   * refuses too, and the argument has to be this build's revision rather than
+   * anything read back off the offer — the whole point is that the two may
+   * disagree.
+   *
+   * Asserted against the real `DATA_REV` and not merely `expect.any(String)`,
+   * which would keep passing if the call sent a literal, the offer's own rev,
+   * or an empty string.
+   */
+  it('sends this build\'s own data revision when accepting, not the offer\'s', async () => {
+    const { calls } = harness({});
+    const { acceptOffer } = await import('../matchmaking');
+    const { DATA_REV } = await import('../data');
+    await acceptOffer('o1', []);
+    const rpc = calls.find((c) => c.table === 'rpc' && c.op === 'accept_offer')!;
+    expect((rpc.payload as { p_data_rev: string }).p_data_rev).toBe(DATA_REV);
+    expect(DATA_REV.length).toBeGreaterThan(0);
   });
 
   it('confirms an offer through the function and returns the new match id', async () => {

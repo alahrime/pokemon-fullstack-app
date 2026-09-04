@@ -8,3 +8,7 @@
 # exactly; storing them would be the same bytes a second time. They are also
 # 162KB of the 292KB here.
 *.diff
+
+# macOS Finder droppings. Its own line rather than a blanket `*`, per the note
+# above: the ledgers must stay tracked.
+.DS_Store

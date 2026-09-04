@@ -246,8 +246,80 @@ None block the deploy. Triaged by the whole-branch review.
   nothing depends on it being honest. The moment the queue partitions by it, the coordinator must
   recompute it rather than believe a client.
 
+## Deploying M2a — one mandatory operator step, or matchmaking is inert
+
+M2a adds a `pg_cron` job, `coordinator-tick`, that fires once a minute and POSTs to the
+`coordinator` Edge Function. That tick is the only thing in the system that verifies a claimed
+rules hash, pairs the queue, and expires stale offers. **It reads its target and its bearer token
+from Supabase Vault, and the migrations deliberately create neither.** Nothing else in the deploy
+supplies them, so this is a step a human does, once, per environment.
+
+Run this on the production database (SQL editor, as `postgres`), **after the migrations land**:
+
+```sql
+select vault.create_secret(
+  '<the project service-role key, from Settings → API>',
+  'coordinator_service_role_key',
+  'Bearer token the per-minute coordinator-tick cron job sends to the coordinator Edge Function'
+);
+
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/coordinator',
+  'coordinator_url',
+  'Target of the per-minute coordinator-tick cron job'
+);
+```
+
+Then confirm, on the next whole minute:
+
+```sql
+select status, return_message, start_time
+  from cron.job_run_details order by runid desc limit 3;   -- expect 'succeeded'
+select status_code, content from net._http_response order by id desc limit 1;  -- expect 200
+```
+
+A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N}`.
+
+**Names, spelled exactly.** `coordinator_url` and `coordinator_service_role_key`, underscores
+throughout. A typo here is not a failure, it is silence — see the symptom below. To change either
+value later use `vault.update_secret(id, …)`, **not** `create_secret` again: `vault.secrets.name`
+carries a unique index and the second call raises.
+
+**The symptom if you skip this step, or misspell a name.** Nothing errors. Anywhere. The cron job
+runs every minute and is recorded `succeeded`; `net.http_request_queue` never gains a row; the app
+throws nothing and logs nothing. Users queue and simply never match — offers sit `open` forever,
+scheduled proposals never lapse, `verified_hash` stays null on every row, and the Matches screen
+is permanently empty for everybody. The only evidence is a `NOTICE` in the Postgres log
+(`coordinator-tick: not configured (vault secret coordinator_url missing, …) - skipping`) and the
+absence of rows in `net._http_response`. **If matchmaking "doesn't work" and nothing is on fire,
+check Vault first.**
+
+That silence is a deliberate trade, made in
+`20260904174517_coordinator_tick_reads_vault_and_no_ops_unconfigured.sql`. The alternative was
+what M2a originally shipped on the branch: an unguarded `net.http_post` whose NULL url hit a NOT
+NULL constraint and **raised on every tick, forever** — 91 failed runs and zero successes on the
+local stack, ~1,440 unpurged failure rows a day in production, and matchmaking equally dead the
+whole time. A quiet no-op is not better because it is quieter; it is better because it is the
+state an unconfigured deployment should be in. It is documented loudly here precisely because it
+is quiet there.
+
+**Do not try to configure this with `alter database postgres set app.coordinator_url = …`**, which
+is what the superseded migration `20260903030000` told you to do. It cannot work: `postgres` is not
+a superuser on Supabase (`select usesuper from pg_user where usename = current_user` → `f`), and
+Postgres refuses `ALTER DATABASE/ROLE … SET` on a custom placeholder GUC to non-superusers —
+measured on the local stack, which mirrors hosted in this respect:
+`ERROR: permission denied to set parameter "app.coordinator_url"`. Vault is where these live
+because Vault is the per-environment store the operator can actually write.
+
 ## Still outstanding
 
+- [ ] **AT DEPLOY TIME (M2a): create the two Vault secrets** — see "Deploying M2a" above. Skipped,
+      matchmaking is silently and permanently inert: every tick succeeds, no request is ever sent,
+      nobody ever pairs, and no error surfaces in the app or the dashboard.
+- [ ] **`cron.job_run_details` is still never purged.** The M2a fix changes the rows from `failed`
+      to `succeeded`; it does not change that there are ~1,440 of them a day and nothing deletes
+      them. Not urgent and not a correctness problem, but it is a table that only grows. A second
+      cron job pruning rows older than a few days is the usual answer.
 - [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** Still `http://localhost:5173`
       — measured 2026-09-02, not assumed: `GET /auth/v1/verify?token=invalid&type=signup` on the
       hosted project `303`s to `http://localhost:5173/#error=access_denied&error_code=otp_expired`.

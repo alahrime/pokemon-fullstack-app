@@ -247,13 +247,32 @@ None block the deploy. Triaged by the whole-branch review.
   nothing depends on it being honest. The moment the queue partitions by it, the coordinator must
   recompute it rather than believe a client.
 
-## Deploying M2a — one mandatory operator step, or matchmaking is inert
+## Deploying M2a — two mandatory operator steps, or matchmaking is inert
 
 M2a adds a `pg_cron` job, `coordinator-tick`, that fires once a minute and POSTs to the
 `coordinator` Edge Function. That tick is the only thing in the system that verifies a claimed
-rules hash, pairs the queue, and expires stale offers. **It reads its target and its bearer token
-from Supabase Vault, and the migrations deliberately create neither.** Nothing else in the deploy
-supplies them, so this is a step a human does, once, per environment.
+rules hash, pairs the queue, and expires stale offers.
+
+**Step 1: deploy the Edge Function.** `supabase db push` does not deploy functions, and this
+section originally did not say so — which is how production ended up with every migration applied,
+the frontend live, and `supabase functions list` returning `{"functions":[]}`. The symptom is
+indistinguishable from the Vault one below: no offer is ever verified, so every offer on the board
+reads "Being checked — acceptable once verified" forever and no Accept control is rendered.
+
+```sql
+-- not SQL; run it in the repo root, once per environment
+-- npx supabase functions deploy coordinator
+```
+
+Done on production 2026-09-04: slug `coordinator`, status `ACTIVE`, version 1, `verify_jwt: true`.
+An unauthenticated `POST` to it answers `401`, which is the wanted state — the cron job carries the
+service-role bearer. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, the only two variables
+`functions/coordinator/index.ts` reads, are injected by the platform; `supabase secrets list`
+shows both, so no function secret has to be set by hand.
+
+**Step 2: the two Vault secrets.** The tick **reads its target and its bearer token from Supabase
+Vault, and the migrations deliberately create neither.** Nothing else in the deploy supplies them,
+so this is a step a human does, once, per environment.
 
 Run this on the production database (SQL editor, as `postgres`), **after the migrations land**:
 
@@ -314,6 +333,9 @@ because Vault is the per-environment store the operator can actually write.
 
 ## Still outstanding
 
+- [x] **AT DEPLOY TIME (M2a): deploy the coordinator Edge Function** — done on production
+      2026-09-04, after the user reported that no offer could be accepted or posted there. See
+      "Deploying M2a" above; `db push` does not carry functions.
 - [ ] **AT DEPLOY TIME (M2a): create the two Vault secrets** — see "Deploying M2a" above. Skipped,
       matchmaking is silently and permanently inert: every tick succeeds, no request is ever sent,
       nobody ever pairs, and no error surfaces in the app or the dashboard.

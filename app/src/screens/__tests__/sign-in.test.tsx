@@ -32,9 +32,19 @@ interface HarnessOptions {
   profile?: { display_name: string; go_username: string } | null;
   /** Forced error from the profile insert. */
   insertError?: { code?: string; message: string } | null;
+  /** What `friend_codes` holds for this user; null for "none on file". */
+  friendCode?: string | null;
+  /** Forced error from the friend-code upsert. */
+  codeError?: { code?: string; message: string } | null;
 }
 
-function fakeClient({ session = null, profile = null, insertError = null }: HarnessOptions) {
+function fakeClient({
+  session = null,
+  profile = null,
+  insertError = null,
+  friendCode = null,
+  codeError = null,
+}: HarnessOptions) {
   const auth = {
     getSession: vi.fn(async () => ({ data: { session }, error: null })),
     onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
@@ -50,8 +60,24 @@ function fakeClient({ session = null, profile = null, insertError = null }: Harn
     maybeSingle: vi.fn(async () => ({ data: profile, error: null })),
     insert,
   };
-  pkg.client = { auth, from: vi.fn(() => table) };
-  return { auth, table, insert };
+  /**
+   * `friend_codes` is a second table with a second policy, and routing both
+   * through one stub was how the first version of this harness let
+   * `myFriendCode` "succeed" by awaiting an object with no `then` — undefined
+   * data, undefined error, and a null answer that looked like "none on file"
+   * whatever the database would have said. `then` is here because the real
+   * query is awaited without `.single()`: zero rows is the ordinary state.
+   */
+  const upsert = vi.fn(async (_row: unknown, _opts?: unknown) => ({ error: codeError }));
+  const codes = {
+    select: vi.fn(() => codes),
+    eq: vi.fn(() => codes),
+    upsert,
+    then: (res: (v: unknown) => unknown) =>
+      Promise.resolve({ data: friendCode === null ? [] : [{ code: friendCode }], error: null }).then(res),
+  };
+  pkg.client = { auth, from: vi.fn((name: string) => (name === 'friend_codes' ? codes : table)) };
+  return { auth, table, insert, upsert };
 }
 
 async function mount(options: HarnessOptions = {}) {
@@ -180,6 +206,7 @@ describe('registration', () => {
     fill(c, '#go-username', 'AshKetchum99');
     fill(c, '#email', 'ash@example.com');
     fill(c, '#password', 'correct horse battery');
+    fill(c, '#friend-code', '1234 5678 9012');
   }
 
   it('refuses to submit without a Pokémon GO trainer name', async () => {
@@ -240,6 +267,48 @@ describe('registration', () => {
     fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
     await submit(container);
     expect(text(container)).toMatch(/check ash@example\.com/i);
+  });
+
+  /**
+   * The friend code is required here for the same reason the trainer name is:
+   * a match arranged in Paragon/IV is played in Pokémon GO, and an account
+   * with no code hands its opponent nothing at the end of the handshake.
+   */
+  it('refuses to submit without a friend code', async () => {
+    const { container, auth } = await ready();
+    fill(container, '#display-name', 'AshK');
+    fill(container, '#go-username', 'AshKetchum99');
+    fill(container, '#email', 'ash@example.com');
+    fill(container, '#password', 'correct horse battery');
+    fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
+    await submit(container);
+    expect(auth.signUp).not.toHaveBeenCalled();
+    expect(text(container)).toMatch(/twelve digits/i);
+  });
+
+  it('refuses a trainer name typed into the friend code box', async () => {
+    const { container, auth } = await ready();
+    await fillAll(container);
+    fill(container, '#friend-code', 'AshKetchum99');
+    fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
+    await submit(container);
+    expect(auth.signUp).not.toHaveBeenCalled();
+  });
+
+  /**
+   * There is no session at registration time — the row cannot be written until
+   * the emailed link is followed — so the code travels as signup metadata and
+   * `handle_confirmed_user` writes it. Normalized before it is sent, because
+   * the trigger only accepts the stored spelling.
+   */
+  it('carries the friend code into signup metadata, normalized', async () => {
+    const { container, auth } = await ready();
+    await fillAll(container);
+    fill(container, '#friend-code', '1234-5678-9012');
+    fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
+    await submit(container);
+    const args = auth.signUp.mock.calls[0][0] as { options: { data: Record<string, string> } };
+    expect(args.options.data.friend_code).toBe('1234 5678 9012');
   });
 
   it('links the terms at a document that exists', async () => {
@@ -320,6 +389,9 @@ describe('an account with no profile yet', () => {
     fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, {
       target: { value: 'AshKetchum99' },
     });
+    fireEvent.change(container.querySelector('#friend-code') as HTMLInputElement, {
+      target: { value: '1234 5678 9012' },
+    });
     await act(async () => {
       fireEvent.submit(container.querySelector('form')!);
     });
@@ -333,6 +405,9 @@ describe('an account with no profile yet', () => {
     });
     fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, {
       target: { value: 'AshKetchum99' },
+    });
+    fireEvent.change(container.querySelector('#friend-code') as HTMLInputElement, {
+      target: { value: '1234 5678 9012' },
     });
     fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
     await act(async () => {
@@ -358,6 +433,43 @@ describe('an account with no profile yet', () => {
     const { container, insert } = await ready();
     await completeIt(container);
     expect(Object.keys(insert.mock.calls[0][0] as object)).not.toContain('email');
+  });
+
+  it('refuses to finish without a friend code', async () => {
+    const { container, insert } = await ready();
+    fireEvent.change(container.querySelector('#display-name') as HTMLInputElement, {
+      target: { value: 'AshK' },
+    });
+    fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, {
+      target: { value: 'AshKetchum99' },
+    });
+    fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
+    await act(async () => {
+      fireEvent.submit(container.querySelector('form')!);
+    });
+    expect(insert).not.toHaveBeenCalled();
+    expect(text(container)).toMatch(/twelve digits/i);
+  });
+
+  /**
+   * `friend_codes.profile_id` references `profiles`, so the reverse order is a
+   * foreign-key violation on every provider signup. Asserted as an ordering,
+   * not merely as "both were called".
+   */
+  it('writes the friend code only after the profile it references', async () => {
+    const order: string[] = [];
+    const { container, insert, upsert } = await ready();
+    insert.mockImplementation(async () => {
+      order.push('profile');
+      return { error: null };
+    });
+    upsert.mockImplementation(async () => {
+      order.push('friend code');
+      return { error: null };
+    });
+    await completeIt(container);
+    expect(order).toEqual(['profile', 'friend code']);
+    expect((upsert.mock.calls[0][0] as Record<string, string>).code).toBe('1234 5678 9012');
   });
 
   it('explains a taken display name instead of showing a database error', async () => {
@@ -394,6 +506,86 @@ describe('a complete account', () => {
     expect(text(container)).toMatch(/AshK/);
     expect(text(container)).toMatch(/AshKetchum99/);
     expect(button(container, 'Sign out')).toBeTruthy();
+  });
+
+  it('shows the friend code already on file', async () => {
+    const { container } = await mount({
+      session: fakeSession('ash@example.com'),
+      profile: { display_name: 'AshK', go_username: 'AshKetchum99' },
+      friendCode: '1234 5678 9012',
+    });
+    expect(text(container)).toMatch(/1234 5678 9012/);
+    // Shown, not sitting in an edit box nobody asked to open.
+    expect(container.querySelector('#account-friend-code')).toBeFalsy();
+    expect(button(container, 'Change friend code')).toBeTruthy();
+  });
+
+  /**
+   * Every account made before this screen collected a code is in this state,
+   * and it is the state that quietly breaks matchmaking: the account can queue,
+   * accept and confirm, and then show its opponent nothing. So the form is
+   * there outright rather than behind a button.
+   */
+  it('asks outright when there is no code on file', async () => {
+    const { container } = await mount({
+      session: fakeSession('ash@example.com'),
+      profile: { display_name: 'AshK', go_username: 'AshKetchum99' },
+      friendCode: null,
+    });
+    expect(container.querySelector('#account-friend-code')).toBeTruthy();
+    expect(text(container)).toMatch(/no way to add you/i);
+  });
+
+  it('saves a code typed with any separators, and shows it back', async () => {
+    const { container, upsert } = await mount({
+      session: fakeSession('ash@example.com'),
+      profile: { display_name: 'AshK', go_username: 'AshKetchum99' },
+      friendCode: null,
+    });
+    fireEvent.change(container.querySelector('#account-friend-code') as HTMLInputElement, {
+      target: { value: '1234-5678-9012' },
+    });
+    await act(async () => {
+      fireEvent.submit(container.querySelector('#account-friend-code')!.closest('form')!);
+    });
+    expect((upsert.mock.calls[0][0] as Record<string, string>).code).toBe('1234 5678 9012');
+    expect(text(container)).toMatch(/1234 5678 9012/);
+    expect(text(container)).toMatch(/saved/i);
+  });
+
+  it('refuses a malformed code without asking the database', async () => {
+    const { container, upsert } = await mount({
+      session: fakeSession('ash@example.com'),
+      profile: { display_name: 'AshK', go_username: 'AshKetchum99' },
+      friendCode: null,
+    });
+    fireEvent.change(container.querySelector('#account-friend-code') as HTMLInputElement, {
+      target: { value: '12345' },
+    });
+    await act(async () => {
+      fireEvent.submit(container.querySelector('#account-friend-code')!.closest('form')!);
+    });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(text(container)).toMatch(/twelve digits/i);
+  });
+
+  /** A refused write must not leave the screen claiming the code was saved. */
+  it('reports a refused write instead of showing the code as saved', async () => {
+    const { container } = await mount({
+      session: fakeSession('ash@example.com'),
+      profile: { display_name: 'AshK', go_username: 'AshKetchum99' },
+      friendCode: null,
+      codeError: { code: '42501', message: 'new row violates row-level security policy' },
+    });
+    fireEvent.change(container.querySelector('#account-friend-code') as HTMLInputElement, {
+      target: { value: '1234 5678 9012' },
+    });
+    await act(async () => {
+      fireEvent.submit(container.querySelector('#account-friend-code')!.closest('form')!);
+    });
+    expect(text(container)).toMatch(/row-level security/i);
+    expect(text(container)).not.toMatch(/saved/i);
+    expect(container.querySelector('#account-friend-code')).toBeTruthy();
   });
 
   it('signs out through the session context', async () => {

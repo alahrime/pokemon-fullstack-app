@@ -106,6 +106,8 @@ interface Bot {
   password: string;
   displayName: string;
   goUsername: string;
+  /** What the partner is shown once a match pairs them — see `friendCode.ts`. */
+  friendCode: string;
   id: string;
   /** `formats.id` per league, filled in by seeding or re-read on clean. */
   formatId: Partial<Record<LeagueId, string>>;
@@ -118,6 +120,9 @@ function bot(n: 1 | 2): Bot {
     password: `Test-Opponent-${n}-fixture`,
     displayName: `TEST OPPONENT ${n}`,
     goUsername: `TESTOPPONENT${n}`,
+    // Obviously fake, and obviously fake in the shape the column now enforces.
+    // Nobody should try to add these in the game.
+    friendCode: `${n}${n}${n}${n} ${n}${n}${n}${n} ${n}${n}${n}${n}`,
     id: '',
     formatId: {},
   };
@@ -210,6 +215,7 @@ async function register(b: Bot): Promise<boolean> {
         display_name: b.displayName,
         go_username: b.goUsername,
         birth_date: '1990-01-01',
+        friend_code: b.friendCode,
         tos_accepted_at: new Date().toISOString(),
       },
     },
@@ -223,6 +229,24 @@ async function register(b: Bot): Promise<boolean> {
   await signIn(b);
   await waitForTokenAccepted(b);
   return false;
+}
+
+/**
+ * The friend code, written as the bot itself rather than with the service role.
+ *
+ * A code is what the partner is shown after Accept, so a fixture without one
+ * leaves the payoff of the whole screen blank. It is upserted on every run,
+ * after signup as well as after a plain sign-in: an account seeded before the
+ * account screen collected codes has none, and the signup metadata path only
+ * runs the first time. Ordinary client, ordinary policy — if this write ever
+ * fails, the same write from the account screen would fail too, which is worth
+ * finding out here.
+ */
+async function ensureFriendCode(b: Bot): Promise<void> {
+  const { error } = await supabase
+    .from('friend_codes')
+    .upsert({ profile_id: b.id, code: b.friendCode, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
+  if (error) throw new Error(`${b.label} could not save its friend code: ${error.message}`);
 }
 
 async function as<T>(b: Bot, body: () => Promise<T>): Promise<T> {
@@ -349,7 +373,13 @@ async function seed(): Promise<void> {
 
   for (const b of BOTS) {
     const reused = await register(b);
-    console.log(`${b.label}  ${b.displayName}  <${b.email}>  ${b.id}  ${reused ? '(existing account)' : '(new account)'}`);
+    // `register` leaves this bot signed in, which is the session the upsert
+    // needs — the policy on `friend_codes` checks the caller, not the payload.
+    await ensureFriendCode(b);
+    console.log(
+      `${b.label}  ${b.displayName}  <${b.email}>  ${b.id}  ${reused ? '(existing account)' : '(new account)'}  ` +
+        `friend code ${b.friendCode}`,
+    );
   }
   console.log('');
 

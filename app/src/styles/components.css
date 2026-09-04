@@ -6011,9 +6011,30 @@ th.bt-matrix-head { text-align: center; }
   font-size: var(--text-sm);
 }
 /* The reason an offer cannot be accepted, standing where its Accept control
-   would be — sized like the control it replaces so the row does not reflow
-   when the coordinator verifies the offer a moment later. */
+   would be.
+
+   It carries .chip-btn's own box — min-height, padding, and a hairline border
+   made transparent — so a row showing a reason is exactly as tall as a row
+   showing a button, and the board does not go ragged when some offers are
+   acceptable and others are not. That matters on the re-read too: the board is
+   re-fetched after a post or an accept, and an offer that has verified since
+   the last read swaps this span for a button in place, without the rows under
+   it stepping.
+
+   The re-read is the ONLY thing that swaps it. Nothing on this screen polls,
+   so an offer does not become acceptable on its own while the tab sits open —
+   an earlier version of this comment claimed it did, and claimed a size this
+   rule did not have. Both are fixed here rather than one being written around
+   the other: the sizing is worth having, and the polling is a separate
+   decision nobody has taken.
+
+   --text-xs and italic stay: the box is the control's, the voice is not. */
 .offer-blocked {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: var(--border-hairline) solid transparent;
   font-size: var(--text-xs);
   font-style: italic;
 }

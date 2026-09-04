@@ -744,6 +744,146 @@ describe('signed in — the handshake survives a reload', () => {
 });
 
 /**
+ * An offer past its own `expires_at`.
+ *
+ * `accept_offer` raises 'this offer has expired' before it checks anything
+ * else, and expiry is a coordinator SWEEP rather than a trigger — the row sits
+ * in `state = 'open'` until the next tick. `listOpenOffers` filters on
+ * `league` and `state` only, so it hands the expired row back looking exactly
+ * like a live one, and nothing on this screen re-reads the board on its own.
+ * A page left open past the timestamp therefore shows an enabled Accept whose
+ * only possible outcome is raw Postgres text, indefinitely.
+ */
+describe('signed in — an offer that has expired', () => {
+  it('offers no Accept on an offer past its expiry, and says so', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([
+      offer({ id: 'off-gone', expiresAt: new Date(Date.now() - 60_000).toISOString() }),
+      offer({ id: 'off-live', expiresAt: new Date(Date.now() + 60_000).toISOString() }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const [gone, live] = await waitFor(() => {
+      const a = container.querySelector('[data-offer-id="off-gone"]');
+      const b = container.querySelector('[data-offer-id="off-live"]');
+      if (!a || !b) throw new Error('board not rendered yet');
+      return [a, b];
+    });
+    // A roster of exactly the size the offer wants: the ONLY remaining gate is
+    // the expiry itself, so without it this Accept renders enabled.
+    await pickThree(container);
+    expect(gone.querySelector('.offer-accept')).toBeFalsy();
+    // Unfixable, so the reason takes the control's place rather than sitting
+    // in a tooltip on a dead button — the split the screen keeps.
+    expect(gone.querySelector('.offer-blocked')?.textContent).toMatch(/expired/i);
+    // And the live offer beside it is untouched, or this test would pass
+    // against a board that offered nothing to anybody.
+    expect((live.querySelector('.offer-accept') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('is the reason given even when the offer is also unverified, as the database would', async () => {
+    // `accept_offer` checks expiry BEFORE verified_hash, so "being checked"
+    // here would be a sentence the database disagrees with — and a hopeful
+    // one, since "acceptable once verified" is a promise this row cannot keep.
+    mmApi.listOpenOffers.mockResolvedValue([
+      offer({ id: 'off-both', verifiedHash: null, expiresAt: new Date(Date.now() - 60_000).toISOString() }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-both"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    expect(row.textContent).toMatch(/expired/i);
+    expect(row.textContent).not.toMatch(/being checked/i);
+  });
+});
+
+/**
+ * Every disabled control says why it is disabled.
+ *
+ * Three buttons share the `rosterReady` gate — Join, Post and Schedule — and
+ * until now only Join carried a hint; the other two went dead and silent in
+ * exactly the state round 3 named. And any of them, plus Accept, can be dead
+ * for the length of an in-flight call with nothing said at all.
+ */
+describe('signed in — a disabled control says why', () => {
+  async function openPostPanel(container: HTMLElement) {
+    const toggle = [...container.querySelectorAll('button')].find((b) => /Post an offer/i.test(b.textContent ?? ''))!;
+    fireEvent.click(toggle);
+    return waitFor(() => {
+      const b = container.querySelector('.offer-post') as HTMLButtonElement | null;
+      if (!b) throw new Error('post panel not open yet');
+      return b;
+    });
+  }
+
+  it('names its own action in the roster hint, rather than telling Post to queue', async () => {
+    // The state round 3 named: own format of three, a six-member offer on the
+    // board, six picked to reach it. Join says "Remove 3 to queue"; Post and
+    // Schedule are dead under the same gate.
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-six', rosterSize: 6 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-six"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+    await pick(container, 'medicham');
+    await pick(container, 'swampert');
+    await pick(container, 'bastiodon');
+
+    const postBtn = await openPostPanel(container);
+    const schedBtn = container.querySelector('.offer-schedule') as HTMLButtonElement;
+    expect(postBtn.disabled).toBe(true);
+    expect(schedBtn.disabled).toBe(true);
+    expect(postBtn.getAttribute('title')).toBe('Remove 3 to post');
+    expect(schedBtn.getAttribute('title')).toBe('Remove 3 to schedule');
+    // Not the one verb the parameter used to be hardcoded to.
+    expect(postBtn.getAttribute('title')).not.toMatch(/queue/);
+    expect(schedBtn.getAttribute('title')).not.toMatch(/queue/);
+  });
+
+  it('tells Schedule apart from Post when the roster is fine and only the date is missing', async () => {
+    // The one state where Schedule is dead and Post beside it is live. A
+    // roster hint here would be actively wrong.
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await pickThree(container);
+    const postBtn = await openPostPanel(container);
+    const schedBtn = container.querySelector('.offer-schedule') as HTMLButtonElement;
+    expect(postBtn.disabled).toBe(false);
+    expect(postBtn.getAttribute('title')).toBeNull();
+    expect(schedBtn.disabled).toBe(true);
+    // The exact string, not a pattern: `getAttribute` returns null for a
+    // missing title, and `toMatch(null)` is a TypeError rather than a
+    // failed assertion — which is the difference between evidence and noise.
+    expect(schedBtn.getAttribute('title')).toBe('Pick a date and time to schedule for');
+    expect(schedBtn.getAttribute('title') ?? '').not.toMatch(/add|remove/i);
+  });
+
+  it('says why Accept is dead for the length of an in-flight call', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-a' }), offer({ id: 'off-b' })]);
+    let release!: (id: string | null) => void;
+    mmApi.acceptOffer.mockReturnValue(new Promise<string | null>((res) => (release = res)));
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await waitFor(() => {
+      if (!container.querySelector('[data-offer-id="off-b"]')) throw new Error('board not rendered yet');
+    });
+    await pickThree(container);
+    const a = container.querySelector('[data-offer-id="off-a"] .offer-accept') as HTMLButtonElement;
+    const b = container.querySelector('[data-offer-id="off-b"] .offer-accept') as HTMLButtonElement;
+    expect(b.getAttribute('title')).toBeNull();
+    await act(async () => {
+      fireEvent.click(a);
+    });
+    // `canAccept(off-b)` is still true — `busy` is the only gate that shut,
+    // and it is the one an undefined title left unexplained.
+    expect(b.disabled).toBe(true);
+    expect(b.getAttribute('title')).toBe('Working — wait for the last action to finish');
+    await act(async () => {
+      release('m1');
+    });
+  });
+});
+
+/**
  * jsdom applies no stylesheet, so nothing here asserts a rendered box. What a
  * test CAN hold is the rule itself, read as text — the established pattern in
  * this repo (see `add-modal-size.test.tsx`). The board grows on its own as
@@ -778,5 +918,25 @@ describe('the offer board is bounded, not expanding', () => {
     for (const sel of ['.offer-list', '.my-offer-list']) {
       expect(css.match(new RegExp(`^\\${sel}\\s*\\{`, 'gm')) ?? [], sel).toHaveLength(1);
     }
+  });
+
+  /**
+   * The rule's own comment claims .offer-blocked is sized like the control it
+   * stands in for. Asserted against .chip-btn's ACTUAL declarations rather
+   * than against the literal 32px, so the two cannot drift apart silently —
+   * which is the whole failure mode the claim had before this round: a
+   * sentence describing a box the rule never had.
+   */
+  it('gives the blocked reason the same box as the Accept control it replaces', () => {
+    const chip = block('.chip-btn');
+    const blocked = block('.offer-blocked');
+    const decl = (rule: string, prop: string) =>
+      rule.match(new RegExp(`${prop}:\\s*([^;]+);`))?.[1].trim() ?? null;
+
+    expect(decl(chip, 'min-height'), '.chip-btn declares no min-height').not.toBeNull();
+    expect(decl(blocked, 'min-height')).toBe(decl(chip, 'min-height'));
+    expect(decl(blocked, 'padding')).toBe(decl(chip, 'padding'));
+    // Height only bites on a box that can have one.
+    expect(blocked).toMatch(/display:\s*inline-flex/);
   });
 });

@@ -86,6 +86,17 @@ function queueStatusText(entry: QueueEntry): string {
  * reason here means the control is not rendered at all.
  */
 function unacceptableReason(o: Offer): string | null {
+  // FIRST, because it is first in `accept_offer` too — the reason shown is the
+  // reason the database would actually give.
+  //
+  // Expiry is a coordinator SWEEP, not a trigger: an offer past `expires_at`
+  // sits in `state = 'open'` until the next tick, and `listOpenOffers` filters
+  // only on `league` and `state`, so an expired row is handed back looking
+  // exactly like a live one. Nothing on this screen re-reads the board on its
+  // own either, so a page left open past this timestamp would otherwise show
+  // an enabled Accept — whose only possible outcome is `accept_offer` raising
+  // 'this offer has expired' — for as long as the tab stays open.
+  if (Date.parse(o.expiresAt) <= Date.now()) return 'Expired — nobody can accept it now.';
   // The coordinator ticks once a minute, so every offer spends its first
   // minute unverified and `accept_offer` raises for exactly this. Said as
   // something in progress, because it is: a minute from now it is gone.
@@ -98,11 +109,21 @@ function unacceptableReason(o: Offer): string | null {
   return null;
 }
 
-/** "Add 2 more", "Remove 3" — never "Add -3 more". */
-function rosterHint(want: number, have: number, verb: string): string {
+/**
+ * "Add 2 more to queue", "Remove 3 to post" — never "Add -3 more".
+ *
+ * `verb` is what the control the hint hangs off actually does. Every control
+ * gated on `rosterReady` passes its own: Join, Post and Schedule are three
+ * buttons that go dead together, and a hint naming the wrong one of them is
+ * only marginally better than no hint at all.
+ */
+function rosterHint(want: number, have: number, verb: 'queue' | 'post' | 'schedule'): string {
   const short = want - have;
   return short > 0 ? `Add ${short} more to ${verb}` : `Remove ${-short} to ${verb}`;
 }
+
+/** Why a control is dead for the duration of an in-flight call. */
+const BUSY_HINT = 'Working — wait for the last action to finish';
 
 /**
  * Where an offer has got to, said from the reader's own side of it. The two
@@ -589,8 +610,16 @@ export function MatchmakingScreen() {
                       // and accepting is the offer's business, not your
                       // format's.
                       disabled={!canAccept(o) || busy}
+                      // `busy` FIRST: it is the one gate that can be shut
+                      // while `canAccept` is true, and a control disabled for
+                      // a reason nobody states is the same defect as a
+                      // control that can only fail.
                       title={
-                        canAccept(o) ? undefined : `This offer is played with a roster of ${o.rosterSize}`
+                        busy
+                          ? BUSY_HINT
+                          : canAccept(o)
+                            ? undefined
+                            : `This offer is played with a roster of ${o.rosterSize}`
                       }
                       onClick={() => void accept(o)}
                     >
@@ -621,8 +650,14 @@ export function MatchmakingScreen() {
             <div className="move-picker-panel offer-post-panel">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary offer-post"
                 disabled={!rosterReady || busy}
+                // The same gate as Join, so the same hint — with this
+                // control's own verb. Without one, the state round 3 named
+                // (six picked to reach a bigger offer, own format of three)
+                // left these two buttons dead and silent while Join beside
+                // them explained itself.
+                title={busy ? BUSY_HINT : rosterReady ? undefined : rosterHint(rosterSize, team.length, 'post')}
                 onClick={() => void post(false)}
               >
                 Post to the open board
@@ -636,8 +671,22 @@ export function MatchmakingScreen() {
                 />
                 <button
                   type="button"
-                  className="btn"
+                  className="btn offer-schedule"
                   disabled={!rosterReady || busy || !scheduleAt}
+                  // Three gates, so three reasons, in the order they are
+                  // checked. The date one matters most: a ready roster and no
+                  // date is the ONLY way this button is dead while Join beside
+                  // it is live, so "add/remove members" would be actively
+                  // misleading there.
+                  title={
+                    busy
+                      ? BUSY_HINT
+                      : !rosterReady
+                        ? rosterHint(rosterSize, team.length, 'schedule')
+                        : !scheduleAt
+                          ? 'Pick a date and time to schedule for'
+                          : undefined
+                  }
                   onClick={() => void post(true)}
                 >
                   Schedule

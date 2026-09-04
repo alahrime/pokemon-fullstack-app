@@ -677,3 +677,242 @@ like the control it replaces so the row does not reflow when the offer verifies 
 3. The empty-roster guard is unreachable from this client, as its test says. It is defence against
    another client's malformed write, and it will silently do nothing for as long as no such client
    exists.
+
+---
+
+# Task 8 — fix round 4 (the expired offer, and three controls that said nothing)
+
+## Status
+
+Done. `cd app && npm run check > /tmp/task-8-fix4-gate.log 2>&1` → **EXIT=0**, 81 files,
+**1158 passed** (was 1152). Screen suite 36 (was 30). No library change was needed this round.
+
+## Important — an expired offer no longer shows an Accept button
+
+The fourth instance of one defect: a control whose only possible outcome is raw Postgres text.
+
+`accept_offer` raises `'this offer has expired'`
+(`supabase/migrations/20260903005933_pairing_functions.sql:67`) — and raises it *first*, before the
+self-check and before `verified_hash`. `listOpenOffers` filters on `league` and `state = 'open'`
+only. Expiry is a coordinator **sweep**, not a trigger, so the row sits in `state = 'open'` until
+the next tick and is handed back looking exactly like a live one.
+
+This is strictly worse than the `verified_hash` case round 3 fixed, and for the reason round 3's
+own first concern names: nothing on this screen re-reads the board. The unverified window closes
+by itself within a minute whether or not the screen notices. An expired offer never closes — a
+page left open past `expires_at` shows an enabled Accept for as long as the tab stays open.
+
+`Offer.expiresAt` was **already** on the interface and already selected by both `listOpenOffers`
+and `myOffers` (the row is even rendered — "expires …" beside every offer), and
+`lib/__tests__/matchmaking.test.ts` already asserts it through the field-mapping `toEqual`. So
+`matchmaking.ts` is untouched: the whole fix is one line in `unacceptableReason`, the abstraction
+round 3 built for it.
+
+```ts
+if (Date.parse(o.expiresAt) <= Date.now()) return 'Expired — nobody can accept it now.';
+```
+
+**Placed first, matching `accept_offer`'s own order**, so the reason shown is the reason the
+database would give. An offer that is both expired and unverified must not say "acceptable once
+verified" — that is a promise the row cannot keep. Its own test covers exactly that.
+
+Unfixable, so it takes the control's place as a `.offer-blocked` span rather than sitting in a
+tooltip on a dead button — the split the screen keeps.
+
+## Bundled fix 1 — the comment that claimed a property the code lacked
+
+`components.css` said `.offer-blocked` was "sized like the control it replaces so the row does not
+reflow when the coordinator verifies the offer a moment later." Two false claims: the rule was
+11px italic with no box against `.chip-btn`'s `min-height: 32px` / `padding: 0 10px` / border, and
+the event described cannot happen at all without a reload.
+
+**I fixed both, rather than writing one around the other**, and here is why neither half was the
+whole answer:
+
+- *Comment → CSS* alone would have deleted a property worth having. Rows on one board differ:
+  some carry a button, some "Your offer", some a reason. Matching the box keeps the board from
+  going ragged, and it does matter on the re-read — the board **is** re-fetched after a post or an
+  accept, and an offer verified since the last read swaps its span for a button in place.
+- *CSS → comment* alone would have left the sentence asserting a spontaneous verification event.
+  Nothing polls. That is round 3's concern 1, still open and still deferred.
+
+So `.offer-blocked` now carries `.chip-btn`'s box (`display: inline-flex`, `min-height: 32px`,
+`padding: 0 10px`, a hairline border made transparent — universal `box-sizing: border-box` makes
+those add up to the same outer box), `--text-xs` and italic stay (the box is the control's, the
+voice is not), and the comment now names the re-read as the only thing that swaps it, and says the
+old version was wrong on both counts.
+
+The test asserts `.offer-blocked`'s `min-height` and `padding` **against `.chip-btn`'s own
+declarations read out of the file**, not against the literal `32px`, so the two cannot drift apart
+silently — which was the failure mode the claim had in the first place.
+
+## Bundled fix 2 — `rosterHint`'s `verb` is wired through
+
+It had one call site and was always `'queue'`. "Post to the open board" and "Schedule" are gated by
+the same `rosterReady` and carried **no `title` at all**, so in the state round 3 named — own
+format of three, a six-member offer on the board, six picked to reach it — Join explained itself
+and the two buttons beside it went dead and silent.
+
+Both now pass their own verb ("Remove 3 to post", "Remove 3 to schedule"), and `verb` is typed
+`'queue' | 'post' | 'schedule'` rather than `string`, so a fourth call site cannot invent a fourth
+word by accident.
+
+Schedule has a third gate the other two do not — `!scheduleAt` — and a ready roster with no date is
+the **only** state in which Schedule is dead while Post beside it is live. A roster hint there would
+be actively wrong, so the title is ordered `busy → roster → date` and says "Pick a date and time to
+schedule for". `.offer-post` and `.offer-schedule` classes were added to address the two buttons
+from tests; the existing tests still find them by text and are unaffected.
+
+## Bundled fix 3 — Accept says why it is dead during an in-flight call
+
+`disabled={!canAccept(o) || busy}` with a title that was `undefined` whenever `canAccept(o)` was
+true. `busy` is the one gate that can shut while `canAccept` is true, so this was a dead control
+with no stated reason for the duration of every accept, post and confirm. `busy` is now checked
+first, and the same `BUSY_HINT` constant is used on Post and Schedule.
+
+Join was already self-explanatory (its *label* becomes "Working…"), so it is unchanged.
+
+## Mutation evidence
+
+The harness is committed this round, at
+`.superpowers/sdd/2026-09-02-m2a-matchmaking/mutate.mjs` — round 3's report claimed a script
+asserted its anchors and no such script was on disk. It **asserts** rather than reports: the anchor
+occurs in the file exactly once; the nearest enclosing declaration above the mutation point matches
+a stated pattern (this is what catches round 2's "landed in `myOffers` instead of
+`listOpenOffers`"); the replacement is present after writing; and on restore, the anchor is back
+and the mutation text is gone. It prints the mutated region with line numbers before any test runs.
+Specs are JSON; each run below quotes the harness's own "enclosing region" line.
+
+Every failure below is an `AssertionError`, not a `waitFor` timeout and not a `TypeError`. Two
+assertions were tightened mid-round for exactly that reason: `expect(el.getAttribute('title'))
+.toMatch(...)` raises `TypeError: .toMatch() expects to receive a string, but got object` when the
+attribute is absent, which is noise rather than evidence, so both title assertions are now exact
+`.toBe(...)` comparisons that report `expected null to be '…'`.
+
+### M1 — the expiry gate deleted from `unacceptableReason`
+
+`enclosing region: function unacceptableReason(o: Offer): string | null {`
+
+```
+… -t "expired"                                                          EXIT=1
+ FAIL  … > offers no Accept on an offer past its expiry, and says so
+AssertionError: expected <button type="button" …(1)></button> to be falsy
++ Received:
+<button class="btn chip-btn offer-accept" type="button">Accept</button>
+
+ FAIL  … > is the reason given even when the offer is also unverified, as the database would
+AssertionError: expected 'Open nowexpires 9/4/2026, 2:27:03 AMB…' to match /expired/i
+```
+
+The received markup carries **no `disabled` attribute**: an enabled Accept on an expired offer,
+with a roster of exactly the size the offer wants — the defect, reproduced. Restored → `EXIT=0`,
+`Tests  2 passed | 34 skipped (36)`.
+
+### M2 — the expiry check moved BELOW the `verified_hash` check
+
+Order, not presence. `enclosing region: function unacceptableReason(o: Offer): string | null {`
+
+```
+… -t "also unverified"                                                  EXIT=1
+AssertionError: expected 'Open nowexpires 9/4/2026, 2:27:47 AMB…' to match /expired/i
++ Received:
+"Open nowexpires 9/4/2026, 2:27:47 AMBeing checked — acceptable once verified."
+```
+
+Restored → `EXIT=0`, `Tests  1 passed | 35 skipped (36)`.
+
+### M3 — the `title` removed from Post entirely (the state before this round)
+
+`enclosing region: className="btn btn-primary offer-post"`
+
+```
+… -t "names its own action"                                             EXIT=1
+AssertionError: expected null to be 'Remove 3 to post' // Object.is equality
+```
+
+### M4 — Schedule's verb reverted to the hardcoded `'queue'`
+
+`enclosing region: className="btn offer-schedule"`
+
+```
+… -t "names its own action"                                             EXIT=1
+AssertionError: expected 'Remove 3 to queue' to be 'Remove 3 to schedule'
+```
+
+M3 proves a title exists; M4 proves the `verb` argument is what produces it. Restored → `EXIT=0`.
+
+### M5 — the missing-date reason deleted from Schedule
+
+`enclosing region: className="btn offer-schedule"`
+
+```
+… -t "only the date is missing"                                         EXIT=1
+AssertionError: expected null to be 'Pick a date and time to schedule for'
+```
+
+Restored → `EXIT=0`.
+
+### M6 — Accept's title back to `undefined` while busy
+
+`enclosing region: className="btn chip-btn offer-accept"`
+
+```
+… -t "in-flight call"                                                   EXIT=1
+AssertionError: expected null to be 'Working — wait for the last action to…'
+```
+
+The same test's `expect(b.disabled).toBe(true)` passed against the mutation — so the control really
+was dead, and the title really was the missing half. Restored → `EXIT=0`.
+
+### M7 — `.offer-blocked` back to a bare span
+
+`enclosing region: .my-offer-row {` (the nearest preceding top-level rule; the printed region
+confirms the edit landed inside `.offer-blocked`)
+
+```
+… -t "same box as the Accept control"                                   EXIT=1
+AssertionError: expected null to be '32px' // Object.is equality
+```
+
+`'32px'` there is read out of `.chip-btn`'s own block, which is the point of the test.
+
+All seven restored through the harness (`RESTORED (anchor present, mutation absent)`), and
+`grep -rn MUTATED app/src` returns nothing.
+
+## Gate
+
+```
+cd app && npm run check > /tmp/task-8-fix4-gate.log 2>&1; echo "EXIT=$?"
+EXIT=0
+ Test Files  81 passed (81)
+      Tests  1158 passed (1158)
+```
+
+No `supabase db reset`, no `db:start`/`db:stop`, no `check:db`, no dev server, no migration.
+
+## Not touched, as instructed
+
+`rosterCapacity` counting unverified offers; `.chip-btn` appearing in a second grouped rule at
+`components.css:1699` (a `clip-path` add-on, not a duplicate declaration of the same block); the
+board not re-reading itself; pool validation (deferred to coordinator-side `validateTeam` in M2b);
+the missing confirm acknowledgement; `justAccepted` never being cleared.
+
+## Concerns
+
+1. **`unacceptableReason` reads `Date.now()`, and React does not re-render on the clock.** An
+   offer that expires while the tab sits open keeps its Accept until something else causes a
+   render. That is a strictly smaller window than before — the reason now appears on load and on
+   every re-read and on every keystroke in the roster picker, rather than never — but the honest
+   fix is the same timer/subscription that rounds 2 and 3 both deferred. I did not add one, for
+   round 3's reason: it is a behaviour change nobody has asked for, and it belongs with the
+   realtime decision rather than in front of it. This is now the third round to log it, which I
+   read as the signal that it should be scheduled rather than deferred again.
+2. **The clock is the client's.** `expires_at` is a server timestamp compared against the
+   browser's `Date.now()`, so a badly skewed clock will hide an acceptable offer (harmless — the
+   reason is honest and the offer reappears) or show one it should not (which then fails at
+   `accept_offer`, exactly as it does today). The server remains the authority; this check only
+   stops the screen from *offering* a call that cannot succeed.
+3. **The CSS assertion compares two rules' text, not two rendered boxes.** jsdom applies no
+   stylesheet, so nothing here proves the boxes actually match at paint time — only that the two
+   rules declare the same `min-height` and `padding`, which is what a comment claiming "sized like
+   the control it replaces" can be held to in this test environment.

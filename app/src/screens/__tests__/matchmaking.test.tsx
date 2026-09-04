@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { render, act, fireEvent, cleanup, waitFor, type RenderResult } from '@testing-library/react';
 import type { Session } from '@supabase/supabase-js';
 import type { QueueEntry, Match, MyOffer, Offer } from '../../lib/matchmaking';
+import type { StoredMember } from '../../lib/teamCodec';
 import type { SavedFormat } from '../../lib/saves';
 import { RULES_SCHEMA } from '../../rules';
 
@@ -111,6 +112,13 @@ async function pickThree(container: HTMLElement) {
   await pick(container, 'skarmory');
 }
 
+/** A roster member as the database stores one — see `StoredMember`. */
+function member(ref: string, fast = 'BUBBLE'): StoredMember {
+  return { ref, fast_move: fast, charge_moves: ['ICE_BEAM'], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 };
+}
+
+const THREE = [member('azumarill'), member('registeel', 'LOCK_ON'), member('skarmory', 'AIR_SLASH')];
+
 function offer(over: Partial<Offer>): Offer {
   return {
     id: 'off-x',
@@ -126,6 +134,10 @@ function offer(over: Partial<Offer>): Offer {
     // from tests that are about something else entirely.
     verifiedHash: 'h1',
     rosterSize: 3,
+    // The members the board now renders. `rosterSize` stays its own field and
+    // its own override knob: it is what `canAccept` compares against, and
+    // several tests below set it without caring who is on the roster.
+    roster: THREE,
     ...over,
   };
 }
@@ -161,6 +173,7 @@ function myOffer(over: Partial<MyOffer>): MyOffer {
     verifiedHash: 'h1',
     matchId: null,
     rosterSize: 3,
+    roster: THREE,
     ...over,
   };
 }
@@ -982,6 +995,120 @@ describe('signed in — a disabled control says why', () => {
 });
 
 /**
+ * The whole reason the board exists: deciding whether to accept. A row that
+ * says only WHEN an offer is for cannot answer "would I want this match", so
+ * the roster the offer was posted with is rendered on it — for the open board
+ * and for your own offers alike.
+ *
+ * `species.json` is GENERATED, and an offer is a row someone else wrote on
+ * some other build. So a member the current data cannot resolve is a real
+ * case, not a hypothetical, and the rule for it is the same one `decodeMember`
+ * follows: say so, never substitute silently, and never take the row down
+ * with it.
+ */
+describe('an offer row shows the roster it was posted with', () => {
+  const signedIn = () => fakeSession('u1', 'ash@example.com');
+
+  it('names every member of an open offer, in the order they were posted', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-look' })]);
+    const { container } = await mount(signedIn());
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-look"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    const names = [...row.querySelectorAll('.offer-roster-name')].map((n) => n.textContent);
+    expect(names).toEqual(['Azumarill', 'Registeel', 'Skarmory']);
+    // The sprite too, not just the word — a board is scanned, not read.
+    expect(row.querySelectorAll('.offer-roster-mon img').length).toBe(3);
+  });
+
+  it('shows the roster on your own offers as well as on the open board', async () => {
+    mmApi.myOffers.mockResolvedValue([myOffer({ id: 'off-own' })]);
+    const { container } = await mount(signedIn());
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-own"]');
+      if (!r) throw new Error('your offers not rendered yet');
+      return r;
+    });
+    expect([...row.querySelectorAll('.offer-roster-name')].map((n) => n.textContent)).toEqual([
+      'Azumarill',
+      'Registeel',
+      'Skarmory',
+    ]);
+  });
+
+  /**
+   * A ref this build's `species.json` has never heard of. `speciesOf` returns
+   * undefined and there is no sprite to draw, so the member degrades to the
+   * only thing that is still true about it — the stored ref — and is marked as
+   * unreadable rather than quietly rendered as a blank.
+   */
+  it('degrades a member the current data cannot resolve, and keeps the row', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([
+      offer({ id: 'off-odd', roster: [member('azumarill'), member('no-such-mon'), member('skarmory', 'AIR_SLASH')] }),
+    ]);
+    const { container } = await mount(signedIn());
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-odd"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    expect([...row.querySelectorAll('.offer-roster-name')].map((n) => n.textContent)).toEqual([
+      'Azumarill',
+      'no-such-mon',
+      'Skarmory',
+    ]);
+    const odd = row.querySelector('[data-ref="no-such-mon"]')!;
+    expect(odd.className).toMatch(/is-unreadable/);
+    // The row itself survives intact — the offer is still browsable and still
+    // acceptable. One bad member must not cost the board a whole offer.
+    expect(row.querySelector('.offer-when')?.textContent).toMatch(/open now/i);
+    expect(row.querySelector('.offer-accept')).toBeTruthy();
+  });
+
+  /**
+   * `decodeMember` REPORTS a fast move the data no longer has instead of
+   * substituting the first one — see its own comment. The row is the last
+   * place that report could go, so it goes there.
+   */
+  it('marks a member whose stored fast move no longer exists rather than substituting one', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([
+      offer({ id: 'off-move', rosterSize: 1, roster: [member('azumarill', 'MOVE_THAT_LEFT')] }),
+    ]);
+    const { container } = await mount(signedIn());
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-move"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    const mon = row.querySelector('[data-ref="azumarill"]') as HTMLElement | null;
+    // Asserted before it is dereferenced. A missing element read straight
+    // through raises TypeError, and a TypeError is not a failing assertion —
+    // it is a test that stopped rather than one that decided.
+    expect(mon, 'no roster entry rendered for azumarill').not.toBeNull();
+    // Still Azumarill — the species resolved fine; it is the move that did not.
+    expect(mon!.querySelector('.offer-roster-name')?.textContent).toBe('Azumarill');
+    expect(mon!.dataset.unknownMove).toBe('MOVE_THAT_LEFT');
+    expect(mon!.title).toMatch(/MOVE_THAT_LEFT/);
+  });
+
+  it('says so rather than rendering nothing when an offer carries no roster at all', async () => {
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-bare', rosterSize: 0, roster: [] })]);
+    const { container } = await mount(signedIn());
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-bare"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    expect(row.querySelector('.offer-roster')).toBeFalsy();
+    // `unacceptableReason` already refuses this offer; the row must not also
+    // render an empty list that reads as a roster of nobody.
+    expect(row.textContent).toMatch(/without a roster/i);
+  });
+});
+
+/**
  * jsdom applies no stylesheet, so nothing here asserts a rendered box. What a
  * test CAN hold is the rule itself, read as text — the established pattern in
  * this repo (see `add-modal-size.test.tsx`). The board grows on its own as
@@ -1013,8 +1140,32 @@ describe('the offer board is bounded, not expanding', () => {
   it('declares each of those selectors once at the top level', () => {
     // The .team-slots lesson: two rules for one selector, and the edit lands
     // on whichever you read rather than whichever wins.
-    for (const sel of ['.offer-list', '.my-offer-list']) {
+    for (const sel of ['.offer-list', '.my-offer-list', '.offer-roster']) {
       expect(css.match(new RegExp(`^\\${sel}\\s*\\{`, 'gm')) ?? [], sel).toHaveLength(1);
+    }
+  });
+
+  /**
+   * The roster made every row taller, which is exactly the pressure the cap
+   * above exists to resist. Two ways a child defeats a `max-height` box, and
+   * this holds both shut: escaping it with `position: absolute`, or refusing
+   * to wrap and forcing the box wider than the panel. Wrapping keeps a
+   * six-member roster inside the cap's own scroll rather than beside it.
+   */
+  it('keeps the roster inside the capped, scrolling box rather than escaping it', () => {
+    const rule = block('.offer-roster');
+    expect(rule).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule).not.toMatch(/position:\s*(absolute|fixed)/);
+    // A second scroller nested in the first is two scrollbars for one list.
+    expect(rule).not.toMatch(/overflow[^:]*:\s*(auto|scroll)/);
+  });
+
+  /** No colour literals — the design system's tokens or nothing. */
+  it('styles the roster from tokens, never from a raw colour', () => {
+    for (const sel of ['.offer-roster', '.offer-roster-mon', '.offer-roster-name']) {
+      const rule = block(sel);
+      expect(rule, sel).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+      expect(rule, sel).not.toMatch(/\b(rgb|rgba|hsl|hsla|oklch)\(/);
     }
   });
 

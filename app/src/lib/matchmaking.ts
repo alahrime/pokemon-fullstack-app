@@ -61,6 +61,32 @@ export interface Offer {
    * team is readable under the same row policy that shows the offer at all.
    */
   rosterSize: number;
+  /**
+   * The members themselves, in the order they were posted — and carrying them
+   * here is a REVERSAL of an earlier decision, taken deliberately.
+   *
+   * Both mappers below used to reduce `team` to its length and drop the rest,
+   * on the reasoning that a screen with no business rendering the roster
+   * cannot render it by accident if it never receives it. That was sound while
+   * the board was a list of timestamps. It is not sound now: the board's whole
+   * job is deciding whether to accept an offer, and a row that will not say
+   * who you would be playing against cannot be used to decide that. Rendering
+   * the roster is the point, so the roster comes through.
+   *
+   * Both fields, never one instead of the other. `rosterSize` is what
+   * `canAccept` compares your own roster's length against and what
+   * `unacceptableReason` refuses a roster-less offer on; `roster` is what the
+   * row draws. Recomputing the count from `roster.length` at those call sites
+   * instead would put the accept gate at the mercy of a rendering concern.
+   *
+   * `[]`, never null, for a row with no team — a shape the screen can map over
+   * unconditionally, the same rule `rosterSize`'s zero follows.
+   *
+   * This discloses nothing new. `match_offers`' select policy is whole-row, so
+   * the proposer's roster was always legible to anyone who could see the
+   * offer; what changes is only whether this app looks at it.
+   */
+  roster: StoredMember[];
 }
 
 /**
@@ -222,6 +248,10 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       verified_hash: string | null;
       team: StoredMember[] | null;
     };
+    // The count AND the members — see `Offer.roster` for why the members
+    // stopped being dropped here. Coalesced once, so the size the accept gate
+    // reads and the roster the row draws are the same list by construction.
+    const team = r.team ?? [];
     return {
       id: r.id,
       proposerId: r.proposer_id,
@@ -232,11 +262,8 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       state: r.state,
       acceptedBy: r.accepted_by,
       verifiedHash: r.verified_hash,
-      // The count, not the members. `match_offers`' select policy is
-      // whole-row, so the proposer's roster is legible to anyone who can see
-      // the offer — but this screen has no business rendering it, and what
-      // never leaves this function cannot be rendered by accident.
-      rosterSize: (r.team ?? []).length,
+      rosterSize: team.length,
+      roster: team,
     };
   });
 }
@@ -294,6 +321,9 @@ export async function myOffers(): Promise<MyOffer[]> {
       match_id: string | null;
       team: StoredMember[] | null;
     };
+    // Same coalesce as `listOpenOffers`. Two mappers is where a field gets
+    // carried in one and forgotten in the other, and the tests hold both.
+    const team = r.team ?? [];
     return {
       id: r.id,
       proposerId: r.proposer_id,
@@ -305,7 +335,8 @@ export async function myOffers(): Promise<MyOffer[]> {
       acceptedBy: r.accepted_by,
       verifiedHash: r.verified_hash,
       matchId: r.match_id,
-      rosterSize: (r.team ?? []).length,
+      rosterSize: team.length,
+      roster: team,
     };
   });
 }

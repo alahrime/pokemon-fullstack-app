@@ -221,6 +221,7 @@ describe('offers', () => {
         id: 'o1', proposerId: 'p1', league: 'great', formatVersionId: 'v1',
         scheduledFor: null, expiresAt: '2026-09-02T13:00:00Z', state: 'open', acceptedBy: null,
         verifiedHash: 'vh1', rosterSize: 3,
+        roster: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
       },
     ]);
     const leagueFilter = calls.find((c) => c.table === 'match_offers' && c.op === 'eq' && (c.payload as unknown[])[0] === 'league');
@@ -257,6 +258,53 @@ describe('offers', () => {
     });
     const { listOpenOffers } = await import('../matchmaking');
     expect((await listOpenOffers('great')).map((o) => o.rosterSize)).toEqual([3, 6]);
+  });
+
+  /**
+   * The MEMBERS, not just how many. Both mappers used to reduce `team` to its
+   * length and drop the rest, on the reasoning that what never leaves the
+   * function cannot be rendered by accident. Rendering it is now the point —
+   * an offer board that will not say who you would be playing cannot be used
+   * to decide whether to accept — so both halves come through: `rosterSize`
+   * for the accept gate, `roster` for the row.
+   */
+  it('carries the posted roster itself through, not only its length', async () => {
+    const team = [
+      { ref: 'azumarill', fast_move: 'BUBBLE', charge_moves: ['ICE_BEAM'], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 },
+      { ref: 'registeel', fast_move: 'LOCK_ON', charge_moves: ['FOCUS_BLAST'], iv_attack: 1, iv_defense: 14, iv_stamina: 13, level: 41 },
+    ];
+    harness({
+      match_offers: [
+        {
+          id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          verified_hash: 'vh1', team,
+        },
+      ],
+    });
+    const { listOpenOffers } = await import('../matchmaking');
+    const [o] = await listOpenOffers('great');
+    expect(o.roster).toEqual(team);
+    // Both, not one instead of the other: `canAccept` compares against the
+    // count and the row renders the members.
+    expect(o.rosterSize).toBe(2);
+  });
+
+  it('hands back an empty roster rather than null when an offer has no team', async () => {
+    harness({
+      match_offers: [
+        {
+          id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          verified_hash: 'vh1', team: null,
+        },
+      ],
+    });
+    const { listOpenOffers } = await import('../matchmaking');
+    const [o] = await listOpenOffers('great');
+    // Same rule `rosterSize` follows: a shape the screen can map over
+    // unconditionally, never one whose every method call throws.
+    expect(o.roster).toEqual([]);
   });
 
   /**
@@ -364,13 +412,35 @@ describe('offers', () => {
         id: 'o1', proposerId: 'me', league: 'great', formatVersionId: 'fv1',
         scheduledFor: '2026-09-05T18:00:00Z', expiresAt: '2026-09-05T19:00:00Z',
         state: 'accepted', acceptedBy: 'them', matchId: null, verifiedHash: 'vh1', rosterSize: 3,
+        roster: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
       },
       {
         id: 'o2', proposerId: 'them', league: 'great', formatVersionId: 'fv1',
         scheduledFor: null, expiresAt: '2026-09-05T19:00:00Z',
         state: 'converted', acceptedBy: 'me', matchId: 'm9', verifiedHash: 'vh1', rosterSize: 6,
+        roster: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
       },
     ]);
+  });
+
+  /** `myOffers` inherits `roster` from `Offer`; it is a second mapper, and a
+   * second mapper is where a field gets carried in one and forgotten in the
+   * other. Asserted on its own so a regression names which listing lost it. */
+  it('carries the roster through your own offers too', async () => {
+    const team = [
+      { ref: 'skarmory', fast_move: 'AIR_SLASH', charge_moves: ['SKY_ATTACK'], iv_attack: 2, iv_defense: 15, iv_stamina: 14, level: 39 },
+    ];
+    harness({
+      match_offers: [
+        {
+          id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
+          scheduled_for: null, expires_at: '2026-09-05T19:00:00Z', state: 'open',
+          accepted_by: null, match_id: null, verified_hash: 'vh1', team,
+        },
+      ],
+    });
+    const { myOffers } = await import('../matchmaking');
+    expect((await myOffers())[0].roster).toEqual(team);
   });
 
   it('asks the database for match_id, so a confirmed offer can name the match it became', async () => {

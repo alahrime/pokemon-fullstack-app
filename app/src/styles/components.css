@@ -6038,6 +6038,49 @@ th.bt-matrix-head { text-align: center; }
   font-size: var(--text-xs);
   font-style: italic;
 }
+/* The roster an offer was posted with, on the offer's own row.
+
+   `flex-basis: 100%` puts it on its own wrapped line inside .offer-row's
+   existing wrap, so adding it did not move the when/expiry/control line that
+   was already there.
+
+   It WRAPS rather than scrolling. The list above it is capped at 240px with
+   its own overflow, and a six-member roster that refused to wrap would push
+   that box wider than the panel — a horizontal scrollbar inside a vertical
+   one, for a list whose entire purpose is being scanned at a glance. Wrapping
+   spends the cap's own scroll instead, which is what the cap is for: taller
+   rows scroll inside the box rather than growing it. Nothing here is
+   positioned out of that box either. */
+.offer-roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+/* Sprite and name as one unit, so a wrap never splits a mon from its label. */
+.offer-roster-mon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* A ref this build's data cannot resolve: there is no sprite, so the name
+   stands alone and is marked as the raw stored value rather than dressed up as
+   a species this app knows. Italic is the same voice .offer-blocked uses for
+   "this is the app talking, not the data". */
+.offer-roster-mon.is-unreadable {
+  font-style: italic;
+  color: var(--text-faint);
+}
+.offer-roster-name {
+  min-width: 0;
+}
 .offer-when,
 .my-offer-when {
   flex: 1 1 12rem;

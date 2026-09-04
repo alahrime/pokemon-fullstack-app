@@ -5,9 +5,10 @@ import { SpeciesSearch } from '../components/SpeciesSearch';
 import type { AddPokemonChoice } from '../components/AddPokemonModal';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
-import { LEAGUE_BY_ID, conflictsOnTeam, movesFor, pickableFor, speciesOf } from '../lib/data';
+import { Sprite } from '../components/Sprite';
+import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
-import { encodeMember, type StoredMember } from '../lib/teamCodec';
+import { decodeMember, encodeMember, type StoredMember } from '../lib/teamCodec';
 import type { LeagueId } from '../lib/types';
 import {
   acceptOffer,
@@ -71,6 +72,106 @@ function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
     chargeIds: rated.charges.map((c) => c.id),
     iv: { a: spread.a, d: spread.d, s: spread.s },
   };
+}
+
+/**
+ * One member of a posted roster, reduced to what can still be said about it on
+ * THIS build.
+ *
+ * `species.json` is generated, and an offer is a row somebody else wrote —
+ * possibly on a different data revision. So a ref or a move the current data
+ * has never heard of is an ordinary case here, not a corruption, and the rule
+ * for it is `decodeMember`'s own: report what is missing, never substitute for
+ * it silently, and never take the row down with it. A board that loses a whole
+ * offer because one member cannot be resolved is worse than one that shows the
+ * other two and says which one it could not read.
+ *
+ * Nothing in here is allowed to throw. `decodeMember` spreads
+ * `stored.charge_moves`, `displayName` calls `endsWith` on `stored.ref` — both
+ * are fine for a row this app wrote and neither is guaranteed for a row it did
+ * not, and an exception raised while rendering a list item takes the entire
+ * screen with it under React.
+ */
+interface ReadMember {
+  /** What to call it: the species name, or the raw ref when there is no species. */
+  name: string;
+  /** Null when this build cannot resolve the ref — then there is no sprite. */
+  species: ReturnType<typeof speciesOf> | null;
+  shadow: boolean;
+  /** The stored fast move id, when the data no longer has it. */
+  unknownMove: string | null;
+  /** Set when the entry itself could not be read at all. */
+  unreadable: boolean;
+}
+
+function readMember(stored: StoredMember): ReadMember {
+  try {
+    const species = speciesOf(stored.ref) ?? null;
+    // decodeMember REPORTS a move that no longer exists rather than quietly
+    // resolving to the first one — that report is carried to the row rather
+    // than discarded, which is the only place it could go.
+    const { unknownMove } = decodeMember(stored);
+    return {
+      name: displayName(stored.ref),
+      species,
+      shadow: parseRef(stored.ref).shadow,
+      // A ref with no species has no movepool to be missing from, so its
+      // `unknownMove` is an artefact of the lookup, not a fact about the move.
+      // Saying both would be saying the same absence twice.
+      unknownMove: species ? unknownMove : null,
+      unreadable: species === null,
+    };
+  } catch {
+    // A row shaped unlike anything this app writes. There is nothing true left
+    // to render, so the slot says that rather than disappearing — a roster of
+    // three that draws two reads as a roster of two.
+    return { name: 'Unreadable entry', species: null, shadow: false, unknownMove: null, unreadable: true };
+  }
+}
+
+/**
+ * The roster an offer was posted with, drawn on the offer's own row. This is
+ * what makes the board usable: "expires in 40 minutes" is not a basis for
+ * accepting a match, and who is on the other team is.
+ *
+ * The same vocabulary the team builder uses for a roster — `Sprite` plus
+ * `displayName` — rather than a second one invented here. `TypeBadge` is
+ * deliberately left out: at six members inside a 240px scroll box, three
+ * badges per member is the row's whole budget spent on something the sprite
+ * already says at a glance.
+ *
+ * Renders nothing at all for an empty roster. `unacceptableReason` already
+ * refuses such an offer in words; an empty list beside it would read as a
+ * roster of nobody rather than as an offer posted without one.
+ */
+function OfferRoster({ members }: { members: StoredMember[] }) {
+  if (members.length === 0) return null;
+  return (
+    <ul className="offer-roster" aria-label="Roster this offer was posted with">
+      {members.map((m, i) => {
+        const { name, species, shadow, unknownMove, unreadable } = readMember(m);
+        const title = unreadable
+          ? `${name} — not in this build's data`
+          : unknownMove
+            ? `${name} — its saved fast move "${unknownMove}" no longer exists in the data`
+            : name;
+        return (
+          <li
+            // Index, not ref: a roster may legitimately repeat nothing, but a
+            // malformed row could, and a duplicate key drops a member.
+            key={i}
+            className={`offer-roster-mon${unreadable ? ' is-unreadable' : ''}`}
+            data-ref={typeof m.ref === 'string' ? m.ref : undefined}
+            data-unknown-move={unknownMove ?? undefined}
+            title={title}
+          >
+            {species && <Sprite sprite={species.sprite} dex={species.dex} size={22} shadow={shadow} />}
+            <span className="offer-roster-name">{name}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 function queueStatusText(entry: QueueEntry): string {
@@ -679,6 +780,11 @@ export function MatchmakingScreen() {
                       Accept
                     </button>
                   )}
+                  {/* Last in the row, on its own wrapped line: the when, the
+                      expiry and the control keep the line they have always
+                      had, and the roster sits under them rather than pushing
+                      them about. */}
+                  <OfferRoster members={o.roster} />
                 </li>
               );
             })}
@@ -791,6 +897,11 @@ export function MatchmakingScreen() {
                         Confirm
                       </button>
                     ))}
+                  {/* Your own offers get it too — an offer you posted days ago
+                      is one you no longer remember the roster of, and a
+                      scheduled one you accepted is a match you are about to
+                      have to prepare for. */}
+                  <OfferRoster members={o.roster} />
                 </li>
               );
             })}

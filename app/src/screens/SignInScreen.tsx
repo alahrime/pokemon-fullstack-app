@@ -3,6 +3,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../state/SessionContext';
 import { MINIMUM_AGE, isOldEnough, isRealDate } from '../lib/age';
+import { clearOAuthUrlError, readOAuthUrlError } from '../lib/oauthError';
 
 /**
  * The account screen: an age gate, then a way in, then whatever the account is
@@ -85,6 +86,21 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
   const [message, setMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+
+  /**
+   * The one piece of information that would diagnose a failed Discord round
+   * trip: Supabase reports it only on the URL it redirects back to, never
+   * through an API call, and — for the error case specifically — never
+   * clears it itself (`lib/oauthError.ts`). Read once on mount, then cleared
+   * immediately: the value has nowhere else to live, and a later refresh
+   * must not resurrect a failure that already happened as if it just did.
+   */
+  useEffect(() => {
+    const err = readOAuthUrlError();
+    if (!err) return;
+    clearOAuthUrlError();
+    setMessage(`${OAUTH_LABEL} sign-in didn't complete: ${err.description}${err.code ? ` (${err.code})` : ''}`);
+  }, []);
 
   const loadProfile = useCallback(async (id: string) => {
     const { data, error } = await supabase

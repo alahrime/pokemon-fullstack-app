@@ -407,3 +407,84 @@ describe('a complete account', () => {
     expect(auth.signOut).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Supabase reports a failed Discord round trip only on the URL it redirects
+ * back to — `#error=...` for the implicit flow, `?error=...` for PKCE — and
+ * nothing else ever surfaces it. The birth date is pre-seeded in these tests
+ * because it is genuinely already on the device by the time Discord redirects
+ * back: the age gate runs before the provider button is ever shown.
+ */
+describe('an OAuth error returned by the provider', () => {
+  afterEach(() => window.history.replaceState(null, '', '/'));
+
+  it('reads the error out of the hash fragment and renders it decoded', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(
+      null,
+      '',
+      '/#error=server_error&error_code=server_error&error_description=Unable+to+exchange+external+code',
+    );
+    const { container } = await mount();
+    expect(text(container)).toMatch(/unable to exchange external code/i);
+    expect(text(container)).toMatch(/server_error/);
+    // Never the raw, `+`-encoded provider string.
+    expect(text(container)).not.toMatch(/Unable\+to\+exchange/);
+  });
+
+  it('reads the same error out of the query string, for the PKCE flow', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(
+      null,
+      '',
+      '/?error=access_denied&error_code=access_denied&error_description=User+denied+access',
+    );
+    const { container } = await mount();
+    expect(text(container)).toMatch(/user denied access/i);
+    expect(text(container)).toMatch(/access_denied/);
+  });
+
+  it('clears the error from the URL once shown, so a refresh cannot resurrect it', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(
+      null,
+      '',
+      '/#error=server_error&error_code=server_error&error_description=Unable+to+exchange+external+code',
+    );
+    await mount();
+    expect(window.location.hash).toBe('');
+    expect(window.location.search).toBe('');
+  });
+
+  it('uses the account screen\'s existing alert, not a second error surface', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(
+      null,
+      '',
+      '/#error=server_error&error_code=server_error&error_description=Unable+to+exchange+external+code',
+    );
+    const { container } = await mount();
+    const alerts = container.querySelectorAll('.account-alert');
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].textContent).toMatch(/unable to exchange external code/i);
+  });
+
+  it('reads as a provider failure, not a form-validation complaint', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(
+      null,
+      '',
+      '/#error=server_error&error_code=server_error&error_description=Unable+to+exchange+external+code',
+    );
+    const { container } = await mount();
+    const alert = container.querySelector('.account-alert')!;
+    expect(alert.textContent).toMatch(/discord/i);
+    expect(alert.textContent).not.toMatch(/enter your email|enter your password|choose a display name/i);
+  });
+
+  it('says nothing when the URL carries no OAuth error', async () => {
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    const { container } = await mount();
+    expect(container.querySelector('.account-alert')).toBeFalsy();
+  });
+});

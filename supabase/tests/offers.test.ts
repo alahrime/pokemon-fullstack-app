@@ -302,9 +302,21 @@ describe('match offer policies', () => {
                on conflict (profile_id) do update set code = excluded.code`);
 
     // Step 1 as the attacker ran it — an offer arriving already verified — is
-    // refused outright. `confirm_offer` copies verified_hash into
-    // matches.rules_hash, which is NOT NULL, so C1 was not merely alongside
-    // C2: it was the step that made the forged match insertable at all.
+    // refused outright.
+    //
+    // An earlier version of this comment claimed C1 was what made the forged
+    // match insertable at all, because `confirm_offer` copies verified_hash
+    // into matches.rules_hash, which is NOT NULL. That is FALSE, and was
+    // disproved by measurement: an offer carrying an HONEST verified_hash —
+    // one the coordinator wrote a tick earlier — reaches `confirm_offer` just
+    // as well, and the forged acceptance still yields the victim's friend
+    // code. C1 saved the attacker sixty seconds and nothing else.
+    //
+    // The two fixes are therefore independent and both load-bearing: the
+    // WITH CHECK alone would not have closed C2, and the UPDATE revoke alone
+    // would not have closed C1. Do not roll back either one on the strength
+    // of the other. That is why the chain below plants an honestly-verified
+    // offer with the superuser and lets steps 2-4 stand on their own merits.
     const selfVerified = await refusal(() =>
       proposerInsert(', verified_hash', `, 'forged-verified-hash'`),
     );

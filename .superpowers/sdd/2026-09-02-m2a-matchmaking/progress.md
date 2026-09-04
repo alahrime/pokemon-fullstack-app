@@ -307,3 +307,22 @@ deploy blocker — the job raises every minute forever with unset GUCs and the M
 dead), pool validation (Ruling 22), the board re-read mechanism (Ruling 25). Newly recorded:
 `supabase/tests/` is type-checked and linted by nothing, and the TRUNCATE revoke is scoped to the
 three M2a tables only.
+
+FINAL FIX WAVE complete, commit 66787e5. App gate 1162 EXIT=0, db gate 130 EXIT=0 (from 109 — 21 new database tests), round trip 14/14, 16 mutations run and 16 killed. Both Criticals proven closed by measurement before and after, not by reasoning.
+
+Findings from the wave itself, all worth keeping:
+ - C1 and C2 are ONE hole, not two. `confirm_offer` copies `verified_hash` into `matches.rules_hash`, which is NOT NULL — so the forged match was only insertable because C1 let the attacker supply that hash. C1 armed C2. Matters if either fix is ever revisited separately.
+ - I3 and I4's screen branches shipped with ZERO tests. The gate was green because nothing exercised them at all. Three added, each one field away from an already-passing fixture, each mutation-killed by its intended test. A green gate over an untested branch is the quietest failure in this whole milestone.
+ - A test corrected the implementer mid-wave: it asserted 23514 for an accepted_by-only insert, assuming the table CHECK fires first. It does not — RLS's WITH CHECK is evaluated BEFORE table CHECK constraints, so the error is 42501. It verified as superuser rather than reasoning about it, and the test now asserts both halves, which is what makes dropping that conjunct detectable.
+ - The migration `20260904071717` is not re-runnable (drop function on a now-absent signature, create not create-or-replace). Correct for a once-only migration; flagged so it is not discovered mid-incident.
+ - `supabase/tests/` is type-checked and linted by NOTHING — tsc -b covers src, vite.config.ts and scripts only. The new tests are clean, but the gate would not have said otherwise.
+ - Nothing needed loosening. The only real client write the revoke broke was in m2a-roundtrip.ts, and it existed *because* of the Critical; it now runs as admin.
+ - The reset also bought the from-scratch check these two new migrations had never had: all 20 apply from nothing.
+
+CORRECTION — "C1 armed C2" is FALSE, and I propagated it. The final fix wave reported that the forged match was only insertable because C1 let the attacker supply the hash that confirm_offer copies into matches.rules_hash. I recorded that in this ledger as fact. The re-reviewer disproved it by measurement: it planted an offer carrying an HONEST verified_hash — the value the coordinator would write a tick later — forged the acceptance, called confirm_offer as the attacker, and the victim's friend code came back. Rolled back. C2 never needed a forged hash; C1 saved the attacker sixty seconds.
+
+Consequence, which is the reason this matters rather than being a pedantic correction: the two fixes are INDEPENDENT and both load-bearing. The WITH CHECK alone would not have closed C2; the UPDATE revoke alone would not have closed C1. The migration ships both, so nothing is broken — but the false claim is precisely the reasoning that would justify a future partial rollback of one of them. Corrected here, and in the code comment at offers.test.ts, which is where it would actually be read.
+
+This is the seventh false-evidence incident of the milestone, and the first one I authored rather than caught.
+
+CONTROLLER DEVIATION, second of the run: I corrected that comment myself rather than dispatching. Same reasoning as 3a2cb7e — a comment correction of a claim I propagated, disproportionate to a full dispatch-and-re-review cycle. Recorded rather than hidden.

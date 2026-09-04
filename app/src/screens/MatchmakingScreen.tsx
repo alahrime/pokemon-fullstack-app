@@ -81,6 +81,30 @@ function queueStatusText(entry: QueueEntry): string {
 }
 
 /**
+ * Why NOBODY can accept this offer right now — as distinct from why *you*
+ * cannot yet, which is a disabled button with a hint saying what to fix. A
+ * reason here means the control is not rendered at all.
+ */
+function unacceptableReason(o: Offer): string | null {
+  // The coordinator ticks once a minute, so every offer spends its first
+  // minute unverified and `accept_offer` raises for exactly this. Said as
+  // something in progress, because it is: a minute from now it is gone.
+  if (o.verifiedHash === null) return 'Being checked — acceptable once verified.';
+  // Only reachable from a malformed write by some other client: this screen
+  // never posts an empty roster. `accept_offer` would not catch it either —
+  // it refuses a null `p_team`, not an empty one — so a match would be
+  // created with an empty `team_b`.
+  if (o.rosterSize < 1) return 'Posted without a roster; nobody can accept it.';
+  return null;
+}
+
+/** "Add 2 more", "Remove 3" — never "Add -3 more". */
+function rosterHint(want: number, have: number, verb: string): string {
+  const short = want - have;
+  return short > 0 ? `Add ${short} more to ${verb}` : `Remove ${-short} to ${verb}`;
+}
+
+/**
  * Where an offer has got to, said from the reader's own side of it. The two
  * sides are not symmetric: `accepted` is "your move" to the proposer and
  * "waiting on them" to the taker, and telling either one the other's sentence
@@ -89,7 +113,13 @@ function queueStatusText(entry: QueueEntry): string {
 function offerStatusText(o: MyOffer, proposed: boolean): string {
   switch (o.state) {
     case 'open':
-      return proposed ? 'Posted — nobody has accepted it yet.' : 'Still open.';
+      if (!proposed) return 'Still open.';
+      // The proposer's side of the same minute the board hides Accept for:
+      // "nobody has accepted it" would read as indifference from other
+      // people when in fact nobody has been allowed to yet.
+      return o.verifiedHash === null
+        ? 'Posted — being checked before anyone can accept it.'
+        : 'Posted — nobody has accepted it yet.';
     case 'accepted':
       return proposed
         ? 'Someone accepted. Confirm it to make it a match.'
@@ -318,7 +348,8 @@ export function MatchmakingScreen() {
    * 6-strong roster into a 3-member offer, which nothing downstream rejects
    * (the coordinator recomputes `rules_hash` and never inspects `team`).
    */
-  const canAccept = (o: Offer) => !!user && o.proposerId !== user.id && team.length === o.rosterSize;
+  const canAccept = (o: Offer) =>
+    !!user && o.proposerId !== user.id && unacceptableReason(o) === null && team.length === o.rosterSize;
 
   const accept = async (o: Offer) => {
     if (!canAccept(o) || busy) return;
@@ -484,7 +515,11 @@ export function MatchmakingScreen() {
               type="button"
               className="btn btn-primary queue-join"
               disabled={!rosterReady || !!entry || busy}
-              title={!rosterReady ? `Add ${rosterSize - team.length} more to queue` : undefined}
+              // Never "Add -3 more": the picker's cap is the largest thing on
+              // the board, so a roster built to accept a six-member offer is
+              // longer than a three-member format wants, and the shortfall is
+              // negative. Say which way to move it.
+              title={rosterReady ? undefined : rosterHint(rosterSize, team.length, 'queue')}
               onClick={() => void join()}
             >
               {busy ? 'Working…' : 'Join queue'}
@@ -532,6 +567,7 @@ export function MatchmakingScreen() {
           <ul className="offer-list">
             {offers.map((o) => {
               const mine = o.proposerId === user.id;
+              const blocked = unacceptableReason(o);
               return (
                 <li key={o.id} className="offer-row" data-offer-id={o.id}>
                   <span className="offer-when">
@@ -540,6 +576,11 @@ export function MatchmakingScreen() {
                   <span className="text-faint">expires {new Date(o.expiresAt).toLocaleString()}</span>
                   {mine ? (
                     <span className="text-faint">Your offer</span>
+                  ) : blocked ? (
+                    // Not a disabled button: nothing this person does would
+                    // make it work, so the reason takes the control's place
+                    // rather than sitting in a tooltip on a dead one.
+                    <span className="text-faint offer-blocked">{blocked}</span>
                   ) : (
                     <button
                       type="button"

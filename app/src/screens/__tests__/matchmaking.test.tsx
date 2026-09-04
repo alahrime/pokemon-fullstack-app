@@ -121,6 +121,10 @@ function offer(over: Partial<Offer>): Offer {
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     state: 'open',
     acceptedBy: null,
+    // Verified by default: the unverified case is its own set of tests below,
+    // and leaving every fixture in it would silently remove the Accept control
+    // from tests that are about something else entirely.
+    verifiedHash: 'h1',
     rosterSize: 3,
     ...over,
   };
@@ -154,6 +158,7 @@ function myOffer(over: Partial<MyOffer>): MyOffer {
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     state: 'open',
     acceptedBy: null,
+    verifiedHash: 'h1',
     matchId: null,
     rosterSize: 3,
     ...over,
@@ -542,6 +547,63 @@ describe('signed in — accepting an offer', () => {
     expect(acceptBtn.getAttribute('title')).toMatch(/roster of 3/i);
   });
 
+  it('offers no Accept on an offer the coordinator has not verified yet, and says why', async () => {
+    // The coordinator ticks once a minute, so this is the normal first minute
+    // of every offer's life, not a rare edge — and `accept_offer` raises
+    // 'this offer has not been verified yet' for the whole of it.
+    mmApi.listOpenOffers.mockResolvedValue([
+      offer({ id: 'off-fresh', verifiedHash: null }),
+      offer({ id: 'off-ready', verifiedHash: 'h1' }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const [fresh, ready] = await waitFor(() => {
+      const a = container.querySelector('[data-offer-id="off-fresh"]');
+      const b = container.querySelector('[data-offer-id="off-ready"]');
+      if (!a || !b) throw new Error('board not rendered yet');
+      return [a, b];
+    });
+    await pickThree(container);
+    expect(fresh.querySelector('.offer-accept')).toBeFalsy();
+    // A reason in the person's own register, so the board reads as busy
+    // rather than broken.
+    expect(fresh.textContent).toMatch(/being checked/i);
+    // And the verified one beside it is unaffected — otherwise this test
+    // would pass against a board that offered nothing to anybody.
+    expect((ready.querySelector('.offer-accept') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('tells the proposer their own offer is being checked, not that nobody wants it', async () => {
+    mmApi.myOffers.mockResolvedValue([
+      myOffer({ id: 'off-fresh', proposerId: 'u1', state: 'open', verifiedHash: null }),
+    ]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-my-offer-id="off-fresh"]');
+      if (!r) throw new Error('offer row not rendered yet');
+      return r;
+    });
+    expect(row.textContent).toMatch(/being checked/i);
+    expect(row.textContent).not.toMatch(/nobody has accepted/i);
+  });
+
+  it('offers no Accept on an offer posted with no roster at all', async () => {
+    // Not reachable from this screen, which never posts an empty roster — but
+    // `accept_offer` refuses only a NULL p_team, not an empty one, so a
+    // malformed offer from another client would otherwise convert into a
+    // match with an empty team_b.
+    mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-empty', rosterSize: 0 })]);
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const row = await waitFor(() => {
+      const r = container.querySelector('[data-offer-id="off-empty"]');
+      if (!r) throw new Error('board not rendered yet');
+      return r;
+    });
+    // A fresh screen holds an empty roster, so `team.length === o.rosterSize`
+    // is 0 === 0 — true. Length alone would have offered an enabled Accept.
+    expect(row.querySelector('.offer-accept')).toBeFalsy();
+    expect(row.textContent).toMatch(/without a roster/i);
+  });
+
   it('refuses to accept with a roster of the wrong length, and says what the offer wants', async () => {
     mmApi.listOpenOffers.mockResolvedValue([offer({ id: 'off-six', rosterSize: 6 })]);
     const { container } = await mount(fakeSession('u1', 'ash@example.com'));
@@ -570,6 +632,14 @@ describe('signed in — accepting an offer', () => {
     // Every member picked is rendered in a slot — a member with no slot is a
     // member nobody can remove.
     expect(container.querySelectorAll('.team-slots > *').length).toBeGreaterThanOrEqual(6);
+
+    // Your own three-member format now wants three FEWER than you hold, and
+    // the shortfall arithmetic runs negative here: "Add -3 more to queue".
+    const joinBtn = container.querySelector('.queue-join') as HTMLButtonElement;
+    expect(joinBtn.disabled).toBe(true);
+    expect(joinBtn.getAttribute('title')).toMatch(/^Remove 3 to queue$/);
+    expect(joinBtn.getAttribute('title')).not.toMatch(/-\d/);
+
     const acceptBtn = container.querySelector('[data-offer-id="off-six"] .offer-accept') as HTMLButtonElement;
     expect(acceptBtn.disabled).toBe(false);
     await act(async () => {

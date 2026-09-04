@@ -210,7 +210,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          team: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
+          verified_hash: 'vh1', team: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
         },
       ],
     });
@@ -220,7 +220,7 @@ describe('offers', () => {
       {
         id: 'o1', proposerId: 'p1', league: 'great', formatVersionId: 'v1',
         scheduledFor: null, expiresAt: '2026-09-02T13:00:00Z', state: 'open', acceptedBy: null,
-        rosterSize: 3,
+        verifiedHash: 'vh1', rosterSize: 3,
       },
     ]);
     const leagueFilter = calls.find((c) => c.table === 'match_offers' && c.op === 'eq' && (c.payload as unknown[])[0] === 'league');
@@ -259,6 +259,41 @@ describe('offers', () => {
     expect((await listOpenOffers('great')).map((o) => o.rosterSize)).toEqual([3, 6]);
   });
 
+  /**
+   * `accept_offer` raises 'this offer has not been verified yet' while this
+   * column is null, and the coordinator ticks once a minute — so a board that
+   * does not read it shows an Accept button that can only fail for the first
+   * minute of every offer's life.
+   */
+  it('carries the verification state of each offer, null and set alike', async () => {
+    harness({
+      match_offers: [
+        {
+          id: 'o-fresh', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          verified_hash: null, team: [{ ref: 'a' }],
+        },
+        {
+          id: 'o-ready', proposer_id: 'p2', league: 'great', format_version_id: 'v1',
+          scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
+          verified_hash: 'vh9', team: [{ ref: 'a' }],
+        },
+      ],
+    });
+    const { listOpenOffers } = await import('../matchmaking');
+    expect((await listOpenOffers('great')).map((o) => o.verifiedHash)).toEqual([null, 'vh9']);
+  });
+
+  it('asks the database for verified_hash on both listings', async () => {
+    const { calls } = harness({ match_offers: [] });
+    const mm = await import('../matchmaking');
+    await mm.listOpenOffers('great');
+    await mm.myOffers();
+    const selects = calls.filter((c) => c.table === 'match_offers' && c.op === 'select');
+    expect(selects).toHaveLength(2);
+    for (const s of selects) expect(s.payload).toMatch(/\bverified_hash\b/);
+  });
+
   it('asks for the team it sizes that from, and reports zero rather than NaN without one', async () => {
     const { calls } = harness({
       match_offers: [
@@ -270,9 +305,17 @@ describe('offers', () => {
     });
     const { listOpenOffers } = await import('../matchmaking');
     const [o] = await listOpenOffers('great');
-    // A zero disables the accept control; an undefined length would sail
-    // through `team.length === o.rosterSize` as NaN and disable it too, but
-    // silently and for the wrong reason.
+    // A zero is a number the screen can reason about, and it now refuses the
+    // offer outright on it — `unacceptableReason` in MatchmakingScreen, which
+    // is where that decision belongs. Length alone would NOT have caught it:
+    // a fresh screen holds an empty roster, so `team.length === o.rosterSize`
+    // is 0 === 0 and would have rendered an ENABLED Accept. An earlier
+    // comment here claimed the zero did that work by itself; it did not, and
+    // the code was changed rather than the claim softened.
+    //
+    // What this function must not do is hand back `undefined` for a missing
+    // `team`: every comparison against it is false, so the control would be
+    // dead for a reason nothing could name.
     expect(o.rosterSize).toBe(0);
     const select = calls.find((c) => c.table === 'match_offers' && c.op === 'select');
     expect(select?.payload).toMatch(/\bteam\b/);
@@ -302,13 +345,13 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
           scheduled_for: '2026-09-05T18:00:00Z', expires_at: '2026-09-05T19:00:00Z',
-          state: 'accepted', accepted_by: 'them', match_id: null,
+          state: 'accepted', accepted_by: 'them', match_id: null, verified_hash: 'vh1',
           team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
         },
         {
           id: 'o2', proposer_id: 'them', league: 'great', format_version_id: 'fv1',
           scheduled_for: null, expires_at: '2026-09-05T19:00:00Z',
-          state: 'converted', accepted_by: 'me', match_id: 'm9',
+          state: 'converted', accepted_by: 'me', match_id: 'm9', verified_hash: 'vh1',
           // Six, deliberately differing from the three above: two rows mapped
           // from one function, and a constant would satisfy only one of them.
           team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
@@ -320,12 +363,12 @@ describe('offers', () => {
       {
         id: 'o1', proposerId: 'me', league: 'great', formatVersionId: 'fv1',
         scheduledFor: '2026-09-05T18:00:00Z', expiresAt: '2026-09-05T19:00:00Z',
-        state: 'accepted', acceptedBy: 'them', matchId: null, rosterSize: 3,
+        state: 'accepted', acceptedBy: 'them', matchId: null, verifiedHash: 'vh1', rosterSize: 3,
       },
       {
         id: 'o2', proposerId: 'them', league: 'great', formatVersionId: 'fv1',
         scheduledFor: null, expiresAt: '2026-09-05T19:00:00Z',
-        state: 'converted', acceptedBy: 'me', matchId: 'm9', rosterSize: 6,
+        state: 'converted', acceptedBy: 'me', matchId: 'm9', verifiedHash: 'vh1', rosterSize: 6,
       },
     ]);
   });

@@ -544,3 +544,136 @@ never cleared; the scheduled-vs-live negative assertion keys on an exclamation m
    the board. Join stays correctly disabled until the roster is exactly your format's size, but
    someone who built six for an offer and then wants to queue must remove three. The alternative
    was a dead end, which is worse.
+
+---
+
+# Task 8 — fix round 3 (verification gate, two strings, one evidence gap)
+
+## Status
+
+Done. `cd app && npm run check > /tmp/task-8-fix3-gate.log 2>&1` → **EXIT=0**, 81 files,
+**1152 passed** (was 1147). Screen suite 30, `lib/matchmaking` 29, `lib/saves` 19.
+
+## Important — an unverified offer no longer shows an Accept button
+
+`verified_hash` is now selected by `listOpenOffers` AND `myOffers`, and surfaced as
+`Offer.verifiedHash`. The board's decision moved into one named function:
+
+```ts
+function unacceptableReason(o: Offer): string | null   // null when only YOUR roster is left to fix
+```
+
+A reason from it means the control is **not rendered at all** — a `.offer-blocked` span stands
+where the button was, reading "Being checked — acceptable once verified." That is the split the
+screen now keeps consistently: a condition the person can fix is a disabled button with a hint
+saying what to fix; a condition they cannot is the reason in the control's place. Self-proposed
+offers ("Your offer") already worked that way; unverified ones now do too.
+
+**The proposer's own panel takes the same signal, as suggested.** `offerStatusText` for a proposed
+`open` offer now distinguishes "Posted — being checked before anyone can accept it." from
+"Posted — nobody has accepted it yet." The second sentence was being shown during the exact minute
+in which nobody was *permitted* to accept, which reads as indifference from other people rather
+than as work in progress.
+
+## Minor — the Join tooltip can no longer render a negative
+
+```ts
+function rosterHint(want: number, have: number, verb: string): string   // "Add 2 more to queue" | "Remove 3 to queue"
+```
+
+The state is real and my own round-2 change created it: own format size 3, a six-member offer on
+the board, six picked to accept it. The test at the bottom of the screen suite that mounts exactly
+that state now asserts the string (`/^Remove 3 to queue$/`) and asserts no `-\d` anywhere in it.
+
+## Minor — the comment that claimed a property the code lacked
+
+**I changed the code, not the comment.** The comment said a zero `rosterSize` disables Accept; it
+did not, because `team.length === o.rosterSize` is `0 === 0` on a fresh screen — an offer posted
+with an empty roster rendered an *enabled* Accept. `accept_offer` refuses a null `p_team`, not an
+empty one, so that click would have created a match with an empty `team_b`.
+
+Softening the comment would have left a real (if unreachable-from-here) hole in place to make a
+sentence true. `unacceptableReason` now refuses `rosterSize < 1` outright, and the comment says
+what actually happens and why the code moved. The mutation below shows the button rendering with
+**no `disabled` attribute at all** without the guard — the old comment's claim, disproved directly.
+
+## Mutation evidence
+
+Each mutation was printed back before running, per my round-2 finding about mutations landing in
+the wrong function; the anchors now `assert` in the mutation script itself.
+
+**The evidence gap you named — the round-2 picker cap.** `t.length >= rosterCapacity` →
+`rosterSize` in `add`, confirmed to have landed in `add` and nowhere else:
+
+```
+… -t "lets the roster grow past your own format to reach a bigger offer"   EXIT=1
+AssertionError: expected 3 to be greater than or equal to 6
+ ❯ src/screens/__tests__/matchmaking.test.tsx:634:66
+```
+
+**The verification gate.** The `verifiedHash === null` line deleted from `unacceptableReason`:
+
+```
+… -t "offers no Accept on an offer the coordinator has not verified yet"   EXIT=1
+AssertionError: expected <button type="button" …(1)></button> to be falsy
++ Received:
+<button class="btn chip-btn offer-accept" type="button">Accept</button>
+```
+
+**The proposer's signal.** `offerStatusText` collapsed to the single sentence:
+
+```
+… -t "tells the proposer their own offer is being checked"                 EXIT=1
+AssertionError: expected 'Posted to the open boardPosted — nobo…' to match /being checked/i
+```
+
+**The empty-roster guard.** The `rosterSize < 1` line deleted:
+
+```
+… -t "offers no Accept on an offer posted with no roster at all"           EXIT=1
+AssertionError: expected <button type="button" …(1)></button> to be falsy
++ Received:
+<button class="btn chip-btn offer-accept" type="button">Accept</button>
+```
+
+Note the received markup carries no `disabled` attribute: an enabled Accept, exactly as argued.
+
+**The tooltip.** `rosterHint` collapsed to the unconditional "Add N more":
+
+```
+… -t "lets the roster grow past your own format to reach a bigger offer"   EXIT=1
+AssertionError: expected 'Add -3 more to queue' to match /^Remove 3 to queue$/
+```
+
+The reported string reproduced verbatim.
+
+**Library half.** `verifiedHash: r.verified_hash` → a constant in `listOpenOffers` (verified by
+printing both functions' mapping lines — the mutated one and the untouched `myOffers`):
+
+```
+… -t "carries the verification state of each offer"                        EXIT=1
+AssertionError: expected [ 'vh-stub', 'vh-stub' ] to deeply equal [ null, 'vh9' ]
+```
+
+All six restored (`diff -q` against the pre-mutation copy) and re-run green.
+
+## Also
+
+`.offer-blocked` added to `components.css` (`--text-xs`, italic; no new colour literals), sized
+like the control it replaces so the row does not reflow when the offer verifies a moment later.
+
+## Concerns
+
+1. **Nothing re-reads the board, so "Being checked" does not clear itself.** A minute later the
+   offer is acceptable, but this screen will not know until something else triggers a fetch. The
+   copy is written as in-progress rather than as an error, which keeps it honest, but the real
+   answer is the polling or realtime subscription noted in round 2's concerns. I did not add one:
+   an interval is a behaviour change nobody has asked for, and it belongs with the realtime
+   decision rather than in front of it.
+2. **`verifiedHash` is a hash, and the screen only ever tests it for null.** That is the whole of
+   what the client may conclude from it — the coordinator is the only party that may compare it to
+   anything — but it does mean a non-null hash is trusted as "verified" without the client being
+   able to check what it verified. That is the intended trust boundary, not a gap.
+3. The empty-roster guard is unreachable from this client, as its test says. It is defence against
+   another client's malformed write, and it will silently do nothing for as long as no such client
+   exists.

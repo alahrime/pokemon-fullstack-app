@@ -37,6 +37,15 @@ export interface Offer {
   state: OfferState;
   acceptedBy: string | null;
   /**
+   * Null until the coordinator has recomputed the hash — and `accept_offer`
+   * raises `'this offer has not been verified yet'` for exactly that. The
+   * coordinator ticks once a minute, so every offer spends its first minute
+   * here: this is the normal beginning of an offer's life, not an edge case,
+   * and a board that does not read this column offers an Accept button that
+   * can only fail for a minute after every post.
+   */
+  verifiedHash: string | null;
+  /**
    * How many members a roster accepting THIS offer needs — the length of the
    * roster the proposer posted, which they built under this offer's own
    * format. The accepter's own saved format has no say: `accept_offer` takes
@@ -193,7 +202,9 @@ export async function myMatches(): Promise<Match[]> {
 export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
   const { data, error } = await supabase
     .from('match_offers')
-    .select('id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, team')
+    .select(
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, team',
+    )
     .eq('league', league)
     .eq('state', 'open')
     .order('created_at', { ascending: false });
@@ -208,6 +219,7 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       expires_at: string;
       state: OfferState;
       accepted_by: string | null;
+      verified_hash: string | null;
       team: StoredMember[] | null;
     };
     return {
@@ -219,6 +231,7 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       expiresAt: r.expires_at,
       state: r.state,
       acceptedBy: r.accepted_by,
+      verifiedHash: r.verified_hash,
       // The count, not the members. `match_offers`' select policy is
       // whole-row, so the proposer's roster is legible to anyone who can see
       // the offer — but this screen has no business rendering it, and what
@@ -262,7 +275,7 @@ export async function myOffers(): Promise<MyOffer[]> {
   const { data, error } = await supabase
     .from('match_offers')
     .select(
-      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, match_id, team',
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, match_id, team',
     )
     .or(`proposer_id.eq.${me},accepted_by.eq.${me}`)
     .order('created_at', { ascending: false });
@@ -277,6 +290,7 @@ export async function myOffers(): Promise<MyOffer[]> {
       expires_at: string;
       state: OfferState;
       accepted_by: string | null;
+      verified_hash: string | null;
       match_id: string | null;
       team: StoredMember[] | null;
     };
@@ -289,6 +303,7 @@ export async function myOffers(): Promise<MyOffer[]> {
       expiresAt: r.expires_at,
       state: r.state,
       acceptedBy: r.accepted_by,
+      verifiedHash: r.verified_hash,
       matchId: r.match_id,
       rosterSize: (r.team ?? []).length,
     };

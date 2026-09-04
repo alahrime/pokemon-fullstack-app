@@ -15,7 +15,8 @@ design authority; the plans argue from it.
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
 | **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
-| M2–M5 — matchmaking, social, messaging, records | Not started. Spec covers the design. |
+| **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
+| M2b–M5 — match channel, reporting, social, ranked, records | Not started. Spec covers the design. |
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
 — read them, they carry the reasoning behind decisions that will otherwise look arbitrary.

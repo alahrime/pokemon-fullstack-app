@@ -24,8 +24,11 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    /* Nothing here renders anything, but `src/lib/teamCodec.ts` takes a type
+       from a .tsx component, so resolving its imports needs a jsx mode set. */
+    "jsx": "react-jsx",
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["scripts"]
+  "include": ["scripts", "tools"]
 }

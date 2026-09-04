@@ -10,9 +10,13 @@
  * It ASSERTS rather than reports:
  *   - the anchor occurs in the file exactly `count` times (default 1), so a
  *     mutation cannot land somewhere else and look applied;
- *   - the line the mutation lands on sits inside `region` — the nearest
- *     preceding line matching that pattern must be it, which is how "landed in
- *     `myOffers` instead of `listOpenOffers`" gets caught;
+ *   - that SOME line matching `region` exists above the mutation point. Read
+ *     that literally: the region is REPORTED, never compared against an
+ *     expected value, so it is weaker than it sounds. With region
+ *     /function listOpenOffers/, a mutation landing inside `myOffers` still
+ *     finds that line somewhere above it and passes. Anchor uniqueness above
+ *     is what actually rules out "landed somewhere else"; the printed region
+ *     is evidence for a reader, not a guard. Compare it yourself.
  *   - the replacement is actually present afterwards.
  * Then it PRINTS the mutated region back, so the evidence in the report is a
  * transcript of the file as it stood when the test ran.

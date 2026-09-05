@@ -19,7 +19,10 @@ design authority; the plans argue from it.
 | **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
 | **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
 | **Friend codes** — the account screen collects one | **Merged, deployed, verified** (`996be91`). Migration confirmed present in production's own schema dump; the field renders on the deployed site. |
-| M2b–M5 — match channel, reporting, social, ranked, records | Not started. Spec covers the design. |
+| **M2b** — reporting and adjudication | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
+| **M3a** — friendships and blocks | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3a-friendships-and-blocks.md` |
+| **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
+| M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
 
 ---
 
@@ -79,6 +82,20 @@ failure mode is silence in every surface — no error in the app, none in the da
   entry; delete it or ignore it.
 - The database password was rotated on 2026-09-05. Re-run
   `npx supabase link --project-ref kgfxzjgpjsiaxvlneufz` once, or CLI commands carry a stale one.
+- **Two signed-in accounts at once, for anything two-sided** (reporting, Accept, DMs). One dev
+  server, two origins: `http://localhost:5173` and `http://127.0.0.1:5173`. A different port or
+  host is a different *origin*, and `localStorage` — where `supabase-js` keeps the session under
+  `sb-127-auth-token` — is partitioned per origin, so the two windows hold independent sessions.
+  Both hostnames are already in `additional_redirect_urls` (`config.toml:169`), so email
+  confirmation works from either. **Measured, not assumed**: a `probe` key written on one origin
+  reads `null` on the other, and two different accounts survived a reload side by side.
+  Sign the second one in as a bot — `test-opponent-{1,2}@example.test` /
+  `Test-Opponent-{1,2}-fixture` (`app/tools/opponents.ts:119`), already confirmed, with profiles,
+  friend codes, formats and rosters. Under the Vite dev server you can skip the sign-in screen:
+  `const m = await import('/src/lib/supabase.ts'); await m.supabase.auth.signInWithPassword({…})`
+  from the console writes the session into that origin exactly as the app would.
+  **This does not work on production**, which is a single origin — use a second browser profile
+  or an incognito window there. That is the answer to open item 4.
 - `app/.env.local.bak` is untracked and harmless. `app/.env.local` points at the LOCAL stack;
   the commented block at its top is how you point it at production, and Vite reads it only at
   startup.

@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
-  adjudicatedRounds, myReport, submitReport, toMatchTerms, toMyTerms,
-  type Match,
+  adjudicatedRounds, myMatches, myReport, submitReport, toMatchTerms, toMyTerms,
+  type Match, type MatchState,
 } from '../lib/matches';
 
 /** A best-of-N ends the moment one side reaches this many wins, not before. */
 const needed = (bestOf: number) => Math.floor(bestOf / 2) + 1;
+
+/**
+ * A round nobody has answered yet, as distinct from either claim. Kept as an
+ * explicit third state (not an `undefined` hole in a sparse array) so that
+ * "unanswered" is a value `.map`/`.some` see and can render or block on,
+ * rather than an accident of array length.
+ */
+type RoundResult = boolean | null;
 
 /**
  * Restates the database's `is_valid_scoreline` check constraint (see
@@ -16,16 +24,21 @@ const needed = (bestOf: number) => Math.floor(bestOf / 2) + 1;
  * this only spares a round trip for the ordinary case of "you have not
  * finished playing yet".
  *
- * A legal scoreline is exactly as long as the side that won its LAST entry
- * needed to clinch it (so it reached the win on that round, not earlier), and
- * the other side must hold strictly fewer.
+ * Blocks on any unanswered round first — a gap anywhere (not just at the end)
+ * means the player has not told us the whole story, and treating a gap as a
+ * loss (the old behaviour) is exactly the bug this type exists to prevent.
+ * Once there are no gaps, a legal scoreline is exactly as long as the side
+ * that won its LAST entry needed to clinch it (so it reached the win on that
+ * round, not earlier), and the other side must hold strictly fewer.
  */
-export function isCompleteScoreline(iWon: boolean[], bestOf: number): boolean {
+export function isCompleteScoreline(iWon: RoundResult[], bestOf: number): boolean {
+  if (iWon.some((w) => w === null)) return false;
+  const decided = iWon as boolean[];
   const win = needed(bestOf);
-  if (iWon.length < win || iWon.length > bestOf) return false;
-  const mine = iWon.filter(Boolean).length;
-  const theirs = iWon.length - mine;
-  const last = iWon[iWon.length - 1];
+  if (decided.length < win || decided.length > bestOf) return false;
+  const mine = decided.filter(Boolean).length;
+  const theirs = decided.length - mine;
+  const last = decided[decided.length - 1];
   const winner = last ? mine : theirs;
   const loser = last ? theirs : mine;
   return winner === win && loser < win;
@@ -61,18 +74,43 @@ const HEADLINE: Record<Match['state'], string> = {
  * that could leak the other side's claim before it is safe to.
  */
 export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () => void }) {
-  const [iWon, setIWon] = useState<boolean[]>([]);
+  const [iWon, setIWon] = useState<RoundResult[]>([]);
   const [rounds, setRounds] = useState<{ roundNo: number; winner: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The state actually rendered from. Seeded from the `match` prop, but not
+  // trusted to stay current on its own — see the effect below.
+  const [liveState, setLiveState] = useState<MatchState>(match.state);
 
   // Re-loads whenever the match identity changes — including `mySide`, since
-  // that is what `toMyTerms` needs to read a stored report back correctly.
-  // `live` guards both requests against setting state after either this
+  // that is what `toMyTerms` needs to read a stored report back correctly —
+  // and whenever `match.state` changes, so a transition (e.g. a submit that
+  // flips `mismatch` to `confirmed`) refetches on the SAME mounted instance
+  // rather than going stale. That matters because `App.tsx` renders this
+  // screen with a static `key="match"`: `onChanged` there re-fetches the
+  // match and patches it back into the same slot of state, which re-renders
+  // this component with new props instead of remounting it, so nothing but
+  // this dependency array would ever notice the transition happened.
+  //
+  // `match.state` alone only fixes staleness for a transition this same
+  // instance lives through. It does nothing for a match opened once, left,
+  // and returned to later without this instance remounting with fresh
+  // props — clicking a nav tab back to `match` reuses whatever `activeMatch`
+  // was last set to, which nothing refreshes on its own. So this also calls
+  // `myMatches()` on every run (including the initial mount) and reconciles
+  // `liveState` to whatever it reports for this id, independent of how stale
+  // the `match` prop itself was when this instance last rendered.
+  //
+  // `live` guards every request against setting state after either this
   // component unmounts or a newer match arrives while the older one's
   // requests are still in flight.
   useEffect(() => {
     let live = true;
+    setLiveState(match.state);
+    void myMatches().then((list) => {
+      const fresh = list.find((m) => m.id === match.id);
+      if (live && fresh) setLiveState(fresh.state);
+    });
     void myReport(match.id).then((r) => {
       if (live && r) setIWon(toMyTerms(r.wins, match.mySide));
     });
@@ -82,34 +120,41 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
     return () => {
       live = false;
     };
-  }, [match.id, match.mySide]);
+  }, [match.id, match.mySide, match.state]);
 
-  // The three states `submit_report` will still accept a call for — see the
-  // same migration's sealing-policy comment, which lists exactly these plus
-  // `disputed` as states a report can still exist against. `disputed` is
-  // left out here because the amend window that made a resubmission possible
-  // has already closed by the time a match reaches it.
-  const open = match.state === 'paired' || match.state === 'reported' || match.state === 'mismatch';
+  // Mirrors `submit_report`'s own guard (`20260905121000_submit_report.sql`,
+  // ~line 21: `if m.state not in ('paired', 'reported', 'mismatch') then
+  // raise exception`) — a report submitted against any other state is
+  // rejected there, so the form is only offered for the three states the
+  // server will actually accept it for. `disputed` is deliberately absent:
+  // by the time a match reaches it, the amend window that made a
+  // resubmission possible has already closed.
+  const open = liveState === 'paired' || liveState === 'reported' || liveState === 'mismatch';
   const complete = isCompleteScoreline(iWon, match.rounds);
 
   /**
-   * Records round `i` as won or lost, filling any earlier round nobody
-   * clicked with a loss. `submitReport` sends one contiguous entry per round
-   * actually played, so clicking straight to "Round 3: I won" without
-   * touching 1 and 2 has to mean *something* rather than leaving a hole —
-   * a round that was played and lost is the only claim consistent with
-   * having moved on to the next one.
+   * Records round `i` as won or lost, and truncates everything AFTER `i` —
+   * the story from that point changed, so any later claim already on record
+   * no longer means anything. Earlier rounds are left exactly as they were,
+   * including ones nobody has answered yet: those are padded with explicit
+   * `null` ("unanswered"), never backfilled with `false` ("they won"). A
+   * round nobody has clicked is not a claim that the opponent won it — it is
+   * a gap, and `isCompleteScoreline` blocks submission on any gap.
    */
   function setRound(i: number, won: boolean) {
     setIWon((prev) => {
       const next = prev.slice(0, i);
-      while (next.length < i) next.push(false);
+      while (next.length < i) next.push(null);
       next[i] = won;
       return next;
     });
   }
 
   async function send() {
+    // Defensive: the button is disabled unless `complete`, which already
+    // guarantees no `null` entries remain, so this filter cannot change the
+    // array's content — it only lets TypeScript see the narrowed type.
+    const wins = iWon.filter((w): w is boolean => w !== null);
     setBusy(true);
     setError(null);
     try {
@@ -117,7 +162,7 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
       // becomes the `Side[]` the row actually stores (match terms) — see its
       // doc comment in lib/matches.ts. Passing `iWon` straight through here
       // would be a scoreline reported backwards for whichever side is `b`.
-      await submitReport(match.id, toMatchTerms(iWon, match.mySide));
+      await submitReport(match.id, toMatchTerms(wins, match.mySide));
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -133,13 +178,17 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
         blurb="Report the rounds you played and see the adjudicated result."
       />
       <div className="panel">
-        <p role="status">{HEADLINE[match.state]}</p>
+        <p role="status">{HEADLINE[liveState]}</p>
 
         {open && (
           <ul className="match-list round-list">
             {Array.from({ length: match.rounds }, (_, i) => {
-              const decided = i < iWon.length;
-              const iWonThis = decided && iWon[i];
+              // Neither button is pressed for an unanswered round: `iWon[i]`
+              // is `null` for a round nobody has clicked, and `undefined`
+              // (not `=== true`/`=== false`) for one past the end of the
+              // array — both render as neither claim, not as "they won".
+              const iWonThis = iWon[i] === true;
+              const theyWonThis = iWon[i] === false;
               return (
                 <li key={i} className="match-row round-row">
                   <span>Round {i + 1}</span>
@@ -153,8 +202,8 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
                   </button>
                   <button
                     type="button"
-                    className={`btn seg-btn${decided && !iWonThis ? ' is-active' : ''}`}
-                    aria-pressed={decided && !iWonThis}
+                    className={`btn seg-btn${theyWonThis ? ' is-active' : ''}`}
+                    aria-pressed={theyWonThis}
                     onClick={() => setRound(i, false)}
                   >
                     Round {i + 1}: they won
@@ -172,7 +221,7 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
             disabled={!complete || busy}
             onClick={() => void send()}
           >
-            {busy ? 'Working…' : match.state === 'mismatch' ? 'Amend my report' : 'Submit my report'}
+            {busy ? 'Working…' : liveState === 'mismatch' ? 'Amend my report' : 'Submit my report'}
           </button>
         )}
 

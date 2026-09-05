@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { sql, asUser, refusal, PRIVILEGE_DENIED } from './helpers';
+import { sql, asUser, asAnon, refusal, PRIVILEGE_DENIED } from './helpers';
 
 describe('match reports and adjudicated rounds', () => {
   const userA = randomUUID();
@@ -115,6 +115,27 @@ describe('match reports and adjudicated rounds', () => {
       ),
     );
     expect(roundDenied.message).toMatch(PRIVILEGE_DENIED);
+
+    // Belt and braces means both belts: an anonymous write must be refused by
+    // the missing GRANT, not merely by the absence of any permissive policy.
+    // `revoke ... from authenticated` alone leaves `anon` still holding
+    // INSERT/UPDATE/DELETE from the default Supabase grant, which is a policy
+    // refusal (POLICY_DENIED) wearing the wrong error class.
+    const anonReportDenied = await refusal(() =>
+      asAnon()(
+        `insert into public.match_reports (match_id, reporter_id, best_of, wins)
+         values ('${matchId}', '${userA}', 3, '{a,a}')`,
+      ),
+    );
+    expect(anonReportDenied.message).toMatch(PRIVILEGE_DENIED);
+
+    const anonRoundDenied = await refusal(() =>
+      asAnon()(
+        `insert into public.match_rounds (match_id, round_no, winner)
+         values ('${matchId}', 1, '${userA}')`,
+      ),
+    );
+    expect(anonRoundDenied.message).toMatch(PRIVILEGE_DENIED);
   });
 
   it('shows an adjudicated round to the two players and to nobody else', async () => {
@@ -140,6 +161,26 @@ describe('match reports and adjudicated rounds', () => {
         `select code from public.friend_codes where profile_id = '${userB}'`,
       );
       expect(rows, `friend code should be readable while ${state}`).toHaveLength(1);
+    }
+  });
+
+  it('hides the opponent friend code once the match is no longer live', async () => {
+    const matchId = await makeMatch();
+    await sql(
+      `insert into public.friend_codes (profile_id, code) values ('${userB}', '1111 2222 3333')
+       on conflict (profile_id) do update set code = excluded.code`,
+    );
+    // A SELECT policy denies by filtering, not by throwing: the correct
+    // assertion is zero rows, not a rejected promise. This is the deny half
+    // of the allow test above — without it, a regression that widened the
+    // policy's `state in (...)` list to include either excluded state would
+    // pass the suite undetected.
+    for (const state of ['confirmed', 'unverified']) {
+      await sql(`update public.matches set state = '${state}' where id = '${matchId}'`);
+      const rows = await asUser({ sub: userA })(
+        `select code from public.friend_codes where profile_id = '${userB}'`,
+      );
+      expect(rows, `friend code should NOT be readable while ${state}`).toHaveLength(0);
     }
   });
 });

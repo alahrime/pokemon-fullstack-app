@@ -94,8 +94,8 @@ create policy "an adjudicated round is visible to the two people in the match"
 -- which a later `for all` policy could quietly convert into a grant. Revoking
 -- the verb means a mistake like that still cannot write, and the test can tell
 -- the two apart.
-revoke insert, update, delete on public.match_reports from authenticated;
-revoke insert, update, delete on public.match_rounds from authenticated;
+revoke insert, update, delete on public.match_reports from anon, authenticated;
+revoke insert, update, delete on public.match_rounds from anon, authenticated;
 
 -- The friend code must stay readable for the whole live match, not just while
 -- 'paired'. Without this, reporting hides the code mid-match — the one moment

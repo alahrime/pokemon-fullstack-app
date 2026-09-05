@@ -183,4 +183,78 @@ describe('match reports and adjudicated rounds', () => {
       expect(rows, `friend code should NOT be readable while ${state}`).toHaveLength(0);
     }
   });
+
+  const submit = (who: string, matchId: string, wins: string) =>
+    asUser({ sub: who })<{ submit_report: string }>(
+      `select public.submit_report('${matchId}', '${wins}'::text[]) as submit_report`,
+    );
+
+  it('confirms the match when both sides agree, and writes the rounds', async () => {
+    const matchId = await makeMatch();
+    const [first] = await submit(userA, matchId, '{a,b,a}');
+    expect(first.submit_report).toBe('reported');
+    const [second] = await submit(userB, matchId, '{a,b,a}');
+    expect(second.submit_report).toBe('confirmed');
+
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('confirmed');
+    expect(m.rating_counted).toBe(true);
+
+    const rounds = await sql<{ round_no: number; winner: string }>(
+      `select round_no, winner from public.match_rounds where match_id = '${matchId}' order by round_no`,
+    );
+    expect(rounds).toEqual([
+      { round_no: 1, winner: userA },
+      { round_no: 2, winner: userB },
+      { round_no: 3, winner: userA },
+    ]);
+  });
+
+  it('opens one amend window on disagreement and does not extend it', async () => {
+    const matchId = await makeMatch();
+    await submit(userA, matchId, '{a,a}');
+    const [mismatch] = await submit(userB, matchId, '{b,b}');
+    expect(mismatch.submit_report).toBe('mismatch');
+
+    const [first] = await sql<{ amend_deadline: string }>(
+      `select amend_deadline from public.matches where id = '${matchId}'`,
+    );
+    expect(first.amend_deadline).not.toBeNull();
+
+    await submit(userB, matchId, '{b,a,b}');
+    const [second] = await sql<{ amend_deadline: string }>(
+      `select amend_deadline from public.matches where id = '${matchId}'`,
+    );
+    expect(second.amend_deadline).toEqual(first.amend_deadline);
+  });
+
+  it('confirms after an amend brings the two claims together', async () => {
+    const matchId = await makeMatch();
+    await submit(userA, matchId, '{a,a}');
+    await submit(userB, matchId, '{b,b}');
+    const [amended] = await submit(userB, matchId, '{a,a}');
+    expect(amended.submit_report).toBe('confirmed');
+
+    const [r] = await sql<{ amend_count: number }>(
+      `select amend_count from public.match_reports where match_id = '${matchId}' and reporter_id = '${userB}'`,
+    );
+    expect(r.amend_count).toBe(1);
+
+    const [m] = await sql<{ amend_deadline: string | null }>(
+      `select amend_deadline from public.matches where id = '${matchId}'`,
+    );
+    expect(m.amend_deadline).toBeNull();
+  });
+
+  it('refuses a stranger, an impossible scoreline, and a settled match', async () => {
+    const matchId = await makeMatch();
+    await expect(submit(stranger, matchId, '{a,a}')).rejects.toThrow(/this match is not yours/);
+    await expect(submit(userA, matchId, '{a,a,a}')).rejects.toThrow(/not a possible best-of-3 scoreline/);
+
+    await submit(userA, matchId, '{a,a}');
+    await submit(userB, matchId, '{a,a}');
+    await expect(submit(userA, matchId, '{b,b}')).rejects.toThrow(/no longer accepting reports/);
+  });
 });

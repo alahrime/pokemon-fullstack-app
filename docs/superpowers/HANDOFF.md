@@ -37,17 +37,21 @@ through the shipping client module.
 `sweep_matches`, but the DEPLOYED coordinator (v1) does not call it, and `git push` does not
 deploy Edge Functions. The risk arrives when the coordinator is redeployed.
 
-**Do this before redeploying the coordinator, not after:**
+**The backlog risk was real and is now MEASURED AWAY — the coordinator can be redeployed with
+no triage step.** The concern was that the first tick running `sweep_matches` would sweep every
+pre-existing `paired` match older than 48 hours to `unverified`, irreversibly, for matches
+created before reporting existed. Measured against production on 2026-09-05 via
+`supabase db dump --linked --data-only`: **`public.matches` holds zero rows** — there is not a
+single INSERT for it in the dump — so the first sweep moves nothing.
 
-```sql
-select state, count(*), min(created_at), max(created_at) from public.matches group by state;
-```
+Note the method, because the first attempt at it was wrong and read as a false all-clear: the
+dump writes rows as `INSERT`, not `COPY`, so an awk over `COPY` blocks returns 0 for every table
+whether or not it has data. Count `INSERT INTO "public"."<table>"` instead.
 
-Every pre-existing `paired` match older than 48 hours is swept to `unverified` on the first
-tick that runs `sweep_matches` — irreversibly, for matches created before reporting existed.
-Reporting is then refused, the opponent's friend code disappears, and the screen tells both
-players they failed to report in time. If that count is zero this is a non-event. Sequence is
-**push → measure → triage → redeploy the coordinator**.
+**A correction this measurement forced.** This document said "production has no accounts at all".
+It has one: one `auth.users` row and one `public.profiles` row. It came through the email path,
+not Discord — a provider signup gets no profile from the trigger, by design — so the profile's
+existence is itself evidence of which route was used.
 
 **One thing was shipped to production separately, and is already verified there.** Commit
 `996be91` had rewritten `handle_confirmed_user()` and dropped the three-way null guard that

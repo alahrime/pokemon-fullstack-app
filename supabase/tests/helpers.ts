@@ -42,7 +42,7 @@ export async function sql<T = Record<string, unknown>>(query: string): Promise<T
  * name the class they mean rather than asserting that something threw.
  */
 export const PRIVILEGE_DENIED =
-  /permission denied for table (match_offers|queue_entries|matches|match_reports|match_rounds)/;
+  /permission denied for table (match_offers|queue_entries|matches|match_reports|match_rounds|friendships)/;
 export const POLICY_DENIED = /new row violates row-level security policy/;
 
 /**

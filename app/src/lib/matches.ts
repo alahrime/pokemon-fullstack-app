@@ -75,8 +75,8 @@ function toMatch(r: Row, me: string | undefined): Match {
 /**
  * `getSession()`, not `getUser()`: `getUser()` is a network round trip that
  * revalidates the JWT and would abort this read on a transient error for an id
- * the caller already holds locally. `SessionContext.tsx` and the old
- * `matchmaking.myMatches` make the same choice for the same reason.
+ * the caller already holds locally. `app/src/state/SessionContext.tsx` makes
+ * the same choice for the same reason.
  */
 async function myId(): Promise<string | undefined> {
   const { data, error } = await supabase.auth.getSession();
@@ -86,6 +86,16 @@ async function myId(): Promise<string | undefined> {
 
 export async function myMatches(): Promise<Match[]> {
   const me = await myId();
+  // The `matches` SELECT policy (`auth.uid() in (player_a, player_b)`) is
+  // what actually keeps a signed-out or session-less caller from ever
+  // reaching the map below with rows — an unauthenticated `select` here comes
+  // back `[]` regardless. This early return exists anyway so that guarantee
+  // is not the only thing standing between `toMatch` and a bug: `toMatch`
+  // resolves `mySide` with `r.player_a === me ? 'a' : 'b'`, so a caller that
+  // ever did reach it with `me` undefined would silently be told it is
+  // player_b of every match — inverting the reported scoreline in
+  // `toMatchTerms` without throwing or failing any constraint.
+  if (!me) return [];
   const { data, error } = await supabase
     .from('matches')
     .select(COLUMNS)

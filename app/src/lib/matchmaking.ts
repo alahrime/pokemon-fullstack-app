@@ -243,7 +243,8 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
  * keeps the answer to "mine" from being "everyone's".
  *
  * `getSession()`, not `getUser()`: a local read of the already-verified
- * session, the same choice `leaveQueue` and `myMatches` make above.
+ * session, the same choice `leaveQueue` makes above and `myMatches` makes in
+ * `app/src/lib/matches.ts`, where it now lives.
  */
 export async function myOffers(): Promise<MyOffer[]> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

@@ -1,6 +1,8 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01, end of session. **Branch:** `feat/m1a-accounts`, 13 commits ahead of `main`.
+**Written:** 2026-09-01. **Last updated:** 2026-09-05. **Branch:** `main`, pushed and up to date
+with `origin/main` (`81a6ef4`). Start at "Where this session left off" below — it is the only
+part of this document that is about *right now*; everything under it is standing reference.
 
 Read this, then `docs/superpowers/specs/2026-08-31-paragon-platform-design.md`. The spec is the
 design authority; the plans argue from it.
@@ -16,7 +18,72 @@ design authority; the plans argue from it.
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
 | **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
 | **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
+| **Friend codes** — the account screen collects one | **Merged, deployed, verified** (`996be91`). Migration confirmed present in production's own schema dump; the field renders on the deployed site. |
 | M2b–M5 — match channel, reporting, social, ranked, records | Not started. Spec covers the design. |
+
+---
+
+## Where this session left off — 2026-09-05
+
+**The one thing to do first: prove the coordinator actually ticks.** The two Vault secrets were
+created on 2026-09-04 at ~23:53Z (both `create_secret` calls returned ids), but the check that
+would prove they WORK was never run. `cron.job_run_details` showing `succeeded` proves nothing —
+an unconfigured tick is recorded `succeeded` too, by design (see "Deploying M2a"). The three runs
+observed (23:51, 23:52, 23:53) may all predate the secrets. Run this in the SQL editor:
+
+```sql
+select id, status_code, left(content, 200) as content, created
+  from net._http_response order by id desc limit 3;
+select name, created_at from vault.secrets order by name;
+```
+
+A row in `net._http_response` is the proof: `net.http_request_queue` never gains one on the
+unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0}` — the zeros are right,
+production's board is empty. `401` means the value stored under
+`coordinator_service_role_key` is not the service-role key; `404` means `coordinator_url` is
+wrong; empty, with both names present and a tick newer than them, means a misspelled name.
+
+**Why this matters:** until it is proven, "matchmaking works in production" is unverified, and the
+failure mode is silence in every surface — no error in the app, none in the dashboard.
+
+### What was done, and how it was checked
+
+| Change | Evidence it landed |
+|---|---|
+| Friend-code UI + `20260904190000` migration (`996be91`) | Registered an account through the real browser with `9876-5432-1098`; signup metadata and the `friend_codes` row both read `9876 5432 1098`. Changing it to `555566667777` from the signed-in view stored `5555 6666 7777`. Constraint rejects `12345678` (`23514`). Metadata reading `nonsense` still confirms, with no code. |
+| Migration reached production | `supabase db dump --linked` — the constraint at line 377 of the dump, and `handle_confirmed_user` carrying the `friend_code` block. `migration list`: nothing out of sync. |
+| Coordinator Edge Function deployed | `functions list` → slug `coordinator`, `ACTIVE`, v1, `verify_jwt: true`. Unauthenticated `POST` → `401`. Platform injects `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (`secrets list`), so no function secret is set by hand. |
+| Frontend live | The friend-code field renders past the age gate on `paragon2.alahrime.workers.dev`. No account was created there. |
+
+### Open, in the order they block things
+
+1. **Prove the tick** — above.
+2. **Site URL is still `http://localhost:5173`** — re-measured 2026-09-04, not recalled:
+   `GET /auth/v1/verify?token=invalid&type=signup` `303`s there. Fix in Dashboard →
+   Authentication → URL Configuration: Site URL to the deployed origin, and add both it and
+   `http://localhost:5173/**` to Redirect URLs. **Not** via `supabase config push`, which would
+   push the whole auth block from `config.toml` and could clobber the Discord provider settings.
+3. **The production account cannot post an offer** and this is not a bug: the Post control is not
+   rendered without a saved format for that league (`MatchmakingScreen.tsx:621`). Author one on
+   the Formats screen and save it.
+4. **Testing Accept on production needs a second account.** You cannot accept your own offer, and
+   `app/tools/opponents.ts` refuses any URL that is not localhost, by design — it creates accounts.
+
+### Local stack state, so it is not rediscovered
+
+- Two bot accounts with friend codes `1111 2222 3333` / `4444 5555 6666`, now written by the
+  seeder itself rather than by hand.
+- Six seeded offers — live and scheduled across all three leagues — **expiring 2026-09-09**.
+  Re-run the seeder after that and they come back fresh.
+- A throwaway `FriendCodeProof` account from the end-to-end proof. It has no offers and no queue
+  entry; delete it or ignore it.
+- The database password was rotated on 2026-09-05. Re-run
+  `npx supabase link --project-ref kgfxzjgpjsiaxvlneufz` once, or CLI commands carry a stale one.
+- `app/.env.local.bak` is untracked and harmless. `app/.env.local` points at the LOCAL stack;
+  the commented block at its top is how you point it at production, and Vite reads it only at
+  startup.
+
+---
 
 Plans: `docs/superpowers/plans/`. Ledgers with every ruling: `.superpowers/sdd/<plan-name>/progress.md`
 — read them, they carry the reasoning behind decisions that will otherwise look arbitrary.
@@ -37,7 +104,7 @@ been taken was taken.
 colima start                      # the Docker runtime; Supabase local needs it
 cd app && npm run db:start        # 12 containers, PostgreSQL 17.6
 npm run check:db                  # 63 database tests
-npm run check                     # 1066 app tests, Docker-free
+npm run check                     # 1209 app tests, Docker-free
 cd app && npm run db:stop         # ALWAYS stop it when done
 ```
 
@@ -336,15 +403,18 @@ because Vault is the per-environment store the operator can actually write.
 - [x] **AT DEPLOY TIME (M2a): deploy the coordinator Edge Function** — done on production
       2026-09-04, after the user reported that no offer could be accepted or posted there. See
       "Deploying M2a" above; `db push` does not carry functions.
-- [ ] **AT DEPLOY TIME (M2a): create the two Vault secrets** — see "Deploying M2a" above. Skipped,
-      matchmaking is silently and permanently inert: every tick succeeds, no request is ever sent,
-      nobody ever pairs, and no error surfaces in the app or the dashboard.
+- [~] **AT DEPLOY TIME (M2a): create the two Vault secrets** — created on production 2026-09-04
+      ~23:53Z, both `create_secret` calls returning ids. **Not yet proven to work**: the
+      `net._http_response` check was never run, and `succeeded` in `cron.job_run_details` is what
+      the unconfigured path produces too. See "Where this session left off". Until proven,
+      matchmaking may still be silently and permanently inert: every tick succeeds, no request is
+      ever sent, nobody ever pairs, and no error surfaces in the app or the dashboard.
 - [ ] **`cron.job_run_details` is still never purged.** The M2a fix changes the rows from `failed`
       to `succeeded`; it does not change that there are ~1,440 of them a day and nothing deletes
       them. Not urgent and not a correctness problem, but it is a table that only grows. A second
       cron job pruning rows older than a few days is the usual answer.
 - [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** Still `http://localhost:5173`
-      — measured 2026-09-02, not assumed: `GET /auth/v1/verify?token=invalid&type=signup` on the
+      — re-measured 2026-09-04, not assumed: `GET /auth/v1/verify?token=invalid&type=signup` on the
       hosted project `303`s to `http://localhost:5173/#error=access_denied&error_code=otp_expired`.
       The database is now live ahead of any frontend, so this gap is open from here on. Forgotten,
       it sends every confirmation link and OAuth return for real users to a laptop. The accounts

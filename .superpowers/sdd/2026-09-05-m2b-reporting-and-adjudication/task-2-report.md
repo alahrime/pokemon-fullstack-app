@@ -100,3 +100,106 @@ None. Migration SQL and test code were used verbatim as given. Only addition bey
 
 - The brief's step 2 command included `grep -c "submit_report" /tmp/db.log` with no stated expected count; I ran it for completeness (got `7`) but treated the actual pass/fail evidence (the `does not exist` error and the 4 named failing tests) as the real verification, per the brief's own "Expected: FAIL with `function public.submit_report(unknown, text[]) does not exist`."
 - I did not add a belt-and-braces DB-level constraint (FK/check) tying `match_rounds.winner` or `match_reports.reporter_id` to the match's two players, since the brief's design deliberately closes this at the function level and asked me to confirm rather than harden further. If a future task adds any other writer to these tables (even another security-definer function), this invariant would need to be re-verified there — it is not structurally guaranteed by the schema itself.
+
+## Review fix pass — 2026-09-05
+
+Two findings from code review, fixed. No refactor beyond what each finding asked for.
+
+### Finding 1 (Important) — the row lock had no test, and could not get one on the shared client
+
+**What changed:** Added one new test to `supabase/tests/reports.test.ts`, `'confirms exactly once when both sides submit the same scoreline at the same moment'` (in the `describe('match reports and adjudicated rounds', ...)` block, placed right before `'opens one amend window on disagreement and does not extend it'`). Also added `import postgres from 'postgres';` and a local `CONNECTION_STRING` constant to the top of the file — the same duplication `pairing.test.ts` already carries, for the same reason: the shared `sql()`/`asUser()` connection in `helpers.ts` is opened with `max: 1`, so a race needs its own sockets.
+
+The test follows `pairing.test.ts`'s pattern exactly (studied lines 20-70 and 320-350 of that file, per the finding's pointer): two independent `postgres(CONNECTION_STRING, { max: 1 })` connections, each wrapped in its own `client.begin()` transaction that does `set local role authenticated` then `set_config('request.jwt.claims', ...)` for `userA` and `userB` respectively, both calling `submit_report` with the SAME scoreline (`'{a,b,a}'`) via `Promise.all`, then `Promise.all([c1.end(), c2.end()])` to close both connections afterward.
+
+Assertions:
+- the two return values, sorted, equal `['confirmed', 'reported']` (not `['reported', 'reported']`, which is what the un-locked bug produces),
+- `matches.state = 'confirmed'` and `rating_counted = true`,
+- `match_rounds` holds exactly the three expected rows, in order, with no duplicates.
+
+**Covering test name:** `match reports and adjudicated rounds > confirms exactly once when both sides submit the same scoreline at the same moment`
+
+**Commands run and real output (lock in place, current migration):**
+```
+cd app && npm run db:reset > /tmp/reset.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`
+```
+cd app && npm run check:db > /tmp/db.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`
+```
+✓ ../supabase/tests/reports.test.ts (11 tests) 349ms
+...
+Test Files  9 passed (9)
+     Tests  150 passed (150)
+```
+150/150, up from 149 — the one new test, nothing else moved.
+
+```
+cd app && npm run check > /tmp/app.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`, `Test Files 83 passed (83)`, `Tests 1209 passed (1209)`.
+
+**Strip-the-lock experiment — the actual point of the test.**
+
+Temporarily edited `supabase/migrations/20260905121000_submit_report.sql` to remove `for update` from line 16 (`select * into m from public.matches where id = p_match_id;`), leaving everything else, including the finding-2 comment fix below, untouched. Then:
+```
+cd app && npm run db:reset > /tmp/reset-strip.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`
+```
+cd app && npx vitest run --config vitest.db.config.ts -t "confirms exactly once when both sides submit the same scoreline" > /tmp/strip-test.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=1`. Real output:
+```
+× match reports and adjudicated rounds > confirms exactly once when both sides submit the same scoreline at the same moment 97ms
+  → expected [ 'reported', 'reported' ] to deeply equal [ 'confirmed', 'reported' ]
+
+AssertionError: expected [ 'reported', 'reported' ] to deeply equal [ 'confirmed', 'reported' ]
+- Expected
++ Received
+  [
+-   "confirmed",
++   "reported",
+    "reported",
+  ]
+
+Test Files  1 failed | 8 skipped (9)
+     Tests  1 failed | 149 skipped (150)
+```
+Exactly the failure mode the brief predicted: without the lock, both concurrent calls take the "opponent hasn't reported yet" branch, both write `state = 'reported'`, and the match never confirms.
+
+Then restored `for update` (`git diff` confirmed the file matched the pre-experiment state, lock and finding-2 comment both present) and reset again:
+```
+cd app && npm run db:reset > /tmp/reset.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`
+```
+cd app && npm run check:db > /tmp/db.log 2>&1; echo "EXIT=$?"
+```
+`EXIT=0`, `150 passed (150)`.
+
+**Result: the new test FAILS without `for update` and PASSES with it.** The lock is now covered, and the coverage is real (proven both ways, not just asserted).
+
+### Finding 2 (Minor) — inaccurate comment, no logic change
+
+**What changed:** Reworded the comment above `delete from public.match_rounds where match_id = p_match_id;` in `supabase/migrations/20260905121000_submit_report.sql` (confirm branch, ~line 47). It previously claimed the delete exists because "an amend can rewrite an earlier adjudication" — untrue under the current state guard, since the confirm branch only ever runs once per match (the guard's allow-list at line 23 excludes `'confirmed'`, so `match_rounds` is always empty when this line executes). New comment:
+
+```sql
+    -- Defensive, not reachable today: the state guard above only ever lets
+    -- this branch run once per match (its allow-list excludes 'confirmed'),
+    -- so match_rounds is always empty here. Kept so a future task that
+    -- reopens a settled match for re-adjudication can't leave a stale round
+    -- behind.
+    delete from public.match_rounds where match_id = p_match_id;
+```
+
+No SQL changed — same statement, same behavior. This is a comment-only fix and has no test of its own (nothing to assert); it is covered incidentally by every existing `submit_report` test still passing after the `db:reset` that re-applies this migration.
+
+### Final gate status (both fixes applied together, lock restored)
+
+| Gate | Command | Result |
+|---|---|---|
+| `db:reset` | `cd app && npm run db:reset > /tmp/reset.log 2>&1; echo "EXIT=$?"` | `EXIT=0` |
+| `check:db` | `cd app && npm run check:db > /tmp/db.log 2>&1; echo "EXIT=$?"` | `EXIT=0`, `150 passed (150)` (was 149) |
+| `check` | `cd app && npm run check > /tmp/app.log 2>&1; echo "EXIT=$?"` | `EXIT=0`, `1209 passed (1209)` |

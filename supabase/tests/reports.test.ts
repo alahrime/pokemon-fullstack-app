@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import postgres from 'postgres';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { sql, asUser, asAnon, refusal, PRIVILEGE_DENIED } from './helpers';
+
+const CONNECTION_STRING = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 
 describe('match reports and adjudicated rounds', () => {
   const userA = randomUUID();
@@ -202,6 +205,58 @@ describe('match reports and adjudicated rounds', () => {
     expect(m.state).toBe('confirmed');
     expect(m.rating_counted).toBe(true);
 
+    const rounds = await sql<{ round_no: number; winner: string }>(
+      `select round_no, winner from public.match_rounds where match_id = '${matchId}' order by round_no`,
+    );
+    expect(rounds).toEqual([
+      { round_no: 1, winner: userA },
+      { round_no: 2, winner: userB },
+      { round_no: 3, winner: userA },
+    ]);
+  });
+
+  /**
+   * The row lock in `submit_report` (`select ... from matches ... for
+   * update`) is, per the brief, the whole reason the common path is safe:
+   * without it, two simultaneous submissions of the SAME agreeing scoreline
+   * each read "the opponent has not reported yet" inside their own
+   * transaction, each write state 'reported', and a match both players
+   * agreed on never confirms.
+   *
+   * Proving that needs two connections that can actually overlap in
+   * Postgres. This suite's shared `sql()`/`asUser()` connection (see
+   * `helpers.ts`) is opened with `max: 1` and wraps every call in
+   * `client.begin()` on that ONE socket, so even `Promise.all` on it would
+   * just serialise the two BEGINs — the identical limitation
+   * `pairing.test.ts` documents (around its `conn()` helper) and works
+   * around by opening independent connections. Same fix here.
+   */
+  it('confirms exactly once when both sides submit the same scoreline at the same moment', { timeout: 20000 }, async () => {
+    const matchId = await makeMatch();
+    const conn = () => postgres(CONNECTION_STRING, { max: 1 });
+    const [c1, c2] = [conn(), conn()];
+    const submitOn = (client: ReturnType<typeof conn>, who: string) =>
+      client.begin(async (tx) => {
+        await tx.unsafe('set local role authenticated');
+        await tx.unsafe(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: who })]);
+        return tx.unsafe(`select public.submit_report('${matchId}', '{a,b,a}'::text[]) as submit_report`);
+      });
+    const results = await Promise.all([submitOn(c1, userA), submitOn(c2, userB)]);
+    await Promise.all([c1.end(), c2.end()]);
+
+    // Without the lock both calls take the "opponent hasn't reported" branch
+    // and both return 'reported'; with it, whichever call is second to
+    // acquire the row lock sees the first call's report and confirms.
+    const outcomes = results.map((r) => (r as unknown as { submit_report: string }[])[0].submit_report).sort();
+    expect(outcomes).toEqual(['confirmed', 'reported']);
+
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('confirmed');
+    expect(m.rating_counted).toBe(true);
+
+    // Exactly once, not duplicated by two racing writers.
     const rounds = await sql<{ round_no: number; winner: string }>(
       `select round_no, winner from public.match_rounds where match_id = '${matchId}' order by round_no`,
     );

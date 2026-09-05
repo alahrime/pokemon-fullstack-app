@@ -44,7 +44,11 @@ begin
   end if;
 
   if other_wins = p_wins then
-    -- An amend can rewrite an earlier adjudication, so clear before writing.
+    -- Defensive, not reachable today: the state guard above only ever lets
+    -- this branch run once per match (its allow-list excludes 'confirmed'),
+    -- so match_rounds is always empty here. Kept so a future task that
+    -- reopens a settled match for re-adjudication can't leave a stale round
+    -- behind.
     delete from public.match_rounds where match_id = p_match_id;
     for i in 1..array_length(p_wins, 1) loop
       insert into public.match_rounds (match_id, round_no, winner)

@@ -19,14 +19,77 @@ design authority; the plans argue from it.
 | **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
 | **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
 | **Friend codes** — the account screen collects one | **Merged, deployed, verified** (`996be91`). Migration confirmed present in production's own schema dump; the field renders on the deployed site. |
-| **M2b** — reporting and adjudication | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
+| **M2b** — reporting and adjudication | **Built, merged to local `main`, NOT pushed.** Both gates green, roundtrip 11/11. Plan: `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
 | **M3a** — friendships and blocks | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3a-friendships-and-blocks.md` |
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
 
 ---
 
-## Where this session left off — 2026-09-05
+## Where this session left off — 2026-09-05 (later)
+
+**M2b is merged to `main` locally and NOT yet pushed.** 21 commits ahead of `origin/main`.
+Both gates green on the merged tree — `npm run check` 1220/1220 (85 files), `npm run check:db`
+159/159 (9 files) — and `app/tools/m2b-roundtrip.ts` passes 11/11 against the local stack
+through the shipping client module.
+
+**Pushing `main` deploys five migrations to production.** That is safe on its own: it creates
+`sweep_matches`, but the DEPLOYED coordinator (v1) does not call it, and `git push` does not
+deploy Edge Functions. The risk arrives when the coordinator is redeployed.
+
+**Do this before redeploying the coordinator, not after:**
+
+```sql
+select state, count(*), min(created_at), max(created_at) from public.matches group by state;
+```
+
+Every pre-existing `paired` match older than 48 hours is swept to `unverified` on the first
+tick that runs `sweep_matches` — irreversibly, for matches created before reporting existed.
+Reporting is then refused, the opponent's friend code disappears, and the screen tells both
+players they failed to report in time. If that count is zero this is a non-event. Sequence is
+**push → measure → triage → redeploy the coordinator**.
+
+**One thing was shipped to production separately, and is already verified there.** Commit
+`996be91` had rewritten `handle_confirmed_user()` and dropped the three-way null guard that
+`20260901225208` added — silently re-breaking Discord OAuth signup at the database level, the
+exact defect this document describes under "A defect Task 6 found in Task 4's schema". Five
+tests had been failing on `main` since 2026-09-04 saying so. Restored by `20260905123000`,
+cherry-picked and pushed 2026-09-05 14:37Z, and confirmed in production's OWN schema dump
+(`supabase db dump --linked`, guard present at lines 255-260) rather than from a check run.
+`check:db` on `main` went from 8 failing to green.
+
+**What M2b delivers.** `match_reports` (what each side claimed) and `match_rounds` (adjudicated
+truth) as two tables, with impossible scorelines rejected by a check constraint. `submit_report`
+adjudicates synchronously under a `for update` row lock — agreement confirms and writes the
+rounds in one transaction; disagreement opens a single amend window that repeated amends cannot
+re-arm. `sweep_matches` handles only the clock: a lapsed amend window becomes `disputed`, and a
+match nobody reported inside 48 hours becomes `unverified`. The ladder stops at `disputed` —
+journal evidence is M2c.
+
+**Two things worth knowing before touching this code:**
+- `matches.play_after` exists because `created_at` is the wrong clock for a scheduled match: the
+  row is created at handshake confirmation, not at the agreed play time, so a match arranged
+  four days out was being killed before it was played. The sweep uses
+  `coalesce(play_after, created_at)`.
+- `rating_counted` is `(source = 'queue')`, which is only HALF the spec's predicate. `matches`
+  carries no `league` column, so canonical-league eligibility is not derivable from the row.
+  The rating pass in M4 must re-derive eligibility rather than trust this flag.
+
+**Every ruling taken during the build, with what each costs if wrong, is in**
+`.superpowers/sdd/2026-09-05-m2b-reporting-and-adjudication/progress.md` — 26 rulings and 13
+deferred minors, triaged by the whole-branch review. Read it before reopening any of this.
+
+**Known local-state consequence:** the repeated `db:reset` runs M2b needed wiped the seeded
+fixtures. `test-opponent-{1,2}@example.test`, `friendcode-proof@example.test`, the six offers and
+both bots' rosters are gone; re-run `app/tools/opponents.ts` to get them back.
+
+**Two signed-in accounts at once**, for anything two-sided: `http://localhost:5173` and
+`http://127.0.0.1:5173` are different origins and hold independent sessions. Details below under
+"Local stack state".
+
+---
+
+## Where the previous session left off — 2026-09-05 (earlier)
 
 **The one thing to do first: prove the coordinator actually ticks.** The two Vault secrets were
 created on 2026-09-04 at ~23:53Z (both `create_secret` calls returned ids), but the check that

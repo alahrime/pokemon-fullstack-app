@@ -18,7 +18,7 @@ type RoundResult = boolean | null;
 
 /**
  * Restates the database's `is_valid_scoreline` check constraint (see
- * `supabase/migrations/20260905120000_match_reports_and_rounds.sql`) so the
+ * `supabase/migrations/20260905124000_match_reports_and_rounds.sql`) so the
  * Submit button is not offered for a claim the server would refuse outright.
  * The database remains the sole authority on whether a scoreline is legal —
  * this only spares a round trip for the ordinary case of "you have not
@@ -122,7 +122,7 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
     };
   }, [match.id, match.mySide, match.state]);
 
-  // Mirrors `submit_report`'s own guard (`20260905121000_submit_report.sql`,
+  // Mirrors `submit_report`'s own guard (`20260905124100_submit_report.sql`,
   // ~line 21: `if m.state not in ('paired', 'reported', 'mismatch') then
   // raise exception`) — a report submitted against any other state is
   // rejected there, so the form is only offered for the three states the

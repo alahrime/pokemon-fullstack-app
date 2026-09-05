@@ -34,14 +34,14 @@ describe('profiles and friend_codes policies', () => {
     email: `policy-a-${randomUUID()}@example.com`,
     displayName: `PolicyUserA_${randomUUID().slice(0, 8)}`,
     goUsername: 'TrainerA',
-    code: '111122223333',
+    code: '1111 2222 3333',
   };
   const userB = {
     id: randomUUID(),
     email: `policy-b-${randomUUID()}@example.com`,
     displayName: `PolicyUserB_${randomUUID().slice(0, 8)}`,
     goUsername: 'TrainerB',
-    code: '444455556666',
+    code: '4444 5555 6666',
   };
 
   const claims = (u: typeof userA) => ({ sub: u.id, role: 'authenticated' });
@@ -215,10 +215,10 @@ describe('profiles and friend_codes policies', () => {
 
   it('lets a user change their own friend code', async () => {
     const rows = await asUser(claims(userA))<{ code: string }>(
-      `update public.friend_codes set code = '999988887777' where profile_id = '${userA.id}' returning code`,
+      `update public.friend_codes set code = '9999 8888 7777' where profile_id = '${userA.id}' returning code`,
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].code).toBe('999988887777');
+    expect(rows[0].code).toBe('9999 8888 7777');
   });
 
   it('lets two profiles share the same go_username', async () => {
@@ -291,7 +291,7 @@ describe('friend_codes write policy — insert and delete', () => {
     const ownerId = await makeProfile('insert-owner');
     try {
       const rows = await asUser({ sub: ownerId, role: 'authenticated' })<{ profile_id: string }>(
-        `insert into public.friend_codes (profile_id, code) values ('${ownerId}', '123412341234') returning profile_id`,
+        `insert into public.friend_codes (profile_id, code) values ('${ownerId}', '1234 1234 1234') returning profile_id`,
       );
       expect(rows).toHaveLength(1);
     } finally {
@@ -319,7 +319,7 @@ describe('friend_codes write policy — insert and delete', () => {
   it('lets the owner delete their own friend code', async () => {
     const ownerId = await makeProfile('delete-owner');
     try {
-      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '567856785678')`);
+      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '5678 5678 5678')`);
 
       const rows = await asUser({ sub: ownerId, role: 'authenticated' })<{ profile_id: string }>(
         `delete from public.friend_codes where profile_id = '${ownerId}' returning profile_id`,
@@ -337,7 +337,7 @@ describe('friend_codes write policy — insert and delete', () => {
     const ownerId = await makeProfile('delete-victim');
     const attackerId = await makeProfile('delete-attacker');
     try {
-      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '999900009999')`);
+      await sql(`insert into public.friend_codes (profile_id, code) values ('${ownerId}', '9999 0000 9999')`);
 
       const rows = await asUser({ sub: attackerId, role: 'authenticated' })<{ profile_id: string }>(
         `delete from public.friend_codes where profile_id = '${ownerId}' returning profile_id`,
@@ -351,7 +351,7 @@ describe('friend_codes write policy — insert and delete', () => {
         `select code from public.friend_codes where profile_id = '${ownerId}'`,
       );
       expect(survivors).toHaveLength(1);
-      expect(survivors[0].code).toBe('999900009999');
+      expect(survivors[0].code).toBe('9999 0000 9999');
     } finally {
       await sql(`delete from auth.users where id in ('${ownerId}', '${attackerId}')`);
     }

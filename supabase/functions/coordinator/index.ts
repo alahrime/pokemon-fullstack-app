@@ -78,6 +78,14 @@ Deno.serve(async () => {
 
   const { data: paired } = await admin.rpc('pair_queue_entries');
   const { data: swept } = await admin.rpc('sweep_expired');
-  const { data: sweptMatches } = await admin.rpc('sweep_matches');
+  // Unlike `paired`/`swept` above (pre-existing, left alone), this error is
+  // NOT swallowed: sweep_matches() is the only thing that ever moves a match
+  // out of 'mismatch', and its silent failure would be indistinguishable
+  // from "no disputes right now" — a dead sweep would report itself healthy
+  // forever, exactly the shape docs/superpowers/HANDOFF.md tells operators
+  // means everything is fine. A non-200 response is a fact a healthy tick
+  // never produces, so the two cannot be confused for each other.
+  const { data: sweptMatches, error: sweepError } = await admin.rpc('sweep_matches');
+  if (sweepError) return new Response(sweepError.message, { status: 500 });
   return Response.json({ verified, paired, swept, matches: sweptMatches ?? 0 });
 });

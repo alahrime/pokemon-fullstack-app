@@ -15,6 +15,7 @@
 - `npm run check` (Docker-free) and `npm run check:db` (needs the local stack) are the two gates. **`check:db` is required before merging anything touching a migration or a policy.** Both must be green at the end of every task.
 - **Merging to `main` deploys every migration to the production database.** Treat each migration as an outward-facing change.
 - Ownership columns default to `auth.uid()` and are never sent by the client.
+- **`refusal()` takes a THUNK and RETURNS `{code, message}`** — it does not take a matcher. Use `const denied = await refusal(() => asUser(...)(...)); expect(denied.message).toMatch(PRIVILEGE_DENIED);`. Passing a promise plus a matcher type-checks against nothing and silently asserts less than you think; two implementers have already hit this.
 - Every policy gets an allow test **and** a deny test.
 - Distinguish `PRIVILEGE_DENIED` (`permission denied for table x`) from `POLICY_DENIED` (`new row violates row-level security policy`). Both are SQLSTATE 42501 and mean different things. Extend `PRIVILEGE_DENIED`'s alternation in `supabase/tests/helpers.ts` for the new tables.
 - An UPDATE or DELETE filtered out by a USING clause affects 0 rows and raises **nothing**. Assert the row count, not that it threw.
@@ -114,13 +115,13 @@ describe('friendships and blocks', () => {
   });
 
   it('lets nobody write a friendship row directly', async () => {
-    await refusal(
-      asUser({ sub: ann })(
-        `insert into public.friendships (user_lo, user_hi, requested_by)
-         values ('${lo(ann, bob)}', '${hi(ann, bob)}', '${ann}')`,
-      ),
-      PRIVILEGE_DENIED,
+    const denied_privilege_denied = await refusal(() =>
+        asUser({ sub: ann })(
+          `insert into public.friendships (user_lo, user_hi, requested_by)
+           values ('${lo(ann, bob)}', '${hi(ann, bob)}', '${ann}')`,
+        ),
     );
+    expect(denied_privilege_denied.message).toMatch(PRIVILEGE_DENIED);
   });
 
   it('hides a block completely from the person blocked', async () => {

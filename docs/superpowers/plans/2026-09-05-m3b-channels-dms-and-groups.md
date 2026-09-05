@@ -17,6 +17,7 @@
 - `npm run check` (Docker-free) and `npm run check:db` (needs the local stack) are the two gates. **`check:db` is required before merging anything touching a migration or a policy.** Both must be green at the end of every task.
 - **Merging to `main` deploys every migration to the production database.** Treat each migration as an outward-facing change.
 - Ownership columns default to `auth.uid()` and are never sent by the client.
+- **`refusal()` takes a THUNK and RETURNS `{code, message}`** — it does not take a matcher. Use `const denied = await refusal(() => asUser(...)(...)); expect(denied.message).toMatch(PRIVILEGE_DENIED);`. Passing a promise plus a matcher type-checks against nothing and silently asserts less than you think; two implementers have already hit this.
 - Every policy gets an allow test **and** a deny test.
 - Distinguish `PRIVILEGE_DENIED` from `POLICY_DENIED`; extend the alternation in `supabase/tests/helpers.ts` for the new tables.
 - **Retention is a maximum, not a target.** The spec's rule is "the shortest window that still permits investigation": 7 days unreported, through resolution then 30 days reported, indefinite while pinned. Every interval in this plan is one of those three; do not invent a fourth.
@@ -119,15 +120,15 @@ describe('channels and membership', () => {
   });
 
   it('lets nobody create a channel or add a member directly', async () => {
-    await refusal(
-      asUser({ sub: ann })(`insert into public.channels (kind, created_by) values ('group', '${ann}')`),
-      PRIVILEGE_DENIED,
+    const denied_privilege_denied = await refusal(() =>
+        asUser({ sub: ann })(`insert into public.channels (kind, created_by) values ('group', '${ann}')`),
     );
+    expect(denied_privilege_denied.message).toMatch(PRIVILEGE_DENIED);
     const id = await makeChannel('group', [ann]);
-    await refusal(
-      asUser({ sub: ann })(`insert into public.channel_members (channel_id, user_id) values ('${id}', '${cal}')`),
-      PRIVILEGE_DENIED,
+    const denied_privilege_denied = await refusal(() =>
+        asUser({ sub: ann })(`insert into public.channel_members (channel_id, user_id) values ('${id}', '${cal}')`),
     );
+    expect(denied_privilege_denied.message).toMatch(PRIVILEGE_DENIED);
   });
 
   it('lets a member mark their own read position and nobody else s', async () => {
@@ -674,20 +675,20 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
     );
     expect(await asUser({ sub: bob })(`select body from public.messages where channel_id = '${dm.open_dm}'`)).toHaveLength(1);
     expect(await asUser({ sub: cal })(`select body from public.messages where channel_id = '${dm.open_dm}'`)).toHaveLength(0);
-    await refusal(
-      asUser({ sub: cal })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'intruding')`),
-      POLICY_DENIED,
+    const denied_policy_denied = await refusal(() =>
+        asUser({ sub: cal })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'intruding')`),
     );
+    expect(denied_policy_denied.message).toMatch(POLICY_DENIED);
   });
 
   it('stops a blocked person posting into a dm they already share', async () => {
     await befriend(ann, bob);
     const [dm] = await openDm(ann, bob);
     await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
-    await refusal(
-      asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'still here')`),
-      POLICY_DENIED,
+    const denied_policy_denied = await refusal(() =>
+        asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'still here')`),
     );
+    expect(denied_policy_denied.message).toMatch(POLICY_DENIED);
     // And ann can still post; a block is one-directional.
     await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'fine')`);
   });

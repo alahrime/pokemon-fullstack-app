@@ -108,6 +108,19 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Queue for a blind match, browse an open offer, or schedule one for later.',
   },
   {
+    id: 'match',
+    label: 'Match',
+    kicker: 'Report',
+    // Not --type-fighting: the Battle screen already carries it, and every
+    // screen needs a distinct hue (see src/lib/__tests__/screens.test.ts).
+    // Ground fits the contrast with Battle deliberately: Battle prices a
+    // simulated fight, and this screen is about the real one — grounded in
+    // whatever actually happened in Pokémon GO, reported back and settled.
+    glyph: '◭',
+    hue: 'var(--type-ground)',
+    blurb: 'Report the rounds you played and see the adjudicated result.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',

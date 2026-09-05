@@ -41,7 +41,8 @@ export async function sql<T = Record<string, unknown>>(query: string): Promise<T
  * and which one applies is precisely what the C1/C2 fix changed — so tests
  * name the class they mean rather than asserting that something threw.
  */
-export const PRIVILEGE_DENIED = /permission denied for table (match_offers|queue_entries|matches)/;
+export const PRIVILEGE_DENIED =
+  /permission denied for table (match_offers|queue_entries|matches|match_reports|match_rounds)/;
 export const POLICY_DENIED = /new row violates row-level security policy/;
 
 /**

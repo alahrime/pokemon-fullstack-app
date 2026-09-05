@@ -351,4 +351,50 @@ describe('match reports and adjudicated rounds', () => {
     const [m] = await sql<{ state: string }>(`select state from public.matches where id = '${matchId}'`);
     expect(m.state).toBe('confirmed');
   });
+
+  /**
+   * `sweep_matches`'s give-up UPDATE targets `state in ('paired', 'reported')`.
+   * Every other test in this file only ever ages a 'paired' match (nobody
+   * reported at all). If 'reported' were ever dropped from that list, every
+   * existing test would still pass, and in production a match where exactly
+   * one side reported would sit in 'reported' forever — never swept into
+   * 'unverified', never excluded from rating. Reach 'reported' through the
+   * real path (one real submit_report call), not by writing the state by hand.
+   */
+  it('gives up on a match where only one side reported, and does not count it', async () => {
+    const matchId = await makeMatch();
+    await submit(userA, matchId, '{a,a}');
+    const [before] = await sql<{ state: string }>(`select state from public.matches where id = '${matchId}'`);
+    expect(before.state, 'precondition: only one side has reported').toBe('reported');
+
+    await sql(`update public.matches set created_at = now() - interval '49 hours' where id = '${matchId}'`);
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('unverified');
+    expect(m.rating_counted).toBe(false);
+  });
+
+  /**
+   * `submit_report` carries `grant execute ... to authenticated` with no
+   * revoke would leave Postgres's default PUBLIC grant in place. An anon
+   * caller cannot mutate anything either way (the `me is null or me not in
+   * (...)` check refuses before any write), but with the grant left in place
+   * it would still reach that check — and the `for update` row lock before
+   * it — rather than being refused at the door. The distinguishing evidence
+   * is the ERROR CLASS: "permission denied for function submit_report" (no
+   * grant) versus the function's own "this match is not yours" (grant
+   * exists, body ran). A test that would pass either way does not cover
+   * this. `PRIVILEGE_DENIED` (helpers.ts) only matches table names, so this
+   * asserts the function-privilege message directly rather than widening a
+   * regex shared by other suites.
+   */
+  it('refuses the anonymous role for lack of privilege, not merely for lack of standing', async () => {
+    const matchId = await makeMatch();
+    const denied = await refusal(() =>
+      asAnon()(`select public.submit_report('${matchId}', '{a,a}'::text[]) as submit_report`),
+    );
+    expect(denied.message).toMatch(/permission denied for function submit_report/);
+  });
 });

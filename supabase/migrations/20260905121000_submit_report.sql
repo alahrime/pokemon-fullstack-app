@@ -70,4 +70,10 @@ begin
 end;
 $fn$;
 
+-- `create function` grants EXECUTE to PUBLIC by default. Without the revoke,
+-- an anonymous caller could still invoke this: it cannot mutate anything (the
+-- `me is null or me not in (...)` check refuses it before any write), but it
+-- would still take the `for update` row lock and could distinguish "no such
+-- match" from "this match is not yours" — a match-id existence oracle.
+revoke all on function public.submit_report(uuid, text[]) from public, anon;
 grant execute on function public.submit_report(uuid, text[]) to authenticated;

@@ -13,16 +13,13 @@ export interface QueueEntry {
   expiresAt: string;
 }
 
-export interface Match {
-  id: string;
-  opponentId: string;
-  formatVersionId: string;
-  rulesHash: string;
-  dataRev: string;
-  rounds: number;
-  source: 'queue' | 'offer';
-  createdAt: string;
-}
+/**
+ * The row shape lives in `matches.ts` now, alongside everything else about
+ * what happens inside a match (reporting, adjudication, the perspective
+ * conversion). Re-exported here so `MatchmakingScreen.tsx` — which only cares
+ * about getting INTO a match — keeps importing both from this module.
+ */
+export { myMatches, type Match } from './matches';
 
 export type OfferState = 'open' | 'accepted' | 'confirmed' | 'lapsed' | 'converted';
 
@@ -177,52 +174,6 @@ export async function myQueueEntry(): Promise<QueueEntry | null> {
     verifiedHash: row.verified_hash,
     expiresAt: row.expires_at,
   };
-}
-
-/**
- * `matches` has no `opponent_id` column — only `player_a`/`player_b`, since a
- * match row is symmetric and belongs to neither side more than the other.
- * Working out which one is "the opponent" needs to know who is signed in, so
- * this reads the local session rather than trusting either column by
- * position.
- *
- * `getSession()`, not `getUser()`: `getUser()` is a real network round trip
- * that revalidates the JWT against the Auth server, and would abort this
- * whole read on a transient network error for an id the caller already has
- * locally. `SessionContext.tsx` makes the same choice for the same reason.
- */
-export async function myMatches(): Promise<Match[]> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error(sessionError.message);
-  const me = sessionData.session?.user.id;
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, source, created_at')
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => {
-    const r = row as {
-      id: string;
-      player_a: string;
-      player_b: string;
-      format_version_id: string;
-      rules_hash: string;
-      data_rev: string;
-      rounds: number;
-      source: 'queue' | 'offer';
-      created_at: string;
-    };
-    return {
-      id: r.id,
-      opponentId: r.player_a === me ? r.player_b : r.player_a,
-      formatVersionId: r.format_version_id,
-      rulesHash: r.rules_hash,
-      dataRev: r.data_rev,
-      rounds: r.rounds,
-      source: r.source,
-      createdAt: r.created_at,
-    };
-  });
 }
 
 export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {

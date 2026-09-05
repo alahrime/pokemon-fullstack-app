@@ -308,7 +308,7 @@ function offerStatusText(o: MyOffer, proposed: boolean): string {
 }
 
 export function MatchmakingScreen() {
-  const { state } = useAppState();
+  const { state, patch } = useAppState();
   const { user } = useSession();
   const league = state.league;
 
@@ -710,7 +710,13 @@ export function MatchmakingScreen() {
           <ul className="match-list">
             {matches.map((m) => (
               <li key={m.id} className="match-row">
-                <span>Match paired</span>
+                {/* Carries the already-fetched `Match` rather than just
+                    `m.id`: the match screen needs the whole row (rounds,
+                    which side you sit in, the current state) to render
+                    anything, and this list just read it from the server. */}
+                <button type="button" className="btn chip-btn match-open" onClick={() => patch({ screen: 'match', activeMatch: m })}>
+                  Open match
+                </button>
                 <span className="friend-code">
                   {codes[m.opponentId] === undefined
                     ? 'Loading friend code…'

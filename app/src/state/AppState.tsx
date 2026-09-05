@@ -2,8 +2,9 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
+import type { Match } from '../lib/matches';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'account';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
@@ -69,6 +70,13 @@ export interface AppStateShape {
   shieldsB: number;
   energyA: number;
   energyB: number;
+  /**
+   * The match the `match` screen is open on. A whole `Match`, not just an
+   * id, because whoever navigates here (a row on the Matchmaking screen)
+   * already has the fetched object in hand — refetching by id would be a
+   * round trip to recover data the caller is about to throw away.
+   */
+  activeMatch: Match | null;
 }
 
 // Rolled once per page load, so the battle screen opens somewhere different
@@ -125,6 +133,7 @@ export const INITIAL_STATE: AppStateShape = {
   shieldsB: 1,
   energyA: 0,
   energyB: 0,
+  activeMatch: null,
 };
 
 interface AppStateContextValue {

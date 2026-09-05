@@ -12,7 +12,9 @@ import { defaultSpreadFor } from './lib/engine';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
+import { MatchScreen } from './screens/MatchScreen';
 import { SpriteAudit } from './screens/SpriteAudit';
+import { myMatches } from './lib/matches';
 
 /**
  * The three screens that read `rankings.json` (3.1MB) or `teams.json` (3.8MB)
@@ -111,7 +113,7 @@ function Nav() {
 const AUDIT = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('audit');
 
 function Screens() {
-  const { state } = useAppState();
+  const { state, patch } = useAppState();
   if (AUDIT === 'sprites') return <SpriteAudit />;
   // Keyed on the screen id so React remounts the subtree and the enter
   // animation replays on every switch.
@@ -138,6 +140,32 @@ function Screens() {
       return <LazyScreen key="formats"><FormatBuilderScreen /></LazyScreen>;
     case 'matchmaking':
       return <LazyScreen key="matchmaking"><MatchmakingScreen /></LazyScreen>;
+    case 'match':
+      // `activeMatch` is set by whoever navigates here — the row a match
+      // pairs onto on the Matchmaking screen — carrying the `Match` it
+      // already fetched. Reached any other way (typing the tab directly on
+      // a fresh session) there is nothing to report on yet.
+      return state.activeMatch ? (
+        <MatchScreen
+          key="match"
+          match={state.activeMatch}
+          onChanged={() => {
+            // `submitReport` only returns the new `MatchState`; the rest of
+            // `Match` (rounds, side, etc.) does not change from reporting, so
+            // re-reading the one row by id rather than re-running `myMatches`
+            // would be the cheaper call — but `myMatches` is Task 4's
+            // shipping surface and the only one it exposes, so this refetches
+            // the list and picks the same id back out of it.
+            void myMatches().then((list) => {
+              patch({ activeMatch: list.find((m) => m.id === state.activeMatch?.id) ?? null });
+            });
+          }}
+        />
+      ) : (
+        <div key="match" className="panel text-muted">
+          No match selected — open one from the Matches screen.
+        </div>
+      );
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

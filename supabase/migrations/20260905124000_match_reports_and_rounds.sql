@@ -57,6 +57,17 @@ alter table public.matches add constraint matches_state
 alter table public.matches add column rating_counted boolean not null default false;
 alter table public.matches add column amend_deadline timestamptz;
 
+-- The play time a SCHEDULED offer's match was agreed for, copied from
+-- match_offers.scheduled_for by confirm_offer() (see 20260905124300) when the
+-- match is created. Null for a live offer and for a queue match — neither has
+-- an agreed-later time, so for those created_at already IS the moment play
+-- began. sweep_matches() must judge a match's age by
+-- coalesce(play_after, created_at), never by created_at alone: a scheduled
+-- match's `matches` row is created at HANDSHAKE CONFIRMATION, which can be
+-- days before the agreed play time, and created_at alone would sweep it as
+-- stale before either side has had the chance to play, let alone report.
+alter table public.matches add column play_after timestamptz;
+
 alter table public.match_reports enable row level security;
 alter table public.match_rounds enable row level security;
 

@@ -19,11 +19,11 @@ describe('match reports and adjudicated rounds', () => {
     );
   }
 
-  async function makeMatch(rounds = 3): Promise<string> {
+  async function makeMatch(rounds = 3, source = 'queue'): Promise<string> {
     const [m] = await sql<{ id: string }>(
       `insert into public.matches
          (player_a, player_b, format_version_id, rules_hash, team_a, team_b, data_rev, seed, rounds, source)
-       values ('${userA}', '${userB}', '${versionId}', 'aa', '[]'::jsonb, '[]'::jsonb, 'rev1', 's', ${rounds}, 'queue')
+       values ('${userA}', '${userB}', '${versionId}', 'aa', '[]'::jsonb, '[]'::jsonb, 'rev1', 's', ${rounds}, '${source}')
        returning id`,
     );
     return m.id;
@@ -216,6 +216,33 @@ describe('match reports and adjudicated rounds', () => {
   });
 
   /**
+   * The spec confines rating to the open queue on the three canonical
+   * leagues — "not to friend battles, not to direct challenges, not to
+   * curated custom formats". `source` is the half of that predicate a
+   * `matches` row can actually answer today (there is no `league` column),
+   * so `rating_counted` on confirm must track `source = 'queue'` exactly:
+   * true for a queue match, false for an offer, whether the offer was live
+   * or scheduled.
+   */
+  it('only counts a confirmed match toward rating when it came from the open queue', async () => {
+    const queueMatch = await makeMatch(3, 'queue');
+    await submit(userA, queueMatch, '{a,a}');
+    await submit(userB, queueMatch, '{a,a}');
+    const [q] = await sql<{ rating_counted: boolean }>(
+      `select rating_counted from public.matches where id = '${queueMatch}'`,
+    );
+    expect(q.rating_counted).toBe(true);
+
+    const offerMatch = await makeMatch(3, 'offer');
+    await submit(userA, offerMatch, '{a,a}');
+    await submit(userB, offerMatch, '{a,a}');
+    const [o] = await sql<{ rating_counted: boolean }>(
+      `select rating_counted from public.matches where id = '${offerMatch}'`,
+    );
+    expect(o.rating_counted).toBe(false);
+  });
+
+  /**
    * The row lock in `submit_report` (`select ... from matches ... for
    * update`) is, per the brief, the whole reason the common path is safe:
    * without it, two simultaneous submissions of the SAME agreeing scoreline
@@ -334,6 +361,62 @@ describe('match reports and adjudicated rounds', () => {
   it('gives up on a match nobody reported, and does not count it', async () => {
     const matchId = await makeMatch();
     await sql(`update public.matches set created_at = now() - interval '49 hours' where id = '${matchId}'`);
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('unverified');
+    expect(m.rating_counted).toBe(false);
+  });
+
+  /**
+   * The bug this pins: a SCHEDULED offer's `matches` row is created at
+   * handshake CONFIRMATION, which can be days before the agreed play time
+   * (match_offers.scheduled_for, carried onto play_after by confirm_offer()).
+   * A match agreed Monday to be played Friday has created_at = Monday and
+   * play_after = Friday; on Wednesday it is 49 hours past created_at but 96
+   * hours BEFORE play_after and must not be swept — the players have not
+   * even played yet.
+   */
+  it('does not give up on a scheduled match before its agreed play time arrives', async () => {
+    const matchId = await makeMatch(3, 'offer');
+    await sql(
+      `update public.matches
+          set created_at = now() - interval '49 hours',
+              play_after = now() + interval '96 hours'
+        where id = '${matchId}'`,
+    );
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state, 'should still be waiting to be played, not swept').toBe('paired');
+    expect(m.rating_counted).toBe(false);
+  });
+
+  it('gives up on a scheduled match whose agreed play time is more than 48 hours past', async () => {
+    const matchId = await makeMatch(3, 'offer');
+    await sql(
+      `update public.matches
+          set created_at = now() - interval '1 hour',
+              play_after = now() - interval '49 hours'
+        where id = '${matchId}'`,
+    );
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('unverified');
+    expect(m.rating_counted).toBe(false);
+  });
+
+  it('still gives up on a queue match with no play_after, aged by created_at as before', async () => {
+    const matchId = await makeMatch(3, 'queue');
+    await sql(
+      `update public.matches
+          set created_at = now() - interval '49 hours', play_after = null
+        where id = '${matchId}'`,
+    );
     await sql(`select public.sweep_matches()`);
     const [m] = await sql<{ state: string; rating_counted: boolean }>(
       `select state, rating_counted from public.matches where id = '${matchId}'`,

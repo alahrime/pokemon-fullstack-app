@@ -54,8 +54,17 @@ begin
       insert into public.match_rounds (match_id, round_no, winner)
       values (p_match_id, i, case when p_wins[i] = 'a' then m.player_a else m.player_b end);
     end loop;
+    -- Rating attaches only to the open queue on the three canonical leagues
+    -- (spec, "Ranked"), not to a picked opponent — and `source = 'offer'` is
+    -- exactly that pick-your-opponent path, whether live or scheduled. This
+    -- is only HALF of the spec's predicate, though: `matches` carries no
+    -- `league` column, so canonical-league eligibility cannot be derived from
+    -- this row today. A `source = 'queue'` match that is NOT on a canonical
+    -- league would wrongly get `rating_counted = true` here. The rating pass
+    -- that lands later must RE-DERIVE eligibility from the match's format,
+    -- not trust this flag.
     update public.matches
-       set state = 'confirmed', rating_counted = true, amend_deadline = null
+       set state = 'confirmed', rating_counted = (m.source = 'queue'), amend_deadline = null
      where id = p_match_id;
     return 'confirmed';
   end if;

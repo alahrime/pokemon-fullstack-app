@@ -312,4 +312,43 @@ describe('match reports and adjudicated rounds', () => {
     await submit(userB, matchId, '{a,a}');
     await expect(submit(userA, matchId, '{b,b}')).rejects.toThrow(/no longer accepting reports/);
   });
+
+  it('turns a lapsed amend window into a dispute, and only once it has lapsed', async () => {
+    const matchId = await makeMatch();
+    await submit(userA, matchId, '{a,a}');
+    await submit(userB, matchId, '{b,b}');
+
+    await sql(`select public.sweep_matches()`);
+    const [early] = await sql<{ state: string }>(`select state from public.matches where id = '${matchId}'`);
+    expect(early.state, 'still inside the window').toBe('mismatch');
+
+    await sql(`update public.matches set amend_deadline = now() - interval '1 minute' where id = '${matchId}'`);
+    await sql(`select public.sweep_matches()`);
+    const [late] = await sql<{ state: string; amend_deadline: string | null }>(
+      `select state, amend_deadline from public.matches where id = '${matchId}'`,
+    );
+    expect(late.state).toBe('disputed');
+    expect(late.amend_deadline).toBeNull();
+  });
+
+  it('gives up on a match nobody reported, and does not count it', async () => {
+    const matchId = await makeMatch();
+    await sql(`update public.matches set created_at = now() - interval '49 hours' where id = '${matchId}'`);
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string; rating_counted: boolean }>(
+      `select state, rating_counted from public.matches where id = '${matchId}'`,
+    );
+    expect(m.state).toBe('unverified');
+    expect(m.rating_counted).toBe(false);
+  });
+
+  it('leaves a confirmed match alone forever', async () => {
+    const matchId = await makeMatch();
+    await submit(userA, matchId, '{a,a}');
+    await submit(userB, matchId, '{a,a}');
+    await sql(`update public.matches set created_at = now() - interval '400 days' where id = '${matchId}'`);
+    await sql(`select public.sweep_matches()`);
+    const [m] = await sql<{ state: string }>(`select state from public.matches where id = '${matchId}'`);
+    expect(m.state).toBe('confirmed');
+  });
 });

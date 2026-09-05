@@ -41,7 +41,7 @@ select name, created_at from vault.secrets order by name;
 ```
 
 A row in `net._http_response` is the proof: `net.http_request_queue` never gains one on the
-unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0}` — the zeros are right,
+unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0,"matches":0}` — the zeros are right,
 production's board is empty. `401` means the value stored under
 `coordinator_service_role_key` is not the service-role key; `404` means `coordinator_url` is
 wrong; empty, with both names present and a tick newer than them, means a misspelled name.
@@ -382,7 +382,7 @@ select status, return_message, start_time
 select status_code, content from net._http_response order by id desc limit 1;  -- expect 200
 ```
 
-A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N}`.
+A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N,"matches":N}`.
 
 **Names, spelled exactly.** `coordinator_url` and `coordinator_service_role_key`, underscores
 throughout. A typo here is not a failure, it is silence — see the symptom below. To change either

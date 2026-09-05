@@ -78,5 +78,6 @@ Deno.serve(async () => {
 
   const { data: paired } = await admin.rpc('pair_queue_entries');
   const { data: swept } = await admin.rpc('sweep_expired');
-  return Response.json({ verified, paired, swept });
+  const { data: sweptMatches } = await admin.rpc('sweep_matches');
+  return Response.json({ verified, paired, swept, matches: sweptMatches ?? 0 });
 });

@@ -307,6 +307,29 @@ been taken was taken.
 
 ---
 
+## This machine can no longer run `npm run check` reliably — read this before trusting a red gate
+
+The app suite uses a 5-second per-test timeout, and with the 12-container Supabase stack up (plus
+anything else running) this box starves it. Symptoms, all observed repeatedly on 2026-09-06:
+
+- Every failure is `Test timed out in 5000ms`, and every failing test's own reported duration is
+  ABOVE 5000ms. Zero assertion failures.
+- **The failing SET moves between runs.** One run hit `SpriteAudit`/`pairLookup`/`AddPokemonModal`;
+  the next hit `CoresScreen`/`TeamBuilder`/`team-saves`. A deterministic bug does not wander.
+- A variant that looks different but is not: `no Azumarill` / `no search result for "azumarill"`.
+  That is the LAZY DATA LOAD failing to resolve under thrash, which surfaces as a FAST failure
+  rather than a timeout. `azumarill` IS in `species.json` — 3 occurrences. Do not go hunting a data
+  bug.
+- The same files pass in isolation. `npx vitest run <the failing files>` → green.
+
+**How to get a real measurement:** run `npm run check` with NOTHING else running — no agent, no
+second suite, no `db:reset` in flight — or run the specific files in isolation. Counts observed on a
+quiet machine: 1262/1262 green; on a loaded one, anywhere from 4 to 73 spurious failures.
+
+**Do not "fix" a timeout, and do not raise the timeout to make the gate pass.** The gate is correct;
+the hardware is the problem. `npm run check:db` is unaffected — it talks to Postgres directly and has
+been green throughout.
+
 ## Do this first
 
 ```bash

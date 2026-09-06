@@ -274,15 +274,22 @@ describe('channels and membership', () => {
     expect(blockerInsert.message).toMatch(POLICY_DENIED);
   });
 
-  // The other half of the same rule: outside a DM, a block stays
-  // DIRECTIONAL. A group can hold members beyond the two parties to a block,
-  // and a symmetric rule there would let one blocker mute themselves (and
-  // effectively censor their own voice) to every other member of the room
-  // over a block aimed at just one of them — the product ruling is explicit
-  // that this must NOT happen. Run as `authenticated` via `asUser`, same as
-  // the DM test above, so this cannot pass merely because a superuser bypasses
-  // RLS either way.
-  it('keeps a block directional in a group: the blocked member cannot post, the blocker still can', async () => {
+  // Product ruling (2026-09-08, `20260908000000_group_and_match_blocks_stop_
+  // muting_the_whole_room.sql`): a block has NO effect on posting in a group
+  // or match channel at all, superseding this test's earlier assertion that
+  // the blocked member specifically was refused. The earlier "directional"
+  // rule only kept the BLOCKER able to post — it still refused the BLOCKED
+  // party for the WHOLE room, silencing them to every other member (cal
+  // here) who never blocked them and has no say in the matter. RLS cannot
+  // scope an INSERT's refusal to just the blocking pair (a row is inserted
+  // once, for every future reader at once), and the group's own SELECT
+  // policy already shows every member's messages to every other member with
+  // no block clause at all — so making INSERT consistent with that, rather
+  // than adding a second, incompatible idea of what a block means, is the
+  // fix. A block placed inside a group continues to do nothing there by
+  // design; it still bites in a DM (tests above) and in matchmaking
+  // (`social.test.ts`), neither of which this migration touches.
+  it('lets everyone in a group keep posting after a block between two of its members, in either direction', async () => {
     await befriend(ann, bob);
     await befriend(ann, cal);
     const [g] = await asUser({ sub: ann })<{ create_group: string }>(
@@ -290,16 +297,38 @@ describe('channels and membership', () => {
     );
     await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
 
-    // bob is blocked and cannot post.
-    const blockedInsert = await refusal(() =>
-        asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'still here')`),
-    );
-    expect(blockedInsert.message).toMatch(POLICY_DENIED);
-
-    // ann, the blocker, can still post — cal, the third member, is untouched
-    // by a block ann placed on someone else entirely.
+    // bob, the blocked party, can still post to the room.
+    await asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'still here')`);
+    // ann, the blocker, can still post too — unaffected either way.
     await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'fine')`);
+    // cal, blocked by nobody and blocking nobody, was never at risk, but is
+    // asserted anyway so this test does not silently pass on a group RLS
+    // never actually exercised for a member outside the block.
     await asUser({ sub: cal })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'also fine')`);
+
+    expect(await sql(`select body from public.messages where channel_id = '${g.create_group}' order by created_at`))
+      .toEqual([{ body: 'still here' }, { body: 'fine' }, { body: 'also fine' }]);
+  });
+
+  it('lets a MATCH channel keep working after a block between its two players, in either direction', async () => {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Block Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bc') returning id`,
+    );
+    const [m] = await sql<{ id: string }>(
+      `insert into public.matches (player_a, player_b, format_version_id, rules_hash, team_a, team_b, data_rev, seed, source)
+       values ('${ann}', '${bob}', '${v.id}', 'bc', '[]'::jsonb, '[]'::jsonb, 'r', 's', 'queue') returning id`,
+    );
+    const [c] = await sql<{ id: string }>(`select id from public.channels where match_id = '${m.id}'`);
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${bob}', '${ann}')`);
+
+    // ann, blocked by bob, can still post in the match channel.
+    await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${c.id}', 'gg')`);
+    // bob, the blocker, is unaffected either way.
+    await asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${c.id}', 'gg to you too')`);
   });
 
   it('gives a new message a seven-day life', async () => {

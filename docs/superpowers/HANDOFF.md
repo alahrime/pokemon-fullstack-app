@@ -20,9 +20,64 @@ design authority; the plans argue from it.
 | **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
 | **Friend codes** — the account screen collects one | **Merged, deployed, verified** (`996be91`). Migration confirmed present in production's own schema dump; the field renders on the deployed site. |
 | **M2b** — reporting and adjudication | **Built, merged to local `main`, NOT pushed.** Both gates green, roundtrip 11/11. Plan: `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
-| **M3a** — friendships and blocks | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3a-friendships-and-blocks.md` |
+| **M3a** — friendships and blocks | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1233/1233 and 180/180; roundtrips 9/9 and 11/11. |
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
+
+---
+
+## Where this session left off — 2026-09-06
+
+**M3a (friendships and blocks) is complete, reviewed and PUSHED.** Both gates green on a quiet
+machine — `npm run check` 1233/1233 (87 files), `npm run check:db` 180/180 — and both two-account
+roundtrips pass against the real stack through the shipping client modules: `m3a-roundtrip` 9/9 and
+`m2b-roundtrip` 11/11. That second one matters: M3a rewrote `pair_queue_entries()` and added a
+trigger to `match_offers`, so M2b was the most likely thing to regress and did not.
+
+**What M3a delivers.** `friendships` as ONE row per canonically ordered pair — not one per
+direction, which makes two contradictory rows about one friendship unrepresentable. `blocks`
+one-directional and invisible to the blocked: no policy at all for that side, not a narrowed one.
+Four `security definer` RPCs are the only way a friendship changes, serialized per pair by
+`pg_advisory_xact_lock`. `friend_codes` widens to accepted friends. Blocks bite in the blind queue
+and on the offer board. Plus a client data layer, a Friends screen, and the roundtrip.
+
+**Three traps this milestone hit, all of the same shape, all now closed.** Each was invisible to
+`db:reset` and to every SQL-level test, and would have failed only for a real signed-in user:
+- An RLS policy expression is evaluated with the QUERYING role's privileges — `security definer`
+  does not apply to it. The `friend_codes` policy calls `pair_lo`/`pair_hi`, so `authenticated`
+  needs EXECUTE on them. It now has it.
+- A trigger function without `security definer` runs as the invoking user. `accept_offer_blocked_guard`
+  calls `blocked_between`, so it had to become `security definer` rather than the function being
+  granted. **Do not grant `blocked_between` to `authenticated`** — it is `security definer` and
+  answers for ANY pair, so a grant would let a signed-in user probe whether two strangers have
+  blocked each other, which is the detectability the whole design exists to prevent.
+- Postgres auto-grants EXECUTE to PUBLIC on a new function. Every new function needs
+  `revoke ... from public, anon` BEFORE its grant. This bit the project three times across M2b and M3a.
+
+**The invariant is NARROWED, not achieved — do not sign it off as verified.** "A blocked user must
+never be able to detect the block" holds on every surface the roundtrip measures. But the Friends
+screen's own search box reads `profiles`, which is `using (true)` with no block clause, so a user
+can confirm a target exists before pressing Send. `request_friendship`'s single uninformative
+sentence collapses {blocked, no such profile, yourself} — and the search removes two of those three,
+leaving an equivalence class of one. Every fix is a design change, not a string change, and the
+spec's own framing (section 3) is SILENCE — `NOT EXISTS` clauses in policies — rather than refusal.
+That trade deserves a deliberate ruling in M3b.
+
+**Two deferred items worth knowing.** The coordinator still swallows `pair_queue_entries`'s error
+(`coordinator/index.ts`) — the same bug class already paid for once with `sweep_expired`, and this
+milestone rewrote the very function it guards; it is an Edge Function, fixable without a migration.
+And the Friends screen renders raw uuids as identity where a display name was available, with an
+N+1 on `friend_codes`.
+
+**Every ruling, with what each costs if wrong, is in**
+`.superpowers/sdd/2026-09-05-m3a-friendships-and-blocks/progress.md` — 17 rulings and the deferred
+minors, triaged by the whole-branch review. Read it before reopening any of this. The M2b ledger
+sits beside it.
+
+**M3b (channels: DMs, group chats, the match channel) is planned and not started** —
+`docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md`. Its `refusal()` defect is
+already corrected; expect more of the same class, since seven defects were found in this session's
+own plan text and every one was in a passage that rewrote an existing function.
 
 ---
 

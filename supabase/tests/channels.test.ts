@@ -208,4 +208,57 @@ describe('channels and membership', () => {
     expect(await sql(`select * from public.channels where match_id = '${m.id}'`),
       'the channel goes with the match').toHaveLength(0);
   });
+
+  it('lets a member post and read, and a non-member neither', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    await asUser({ sub: ann })(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'hello')`,
+    );
+    expect(await asUser({ sub: bob })(`select body from public.messages where channel_id = '${dm.open_dm}'`)).toHaveLength(1);
+    expect(await asUser({ sub: cal })(`select body from public.messages where channel_id = '${dm.open_dm}'`)).toHaveLength(0);
+    const nonMemberInsert = await refusal(() =>
+        asUser({ sub: cal })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'intruding')`),
+    );
+    expect(nonMemberInsert.message).toMatch(POLICY_DENIED);
+  });
+
+  it('stops a blocked person posting into a dm they already share', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+    const blockedInsert = await refusal(() =>
+        asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'still here')`),
+    );
+    expect(blockedInsert.message).toMatch(POLICY_DENIED);
+    // And ann can still post; a block is one-directional.
+    await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'fine')`);
+  });
+
+  it('gives a new message a seven-day life', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [msg] = await asUser({ sub: ann })<{ expires_at: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'tick')
+       returning expires_at`,
+    );
+    const days = (new Date(msg.expires_at).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+  });
+
+  it('lets an author edit and soft-delete their own message only', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [msg] = await asUser({ sub: ann })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'typo') returning id`,
+    );
+    await asUser({ sub: bob })(`update public.messages set body = 'hijacked' where id = '${msg.id}'`);
+    const [after] = await sql<{ body: string }>(`select body from public.messages where id = '${msg.id}'`);
+    expect(after.body, 'filtered out by USING, 0 rows, no error').toBe('typo');
+
+    await asUser({ sub: ann })(`update public.messages set body = 'fixed', edited_at = now() where id = '${msg.id}'`);
+    const [edited] = await sql<{ body: string }>(`select body from public.messages where id = '${msg.id}'`);
+    expect(edited.body).toBe('fixed');
+  });
 });

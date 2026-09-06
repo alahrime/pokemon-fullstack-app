@@ -223,16 +223,83 @@ describe('channels and membership', () => {
     expect(nonMemberInsert.message).toMatch(POLICY_DENIED);
   });
 
-  it('stops a blocked person posting into a dm they already share', async () => {
+  // Product decision (2026-09-06): a block is SYMMETRIC inside a DM. A DM has
+  // only two members, so the old directional rule ("the blocked party can't
+  // post, but the blocker still can") left the blocked party still receiving
+  // every message live while unable to answer — a harassment primitive
+  // inside the feature meant to prevent harassment. This test used to assert
+  // the opposite ("and ann can still post; a block is one-directional"); it
+  // now asserts BOTH directions are refused, which is a deliberate behaviour
+  // change driven by that product ruling, not a weakening of coverage.
+  it('stops both parties posting into a dm once either has blocked the other', async () => {
     await befriend(ann, bob);
     const [dm] = await openDm(ann, bob);
     await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+
     const blockedInsert = await refusal(() =>
         asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'still here')`),
     );
     expect(blockedInsert.message).toMatch(POLICY_DENIED);
-    // And ann can still post; a block is one-directional.
-    await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'fine')`);
+
+    // ann is the blocker, and stays refused too: the whole point of the
+    // symmetric rule is that choosing to block someone in a DM you share
+    // with them silences the conversation for both of you, not just them.
+    const blockerInsert = await refusal(() =>
+        asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'fine')`),
+    );
+    expect(blockerInsert.message).toMatch(POLICY_DENIED);
+  });
+
+  // Same rule, block placed by the OTHER party: a DM's symmetry does not
+  // depend on which of the two people did the blocking. `blocked_with_me`
+  // catches this direction on its own (bob is the one refused as "blocked"),
+  // but the new `i_blocked` branch must ALSO refuse bob here — bob is the
+  // channel's only "other" member from ann's point of view, and ann blocking
+  // nobody, cal blocking nobody, is not what's being tested; what matters is
+  // that whichever side placed the block, insert attempts from BOTH sides of
+  // this DM come back refused.
+  it('stops both parties posting into a dm when the SECOND party is the one who blocked', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${bob}', '${ann}')`);
+
+    const blockedInsert = await refusal(() =>
+        asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'still here')`),
+    );
+    expect(blockedInsert.message).toMatch(POLICY_DENIED);
+
+    const blockerInsert = await refusal(() =>
+        asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'fine')`),
+    );
+    expect(blockerInsert.message).toMatch(POLICY_DENIED);
+  });
+
+  // The other half of the same rule: outside a DM, a block stays
+  // DIRECTIONAL. A group can hold members beyond the two parties to a block,
+  // and a symmetric rule there would let one blocker mute themselves (and
+  // effectively censor their own voice) to every other member of the room
+  // over a block aimed at just one of them — the product ruling is explicit
+  // that this must NOT happen. Run as `authenticated` via `asUser`, same as
+  // the DM test above, so this cannot pass merely because a superuser bypasses
+  // RLS either way.
+  it('keeps a block directional in a group: the blocked member cannot post, the blocker still can', async () => {
+    await befriend(ann, bob);
+    await befriend(ann, cal);
+    const [g] = await asUser({ sub: ann })<{ create_group: string }>(
+      `select public.create_group('Squad', array['${bob}','${cal}']::uuid[]) as create_group`,
+    );
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+
+    // bob is blocked and cannot post.
+    const blockedInsert = await refusal(() =>
+        asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'still here')`),
+    );
+    expect(blockedInsert.message).toMatch(POLICY_DENIED);
+
+    // ann, the blocker, can still post — cal, the third member, is untouched
+    // by a block ann placed on someone else entirely.
+    await asUser({ sub: ann })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'fine')`);
+    await asUser({ sub: cal })(`insert into public.messages (channel_id, body) values ('${g.create_group}', 'also fine')`);
   });
 
   it('gives a new message a seven-day life', async () => {

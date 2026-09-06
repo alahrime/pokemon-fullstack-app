@@ -52,16 +52,29 @@
  * `authenticated` — they are SECURITY DEFINER and answer for any arbitrary
  * pair, so a client able to call them directly would have a working detector
  * for strangers' relationships. This script never calls any of the three,
- * from either bot client or the admin client. `blocked_with_me(p_other)` IS
- * granted and caller-scoped, but this script never needs to call it either —
- * check 8 only needs to observe the refusal `blocked_with_me` produces
- * indirectly, through the `messages` INSERT policy.
+ * from either bot client or the admin client. `blocked_with_me(p_other)` and
+ * `i_blocked(p_other)` ARE granted and caller-scoped, but this script never
+ * needs to call either — check 8 only needs to observe the refusals they
+ * produce indirectly, through the `messages` INSERT policy.
  *
  * Check 8 asserts a REFUSAL, not concealment: Ruling B5 in this plan's
  * progress ledger (2026-09-06) is a product decision that a block being
  * detectable by a participant is accepted behaviour — the `messages` INSERT
  * policy's refusal is observable by design, and that is intended, not a gap.
  * Do not "fix" check 8 into asserting silence.
+ *
+ * Check 8 asserts a SYMMETRIC refusal in the DM, a later product ruling on
+ * top of B5: a block inside a DM now silences BOTH parties, not just the
+ * blocked one (see `20260907003000_messages.sql`'s `i_blocked` and the
+ * `kind = 'dm'` branch of the INSERT policy). This is a deliberate behaviour
+ * change from this script's earlier version, which asserted the opposite —
+ * that the blocker could still post ("one-directional") — because a DM with
+ * only two members has nobody else for a directional block to protect, and
+ * the previous rule left the blocked party still receiving every message
+ * live while unable to answer. A group or match channel is unaffected: there
+ * a symmetric rule would mute a blocker to every OTHER member of the room
+ * over a block aimed at just one of them, so `blocked_with_me` alone still
+ * governs there, unchanged.
  *
  * ---------------------------------------------------------------------------
  * RUN IT (from `app/`, against the LOCAL stack only, WITH `edge_runtime` up —
@@ -625,7 +638,7 @@ async function main(): Promise<void> {
 
   // =========================================================================
   await check(
-    '8. bot1 blocks bot2: bot2 sending into the shared DM is refused; bot1 sending still succeeds (one-directional)',
+    '8. bot1 blocks bot2: a DM block is SYMMETRIC — neither bot2 nor bot1 (the blocker) can post into the shared DM',
     async () => {
       const blocked = await as(bot1, () => blockUser(bot2.id));
       assert(blocked === true, `blockUser(bot1 -> bot2) returned ${show(blocked)}, expected true`);
@@ -642,10 +655,24 @@ async function main(): Promise<void> {
       }
       assert(bot2Refusal.length > 0, 'bot2 was not refused with any message');
 
-      const bot1Sent = await as(bot1, () => sendMessage(dmId, 'bot1 still speaking after blocking bot2'));
-      assert(!!bot1Sent.id, "bot1's sendMessage after blocking bot2 did not return a message");
+      // Product ruling (2026-09-06, see this file's header): in a DM the
+      // block is symmetric, so bot1 — the blocker, who chose to stay in this
+      // conversation — is now ALSO refused. This is a deliberate reversal of
+      // this check's earlier assertion that bot1 "still succeeds
+      // (one-directional)"; a DM has only two members, so the old directional
+      // rule left bot2 muted while bot1 kept broadcasting into a channel bot2
+      // could not answer in — the harassment primitive the product ruling
+      // exists to close.
+      let bot1Refusal = '';
+      try {
+        await as(bot1, () => sendMessage(dmId, 'bot1 trying to speak after blocking bot2'));
+        throw new Error("bot1 sendMessage after blocking bot2 did not raise at all — a DM block must be symmetric");
+      } catch (e) {
+        bot1Refusal = e instanceof Error ? e.message : String(e);
+      }
+      assert(bot1Refusal.length > 0, 'bot1 (the blocker) was not refused with any message');
 
-      return `blockUser(bot1 -> bot2) -> true; bot2's sendMessage raised "${bot2Refusal}"; bot1's own sendMessage still succeeded (message ${bot1Sent.id})`;
+      return `blockUser(bot1 -> bot2) -> true; bot2's sendMessage raised "${bot2Refusal}"; bot1's own sendMessage (the blocker) also raised "${bot1Refusal}"`;
     },
   );
 }

@@ -44,12 +44,15 @@ create policy "a message is visible to the channel's members"
 --
 -- Deliberately DIRECTIONAL, unlike `blocked_between`: it asks only "did
 -- p_other block ME", not "does a block exist between us in either
--- direction". Messaging silences the BLOCKED party, not the blocker — a
--- symmetric check (mirroring `blocked_between`, which is right for mutual-
--- exclusion contexts like matchmaking and friend requests) would also stop
--- the person who did the blocking from posting into a DM they chose to stay
--- in, which contradicts the one-directional block this table's own test
--- asserts ("and ann can still post; a block is one-directional").
+-- direction". Directional is still the right shape in a GROUP or a MATCH
+-- channel — messaging there silences the BLOCKED party, not the blocker, and
+-- a symmetric check would let one blocker mute themselves to every other
+-- member of a room they didn't block. A DM is different: a channel with only
+-- two members and no one else to protect, where letting the blocker keep
+-- posting to a party who blocked them (or who they blocked) makes the block
+-- a one-way loudspeaker rather than a wall. `i_blocked` below is the other
+-- direction this function deliberately does NOT cover, and the two are
+-- combined below only inside the `kind = 'dm'` branch of the INSERT policy.
 --
 -- Do not widen this back to a two-argument (p_a, p_b) function and do not
 -- grant execute on blocked_between(uuid, uuid) to authenticated to work
@@ -72,9 +75,56 @@ $fn$;
 revoke all on function public.blocked_with_me(uuid) from public, anon;
 grant execute on function public.blocked_with_me(uuid) to authenticated;
 
+-- The caller-scoped mirror of `blocked_with_me`: that one answers "did
+-- p_other block ME", this one answers "did I block p_other". Product
+-- decision: a block is SYMMETRIC inside a DM (once either party has blocked
+-- the other, neither may post there — see the INSERT policy below), but
+-- stays DIRECTIONAL everywhere else, so the policy needs both halves of the
+-- pair to enforce the DM case and only `blocked_with_me` for the rest.
+--
+-- Caller-scoped for the same reason `blocked_with_me` and `is_channel_member`
+-- are: it derives ONE side of the pair (here, the blocker) from `auth.uid()`
+-- internally, so a caller can only ever ask "did I block this specific
+-- person I already share a channel with" — never "did X block Y" for an
+-- arbitrary pair. That is what makes it safe to grant, unlike
+-- `blocked_between`, which is SECURITY DEFINER, bypasses RLS, and answers for
+-- any pair — it stays ungranted to `authenticated`, exactly as it has been
+-- since M3a, and this function must never be widened to take both sides as
+-- arguments to work around that.
+create or replace function public.i_blocked(p_other uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select exists (
+    select 1 from public.blocks
+     where blocker_id = (select auth.uid()) and blocked_id = p_other
+  )
+$fn$;
+
+-- Three roles, not two: this stack's default privileges grant EXECUTE on a
+-- new function to `authenticated` in addition to Postgres's own PUBLIC
+-- grant, so revoking only `public, anon` (as `blocked_with_me` above does,
+-- immediately followed by an explicit grant to `authenticated`) would leave
+-- an *unintended* grant standing on any function whose revoke line forgot to
+-- also name `authenticated` explicitly before its own considered grant.
+revoke all on function public.i_blocked(uuid) from public, anon, authenticated;
+grant execute on function public.i_blocked(uuid) to authenticated;
+
 -- The block enforcement the spec asks for, as a `not exists` clause in the
 -- policy of the table it constrains. It cannot live in `blocks`, because the
 -- blocked side has no read on that table by design.
+--
+-- The `kind = 'dm'` branch is why this is `not exists (... and (A or (B and
+-- C)))` rather than a flat `blocked_with_me` check: in a DM the two
+-- `channel_members` rows are its only two parties, so the "other" row this
+-- loop ever sees IS the whole other side of the block, and asking `i_blocked`
+-- about them is exactly the symmetric rule the product decision calls for. In
+-- a group or match channel, `other` ranges over every member but the two
+-- extra clauses stay false for every one of them (the channel's own kind
+-- fails `= 'dm'`), leaving only `blocked_with_me` — unchanged, directional.
 create policy "a member who is not blocked may post"
   on public.messages for insert
   to authenticated
@@ -86,7 +136,16 @@ create policy "a member who is not blocked may post"
         from public.channel_members other
        where other.channel_id = messages.channel_id
          and other.user_id <> (select auth.uid())
-         and public.blocked_with_me(other.user_id)
+         and (
+           public.blocked_with_me(other.user_id)
+           or (
+             public.i_blocked(other.user_id)
+             and exists (
+               select 1 from public.channels c
+                where c.id = messages.channel_id and c.kind = 'dm'
+             )
+           )
+         )
     )
   );
 

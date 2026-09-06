@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
+import { useSession } from '../state/SessionContext';
 import {
   listChannels,
   listMessages,
@@ -51,9 +52,27 @@ function labelOf(c: Channel): string {
  * to that match's channel when this screen is the one just navigated to —
  * guarded by a ref rather than state so a later channel switch made by hand
  * is never undone by this effect running again.
+ *
+ * The Report control is never rendered for a message this viewer authored
+ * (reporting yourself is meaningless) or one already soft-deleted (its body
+ * is gone; there is nothing left for a moderator to act on) — `isOwn` below
+ * compares `m.authorId` to `useSession().user?.id`, the same identity source
+ * `FriendsScreen` and every other screen with a signed-in-only action reads.
+ * `reportedIds` is local, per-mount UI state, not a fact the server
+ * remembers, so it is cleared every time `selectedId` changes — otherwise a
+ * message reported in one conversation would still read "Reported" after
+ * switching to a different one that happens to reuse the same message id
+ * ordering, which is a false claim about a channel this session never acted
+ * on. The reason itself is collected by an inline form in the house
+ * vocabulary (`.chat-report-form`, modelled on `FriendsScreen`'s
+ * `.friend-search-row`) rather than `window.prompt()`, which is unstyled,
+ * untestable with `fireEvent`, and suppressed entirely in some browser
+ * contexts (an in-page iframe, some embedded webviews) — a control that can
+ * silently do nothing is worse than one that is merely ugly.
  */
 export function ChatScreen() {
   const { state } = useAppState();
+  const { user } = useSession();
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -64,6 +83,10 @@ export function ChatScreen() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportingId, setReportingId] = useState<string | null>(null);
+  // Which message's inline report form is open, if any — at most one at a
+  // time, mirroring how only one channel's transcript is ever open.
+  const [openReportId, setOpenReportId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
   const autoOpened = useRef(false);
 
   useEffect(() => {
@@ -90,6 +113,11 @@ export function ChatScreen() {
     let live = true;
     setMessages([]);
     setThreadError(null);
+    // Local UI state about a PREVIOUS conversation's messages must not leak
+    // into this one — see this component's own doc comment.
+    setReportedIds(new Set());
+    setOpenReportId(null);
+    setReportReason('');
     void listMessages(selectedId)
       .then((ms) => {
         if (live) setMessages(ms);
@@ -127,14 +155,16 @@ export function ChatScreen() {
     }
   }
 
-  async function report(id: string) {
-    const reason = window.prompt('Why are you reporting this message?');
+  async function submitReport(id: string) {
+    const reason = reportReason.trim();
     if (!reason) return;
     setReportingId(id);
     setSendError(null);
     try {
       await reportMessage(id, reason);
       setReportedIds((prev) => new Set(prev).add(id));
+      setOpenReportId(null);
+      setReportReason('');
     } catch (e) {
       setSendError(messageOf(e));
     } finally {
@@ -195,29 +225,77 @@ export function ChatScreen() {
               )}
 
               <ul className="chat-transcript">
-                {messages.map((m) => (
-                  <li
-                    key={m.id}
-                    className={`chat-message${m.deletedAt ? ' is-deleted' : ''}`}
-                  >
-                    <p className="chat-message-body">
-                      {m.deletedAt ? 'Message deleted' : m.body}
-                    </p>
-                    {reportedIds.has(m.id) ? (
-                      <span className="text-faint">Reported</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        aria-label={`Report message ${m.id}`}
-                        disabled={reportingId === m.id}
-                        onClick={() => void report(m.id)}
-                      >
-                        Report
-                      </button>
-                    )}
-                  </li>
-                ))}
+                {messages.map((m) => {
+                  // Reporting yourself is meaningless, and a deleted message
+                  // has no body left for a moderator to read — the control
+                  // is not rendered for either case, rather than rendered
+                  // and refused.
+                  const isOwn = !!user && m.authorId === user.id;
+                  const canReport = !isOwn && !m.deletedAt;
+                  return (
+                    <li
+                      key={m.id}
+                      className={`chat-message${m.deletedAt ? ' is-deleted' : ''}`}
+                    >
+                      <p className="chat-message-body">
+                        {m.deletedAt ? 'Message deleted' : m.body}
+                      </p>
+                      {canReport && reportedIds.has(m.id) && (
+                        <span className="text-faint">Reported</span>
+                      )}
+                      {canReport && !reportedIds.has(m.id) && openReportId === m.id && (
+                        <form
+                          className="chat-report-form"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void submitReport(m.id);
+                          }}
+                        >
+                          <input
+                            type="text"
+                            className="input"
+                            aria-label={`Report reason for message ${m.id}`}
+                            placeholder="Why are you reporting this message?"
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value)}
+                          />
+                          <button
+                            type="submit"
+                            className="btn btn-primary"
+                            aria-label={`Submit report for message ${m.id}`}
+                            disabled={!reportReason.trim() || reportingId === m.id}
+                          >
+                            {reportingId === m.id ? 'Reporting…' : 'Report'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            aria-label={`Cancel report for message ${m.id}`}
+                            onClick={() => {
+                              setOpenReportId(null);
+                              setReportReason('');
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      )}
+                      {canReport && !reportedIds.has(m.id) && openReportId !== m.id && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          aria-label={`Report message ${m.id}`}
+                          onClick={() => {
+                            setOpenReportId(m.id);
+                            setReportReason('');
+                          }}
+                        >
+                          Report
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
 
               <form

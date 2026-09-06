@@ -6237,3 +6237,17 @@ th.bt-matrix-head { text-align: center; }
 .chat-compose .input {
   width: 100%;
 }
+/* Report reason: an inline row that replaces the Report button in place,
+   the same input+button pairing `.friend-search-row` already uses — never a
+   `window.prompt()`, which is unstyled, untestable, and suppressed entirely
+   in some browser contexts. */
+.chat-report-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.chat-report-form .input {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+}

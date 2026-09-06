@@ -202,6 +202,61 @@ describe('friendships and blocks', () => {
     await sql(`delete from public.queue_entries where user_id in ('${ann}','${bob}')`);
   });
 
+  it('skips a blocked pair without quarantining the third party sharing their group', async () => {
+    // The test above only proves ann and bob do not pair with EACH OTHER,
+    // which a version of pair_queue_entries() that just refused to pair
+    // anyone in a group touching a block would also satisfy. What actually
+    // matters is that a blocked pair is SKIPPED — the scan keeps searching
+    // for a different partner rather than giving up on the whole
+    // (verified_hash, league, data_rev) group — so cal, unblocked and sharing
+    // that same group, must still get matched with one of them in a SINGLE
+    // tick, and whichever of ann/bob is left over must still be queued for
+    // the next one.
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Block Skip Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bs') returning id`,
+    );
+    await asUser({ sub: ann })(`select public.block_user('${bob}')`);
+    // Through `sql()` (the superuser connection), not `asUser`, the same way
+    // `enqueue()` does it in pairing.test.ts: `verified_hash` is server-only,
+    // and the "a queue entry is its owner's" WITH CHECK on
+    // public.queue_entries (20260904071716_handshake_columns_are_server_only.sql)
+    // requires it be null on a client insert.
+    for (const who of [ann, bob, cal]) {
+      await sql(
+        `insert into public.queue_entries (user_id, league, format_version_id, claimed_hash, verified_hash, team, data_rev)
+         values ('${who}', 'great', '${v.id}', 'bs', 'bs', '[]'::jsonb, 'rev1')`,
+      );
+    }
+
+    const [{ pair_queue_entries: paired }] = await sql<{ pair_queue_entries: number }>(
+      `select public.pair_queue_entries()`,
+    );
+    expect(Number(paired)).toBe(1);
+
+    const matches = await sql<{ player_a: string; player_b: string }>(
+      `select player_a, player_b from public.matches
+        where player_a in ('${ann}','${bob}','${cal}') or player_b in ('${ann}','${bob}','${cal}')`,
+    );
+    expect(matches).toHaveLength(1);
+    const [match] = matches;
+    const parties = [match.player_a, match.player_b];
+    expect(parties).toContain(cal);
+    expect(parties.some((p) => p === ann || p === bob)).toBe(true);
+
+    const stillQueued = await sql<{ user_id: string }>(
+      `select user_id from public.queue_entries where user_id in ('${ann}','${bob}','${cal}')`,
+    );
+    expect(stillQueued).toHaveLength(1);
+    expect([ann, bob]).toContain(stillQueued[0].user_id);
+
+    await sql(`delete from public.queue_entries where user_id in ('${ann}','${bob}','${cal}')`);
+    await sql(`delete from public.matches where player_a in ('${ann}','${bob}','${cal}') or player_b in ('${ann}','${bob}','${cal}')`);
+  });
+
   it('lets an unblocked accept through and refuses a blocked one, with the same message a lapse gives', async () => {
     const [f] = await sql<{ id: string }>(
       `insert into public.formats (owner_id, name) values ('${ann}', 'Block Offer Cup') returning id`,

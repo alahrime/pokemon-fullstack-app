@@ -166,6 +166,19 @@ begin
 end;
 $fn$;
 
+-- `create function` grants EXECUTE to PUBLIC by default, same as every other
+-- function in this diff. Unlike the others, this one is never called
+-- directly at all — only Postgres invokes it, as the trigger below fires —
+-- so there is no role to grant it to. Closing PUBLIC's default anyway, both
+-- for consistency with every other function this migration and its
+-- predecessor create, and because a bare EXECUTE grant is dead weight this
+-- function has no use for: attempting to call it outside a trigger context
+-- fails regardless ("trigger functions can only be called as triggers"), so
+-- the revoke changes nothing reachable today — it only removes a grant that
+-- would otherwise sit around as the one exception to the rule the rest of
+-- this work was built on.
+revoke all on function public.accept_offer_blocked_guard() from public, anon, authenticated;
+
 -- Correction: a bare `before update` fires on EVERY update to this row, not
 -- only the acceptance that sets `accepted_by`. `sweep_expired()` (deployed,
 -- 20260903005933_pairing_functions.sql) bulk-updates

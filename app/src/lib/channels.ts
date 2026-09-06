@@ -184,6 +184,15 @@ export async function markRead(channelId: string): Promise<void> {
 }
 
 /**
+ * The four states Supabase's own `.subscribe()` callback can report. Passed
+ * through verbatim from `@supabase/realtime-js`'s `REALTIME_SUBSCRIBE_STATES`
+ * rather than importing that type, so this module does not have to chase a
+ * dependency's internal type export across a version bump for four string
+ * literals it already knows.
+ */
+export type ChannelStatus = 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED';
+
+/**
  * Returns its own teardown, and the teardown is IDEMPOTENT.
  *
  * StrictMode mounts an effect, tears it down and mounts it again. A teardown
@@ -200,10 +209,25 @@ export async function markRead(channelId: string): Promise<void> {
  * closes over the specific subscription object THIS call created and a local
  * `stopped` flag, so calling it again is a no-op no matter what has opened or
  * closed since.
+ *
+ * `onStatus`, an optional third argument, is `.subscribe()`'s own status
+ * callback surfaced to the caller — `SUBSCRIBED`, `CHANNEL_ERROR`,
+ * `TIMED_OUT` or `CLOSED`. Optional and additive rather than a change to the
+ * return shape, so `ChatScreen.tsx`'s existing
+ * `const stop = subscribeToChannel(...)` keeps working with no change: a
+ * caller that does not need to know when the join completes never has to
+ * think about it. Before this, nothing could tell a caller when the
+ * subscription was actually live — `app/tools/m3b-roundtrip.ts`'s check 3
+ * (the only thing in the project proving the `supabase_realtime` publication
+ * is wired) slept a fixed 1500ms before sending and hoped the join had
+ * finished, which produced a false FAILURE after `db:reset` restarts the
+ * realtime container and could in principle produce a false PASS the other
+ * way. That check now awaits this callback's first `SUBSCRIBED` instead.
  */
 export function subscribeToChannel(
   channelId: string,
   onMessage: (m: Message) => void,
+  onStatus?: (status: ChannelStatus) => void,
 ): () => void {
   const sub = supabase
     .channel(`messages:${channelId}:${crypto.randomUUID()}`)
@@ -217,7 +241,9 @@ export function subscribeToChannel(
       },
       (payload: { new: MessageRow }) => onMessage(toMessage(payload.new)),
     )
-    .subscribe();
+    .subscribe((status: string) => {
+      onStatus?.(status as ChannelStatus);
+    });
 
   let stopped = false;
   return () => {

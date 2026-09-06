@@ -116,6 +116,27 @@ describe('subscribeToChannel', () => {
     expect(removeChannel).toHaveBeenCalledTimes(2);
   });
 
+  it('forwards .subscribe()\'s status callback to an optional onStatus argument', () => {
+    const onStatus = vi.fn();
+    subscribeToChannel('c1', () => {}, onStatus);
+    // `.subscribe(callback)` — grab the callback the module registered and
+    // drive it the way realtime-js would, one status at a time.
+    const statusCallback = subscribe.mock.calls[0][0] as (s: string) => void;
+    statusCallback('SUBSCRIBED');
+    expect(onStatus).toHaveBeenCalledWith('SUBSCRIBED');
+    statusCallback('CHANNEL_ERROR');
+    expect(onStatus).toHaveBeenCalledWith('CHANNEL_ERROR');
+  });
+
+  it('never calls onStatus when the caller does not pass one', () => {
+    // Additive, not a breaking change: `ChatScreen.tsx` calls this with only
+    // two arguments, so `.subscribe()`'s callback must tolerate that with no
+    // throw — `onStatus?.(...)` rather than `onStatus(...)`.
+    subscribeToChannel('c1', () => {});
+    const statusCallback = subscribe.mock.calls[0][0] as (s: string) => void;
+    expect(() => statusCallback('SUBSCRIBED')).not.toThrow();
+  });
+
   it('delivers an INSERT payload to the caller as a mapped Message', () => {
     const onMessage = vi.fn();
     subscribeToChannel('c1', onMessage);

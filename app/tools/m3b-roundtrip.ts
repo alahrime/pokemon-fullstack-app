@@ -65,16 +65,31 @@
  *
  * Check 8 asserts a SYMMETRIC refusal in the DM, a later product ruling on
  * top of B5: a block inside a DM now silences BOTH parties, not just the
- * blocked one (see `20260907003000_messages.sql`'s `i_blocked` and the
- * `kind = 'dm'` branch of the INSERT policy). This is a deliberate behaviour
- * change from this script's earlier version, which asserted the opposite —
- * that the blocker could still post ("one-directional") — because a DM with
- * only two members has nobody else for a directional block to protect, and
- * the previous rule left the blocked party still receiving every message
- * live while unable to answer. A group or match channel is unaffected: there
- * a symmetric rule would mute a blocker to every OTHER member of the room
- * over a block aimed at just one of them, so `blocked_with_me` alone still
- * governs there, unchanged.
+ * blocked one (see `i_blocked` and the `kind = 'dm'` branch of the INSERT
+ * policy, both now in `20260908000000_group_and_match_blocks_stop_muting_
+ * the_whole_room.sql`, which replaced the original policy from
+ * `20260907003000_messages.sql`). This is a deliberate behaviour change from
+ * this script's earlier version, which asserted the opposite — that the
+ * blocker could still post ("one-directional") — because a DM with only two
+ * members has nobody else for a directional block to protect, and the
+ * previous rule left the blocked party still receiving every message live
+ * while unable to answer.
+ *
+ * A group or match channel is DIFFERENT AGAIN, and not simply "unaffected":
+ * `20260908000000_group_and_match_blocks_stop_muting_the_whole_room.sql`
+ * dropped the block check entirely for both kinds. The original directional
+ * rule (`blocked_with_me` alone, no DM branch) was measured to have a worse
+ * bug than the one it was designed to avoid — it kept the blocker posting,
+ * but refused the BLOCKED party for the WHOLE channel, silencing them to
+ * every OTHER member too, not just the one who blocked them. RLS cannot
+ * scope an INSERT's refusal to only the blocking pair, and the SELECT policy
+ * already shows every member's messages to every other member with no block
+ * clause at all, so a block now has NO effect on posting in a group or match
+ * channel — see that migration's own comment for the full reasoning and the
+ * two rejected alternatives. This script does not need a check for that:
+ * `supabase/tests/channels.test.ts` covers it at the RLS level, and nothing
+ * in this file's own eight checks ever posts into a group with a block in
+ * play.
  *
  * ---------------------------------------------------------------------------
  * RUN IT (from `app/`, against the LOCAL stack only, WITH `edge_runtime` up —
@@ -480,13 +495,51 @@ async function main(): Promise<void> {
       const waitForIt = new Promise<Message>((resolve) => {
         resolveReceived = resolve;
       });
-      const stop = subscribeToChannel(dmId, (m) => resolveReceived(m));
 
-      // Give the websocket a moment to actually join the channel and have the
-      // server start streaming it postgres_changes before bot1 sends — a send
-      // issued before the join completes would legitimately go unseen and
-      // would say nothing about whether the realtime publication is wired.
-      await sleep(1500);
+      // Wait on `subscribeToChannel`'s OWN join signal rather than a fixed
+      // sleep. The 1500ms sleep this replaced was a guess dressed up as a
+      // wait: too short after `npm run db:reset` restarts the realtime
+      // container, it produced a false FAILURE (the join had not finished
+      // when bot1 sent, so bot2's subscription legitimately never saw the
+      // insert) — and nothing stopped it from one day racing the other way
+      // and producing a false PASS. `onStatus` (added to `subscribeToChannel`
+      // alongside this check) reports `.subscribe()`'s real status, so this
+      // now awaits an actual `SUBSCRIBED` before bot1 sends anything.
+      let resolveJoined!: () => void;
+      let rejectJoined!: (e: Error) => void;
+      const joined = new Promise<void>((resolve, reject) => {
+        resolveJoined = resolve;
+        rejectJoined = reject;
+      });
+      const stop = subscribeToChannel(
+        dmId,
+        (m) => resolveReceived(m),
+        (status) => {
+          if (status === 'SUBSCRIBED') resolveJoined();
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            rejectJoined(new Error(`subscribeToChannel reported ${status} while joining ${dmId}`));
+          }
+        },
+      );
+
+      const joinTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              'TIMED OUT after 10000ms waiting for subscribeToChannel to report SUBSCRIBED.\n' +
+                '        The websocket never joined the channel — check the realtime container is\n' +
+                '        actually up (a fresh `db:reset` needs about a minute) before assuming the\n' +
+                '        publication itself is the problem.',
+            ),
+          );
+        }, 10_000);
+      });
+      try {
+        await Promise.race([joined, joinTimeout]);
+      } catch (e) {
+        stop();
+        throw e;
+      }
 
       // bot1 sends on a SECOND, independent client (see the file header for
       // why: signing bot1 in on the singleton mid-wait would swap the token
@@ -545,7 +598,7 @@ async function main(): Promise<void> {
         delivered.body === REALTIME_PROBE_BODY,
         `the delivered body is ${show(delivered.body)}, expected ${show(REALTIME_PROBE_BODY)}`,
       );
-      return `bot1 sent message ${realtimeMessageId} on a second client; bot2's subscribeToChannel delivered it live, well under 5s (author ${delivered.authorId})`;
+      return `subscribeToChannel reported SUBSCRIBED before bot1 sent (awaited, not slept); bot1 sent message ${realtimeMessageId} on a second client; bot2's subscribeToChannel delivered it live, well under 5s (author ${delivered.authorId})`;
     },
   );
 

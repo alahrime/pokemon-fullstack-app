@@ -60,8 +60,13 @@ create policy "a friendship is visible to its two sides"
 -- No write policy: every change goes through the functions in the next
 -- migration, which are the only place that canonicalises a pair and checks a
 -- block. Revoked as well as unpoliced, so a later `for all` policy cannot
--- quietly turn default-deny into a grant.
-revoke insert, update, delete on public.friendships from authenticated;
+-- quietly turn default-deny into a grant. `anon` is included alongside
+-- `authenticated`, matching the precedent this table's own repo already sets
+-- (20260905124000_match_reports_and_rounds.sql revokes writes from
+-- `anon, authenticated` together) — RLS default-denies `anon` regardless
+-- since no policy below grants it anything, so this closes an inconsistency
+-- with that precedent rather than an actual hole.
+revoke insert, update, delete on public.friendships from anon, authenticated;
 
 -- A block is yours alone. There is no policy for the blocked side at ALL —
 -- not a narrowed one — because any row they can see, or count, is a signal.

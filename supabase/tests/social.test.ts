@@ -154,4 +154,92 @@ describe('friendships and blocks', () => {
     expect(nothing.remove_friendship).toBe(false);
     expect(await sql(`select * from public.friendships`)).toHaveLength(1);
   });
+
+  it('shows a friend code to an accepted friend and to nobody else', async () => {
+    await sql(`insert into public.friend_codes (profile_id, code) values ('${bob}', '4444 5555 6666')
+               on conflict (profile_id) do update set code = excluded.code`);
+    expect(await asUser({ sub: ann })(`select code from public.friend_codes where profile_id = '${bob}'`)).toHaveLength(0);
+
+    await request(ann, bob);
+    expect(
+      await asUser({ sub: ann })(`select code from public.friend_codes where profile_id = '${bob}'`),
+      'pending is not accepted',
+    ).toHaveLength(0);
+
+    await respond(bob, ann, true);
+    expect(await asUser({ sub: ann })(`select code from public.friend_codes where profile_id = '${bob}'`)).toHaveLength(1);
+    expect(await asUser({ sub: cal })(`select code from public.friend_codes where profile_id = '${bob}'`)).toHaveLength(0);
+  });
+
+  it('never pairs two people who have blocked each other', async () => {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Block Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bb') returning id`,
+    );
+    await asUser({ sub: ann })(`select public.block_user('${bob}')`);
+    // Inserted through `sql()` (the superuser connection), not `asUser`:
+    // `verified_hash` is server-only — the "a queue entry is its owner's"
+    // WITH CHECK on public.queue_entries (added in
+    // 20260904071716_handshake_columns_are_server_only.sql) requires it be
+    // null on a client insert, and the coordinator that would normally set it
+    // is not running in this suite. `user_id` defaults to `auth.uid()`, which
+    // is null on this connection, so it is named explicitly here.
+    for (const who of [ann, bob]) {
+      await sql(
+        `insert into public.queue_entries (user_id, league, format_version_id, claimed_hash, verified_hash, team, data_rev)
+         values ('${who}', 'great', '${v.id}', 'bb', 'bb', '[]'::jsonb, 'rev1')`,
+      );
+    }
+    await sql(`select public.pair_queue_entries()`);
+    expect(
+      await sql(`select * from public.matches where player_a in ('${ann}','${bob}') or player_b in ('${ann}','${bob}')`),
+    ).toHaveLength(0);
+    // And both are still queued — a skipped pair is not a consumed one.
+    expect(await sql(`select * from public.queue_entries where user_id in ('${ann}','${bob}')`)).toHaveLength(2);
+    await sql(`delete from public.queue_entries where user_id in ('${ann}','${bob}')`);
+  });
+
+  it('lets an unblocked accept through and refuses a blocked one, with the same message a lapse gives', async () => {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Block Offer Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bo') returning id`,
+    );
+    const makeOffer = async () => {
+      const [o] = await sql<{ id: string }>(
+        `insert into public.match_offers (proposer_id, format_version_id, claimed_hash, verified_hash, league, team, data_rev, visibility)
+         values ('${ann}', '${v.id}', 'bo', 'bo', 'great', '["A"]'::jsonb, 'rev1', 'public') returning id`,
+      );
+      return o;
+    };
+
+    // Allow: cal has no block with ann in either direction, so the new
+    // guard must not stand in the way of an ordinary accept.
+    const clean = await makeOffer();
+    await asUser({ sub: cal })(`select public.accept_offer('${clean.id}', '["C"]'::jsonb, 'rev1')`);
+    expect(await sql(`select state from public.match_offers where id = '${clean.id}'`)).toEqual([
+      { state: 'converted' },
+    ]);
+
+    // Deny: bob has blocked ann, so bob accepting ann's offer must be
+    // refused — with the SAME sentence a genuinely lapsed offer gives, never
+    // one that names the block, which is the signal a blocked user must
+    // never get.
+    const blocked = await makeOffer();
+    await asUser({ sub: bob })(`select public.block_user('${ann}')`);
+    await expect(
+      asUser({ sub: bob })(`select public.accept_offer('${blocked.id}', '["B"]'::jsonb, 'rev1')`),
+    ).rejects.toThrow(/no longer available/);
+    expect(await sql(`select state from public.match_offers where id = '${blocked.id}'`)).toEqual([
+      { state: 'open' },
+    ]);
+
+    await sql(`delete from public.match_offers where proposer_id = '${ann}'`);
+    await sql(`delete from public.matches where player_a = '${ann}' or player_b = '${ann}' or player_a = '${cal}' or player_b = '${cal}'`);
+  });
 });

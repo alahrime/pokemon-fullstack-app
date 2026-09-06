@@ -1,5 +1,12 @@
 -- FIX: a single block silenced the blocked party to an entire group or match
--- channel, not just to the person who blocked them.
+-- channel, not just to the person who blocked them. This migration rewrites
+-- BOTH the INSERT policy (below) and the UPDATE policy (further down): they
+-- are the two actions that can put a message's content in front of a
+-- channel's members — an edit is only a smaller diff of the same act — and
+-- so the block clause that decides when that content may be posted has to
+-- be one rule, applied to both, not two rules that can silently diverge.
+-- Read `THE UPDATE POLICY GETS THE IDENTICAL BLOCK CLAUSE` below for why
+-- UPDATE was, for a while, wrongly treated as out of scope for this fix.
 --
 -- THE BUG, MEASURED AGAINST THE DEPLOYED POLICY
 -- (`20260907003000_messages.sql`'s "a member who is not blocked may post",
@@ -119,13 +126,81 @@ create policy "a member who is not blocked in a dm may post"
     )
   );
 
--- The UPDATE policy ("an author may edit or soft-delete their own message",
--- same source migration) is DELIBERATELY NOT touched here: it still runs
--- `blocked_with_me` unconditionally, across every channel kind, so a member
--- blocked by one person in a group can still be refused when editing or
--- soft-deleting a message they posted BEFORE this migration's rule applied
--- (or before they were blocked at all). That is a narrower, pre-existing
--- inconsistency — editing history is a different action from speaking to
--- people who never blocked you — and fixing it is out of scope for the bug
--- this migration closes, which is specifically about being locked out of
--- ever posting again. Left as a known follow-up, not silently widened here.
+-- THE UPDATE POLICY GETS THE IDENTICAL BLOCK CLAUSE, IN THIS SAME MIGRATION
+--
+-- `20260907003000_messages.sql`'s UPDATE policy ("an author may edit or
+-- soft-delete their own message") was left alone by an earlier draft of this
+-- migration on the theory that editing history is a different action from
+-- posting, and out of scope for a bug about being locked out of ever posting
+-- again. That theory does not survive contact with what UPDATE actually lets
+-- an author do here: the WITH CHECK above it (still true, still enforced
+-- alongside the `messages_protect_columns` trigger in
+-- `20260907003000_messages.sql`, unchanged, deployed) exists PRECISELY
+-- because an UPDATE on this table can put new content in front of a
+-- channel's members —
+-- edit `body` and every member re-reads the row; the five-step attack this
+-- migration's own test suite pins moved a message's `channel_id` to change
+-- WHICH members. Either way, the row a member sees after the UPDATE is
+-- content that was not visible to them, or not visible in that form, before
+-- it ran. That is a post. It must clear the same gate a post does, or the
+-- gate has two doors and this migration would be locking only one:
+--
+--   - Same SCOPE bug INSERT had: unscoped by channel kind, one member's
+--     block in an eight-person group refuses every edit and soft-delete the
+--     blocked party ever makes in that room — the identical "room-wide
+--     collateral damage for a pair's private decision" this migration
+--     already rejected as option (a) for INSERT, just reached by a second
+--     door.
+--   - Its own SEPARATE bug in a DM: `blocked_with_me` alone is directional,
+--     so once a block exists between the DM's only two members, the person
+--     who did the blocking could still edit or un-delete their own messages
+--     in that DM while the person they blocked could not — despite the DM's
+--     INSERT policy above (and Ruling B10) making a DM block SYMMETRIC and
+--     TOTAL specifically so neither party is a captive audience for the
+--     other. An UPDATE that puts a blocker's freshly edited words back in
+--     front of someone who blocked them is exactly the "one-way loudspeaker"
+--     the symmetric INSERT rule exists to prevent; leaving UPDATE directional
+--     would just move the loudspeaker from the compose box to the edit menu.
+--
+-- So: one rule, enforced on both actions that can present content to a
+-- channel. `with check` is copied verbatim from the INSERT policy above
+-- (DM-only scope, symmetric `blocked_with_me(...) or i_blocked(...)`) rather
+-- than merely made equivalent, so the two can never again drift the way
+-- INSERT and UPDATE just did — this migration's own reason for existing.
+--
+-- What this does NOT touch: `using (author_id = auth.uid())` is unchanged —
+-- only the author's own rows are ever candidates for this policy, block or
+-- no block. Nor does it touch `messages_protect_columns` (unchanged, in
+-- `20260907003000_messages.sql`, deployed): that trigger is what stops
+-- `channel_id`, `author_id`, `created_at` and `expires_at` moving to some
+-- OTHER value this WITH CHECK would also accept — the reason it exists is
+-- the same live bypass (a message posted to a solo group, then moved by
+-- UPDATE into a DM the mover was blocked from) that makes UPDATE a posting
+-- action in the first place, so weakening that trigger here would reopen
+-- with one hand the exact hole this migration is closing with the other.
+drop policy "an author may edit or soft-delete their own message" on public.messages;
+
+create policy "an author who is not blocked in a dm may edit or soft-delete their own message"
+  on public.messages for update
+  to authenticated
+  using (author_id = (select auth.uid()))
+  with check (
+    author_id = (select auth.uid())
+    and public.is_channel_member(channel_id)
+    and not exists (
+      select 1
+        from public.channels c
+       where c.id = messages.channel_id
+         and c.kind = 'dm'
+         and exists (
+           select 1
+             from public.channel_members other
+            where other.channel_id = messages.channel_id
+              and other.user_id <> (select auth.uid())
+              and (
+                public.blocked_with_me(other.user_id)
+                or public.i_blocked(other.user_id)
+              )
+         )
+    )
+  );

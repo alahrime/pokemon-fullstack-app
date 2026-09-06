@@ -358,6 +358,87 @@ describe('channels and membership', () => {
     expect(edited.body).toBe('fixed');
   });
 
+  // UPDATE PARITY WITH INSERT (`20260908000000_...sql`): the UPDATE policy's
+  // WITH CHECK now carries the identical DM-only, symmetric block clause the
+  // INSERT policy already had, because an edit or soft-delete puts content
+  // (or a change to it) in front of the channel's members just as an insert
+  // does. These three pin the two things that clause change fixes — the
+  // GROUP scope this restores, and the DM symmetry it adds — leaving the
+  // "still lets an author edit body and soft-delete their own message" test
+  // below to cover the unblocked, ordinary case.
+  it('lets a group member edit their own message after another member blocks them', async () => {
+    await befriend(ann, bob);
+    await befriend(ann, cal);
+    const [g] = await asUser({ sub: ann })<{ create_group: string }>(
+      `select public.create_group('Squad', array['${bob}','${cal}']::uuid[]) as create_group`,
+    );
+    const [msg] = await asUser({ sub: bob })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${g.create_group}', 'typo') returning id`,
+    );
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+
+    // bob, blocked by ann (a different member of the same group), can still
+    // edit his own message — the scope bug INSERT already fixed is now fixed
+    // on the UPDATE path too.
+    await asUser({ sub: bob })(`update public.messages set body = 'fixed', edited_at = now() where id = '${msg.id}'`);
+    const [after] = await sql<{ body: string }>(`select body from public.messages where id = '${msg.id}'`);
+    expect(after.body).toBe('fixed');
+  });
+
+  it('stops the blocker editing their own earlier dm message once they have blocked the other party', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [annMsg] = await asUser({ sub: ann })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'from ann') returning id`,
+    );
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+
+    // ann blocked bob, but a dm block is symmetric — ann, the blocker, is
+    // refused editing her own earlier message in this dm too, not just bob.
+    const annEdit = await refusal(() =>
+      asUser({ sub: ann })(`update public.messages set body = 'edited by ann' where id = '${annMsg.id}'`),
+    );
+    expect(annEdit.message).toMatch(POLICY_DENIED);
+    const [after] = await sql<{ body: string }>(`select body from public.messages where id = '${annMsg.id}'`);
+    expect(after.body).toBe('from ann');
+  });
+
+  it('stops the blocked party editing their own earlier dm message once the other has blocked them', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [bobMsg] = await asUser({ sub: bob })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'from bob') returning id`,
+    );
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+
+    // bob, the blocked party, cannot edit his own earlier message either —
+    // the same directional gap the INSERT policy's `i_blocked` branch closed.
+    const bobEdit = await refusal(() =>
+      asUser({ sub: bob })(`update public.messages set body = 'edited by bob' where id = '${bobMsg.id}'`),
+    );
+    expect(bobEdit.message).toMatch(POLICY_DENIED);
+    const [after] = await sql<{ body: string }>(`select body from public.messages where id = '${bobMsg.id}'`);
+    expect(after.body).toBe('from bob');
+  });
+
+  it('lets an author with no blocks anywhere edit body and soft-delete their own message', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [msg] = await asUser({ sub: ann })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'typo') returning id`,
+    );
+
+    await asUser({ sub: ann })(`update public.messages set body = 'fixed' where id = '${msg.id}'`);
+    const [edited] = await sql<{ body: string }>(`select body from public.messages where id = '${msg.id}'`);
+    expect(edited.body).toBe('fixed');
+
+    await asUser({ sub: ann })(`update public.messages set deleted_at = now() where id = '${msg.id}'`);
+    const [deleted] = await sql<{ deleted_at: string | null }>(
+      `select deleted_at from public.messages where id = '${msg.id}'`,
+    );
+    expect(deleted.deleted_at).not.toBeNull();
+  });
+
   async function aMessage(): Promise<{ dm: string; id: string }> {
     await befriend(ann, bob);
     const [dm] = await openDm(ann, bob);

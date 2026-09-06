@@ -178,4 +178,34 @@ describe('channels and membership', () => {
       asUser({ sub: cal })(`select public.add_to_group('${g.create_group}', '${bob}')`),
     ).rejects.toThrow(/not a member/);
   });
+
+  it('gives every new match a channel with exactly its two players', async () => {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Trigger Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'dd') returning id`,
+    );
+    const [m] = await sql<{ id: string }>(
+      `insert into public.matches (player_a, player_b, format_version_id, rules_hash, team_a, team_b, data_rev, seed, source)
+       values ('${ann}', '${bob}', '${v.id}', 'dd', '[]'::jsonb, '[]'::jsonb, 'r', 's', 'queue') returning id`,
+    );
+    const [c] = await sql<{ id: string; kind: string }>(
+      `select id, kind from public.channels where match_id = '${m.id}'`,
+    );
+    expect(c.kind).toBe('match');
+    const members = await sql<{ user_id: string }>(
+      `select user_id from public.channel_members where channel_id = '${c.id}' order by user_id`,
+    );
+    expect(members.map((r) => r.user_id).sort()).toEqual([ann, bob].sort());
+
+    // And it is reachable by both players through RLS, with no friendship.
+    expect(await asUser({ sub: ann })(`select * from public.channels where id = '${c.id}'`)).toHaveLength(1);
+    expect(await asUser({ sub: cal })(`select * from public.channels where id = '${c.id}'`)).toHaveLength(0);
+
+    await sql(`delete from public.matches where id = '${m.id}'`);
+    expect(await sql(`select * from public.channels where match_id = '${m.id}'`),
+      'the channel goes with the match').toHaveLength(0);
+  });
 });

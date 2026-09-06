@@ -56,9 +56,18 @@ that extend it, and `sweep_messages` expresses all three rules in one delete so 
   which is why `blocked_between`, `are_friends` and `share_a_live_match` are all ungranted to
   `authenticated`. The caller-scoped `blocked_with_me` and `i_blocked` are granted precisely because
   they derive one side from `auth.uid()` and can only answer about a pair the caller is in.
-- **A block is SYMMETRIC IN A DM, directional in groups and match channels.** Once either party has
-  blocked the other, neither can post into that DM. Directional elsewhere, because one blocker must
-  not be able to mute you to the other seven people in a room.
+- **A block is SYMMETRIC IN A DM; it has NO effect on posting in a group or match channel.** Once
+  either party has blocked the other, neither can post into that DM. The milestone originally
+  shipped this "directional" elsewhere (the blocker could still post, the blocked party could not),
+  on the reasoning that a symmetric rule would mute a blocker to every other person in the room —
+  true, but it missed that the directional version had the mirror-image bug: it muted the BLOCKED
+  party to the whole room too, not just to whoever blocked them, which is worse in a large group,
+  not better. Corrected in `20260908000000_group_and_match_blocks_stop_muting_the_whole_room.sql`
+  (2026-09-08 cleanup pass): RLS cannot scope an INSERT's refusal to just the blocking pair, and the
+  SELECT policy already shows every member's messages to every other member with no block clause at
+  all, so a block in a group or match channel now does nothing to posting at all — it still bites in
+  a DM (above) and in matchmaking (`pair_queue_entries`'s `blocked_between` exclusion and
+  `accept_offer_blocked_guard`, both untouched).
 
 **The defect class that produced most of this session's findings, so the next milestone can look for
 it first:** a `WITH CHECK` that pins WHO but not WHERE or FOR HOW LONG. The `messages` UPDATE policy
@@ -74,8 +83,11 @@ beside it. Read them before reopening any of this.
 
 **Known operational quirk:** `npm run db:reset` restarts the realtime container, and a subscription
 opened too soon afterwards fails. Give it a minute before running `m3b-roundtrip`, or check 3 fails
-spuriously. The real fix is to have `subscribeToChannel` surface its join status so the script can
-await it rather than sleeping — that is the first thing to fix in this area.
+spuriously — though this is now much less likely to bite: `subscribeToChannel` surfaces its join
+status through an optional `onStatus` callback, and check 3 awaits an actual `SUBSCRIBED` (with its
+own 10s timeout) before bot1 sends, rather than sleeping 1500ms and hoping. The wait is now for a
+real signal, not a guess, but the realtime container can still take longer than that to come back
+up right after a reset.
 
 ---
 
@@ -116,11 +128,11 @@ leaving an equivalence class of one. Every fix is a design change, not a string 
 spec's own framing (section 3) is SILENCE — `NOT EXISTS` clauses in policies — rather than refusal.
 That trade deserves a deliberate ruling in M3b.
 
-**Two deferred items worth knowing.** The coordinator still swallows `pair_queue_entries`'s error
-(`coordinator/index.ts`) — the same bug class already paid for once with `sweep_expired`, and this
-milestone rewrote the very function it guards; it is an Edge Function, fixable without a migration.
-And the Friends screen renders raw uuids as identity where a display name was available, with an
-N+1 on `friend_codes`.
+**Two deferred items worth knowing.** ~~The coordinator still swallows `pair_queue_entries`'s
+error~~ — **fixed in M3b.** `coordinator/index.ts` now surfaces `pair_queue_entries`'s error as a
+500 too, the same as `sweep_expired`, `sweep_matches` and `sweep_messages` — see "Deploying M2a"
+below, which names all four. And the Friends screen renders raw uuids as identity where a display
+name was available, with an N+1 on `friend_codes` — this one is still outstanding.
 
 **Every ruling, with what each costs if wrong, is in**
 `.superpowers/sdd/2026-09-05-m3a-friendships-and-blocks/progress.md` — 17 rulings and the deferred
@@ -220,9 +232,11 @@ unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0,"matche
 production's board is empty. `401` means the value stored under
 `coordinator_service_role_key` is not the service-role key; `404` means `coordinator_url` is
 wrong; empty, with both names present and a tick newer than them, means a misspelled name. A `500`
-with a plain-text body means the `sweep_matches` or `sweep_messages` RPC itself errored — the
-coordinator surfaces that rather than reporting `matches:0` or `messages:0`, since `0` also means
-"nothing to sweep".
+with a plain-text body means one of the tick's four RPCs itself errored — `pair_queue_entries`,
+`sweep_expired`, `sweep_matches` or `sweep_messages` (see "Deploying M2a" below, which names all
+four and why each one's error is surfaced rather than swallowed) — the coordinator surfaces that
+rather than reporting a zero for the field that RPC would have filled in, since `0` also means
+"nothing to do".
 
 **Why this matters:** until it is proven, "matchmaking works in production" is unverified, and the
 failure mode is silence in every surface — no error in the app, none in the dashboard.

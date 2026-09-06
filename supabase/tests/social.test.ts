@@ -242,4 +242,50 @@ describe('friendships and blocks', () => {
     await sql(`delete from public.match_offers where proposer_id = '${ann}'`);
     await sql(`delete from public.matches where player_a = '${ann}' or player_b = '${ann}' or player_a = '${cal}' or player_b = '${cal}'`);
   });
+
+  it('sweeps a lapsed, blocked, accepted offer instead of raising through the whole tick', async () => {
+    // The exact poisoned state 20260906002000_friend_codes_and_blocked_matchmaking.sql's
+    // trigger scoping fixes: an offer that reached 'accepted' honestly, whose
+    // two parties blocked each other only AFTERWARD, then expired unconfirmed.
+    // Before the `when` clause, sweep_expired()'s bulk
+    // `update ... set state = 'lapsed' where state in ('open','accepted') and
+    // expires_at <= now()` fires this row's block guard — the update does not
+    // touch accepted_by, so an unscoped `before update` trigger still runs —
+    // and the guard raises 'this offer is no longer available' because
+    // accepted_by is not null and the parties are blocked, aborting the whole
+    // sweep (and, in the coordinator's own transaction, everything before it).
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name) values ('${ann}', 'Sweep Guard Cup') returning id`,
+    );
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'sg') returning id`,
+    );
+    const [o] = await sql<{ id: string }>(
+      `insert into public.match_offers
+         (proposer_id, format_version_id, claimed_hash, verified_hash, league, team, data_rev,
+          visibility, state, accepted_by, accepted_team, accepted_at, expires_at)
+       values
+         ('${ann}', '${v.id}', 'sg', 'sg', 'great', '["A"]'::jsonb, 'rev1',
+          'public', 'accepted', '${bob}', '["B"]'::jsonb, now() - interval '2 hours',
+          now() - interval '1 hour')
+       returning id`,
+    );
+    // Blocked AFTER the accept, which is exactly the sequence the fix's
+    // `when` clause has to tolerate: the guard exists to stop a NEW accept
+    // onto a blocked pair, not to punish a pair that blocked each other after
+    // already agreeing to play.
+    await asUser({ sub: bob })(`select public.block_user('${ann}')`);
+
+    // Succeeds, rather than throwing 'this offer is no longer available' —
+    // an uncaught rejection here fails the test on its own, which is the
+    // point: no assertion could distinguish "raised" from "raised, but we
+    // expected that" the way a plain unguarded `await` does.
+    await sql(`select public.sweep_expired()`);
+    expect(await sql(`select state from public.match_offers where id = '${o.id}'`)).toEqual([
+      { state: 'lapsed' },
+    ]);
+
+    await sql(`delete from public.match_offers where id = '${o.id}'`);
+  });
 });

@@ -166,6 +166,33 @@ begin
 end;
 $fn$;
 
+-- Correction: a bare `before update` fires on EVERY update to this row, not
+-- only the acceptance that sets `accepted_by`. `sweep_expired()` (deployed,
+-- 20260903005933_pairing_functions.sql) bulk-updates
+-- `state in ('open', 'accepted')` rows to 'lapsed' with no `accepted_by`
+-- clause, and for an already-accepted, blocked offer that update leaves
+-- `new.accepted_by` unchanged (still the taker) — so the guard above raises
+-- inside the sweep itself. Reproduced against the live database: the
+-- exception propagates out of `sweep_expired()`'s single transaction, which
+-- rolls back the `delete from queue_entries where expires_at <= now()` that
+-- already ran earlier in the SAME function, and `coordinator/index.ts`
+-- discards `sweep_expired`'s RPC error — so the tick keeps returning 200
+-- while, from that moment, nothing ever expires from the queue or lapses
+-- from the offer board again, for anyone.
+--
+-- The `when` clause below scopes the trigger to exactly the transition the
+-- guard exists to police: `accepted_by` going from one value to another
+-- (including null to non-null, the ordinary accept). A sweep's update never
+-- changes `accepted_by`, so `old.accepted_by is distinct from
+-- new.accepted_by` is false for it and the trigger does not fire at all —
+-- while a genuine accept (`accept_offer()` setting `accepted_by = taker` for
+-- the first time) still changes the column and still fires, so the guard
+-- still catches it. `is distinct from`, not `<>`: `old.accepted_by` is null
+-- on the ordinary accept path, and `<>` against a null evaluates to null,
+-- which `when` treats as "do not fire" — the one case this guard must never
+-- skip.
 create trigger match_offers_block_guard
   before update on public.match_offers
-  for each row execute function public.accept_offer_blocked_guard();
+  for each row
+  when (old.accepted_by is distinct from new.accepted_by)
+  execute function public.accept_offer_blocked_guard();

@@ -77,14 +77,26 @@ Deno.serve(async () => {
   }
 
   const { data: paired } = await admin.rpc('pair_queue_entries');
-  const { data: swept } = await admin.rpc('sweep_expired');
-  // Unlike `paired`/`swept` above (pre-existing, left alone), this error is
-  // NOT swallowed: sweep_matches() is the only thing that ever moves a match
-  // out of 'mismatch', and its silent failure would be indistinguishable
-  // from "no disputes right now" — a dead sweep would report itself healthy
-  // forever, exactly the shape docs/superpowers/HANDOFF.md tells operators
-  // means everything is fine. A non-200 response is a fact a healthy tick
-  // never produces, so the two cannot be confused for each other.
+  // Unlike `paired` above (pre-existing, left alone), `sweep_expired`'s error
+  // is no longer swallowed. It used to be harmless to ignore because nothing
+  // could make that RPC raise — but the block guard added in
+  // 20260906002000_friend_codes_and_blocked_matchmaking.sql fires on every
+  // update to `match_offers`, including the bulk one this sweep performs, and
+  // a blocked-and-expired offer makes it raise inside the sweep's own
+  // transaction. That raise rolls back the `delete from queue_entries` this
+  // same function already ran, so a swallowed error here does not just miss
+  // a log line — it would leave the coordinator returning 200 while nothing
+  // ever expires from the queue or lapses from the offer board again, for
+  // anyone. Surfaced as a 500, the same way `sweep_matches`'s error already
+  // is just below, for the same reason.
+  const { data: swept, error: sweepExpiredError } = await admin.rpc('sweep_expired');
+  if (sweepExpiredError) return new Response(sweepExpiredError.message, { status: 500 });
+  // This error is NOT swallowed either: sweep_matches() is the only thing
+  // that ever moves a match out of 'mismatch', and its silent failure would
+  // be indistinguishable from "no disputes right now" — a dead sweep would
+  // report itself healthy forever, exactly the shape docs/superpowers/HANDOFF.md
+  // tells operators means everything is fine. A non-200 response is a fact a
+  // healthy tick never produces, so the two cannot be confused for each other.
   const { data: sweptMatches, error: sweepError } = await admin.rpc('sweep_matches');
   if (sweepError) return new Response(sweepError.message, { status: 500 });
   return Response.json({ verified, paired, swept, matches: sweptMatches ?? 0 });

@@ -22,11 +22,64 @@ design authority; the plans argue from it.
 | **M2b** — reporting and adjudication | **Built, merged to local `main`, NOT pushed.** Both gates green, roundtrip 11/11. Plan: `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
 | **M3a** — friendships and blocks | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1233/1233 and 180/180; roundtrips 9/9 and 11/11. |
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
+| **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
 | M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
 
 ---
 
-## Where this session left off — 2026-09-06
+## Where this session left off — 2026-09-06 (M3b)
+
+**M3b (channels: DMs, group chats, the match channel) is complete, reviewed and PUSHED.** Gates on a
+quiet machine: `npm run check` 1256/1256, `npm run check:db` 212/212. All three roundtrips green
+against the real stack through the shipping client modules — m2b 11/11, m3a 9/9, m3b 13/13.
+
+**DEPLOY ORDER MATTERS. Do the coordinator step, and do it after the push, not before.**
+Pushing applies the migrations but does NOT deploy the Edge Function — that is still a manual
+`npx supabase functions deploy coordinator`. Until you run it, the deployed coordinator is the
+pre-M3b build that never calls `sweep_messages`, so **messages accumulate and never expire**. That
+is a retention-policy gap, not just a missing cron. Sequence: push → confirm all five migrations
+applied (`npx supabase migration list --linked`) → deploy the coordinator → confirm one tick answers
+`{"verified":0,"paired":0,"swept":0,"matches":0,"messages":0}`. Deploying the function FIRST would
+make every tick 500 on a missing RPC — loud rather than dangerous, but avoidable.
+
+**What M3b delivers.** One `channels` table with kind `dm | group | match`, so the match channel and
+DMs are one subsystem rather than two that drift. Membership is the only visibility rule. A DM opens
+with an accepted friend OR someone you share a live match with; a group is seeded and extended only
+from the adder's OWN friends, which is what makes it a mutual-friend group. Every match gets a
+channel by trigger, not by editing the pairing functions, because `matches` has two writers today and
+will have more. Messages carry a 7-day `expires_at`; a pin or an open report are the only two things
+that extend it, and `sweep_messages` expresses all three rules in one delete so they cannot disagree.
+
+**Two product rulings were taken this milestone. Do not re-litigate them from the spec.**
+- **Blocks may be detectable by a participant.** The spec's stricter wording overstated this. What
+  remains in force is that a signed-in user must never PROBE ARBITRARY STRANGERS' relationships —
+  which is why `blocked_between`, `are_friends` and `share_a_live_match` are all ungranted to
+  `authenticated`. The caller-scoped `blocked_with_me` and `i_blocked` are granted precisely because
+  they derive one side from `auth.uid()` and can only answer about a pair the caller is in.
+- **A block is SYMMETRIC IN A DM, directional in groups and match channels.** Once either party has
+  blocked the other, neither can post into that DM. Directional elsewhere, because one blocker must
+  not be able to mute you to the other seven people in a room.
+
+**The defect class that produced most of this session's findings, so the next milestone can look for
+it first:** a `WITH CHECK` that pins WHO but not WHERE or FOR HOW LONG. The `messages` UPDATE policy
+checked only `author_id`, and with no column grants anywhere in this repo that left `channel_id` and
+`expires_at` freely writable — so a blocked user could post to a solo group and then `UPDATE
+messages SET channel_id` into the DM they were blocked from. Reproduced, then fixed with an
+immutability trigger plus a widened WITH CHECK. The same shape appeared on `channel_members`, where
+it let you rejoin a channel you had left. Both are closed and pinned by tests that fail without them.
+
+**Every ruling, with what each costs if wrong, is in**
+`.superpowers/sdd/2026-09-05-m3b-channels-dms-and-groups/progress.md`. The M2b and M3a ledgers sit
+beside it. Read them before reopening any of this.
+
+**Known operational quirk:** `npm run db:reset` restarts the realtime container, and a subscription
+opened too soon afterwards fails. Give it a minute before running `m3b-roundtrip`, or check 3 fails
+spuriously. The real fix is to have `subscribeToChannel` surface its join status so the script can
+await it rather than sleeping — that is the first thing to fix in this area.
+
+---
+
+## Where this session left off — 2026-09-06 (M3a)
 
 **M3a (friendships and blocks) is complete, reviewed and PUSHED.** Both gates green on a quiet
 machine — `npm run check` 1233/1233 (87 files), `npm run check:db` 180/180 — and both two-account

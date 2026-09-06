@@ -90,11 +90,96 @@ create policy "a member who is not blocked may post"
     )
   );
 
+-- WITH CHECK repeats the INSERT policy's membership and block clauses, not
+-- just author_id: with no column grants in this project (Supabase's default
+-- privileges grant table-wide UPDATE to `authenticated`), RLS is the only
+-- gate on every column of this row, and `author_id = auth.uid()` alone lets
+-- the author rewrite channel_id to ANY channel they belong to, moving the
+-- message there — which is a post, and must pass the same gate a post does:
+-- reproduced live, an author used this to move a message from a solo group
+-- they control straight into a DM whose direct-insert path is blocked.
 create policy "an author may edit or soft-delete their own message"
   on public.messages for update
   to authenticated
   using (author_id = (select auth.uid()))
-  with check (author_id = (select auth.uid()));
+  with check (
+    author_id = (select auth.uid())
+    and public.is_channel_member(channel_id)
+    and not exists (
+      select 1
+        from public.channel_members other
+       where other.channel_id = messages.channel_id
+         and other.user_id <> (select auth.uid())
+         and public.blocked_with_me(other.user_id)
+    )
+  );
+
+-- The WITH CHECK above still cannot stop channel_id, author_id, created_at or
+-- expires_at from moving to another value that ALSO satisfies it — an author
+-- moving their own message into a second channel they are also a member of,
+-- or backdating/postponing expires_at, both pass every clause above and need
+-- a real OLD-vs-NEW comparison RLS cannot express. A BEFORE UPDATE trigger is
+-- the only place that comparison can happen.
+--
+-- `expires_at` is pinned here on INSERT too, not just UPDATE: the column's
+-- `default now() + interval '7 days'` only applies when a client omits the
+-- column, and nothing before this trigger stops a client supplying its own
+-- value at insert time to extend retention upward or collapse it to the past
+-- (hard-deleting their own message at the next sweep before anyone can
+-- report it — precisely the window the 7 days exists to preserve). Forcing
+-- it here, in the same function that already owns "what may this row's
+-- timestamps be", was chosen over `revoke insert (expires_at)` because a
+-- column-level INSERT revoke would then require naming every OTHER column
+-- back in a matching grant (id, channel_id, author_id, body, ...) for
+-- authenticated inserts to keep working at all — more surface for a future
+-- migration to get wrong than one branch in one trigger.
+-- Deliberately NOT security definer, unlike most trigger functions in this
+-- milestone: this one calls no other table and no revoked function, so it
+-- needs no elevated privilege to do its job, and staying security invoker is
+-- what makes the role check below meaningful. `current_user` inside a
+-- SECURITY DEFINER function is the function's OWNER for the whole call —
+-- tried first, and confirmed live: with `security definer` on, this guard
+-- was always true and enforcement never ran no matter who fired the update.
+-- Security invoker keeps `current_user` as the ACTUAL querying role (`set
+-- local role authenticated`, in PostgREST's own session and in this suite's
+-- `asUser` helper alike), which is what lets this tell apart the two kinds
+-- of caller that can reach an UPDATE on this table: a signed-in client
+-- through PostgREST, which always runs as `authenticated`, versus
+-- server-side maintenance running as `postgres` or `service_role` — this
+-- migration's own test suite moves `expires_at` into the past directly, as
+-- `postgres`, to simulate a message aging out without a real seven-day wait,
+-- and that is not the attack this trigger exists to stop.
+create or replace function public.messages_protect_columns() returns trigger
+language plpgsql set search_path = public as $fn$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.expires_at := now() + interval '7 days';
+    return new;
+  end if;
+
+  if new.channel_id is distinct from old.channel_id
+     or new.author_id is distinct from old.author_id
+     or new.created_at is distinct from old.created_at
+     or new.expires_at is distinct from old.expires_at then
+    raise exception 'channel_id, author_id, created_at and expires_at cannot be changed after insert';
+  end if;
+  return new;
+end;
+$fn$;
+
+-- A trigger function needs no grant of its own — only Postgres invokes it, as
+-- the trigger below fires — but `create function` still grants EXECUTE to
+-- PUBLIC by default; revoke it from all three roles for consistency with
+-- every other function in this migration.
+revoke all on function public.messages_protect_columns() from public, anon, authenticated;
+
+create trigger messages_protect_columns
+  before insert or update on public.messages
+  for each row execute function public.messages_protect_columns();
 
 -- No DELETE policy anywhere. Hard deletion is retention's job, and it runs as
 -- the table owner. A user "deleting" a message sets deleted_at.

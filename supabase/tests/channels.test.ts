@@ -333,4 +333,155 @@ describe('channels and membership', () => {
     );
     expect(insertDenied.message).toMatch(PRIVILEGE_DENIED);
   });
+
+  // -------------------------------------------------------------------------
+  // FIX 1: the block-bypass-by-UPDATE attack, reproduced against a REAL
+  // `authenticated` role (not `postgres`, which is a superuser and would pass
+  // either way — exactly why the earlier suite missed this).
+
+  it('refuses the five-step attack that moved a message into a blocked DM via UPDATE', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    // 1. ann blocks bob.
+    await sql(`insert into public.blocks (blocker_id, blocked_id) values ('${ann}', '${bob}')`);
+    // 2. a direct insert into the blocked DM is refused (already covered
+    // elsewhere; repeated here so this test stands alone as the full chain).
+    const directInsert = await refusal(() =>
+      asUser({ sub: bob })(`insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'direct')`),
+    );
+    expect(directInsert.message).toMatch(POLICY_DENIED);
+    // 3. bob makes a solo group. The member loop is skipped on an empty
+    // array, so no accomplice is needed.
+    const [solo] = await asUser({ sub: bob })<{ create_group: string }>(
+      `select public.create_group('solo', '{}'::uuid[]) as create_group`,
+    );
+    // 4. bob posts into his own solo group, which he is free to do.
+    const [msg] = await asUser({ sub: bob })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${solo.create_group}', 'staging') returning id`,
+    );
+    // 5. bob tries to move that message into the blocked DM by UPDATE.
+    // The BEFORE UPDATE trigger refuses this before RLS's WITH CHECK ever
+    // gets a look — confirmed live: a channel_id change raises the trigger's
+    // own exception even in a control case where WITH CHECK would otherwise
+    // have passed. WITH CHECK's membership/block clauses (below in the same
+    // migration) are still the right belt-and-suspenders if the trigger were
+    // ever weakened, but the trigger is what actually fires here.
+    const moveDenied = await refusal(() =>
+      asUser({ sub: bob })(`update public.messages set channel_id = '${dm.open_dm}' where id = '${msg.id}'`),
+    );
+    expect(moveDenied.message).toMatch(/channel_id, author_id, created_at and expires_at cannot be changed/);
+    const [after] = await sql<{ channel_id: string }>(`select channel_id from public.messages where id = '${msg.id}'`);
+    expect(after.channel_id, 'the message never reaches the DM').toBe(solo.create_group);
+    expect(
+      await sql(`select * from public.messages where channel_id = '${dm.open_dm}'`),
+      'the DM stays empty',
+    ).toHaveLength(0);
+  });
+
+  it('refuses an author changing expires_at on their own message', async () => {
+    const { id } = await aMessage();
+    const [before] = await sql<{ expires_at: string }>(`select expires_at from public.messages where id = '${id}'`);
+    const denied = await refusal(() =>
+      asUser({ sub: ann })(`update public.messages set expires_at = now() + interval '365 days' where id = '${id}'`),
+    );
+    expect(denied.message).toMatch(/expires_at cannot be changed/);
+    const [after] = await sql<{ expires_at: string }>(`select expires_at from public.messages where id = '${id}'`);
+    expect(after.expires_at).toEqual(before.expires_at);
+  });
+
+  it('ignores a caller-supplied expires_at at INSERT time and forces seven days', async () => {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [msg] = await asUser({ sub: ann })<{ expires_at: string }>(
+      `insert into public.messages (channel_id, body, expires_at)
+       values ('${dm.open_dm}', 'sneaky', now() + interval '365 days')
+       returning expires_at`,
+    );
+    const days = (new Date(msg.expires_at).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+  });
+
+  it('still lets an author edit body and soft-delete their own message', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: ann })(`update public.messages set body = 'edited' where id = '${id}'`);
+    const [edited] = await sql<{ body: string }>(`select body from public.messages where id = '${id}'`);
+    expect(edited.body).toBe('edited');
+
+    await asUser({ sub: ann })(`update public.messages set deleted_at = now() where id = '${id}'`);
+    const [deleted] = await sql<{ deleted_at: string | null }>(
+      `select deleted_at from public.messages where id = '${id}'`,
+    );
+    expect(deleted.deleted_at).not.toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // FIX 2: the same column-immutability defect on channel_members.
+
+  it('refuses to move a membership row to another channel, but last_read_at still updates', async () => {
+    const g1 = await makeChannel('group', [ann, bob]);
+    const g2 = await makeChannel('group', [ann, cal]);
+    const moveDenied = await refusal(() =>
+      asUser({ sub: ann })(
+        `update public.channel_members set channel_id = '${g2}' where channel_id = '${g1}' and user_id = '${ann}'`,
+      ),
+    );
+    expect(moveDenied.message).toMatch(PRIVILEGE_DENIED);
+    expect(await sql(`select * from public.channel_members where channel_id = '${g1}' and user_id = '${ann}'`))
+      .toHaveLength(1);
+
+    await asUser({ sub: ann })(
+      `update public.channel_members set last_read_at = now() where channel_id = '${g1}' and user_id = '${ann}'`,
+    );
+    const [row] = await sql<{ last_read_at: string | null }>(
+      `select last_read_at from public.channel_members where channel_id = '${g1}' and user_id = '${ann}'`,
+    );
+    expect(row.last_read_at).not.toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // FIX 3: leave_channel must not destroy an open report by deleting the
+  // channel out from under it.
+
+  it('keeps a reported message, its report, and the channel alive through report-then-both-leave', async () => {
+    await befriend(ann, bob);
+    const [g] = await asUser({ sub: ann })<{ create_group: string }>(
+      `select public.create_group('DuoAbuse', array['${bob}']::uuid[]) as create_group`,
+    );
+    const channel = g.create_group;
+    // bob abuses.
+    const [msg] = await asUser({ sub: bob })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${channel}', 'abuse') returning id`,
+    );
+    // ann reports, then leaves — the natural response to being abused.
+    await asUser({ sub: ann })(`select public.report_message('${msg.id}', 'abusive')`);
+    await asUser({ sub: ann })(`select public.leave_channel('${channel}')`);
+    // bob leaves next, emptying the channel. The abuser controls this half.
+    await asUser({ sub: bob })(`select public.leave_channel('${channel}')`);
+
+    expect(await sql(`select * from public.channels where id = '${channel}'`), 'the channel survives').toHaveLength(1);
+    expect(await sql(`select * from public.messages where id = '${msg.id}'`), 'the message survives').toHaveLength(1);
+    expect(
+      await sql(`select * from public.message_reports where message_id = '${msg.id}'`),
+      'the report survives',
+    ).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // FIX 4: state and resolved_at must agree, or the sweep's thirty-day hold
+  // silently disappears.
+
+  it('refuses a message_reports row where state and resolved_at disagree', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: bob })(`select public.report_message('${id}', 'abusive')`);
+    await expect(
+      sql(`update public.message_reports set state = 'resolved' where message_id = '${id}'`),
+    ).rejects.toThrow(/message_reports_resolved_consistent/);
+    await expect(
+      sql(`update public.message_reports set resolved_at = now() where message_id = '${id}'`),
+    ).rejects.toThrow(/message_reports_resolved_consistent/);
+    // The consistent pair is still allowed.
+    await sql(`update public.message_reports set state = 'resolved', resolved_at = now() where message_id = '${id}'`);
+    expect(await sql(`select state from public.message_reports where message_id = '${id}'`)).toEqual([{ state: 'resolved' }]);
+  });
 });

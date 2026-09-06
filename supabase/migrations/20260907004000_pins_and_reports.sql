@@ -14,7 +14,18 @@ create table public.message_reports (
   resolved_at timestamptz,
   unique (message_id, reporter_id),
   constraint message_reports_state check (state in ('open', 'resolved')),
-  constraint message_reports_reason check (btrim(reason) <> '' and length(reason) <= 500)
+  constraint message_reports_reason check (btrim(reason) <> '' and length(reason) <= 500),
+  -- `state` and `resolved_at` are otherwise two independent columns, and
+  -- sweep_messages()'s `(r.state = 'open' or r.resolved_at > now() -
+  -- interval '30 days')` evaluates to NULL, not true, when state='resolved'
+  -- and resolved_at is null — silently dropping the entire thirty-day hold
+  -- at the very next tick. No resolve path ships in this milestone, so the
+  -- first human resolution in production would be a hand-written `update
+  -- message_reports set state = 'resolved'` in the SQL editor that forgets
+  -- resolved_at — exactly the statement this constraint refuses, at the
+  -- moment it is run, rather than thirty days of silence later.
+  constraint message_reports_resolved_consistent
+    check ((state = 'resolved') = (resolved_at is not null))
 );
 
 create index message_reports_open_idx on public.message_reports (state, created_at) where state = 'open';

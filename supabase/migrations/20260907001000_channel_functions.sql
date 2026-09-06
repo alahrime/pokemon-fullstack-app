@@ -137,10 +137,26 @@ begin
   if k in ('match', 'dm') then raise exception 'this channel cannot be left'; end if;
   delete from public.channel_members where channel_id = p_channel and user_id = me;
   get diagnostics n = row_count;
-  -- The last person out closes the room rather than leaving an orphan.
-  delete from public.channels c
-   where c.id = p_channel
-     and not exists (select 1 from public.channel_members where channel_id = c.id);
+  -- Deliberately does NOT delete the channel once its last member leaves.
+  -- messages.channel_id -> channels and message_reports.message_id ->
+  -- messages are both ON DELETE CASCADE, so deleting the channel here used
+  -- to take every message in it, and every report and pin on those
+  -- messages, with it. In a two-person group that is a live attack, not a
+  -- rare accident: the abuser posts, the victim reports and leaves (the
+  -- natural response to being abused), and the abuser leaves next — and
+  -- controls exactly when that second leave happens. That deleted the
+  -- reported message, the report, and the moderation-queue row it sits in,
+  -- bypassing sweep_messages()'s hold-through-resolution rule entirely,
+  -- because a cascade never consults it.
+  --
+  -- The alternative — deleting the channel only when nothing in it carries
+  -- an open report or a pin — was rejected as unneeded complexity for what
+  -- keeping an empty channel actually costs: one row in `channels`, visible
+  -- to nobody (the SELECT policy is `is_channel_member`, and it has none
+  -- left), with every message inside it still cleared on schedule by
+  -- sweep_messages() once each message's own expiry, pin state and report
+  -- state say it may go. A row nothing can read and nothing depends on is
+  -- cheap enough to just keep.
   return n > 0;
 end;
 $fn$;

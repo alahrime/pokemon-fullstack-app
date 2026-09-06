@@ -96,3 +96,20 @@ create policy "you may move your own read position"
 revoke insert, delete on public.channels from authenticated;
 revoke update on public.channels from authenticated;
 revoke insert, delete on public.channel_members from authenticated;
+
+-- The policy above constrains WHICH ROW ("user_id = auth.uid()"), not WHICH
+-- COLUMN. With no column grants, that row's owner could rewrite channel_id
+-- to a channel they are not a member of — including one they were a member
+-- of and left, a uuid they still legitimately hold, or one seeded by a
+-- solo group of their own creation — attaching themselves to its full
+-- history and live realtime feed with no membership check ever run. `role`
+-- is exposed the same way, letting a member promote themselves to 'owner'.
+-- Column grants are the cleaner fix here, rather than a BEFORE UPDATE
+-- trigger (the approach `messages` needs instead, in
+-- 20260907003000_messages.sql, because a message's legitimate edit touches
+-- more than one column): the legitimate update on THIS table is exactly one
+-- column (last_read_at), so naming that column is a smaller, harder-to-drift
+-- surface than a trigger's deny-list, which a later migration could add a
+-- new column to and simply forget to add to the list.
+revoke update on public.channel_members from authenticated;
+grant update (last_read_at) on public.channel_members to authenticated;

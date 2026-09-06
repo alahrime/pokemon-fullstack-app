@@ -87,4 +87,71 @@ describe('friendships and blocks', () => {
     await asUser({ sub: ann })(`delete from public.blocks where blocked_id = '${bob}'`);
     expect(await sql(`select * from public.blocks where blocker_id = '${ann}'`)).toHaveLength(0);
   });
+
+  const request = (who: string, target: string) =>
+    asUser({ sub: who })<{ request_friendship: string }>(
+      `select public.request_friendship('${target}') as request_friendship`,
+    );
+  const respond = (who: string, other: string, accept: boolean) =>
+    asUser({ sub: who })<{ respond_to_friendship: string }>(
+      `select public.respond_to_friendship('${other}', ${accept}) as respond_to_friendship`,
+    );
+
+  it('turns a mutual request into an accepted friendship', async () => {
+    const [first] = await request(ann, bob);
+    expect(first.request_friendship).toBe('pending');
+    const [second] = await request(bob, ann);
+    expect(second.request_friendship).toBe('accepted');
+    const [f] = await sql<{ status: string }>(`select status from public.friendships`);
+    expect(f.status).toBe('accepted');
+  });
+
+  it('will not let the requester accept their own request', async () => {
+    await request(ann, bob);
+    await expect(respond(ann, bob, true)).rejects.toThrow(/you sent this request/);
+    const [f] = await sql<{ status: string }>(`select status from public.friendships`);
+    expect(f.status).toBe('pending');
+  });
+
+  it('deletes the row when a request is declined', async () => {
+    await request(ann, bob);
+    const [r] = await respond(bob, ann, false);
+    expect(r.respond_to_friendship).toBe('removed');
+    expect(await sql(`select * from public.friendships`)).toHaveLength(0);
+  });
+
+  it('refuses a request in both directions once either side blocks', async () => {
+    await asUser({ sub: ann })(`select public.block_user('${bob}')`);
+    // Both messages are the SAME, and the same one a nonexistent user gets.
+    await expect(request(bob, ann)).rejects.toThrow(/cannot be sent a friend request/);
+    await expect(request(ann, bob)).rejects.toThrow(/cannot be sent a friend request/);
+    await expect(request(ann, randomUUID())).rejects.toThrow(/cannot be sent a friend request/);
+  });
+
+  it('tears down an existing friendship when one side blocks', async () => {
+    await request(ann, bob);
+    await respond(bob, ann, true);
+    await asUser({ sub: ann })(`select public.block_user('${bob}')`);
+    expect(await sql(`select * from public.friendships`)).toHaveLength(0);
+    expect(await sql(`select * from public.blocks where blocker_id = '${ann}'`)).toHaveLength(1);
+  });
+
+  it('lets either side remove an accepted friendship', async () => {
+    await request(ann, bob);
+    await respond(bob, ann, true);
+    const [gone] = await asUser({ sub: bob })<{ remove_friendship: boolean }>(
+      `select public.remove_friendship('${ann}') as remove_friendship`,
+    );
+    expect(gone.remove_friendship).toBe(true);
+    expect(await sql(`select * from public.friendships`)).toHaveLength(0);
+  });
+
+  it('refuses a stranger acting on a friendship that is not theirs', async () => {
+    await request(ann, bob);
+    const [nothing] = await asUser({ sub: cal })<{ remove_friendship: boolean }>(
+      `select public.remove_friendship('${ann}') as remove_friendship`,
+    );
+    expect(nothing.remove_friendship).toBe(false);
+    expect(await sql(`select * from public.friendships`)).toHaveLength(1);
+  });
 });

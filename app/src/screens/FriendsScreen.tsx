@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { supabase } from '../lib/supabase';
+import { useSession } from '../state/SessionContext';
 import {
   blockUser,
   listBlocks,
@@ -64,8 +65,22 @@ async function searchProfilesByName(term: string): Promise<ProfileHit[]> {
  * its own queue/offer actions, and for the same reason: the server is the
  * one place that knows, for instance, that accepting a request also removes
  * it from someone else's "requests you sent" list.
+ *
+ * Gated on `useSession().user`, the same house pattern `MatchmakingScreen`
+ * uses: without it, a signed-out visitor would see all four sections
+ * truthfully reporting empty ("No friends yet.", "You have not blocked
+ * anyone.") and a search box that always answers "No trainers found." —
+ * `friendships` and `profiles` are both `to authenticated`, so every read
+ * would just come back empty rather than fail, which reads as a confident
+ * falsehood rather than as "you are not signed in."
+ *
+ * Every row's mutation button (`Remove`, `Block`, `Withdraw`, `Unblock`)
+ * carries its own `otherId`/`id` in its visible text, the same way `Accept`
+ * and `Decline` already do — a list with more than one row must not leave
+ * several buttons sharing one accessible name.
  */
 export function FriendsScreen() {
+  const { user } = useSession();
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [blocked, setBlocked] = useState<string[] | null>(null);
   // Friend codes for accepted friends only — `opponentFriendCode` reads
@@ -108,8 +123,9 @@ export function FriendsScreen() {
   }
 
   useEffect(() => {
+    if (!user) return;
     void load();
-  }, []);
+  }, [user]);
 
   const incoming = (friends ?? []).filter((f) => f.status === 'pending' && f.theyAsked);
   const outgoing = (friends ?? []).filter((f) => f.status === 'pending' && !f.theyAsked);
@@ -160,6 +176,20 @@ export function FriendsScreen() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="friends-screen">
+        <ScreenHeader
+          title="Friends"
+          blurb="Send and accept friend requests, see friend codes, and block people."
+        />
+        <div className="panel text-muted">
+          Sign in to send and accept friend requests, see friend codes, and block people.
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -258,7 +288,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
               >
-                Withdraw
+                Withdraw {f.otherId}
               </button>
             </li>
           ))}
@@ -279,7 +309,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
               >
-                Remove
+                Remove {f.otherId}
               </button>
               <button
                 type="button"
@@ -287,7 +317,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => blockUser(f.otherId))}
               >
-                Block
+                Block {f.otherId}
               </button>
             </li>
           ))}
@@ -307,7 +337,7 @@ export function FriendsScreen() {
                 disabled={busyId === id}
                 onClick={() => void act(id, () => unblockUser(id))}
               >
-                Unblock
+                Unblock {id}
               </button>
             </li>
           ))}

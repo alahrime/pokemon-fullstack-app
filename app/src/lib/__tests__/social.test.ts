@@ -29,4 +29,22 @@ describe('listFriends', () => {
       { otherId: 'abe', status: 'accepted', theyAsked: true, createdAt: 't' },
     ]);
   });
+
+  /**
+   * Pins the finding: with `me` undefined, `r.user_lo === me` is false for
+   * every row (collapsing `otherId` to always `r.user_lo`) and
+   * `r.requested_by !== me` is always true — every request, including one's
+   * own outgoing ones, would render as incoming with an Accept button. The
+   * `friendships` SELECT policy (`to authenticated`, no `anon` grant) is what
+   * makes an unauthenticated `select` come back `[]` in production, but this
+   * test does not rely on that: the mocked `from().select().order()` above
+   * returns a real row regardless of session, so this only passes if
+   * `listFriends` itself refuses to map when it has no session id — the same
+   * shape `matches.test.ts` pins for `myMatches`.
+   */
+  it('returns no friends rather than fabricating a direction, when there is no session', async () => {
+    getSession.mockResolvedValue({ data: { session: null }, error: null });
+    rows.push({ user_lo: 'abe', user_hi: 'zed', requested_by: 'abe', status: 'pending', created_at: 't' });
+    expect(await listFriends()).toEqual([]);
+  });
 });

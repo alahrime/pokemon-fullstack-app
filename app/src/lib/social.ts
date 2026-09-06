@@ -31,6 +31,18 @@ async function myId(): Promise<string | undefined> {
  */
 export async function listFriends(): Promise<Friend[]> {
   const me = await myId();
+  // The `friendships` SELECT policy (`to authenticated`, no `anon` grant) is
+  // what actually keeps a signed-out or session-less caller from ever
+  // reaching the map below with rows — an unauthenticated `select` here comes
+  // back `[]` regardless, in production today. This early return exists
+  // anyway so that guarantee is not the only thing standing between the map
+  // below and a bug: with `me` undefined, `r.user_lo === me` is false for
+  // every row, which collapses `otherId` to always `r.user_lo` and makes
+  // `theyAsked` (`r.requested_by !== me`) always true — every request,
+  // including one's own outgoing ones, would render as incoming with an
+  // Accept button. `app/src/lib/matches.ts`'s `myMatches()` carries the same
+  // guard for the identical reason (see its comment).
+  if (!me) return [];
   const { data, error } = await supabase
     .from('friendships')
     .select('user_lo, user_hi, requested_by, status, created_at')

@@ -508,10 +508,11 @@ select status_code, content from net._http_response order by id desc limit 1;  -
 ```
 
 A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N,"matches":N,"messages":N}`. A `500` with a
-plain-text body instead means the `sweep_matches` or `sweep_messages` RPC failed — both calls in
-this tick whose error is NOT swallowed, because each is the only thing that ever moves a match out
-of `mismatch` or hard-deletes an expired message, and a silent failure there would otherwise look
-identical to a healthy `matches:0` or `messages:0`.
+plain-text body instead means `pair_queue_entries`, `sweep_expired`, `sweep_matches` or
+`sweep_messages` failed — four calls in this tick whose error is NOT swallowed, because each is the
+only thing that ever pairs a queued entry, expires a stale queue entry or lapses an offer, moves a
+match out of `mismatch`, or hard-deletes an expired message, and a silent failure in any one of them
+would otherwise look identical to a healthy tick that simply had nothing to do.
 
 **Names, spelled exactly.** `coordinator_url` and `coordinator_service_role_key`, underscores
 throughout. A typo here is not a failure, it is silence — see the symptom below. To change either

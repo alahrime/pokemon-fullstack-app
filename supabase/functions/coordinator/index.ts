@@ -76,19 +76,31 @@ Deno.serve(async () => {
     }
   }
 
-  const { data: paired } = await admin.rpc('pair_queue_entries');
-  // Unlike `paired` above (pre-existing, left alone), `sweep_expired`'s error
-  // is no longer swallowed. It used to be harmless to ignore because nothing
-  // could make that RPC raise — but the block guard added in
-  // 20260906002000_friend_codes_and_blocked_matchmaking.sql fires on every
-  // update to `match_offers`, including the bulk one this sweep performs, and
-  // a blocked-and-expired offer makes it raise inside the sweep's own
-  // transaction. That raise rolls back the `delete from queue_entries` this
-  // same function already ran, so a swallowed error here does not just miss
-  // a log line — it would leave the coordinator returning 200 while nothing
-  // ever expires from the queue or lapses from the offer board again, for
-  // anyone. Surfaced as a 500, the same way `sweep_matches`'s error already
-  // is just below, for the same reason.
+  // No longer swallowed. `pair_queue_entries`'s own `insert into
+  // public.matches` is exactly the statement
+  // 20260907002000_match_channel_trigger.sql attached an AFTER INSERT
+  // trigger to (`create_match_channel`, SECURITY DEFINER, itself inserting
+  // into `channels` and `channel_members`) — a new raise path inside the one
+  // call on this whole tick whose failure used to be invisible. A raise in
+  // that trigger propagates out of `pair_queue_entries()`'s own transaction
+  // and rolls back the match it just inserted, so a swallowed error here
+  // would not just miss a log line — it would leave the coordinator
+  // returning 200 while pairing silently stopped working for everyone, the
+  // same shape of failure `sweep_expired`, `sweep_matches` and
+  // `sweep_messages` below are already guarded against.
+  const { data: paired, error: pairError } = await admin.rpc('pair_queue_entries');
+  if (pairError) return new Response(pairError.message, { status: 500 });
+  // `sweep_expired`'s error is not swallowed either. It used to be harmless
+  // to ignore because nothing could make that RPC raise — but the block
+  // guard added in 20260906002000_friend_codes_and_blocked_matchmaking.sql
+  // fires on every update to `match_offers`, including the bulk one this
+  // sweep performs, and a blocked-and-expired offer makes it raise inside
+  // the sweep's own transaction. That raise rolls back the `delete from
+  // queue_entries` this same function already ran, so a swallowed error here
+  // does not just miss a log line — it would leave the coordinator returning
+  // 200 while nothing ever expires from the queue or lapses from the offer
+  // board again, for anyone. Surfaced as a 500, the same way `sweep_matches`'s
+  // error already is just below, for the same reason.
   const { data: swept, error: sweepExpiredError } = await admin.rpc('sweep_expired');
   if (sweepExpiredError) return new Response(sweepExpiredError.message, { status: 500 });
   // This error is NOT swallowed either: sweep_matches() is the only thing

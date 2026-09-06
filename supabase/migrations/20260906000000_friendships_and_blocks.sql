@@ -70,8 +70,32 @@ revoke insert, update, delete on public.friendships from anon, authenticated;
 
 -- A block is yours alone. There is no policy for the blocked side at ALL —
 -- not a narrowed one — because any row they can see, or count, is a signal.
+--
+-- SELECT and DELETE only, not `for all`: creating a block goes through
+-- `block_user()` in the next migration, which is SECURITY DEFINER, owned by
+-- `postgres` (which owns this table), and so bypasses RLS entirely — the
+-- INSERT and UPDATE arms of a `for all` grant are dead to that path and only
+-- ever matter to a caller going around it with a direct
+-- `POST /rest/v1/blocks`. INSERT would let such a caller create a block
+-- while the friendship survives, exactly the state `block_user()`'s own
+-- comment says must never exist ("a block that leaves the friendship
+-- standing is not a block") — leaving the blocked side able to still read
+-- the blocker's friend code, both still listed as each other's friend, and
+-- `respond_to_friendship()` able to accept a pending request from someone
+-- you meant to have cut off. UPDATE would additionally let a caller repoint
+-- `blocked_id` on a row they own. Narrowing to SELECT and DELETE keeps the
+-- two things a client legitimately needs to do to its own blocks directly —
+-- list them, remove them — while forcing creation through the one function
+-- that also tears down the friendship in the same transaction. Two separate
+-- policies rather than one `for all`: CREATE POLICY takes exactly one
+-- command keyword (or ALL) — "for select, delete" is not valid syntax — and
+-- splitting them costs nothing since both share the same USING clause.
 create policy "a block belongs to the person who made it"
-  on public.blocks for all
+  on public.blocks for select
   to authenticated
-  using (blocker_id = (select auth.uid()))
-  with check (blocker_id = (select auth.uid()));
+  using (blocker_id = (select auth.uid()));
+
+create policy "only the blocker may remove their own block"
+  on public.blocks for delete
+  to authenticated
+  using (blocker_id = (select auth.uid()));

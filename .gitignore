@@ -5,3 +5,6 @@ supabase/.temp
 # Any env file, wherever it lands — these hold keys and must never be committed.
 *.env.local
 *.env.*.local
+# Backups and other derivatives of an env file carry the same values and must
+# be excluded too — `*.env.local` alone does not match `app/.env.local.bak`.
+*.env.local*

@@ -99,5 +99,11 @@ Deno.serve(async () => {
   // healthy tick never produces, so the two cannot be confused for each other.
   const { data: sweptMatches, error: sweepError } = await admin.rpc('sweep_matches');
   if (sweepError) return new Response(sweepError.message, { status: 500 });
-  return Response.json({ verified, paired, swept, matches: sweptMatches ?? 0 });
+  // Not swallowed, for the same reason as sweep_expired and sweep_matches above:
+  // this is the only thing that ever hard-deletes an expired message, so a
+  // silently-ignored error here would look identical to a healthy tick with
+  // nothing due for removal, and messages would simply never expire.
+  const { data: sweptMessages, error: sweepMessagesError } = await admin.rpc('sweep_messages');
+  if (sweepMessagesError) return new Response(sweepMessagesError.message, { status: 500 });
+  return Response.json({ verified, paired, swept, matches: sweptMatches ?? 0, messages: sweptMessages ?? 0 });
 });

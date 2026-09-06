@@ -261,4 +261,76 @@ describe('channels and membership', () => {
     const [edited] = await sql<{ body: string }>(`select body from public.messages where id = '${msg.id}'`);
     expect(edited.body).toBe('fixed');
   });
+
+  async function aMessage(): Promise<{ dm: string; id: string }> {
+    await befriend(ann, bob);
+    const [dm] = await openDm(ann, bob);
+    const [msg] = await asUser({ sub: ann })<{ id: string }>(
+      `insert into public.messages (channel_id, body) values ('${dm.open_dm}', 'said') returning id`,
+    );
+    return { dm: dm.open_dm, id: msg.id };
+  }
+
+  it('deletes an expired message and keeps an unexpired one', async () => {
+    const { id } = await aMessage();
+    await sql(`select public.sweep_messages()`);
+    expect(await sql(`select * from public.messages where id = '${id}'`)).toHaveLength(1);
+    await sql(`update public.messages set expires_at = now() - interval '1 minute' where id = '${id}'`);
+    await sql(`select public.sweep_messages()`);
+    expect(await sql(`select * from public.messages where id = '${id}'`)).toHaveLength(0);
+  });
+
+  it('keeps a pinned message past its expiry', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: bob })(`insert into public.message_pins (message_id) values ('${id}')`);
+    await sql(`update public.messages set expires_at = now() - interval '1 minute' where id = '${id}'`);
+    await sql(`select public.sweep_messages()`);
+    expect(await sql(`select * from public.messages where id = '${id}'`)).toHaveLength(1);
+  });
+
+  it('holds a reported message through resolution, then thirty days', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: bob })(`select public.report_message('${id}', 'abusive')`);
+    await sql(`update public.messages set expires_at = now() - interval '1 minute' where id = '${id}'`);
+    await sql(`select public.sweep_messages()`);
+    expect(await sql(`select * from public.messages where id = '${id}'`),
+      'an open report holds it indefinitely').toHaveLength(1);
+
+    await sql(`update public.message_reports set state = 'resolved', resolved_at = now() - interval '31 days' where message_id = '${id}'`);
+    await sql(`select public.sweep_messages()`);
+    expect(await sql(`select * from public.messages where id = '${id}'`),
+      'thirty days after resolution it goes').toHaveLength(0);
+  });
+
+  it('shows a report to its reporter and to no other member', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: bob })(`select public.report_message('${id}', 'abusive')`);
+    expect(await asUser({ sub: bob })(`select * from public.message_reports`)).toHaveLength(1);
+    expect(await asUser({ sub: ann })(`select * from public.message_reports`),
+      'the author must not learn they were reported').toHaveLength(0);
+  });
+
+  it('lets a channel member see a pin and nobody else', async () => {
+    const { id } = await aMessage();
+    await asUser({ sub: bob })(`insert into public.message_pins (message_id) values ('${id}')`);
+    expect(await asUser({ sub: ann })(`select * from public.message_pins where message_id = '${id}'`)).toHaveLength(1);
+    expect(await asUser({ sub: cal })(`select * from public.message_pins where message_id = '${id}'`),
+      'cal shares no channel with ann and bob').toHaveLength(0);
+  });
+
+  it('stops a non-member pinning a message', async () => {
+    const { id } = await aMessage();
+    const pinDenied = await refusal(() =>
+      asUser({ sub: cal })(`insert into public.message_pins (message_id) values ('${id}')`),
+    );
+    expect(pinDenied.message).toMatch(POLICY_DENIED);
+  });
+
+  it('stops a direct insert into message_reports; only report_message may write it', async () => {
+    const { id } = await aMessage();
+    const insertDenied = await refusal(() =>
+      asUser({ sub: bob })(`insert into public.message_reports (message_id, reason) values ('${id}', 'abusive')`),
+    );
+    expect(insertDenied.message).toMatch(PRIVILEGE_DENIED);
+  });
 });

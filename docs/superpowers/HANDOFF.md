@@ -163,12 +163,13 @@ select name, created_at from vault.secrets order by name;
 ```
 
 A row in `net._http_response` is the proof: `net.http_request_queue` never gains one on the
-unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0,"matches":0}` — the zeros are right,
+unconfigured path. Expect `200` with `{"verified":0,"paired":0,"swept":0,"matches":0,"messages":0}` — the zeros are right,
 production's board is empty. `401` means the value stored under
 `coordinator_service_role_key` is not the service-role key; `404` means `coordinator_url` is
 wrong; empty, with both names present and a tick newer than them, means a misspelled name. A `500`
-with a plain-text body means the `sweep_matches` RPC itself errored — the coordinator surfaces
-that rather than reporting `matches:0`, since `0` also means "nothing to sweep".
+with a plain-text body means the `sweep_matches` or `sweep_messages` RPC itself errored — the
+coordinator surfaces that rather than reporting `matches:0` or `messages:0`, since `0` also means
+"nothing to sweep".
 
 **Why this matters:** until it is proven, "matchmaking works in production" is unverified, and the
 failure mode is silence in every surface — no error in the app, none in the dashboard.
@@ -506,10 +507,11 @@ select status, return_message, start_time
 select status_code, content from net._http_response order by id desc limit 1;  -- expect 200
 ```
 
-A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N,"matches":N}`. A `500` with a
-plain-text body instead means the `sweep_matches` RPC failed — the one call in this tick whose
-error is NOT swallowed, because it is the only thing that ever moves a match out of `mismatch` and
-a silent failure there would otherwise look identical to a healthy `matches:0`.
+A healthy tick answers `200` with `{"verified":N,"paired":N,"swept":N,"matches":N,"messages":N}`. A `500` with a
+plain-text body instead means the `sweep_matches` or `sweep_messages` RPC failed — both calls in
+this tick whose error is NOT swallowed, because each is the only thing that ever moves a match out
+of `mismatch` or hard-deletes an expired message, and a silent failure there would otherwise look
+identical to a healthy `matches:0` or `messages:0`.
 
 **Names, spelled exactly.** `coordinator_url` and `coordinator_service_role_key`, underscores
 throughout. A typo here is not a failure, it is silence — see the symptom below. To change either

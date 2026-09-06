@@ -127,18 +127,30 @@ begin
 end;
 $fn$;
 
--- `create or replace function` preserves the name's existing grants (checked:
--- `pg_proc.proacl` for `pair_queue_entries` already excludes
--- public/anon/authenticated and includes `service_role`, from
--- 20260903005933_pairing_functions.sql) — no revoke/grant pair to repeat
--- here, matching the precedent already noted on `confirm_offer` in
--- 20260905124300_scheduled_matches_carry_their_play_time.sql.
+-- Correction: unlike `confirm_offer` in
+-- 20260905124300_scheduled_matches_carry_their_play_time.sql, this migration
+-- cannot lean on "`create or replace function` preserves the existing
+-- grants" as a reason to skip the revoke/grant pair. That precedent holds
+-- only where the existing ACL can actually be READ from the migration that
+-- relies on it — `pg_proc.proacl` on THIS database, checked once, before
+-- writing the comment. Against production it cannot be read at all: this
+-- migration runs there for the first time, so there is nothing local to
+-- check it against, and asserting the grant survived would be a claim about
+-- a catalog this migration never queried. Re-emitting the pair costs nothing
+-- and removes the dependency on production's history matching this
+-- database's, the same shape as the coordinator-only grant
+-- `pair_queue_entries()` already carries from 20260903005933_pairing_functions.sql.
+revoke all on function public.pair_queue_entries() from public, anon, authenticated;
+grant execute on function public.pair_queue_entries() to service_role;
 
 -- 2. The offer board. Accepting is a deliberate act aimed at a named person,
 --    so unlike the queue it may refuse out loud — but the sentence it uses
---    says only that the offer is gone, which is also what a genuinely lapsed
---    offer says. A blocked taker who is refused this way cannot tell their
---    block from an offer that simply expired underneath them.
+--    is 'this offer is no longer open', byte-identical to the one
+--    accept_offer() itself raises (deployed,
+--    20260904071717_accept_offer_agrees_on_the_data_build.sql:43) for any
+--    offer whose state is not 'open' — lapsed, already taken by someone
+--    else, already converted. A blocked taker who is refused this way cannot
+--    tell their block apart from any of those.
 --
 --    Correction: this trigger function is declared SECURITY DEFINER, unlike
 --    the brief it was drafted from. It fires from `accept_offer`'s own
@@ -160,7 +172,14 @@ language plpgsql security definer set search_path = public as $fn$
 begin
   if new.accepted_by is not null
      and public.blocked_between(new.proposer_id, new.accepted_by) then
-    raise exception 'this offer is no longer available';
+    -- Byte-identical to the sentence accept_offer() (deployed,
+    -- 20260904071717_accept_offer_agrees_on_the_data_build.sql:43) raises for
+    -- an offer that is simply no longer 'open' — a genuine lapse, a race lost
+    -- to a second accepter, a since-converted offer. A blocked taker must be
+    -- unable to tell their refusal apart from any of those; two different
+    -- sentences for "you cannot have this" is itself the leak, regardless of
+    -- what either one says on its own.
+    raise exception 'this offer is no longer open';
   end if;
   return new;
 end;
@@ -193,19 +212,33 @@ revoke all on function public.accept_offer_blocked_guard() from public, anon, au
 -- while, from that moment, nothing ever expires from the queue or lapses
 -- from the offer board again, for anyone.
 --
--- The `when` clause below scopes the trigger to exactly the transition the
+-- The `when` clause below scopes the trigger to exactly the transitions the
 -- guard exists to police: `accepted_by` going from one value to another
--- (including null to non-null, the ordinary accept). A sweep's update never
--- changes `accepted_by`, so `old.accepted_by is distinct from
--- new.accepted_by` is false for it and the trigger does not fire at all —
--- while a genuine accept (`accept_offer()` setting `accepted_by = taker` for
--- the first time) still changes the column and still fires, so the guard
--- still catches it. `is distinct from`, not `<>`: `old.accepted_by` is null
--- on the ordinary accept path, and `<>` against a null evaluates to null,
--- which `when` treats as "do not fire" — the one case this guard must never
--- skip.
+-- (including null to non-null, the ordinary accept — covers the LIVE branch
+-- of accept_offer() too, which sets `accepted_by` and `state = 'converted'`
+-- in the same update), OR `state` moving to 'converted' by any other route.
+-- That second arm exists for confirm_offer() (deployed,
+-- 20260905124300_scheduled_matches_carry_their_play_time.sql:52-54): on the
+-- SCHEDULED branch, accept_offer() sets `accepted_by` once, at accept time,
+-- and confirm_offer() later moves `state` from 'accepted' to 'converted'
+-- without ever touching `accepted_by` again — so a pair that accepted
+-- cleanly and blocked each other only afterward, inside the confirm window,
+-- would otherwise sail through confirm_offer() with the guard never firing,
+-- landing a match (and the friend-code visibility that comes with one) on a
+-- blocked pair. `old.state is distinct from new.state and new.state =
+-- 'converted'` catches exactly that transition and no other.
+--
+-- A sweep's update never changes `accepted_by` and never sets `state` to
+-- 'converted' — sweep_expired() (deployed, 20260903005933_pairing_functions.sql)
+-- only ever writes 'lapsed' — so both arms are false for it and the trigger
+-- does not fire at all; verified below, not assumed. `is distinct from`, not
+-- `<>`, on both arms: `old.accepted_by` is null on the ordinary accept path
+-- and `old.state`/`new.state` are never null but the pattern is kept
+-- consistent, and `<>` against a null evaluates to null, which `when` treats
+-- as "do not fire" — the one case this guard must never skip.
 create trigger match_offers_block_guard
   before update on public.match_offers
   for each row
-  when (old.accepted_by is distinct from new.accepted_by)
+  when (old.accepted_by is distinct from new.accepted_by
+        or (old.state is distinct from new.state and new.state = 'converted'))
   execute function public.accept_offer_blocked_guard();

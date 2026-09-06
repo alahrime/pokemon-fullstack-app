@@ -6107,3 +6107,46 @@ th.bt-matrix-head { text-align: center; }
   border-left: var(--border-strong) solid var(--color-accent-2-700);
   padding-left: var(--space-3);
 }
+
+/* — friends —
+   Four sections share one row shape, `.friend-row`, and are told apart only
+   by which colour sits on their own 3px rail: accent for a request that
+   needs YOUR answer, the panel divider for one that needs nobody's (nothing
+   to do until they act), accent-2 for an established friendship, and the
+   faded text colour for someone put out of sight on purpose. Search hits
+   carry no `data-kind` and so no colour — they are not yet any of the four
+   states a rail exists to tell apart. */
+.friend-search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.friend-search-row .input {
+  flex: 1 1 16rem;
+  min-width: 8rem;
+}
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  padding-left: var(--space-2);
+  border-left: 3px solid transparent;
+}
+.friend-row[data-kind='incoming'] { border-left-color: var(--color-accent); }
+.friend-row[data-kind='outgoing'] { border-left-color: var(--rule-strong); }
+.friend-row[data-kind='accepted'] { border-left-color: var(--color-accent-2); }
+.friend-row[data-kind='blocked'] { border-left-color: var(--text-faint); }
+/* No --danger token in this design system (see .matchmaking-notice above,
+   the precedent this copies) — the secondary signal colour every theme
+   already defines is what a load or action failure uses instead. */
+.friend-notice {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-accent-2-700);
+  border-left: var(--border-strong) solid var(--color-accent-2-700);
+  padding-left: var(--space-3);
+}

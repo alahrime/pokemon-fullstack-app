@@ -42,6 +42,12 @@ const SignInScreen = lazy(() => import('./screens/SignInScreen').then((m) => ({ 
 const MatchmakingScreen = lazy(() =>
   import('./screens/MatchmakingScreen').then((m) => ({ default: m.MatchmakingScreen })),
 );
+// Lazy for the same reason as SignInScreen just above: a secondary screen
+// most visits never open, not a source of the megabyte data files the split
+// at the top of this file is actually drawn around.
+const FriendsScreen = lazy(() =>
+  import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
+);
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -166,6 +172,8 @@ function Screens() {
           No match selected — open one from the Matches screen.
         </div>
       );
+    case 'friends':
+      return <LazyScreen key="friends"><FriendsScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

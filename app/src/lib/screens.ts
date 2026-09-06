@@ -121,6 +121,18 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Report the rounds you played and see the adjudicated result.',
   },
   {
+    id: 'friends',
+    label: 'Friends',
+    kicker: 'People',
+    // Flying fits a flock: every other screen here is about a species, a
+    // team, or one opponent, and this is the one place people gather as a
+    // group rather than pair off. Every screen needs a distinct hue (see
+    // src/lib/__tests__/screens.test.ts), and nothing else has claimed it.
+    glyph: '⚇',
+    hue: 'var(--type-flying)',
+    blurb: 'Send and accept friend requests, see friend codes, and block people.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',

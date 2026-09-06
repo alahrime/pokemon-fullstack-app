@@ -133,6 +133,18 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Send and accept friend requests, see friend codes, and block people.',
   },
   {
+    id: 'chat',
+    label: 'Chat',
+    kicker: 'Conversation',
+    // Bug fits the constant hum of chatter this screen holds at once — DMs,
+    // group threads and a channel per match, all buzzing independently.
+    // Every screen needs a distinct hue (see src/lib/__tests__/screens.test.ts),
+    // and nothing else here has claimed it.
+    glyph: '☰',
+    hue: 'var(--type-bug)',
+    blurb: 'Direct messages, group chats, and the channel for each of your matches.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',

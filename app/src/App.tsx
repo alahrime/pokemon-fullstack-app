@@ -48,6 +48,11 @@ const MatchmakingScreen = lazy(() =>
 const FriendsScreen = lazy(() =>
   import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
 );
+// Lazy for the same reason as FriendsScreen just above: a secondary screen
+// most visits never open.
+const ChatScreen = lazy(() =>
+  import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })),
+);
 
 function Nav() {
   const { state, set, patch } = useAppState();
@@ -174,6 +179,8 @@ function Screens() {
       );
     case 'friends':
       return <LazyScreen key="friends"><FriendsScreen /></LazyScreen>;
+    case 'chat':
+      return <LazyScreen key="chat"><ChatScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

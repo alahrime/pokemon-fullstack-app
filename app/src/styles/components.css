@@ -6150,3 +6150,90 @@ th.bt-matrix-head { text-align: center; }
   border-left: var(--border-strong) solid var(--color-accent-2-700);
   padding-left: var(--space-3);
 }
+
+/* — chat —
+   Two panels side by side: the channel list and the open thread. Below
+   `--shell-max`'s reading width there is no room for two fixed columns, so
+   the layout wraps to one instead of squeezing either pane illegibly thin —
+   the same `flex-wrap` escape `.friend-search-row` already uses. */
+.chat-layout {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.chat-channel-list {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+}
+.chat-thread {
+  flex: 2 1 20rem;
+  min-width: 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* A row is a button, not a link — selecting a channel is a local state
+   change here, not a navigation. The active one carries the accent rail
+   `.friend-row`'s own rows use for a state that matters right now. */
+.chat-channel-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.chat-channel-row:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.chat-channel-row.is-active {
+  border-left-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.chat-transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 420px;
+  overflow-y: auto;
+}
+/* One rail colour for an ordinary message, and a faded one for a message
+   whose body has been replaced by "Message deleted" — the same rail-carries-
+   state convention `.friend-row[data-kind]` uses, with only two states to
+   tell apart here instead of four. */
+.chat-message {
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--rule-strong);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.chat-message.is-deleted {
+  border-left-color: var(--text-faint);
+}
+.chat-message-body {
+  margin: 0;
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.chat-message.is-deleted .chat-message-body {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.chat-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.chat-compose .input {
+  width: 100%;
+}

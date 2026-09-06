@@ -146,11 +146,19 @@ describe('subscribeToChannel', () => {
 });
 
 describe('listChannels', () => {
+  /**
+   * Fixture widened to carry `user_id` on each `channel_members` row: the
+   * fix below selects `channel_members(user_id, last_read_at)` (was
+   * `channel_members(last_read_at)`) so it can pick the viewer's own row
+   * instead of `[0]`, and a row with no `user_id` could never match anyone.
+   * `getSession` is mocked to id `'me'` in `beforeEach` above, so a solo
+   * member's row here is stamped `user_id: 'me'`.
+   */
   it('maps the channel_members join to lastReadAt, or null with no row', async () => {
     rows.channels = [
       {
         id: 'c1', kind: 'dm', title: null, match_id: null,
-        channel_members: [{ last_read_at: '2026-01-01T00:00:00Z' }],
+        channel_members: [{ user_id: 'me', last_read_at: '2026-01-01T00:00:00Z' }],
       },
       {
         id: 'c2', kind: 'group', title: 'Squad', match_id: null,
@@ -161,6 +169,52 @@ describe('listChannels', () => {
       { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: '2026-01-01T00:00:00Z' },
       { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null },
     ]);
+  });
+
+  /**
+   * Pins the finding: `channel_members`' SELECT policy is
+   * `is_channel_member(channel_id)`, so the embedded join returns EVERY
+   * member's row, not just the viewer's — a two-person DM's join comes back
+   * with both rows, in whatever order Postgres feels like. Taking `[0]`
+   * therefore picks an arbitrary member, quite possibly the other one, and
+   * `lastReadAt` (and any unread count built on it) ends up computed from
+   * someone else's read position. This fixture puts the viewer's row
+   * SECOND, so a version that keeps `[0]` reads back `'2020-...'`
+   * (the other member's), not `'2026-...'` (the viewer's) — this test only
+   * passes if `listChannels` picks the row whose `user_id` matches the
+   * signed-in id, rather than trusting join order.
+   */
+  it("yields the viewer's own lastReadAt from a two-member channel, not the other member's", async () => {
+    rows.channels = [
+      {
+        id: 'c1', kind: 'dm', title: null, match_id: null,
+        channel_members: [
+          { user_id: 'them', last_read_at: '2020-01-01T00:00:00Z' },
+          { user_id: 'me', last_read_at: '2026-01-01T00:00:00Z' },
+        ],
+      },
+    ];
+    const [channel] = await listChannels();
+    expect(channel.lastReadAt).toBe('2026-01-01T00:00:00Z');
+  });
+
+  /**
+   * Same shape as `markRead`'s and `myMatches`'s own no-session guards:
+   * `listChannels` now derives `me` to pick a `channel_members` row, so an
+   * undefined `me` is a bug in waiting rather than a query that just comes
+   * back empty. Guarded the same way regardless of how the specific failure
+   * would present.
+   */
+  it('returns no channels rather than picking an arbitrary member, when there is no session', async () => {
+    getSession.mockResolvedValue({ data: { session: null }, error: null });
+    rows.channels = [
+      {
+        id: 'c1', kind: 'dm', title: null, match_id: null,
+        channel_members: [{ user_id: 'them', last_read_at: '2020-01-01T00:00:00Z' }],
+      },
+    ];
+    expect(await listChannels()).toEqual([]);
+    expect(calls.some((c) => c.table === 'channels')).toBe(false);
   });
 });
 

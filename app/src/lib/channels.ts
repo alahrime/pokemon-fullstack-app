@@ -42,10 +42,32 @@ function toMessage(r: MessageRow): Message {
   };
 }
 
+/**
+ * `channel_members`' SELECT policy is `is_channel_member(channel_id)` — every
+ * member of a channel can see every OTHER member's row, not just their own.
+ * So the embedded `channel_members` join below comes back with one row per
+ * member, in whatever order Postgres feels like, and taking `[0]` (the old
+ * code) picked an arbitrary one of them — in a two-person DM, quite possibly
+ * the other person's. `lastReadAt` was therefore wrong for essentially every
+ * channel with more than one member, and any unread count built on it was
+ * computed from someone else's read position.
+ *
+ * The fix: select `user_id` alongside `last_read_at` and pick the row whose
+ * `user_id` matches the signed-in id — the only row with a read position that
+ * means anything to THIS viewer. That makes `listChannels` a function of `me`
+ * for the first time, so it gets the same `if (!me) return []` guard
+ * `myMatches` (matches.ts) and `listFriends` (social.ts) carry: with `me`
+ * undefined every row's `user_id` comparison would just be false, degrading
+ * `lastReadAt` to `null` silently rather than a query built and sent with
+ * `undefined` baked into it.
+ */
 export async function listChannels(): Promise<Channel[]> {
+  const { data: session } = await supabase.auth.getSession();
+  const me = session.session?.user.id;
+  if (!me) return [];
   const { data, error } = await supabase
     .from('channels')
-    .select('id, kind, title, match_id, channel_members(last_read_at)')
+    .select('id, kind, title, match_id, channel_members(user_id, last_read_at)')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {
@@ -54,17 +76,14 @@ export async function listChannels(): Promise<Channel[]> {
       kind: ChannelKind;
       title: string | null;
       match_id: string | null;
-      channel_members: { last_read_at: string | null }[];
+      channel_members: { user_id: string; last_read_at: string | null }[];
     };
     return {
       id: r.id,
       kind: r.kind,
       title: r.title,
       matchId: r.match_id,
-      // The join is filtered by RLS to the rows this viewer may see, which for
-      // channel_members is every member of a channel they belong to. Their own
-      // row is the one with a read position that means anything to them.
-      lastReadAt: r.channel_members[0]?.last_read_at ?? null,
+      lastReadAt: r.channel_members.find((m) => m.user_id === me)?.last_read_at ?? null,
     };
   });
 }

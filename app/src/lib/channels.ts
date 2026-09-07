@@ -183,6 +183,62 @@ export async function markRead(channelId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** A channel plus the one extra fact the dock's rail needs that `listChannels`
+ * does not already carry: when the last message in it landed. */
+export interface ChannelActivity extends Channel {
+  /** `null` for a channel nobody has posted in yet. */
+  lastMessageAt: string | null;
+}
+
+/**
+ * `listChannels()` plus, for each of those channels, when the last message in
+ * it landed — everything `ChatDock`'s rail needs to sort by recency and to
+ * decide which rows are unread (`lastMessageAt` newer than the channel's own
+ * `lastReadAt`).
+ *
+ * One extra query for every channel at once, not one per channel: a rail with
+ * N conversations open would otherwise fire N queries just to paint unread
+ * dots, which is the N+1 shape this function exists to avoid. `channel_id,
+ * created_at` ordered newest-first is enough to reduce client-side down to
+ * one row per channel — the first row this loop sees for a given id IS that
+ * channel's latest, because the query already sorted by `created_at desc`.
+ *
+ * A channel with no messages at all (a group just created, say) never
+ * appears in this second query's result, so it is left `lastMessageAt: null`
+ * rather than silently dropped — the `.map` below runs over `listChannels()`'s
+ * own array, not over what came back here.
+ */
+export async function listChannelsWithActivity(): Promise<ChannelActivity[]> {
+  const channels = await listChannels();
+  if (channels.length === 0) return [];
+  const { data, error } = await supabase
+    .from('messages')
+    .select('channel_id, created_at')
+    .in('channel_id', channels.map((c) => c.id))
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  const latest = new Map<string, string>();
+  for (const row of (data ?? []) as { channel_id: string; created_at: string }[]) {
+    if (!latest.has(row.channel_id)) latest.set(row.channel_id, row.created_at);
+  }
+  return channels.map((c) => ({ ...c, lastMessageAt: latest.get(c.id) ?? null }));
+}
+
+/**
+ * A channel is unread when it has a message this viewer's own `lastReadAt`
+ * does not yet cover — including a channel `lastReadAt` has never been
+ * stamped on at all (`null`), which reads as "everything in it is unread"
+ * rather than as "nothing to compare, so call it read". Both timestamps are
+ * ISO 8601 strings straight off Postgres, which sort lexicographically in the
+ * same order they sort chronologically, so a plain string compare is exact —
+ * no `Date` parsing needed for what is otherwise just "is A before B".
+ */
+export function isChannelUnread(c: ChannelActivity): boolean {
+  if (!c.lastMessageAt) return false;
+  if (!c.lastReadAt) return true;
+  return c.lastMessageAt > c.lastReadAt;
+}
+
 /**
  * The four states Supabase's own `.subscribe()` callback can report. Passed
  * through verbatim from `@supabase/realtime-js`'s `REALTIME_SUBSCRIBE_STATES`
@@ -213,11 +269,12 @@ export type ChannelStatus = 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOS
  * `onStatus`, an optional third argument, is `.subscribe()`'s own status
  * callback surfaced to the caller — `SUBSCRIBED`, `CHANNEL_ERROR`,
  * `TIMED_OUT` or `CLOSED`. Optional and additive rather than a change to the
- * return shape, so `ChatScreen.tsx`'s existing
- * `const stop = subscribeToChannel(...)` keeps working with no change: a
- * caller that does not need to know when the join completes never has to
- * think about it. Before this, nothing could tell a caller when the
- * subscription was actually live — `app/tools/m3b-roundtrip.ts`'s check 3
+ * return shape, so a caller's `const stop = subscribeToChannel(...)` (see
+ * `components/ChatPane.tsx`, the docked pane that reads this module now)
+ * keeps working with no change: a caller that does not need to know when the
+ * join completes never has to think about it. Before this, nothing could
+ * tell a caller when the subscription was actually live —
+ * `app/tools/m3b-roundtrip.ts`'s check 3
  * (the only thing in the project proving the `supabase_realtime` publication
  * is wired) slept a fixed 1500ms before sending and hoped the join had
  * finished, which produced a false FAILURE after `db:reset` restarts the

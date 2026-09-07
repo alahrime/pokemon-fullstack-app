@@ -34,6 +34,10 @@ function table(name: string) {
       calls.push({ table: name, op: 'eq', payload: [col, val] });
       return q;
     }),
+    in: vi.fn((col: string, vals: unknown) => {
+      calls.push({ table: name, op: 'in', payload: [col, vals] });
+      return q;
+    }),
     order: vi.fn((col: string, opts?: unknown) => {
       calls.push({ table: name, op: 'order', payload: [col, opts] });
       return q;
@@ -71,6 +75,8 @@ vi.mock('../supabase', () => ({
 
 const {
   listChannels,
+  listChannelsWithActivity,
+  isChannelUnread,
   listMessages,
   sendMessage,
   openDm,
@@ -129,7 +135,7 @@ describe('subscribeToChannel', () => {
   });
 
   it('never calls onStatus when the caller does not pass one', () => {
-    // Additive, not a breaking change: `ChatScreen.tsx` calls this with only
+    // Additive, not a breaking change: `ChatPane.tsx` calls this with only
     // two arguments, so `.subscribe()`'s callback must tolerate that with no
     // throw — `onStatus?.(...)` rather than `onStatus(...)`.
     subscribeToChannel('c1', () => {});
@@ -236,6 +242,82 @@ describe('listChannels', () => {
     ];
     expect(await listChannels()).toEqual([]);
     expect(calls.some((c) => c.table === 'channels')).toBe(false);
+  });
+});
+
+describe('listChannelsWithActivity', () => {
+  /**
+   * The whole point of this function: one query for EVERY channel's latest
+   * message, not one per channel. `rows.messages` here carries an older row
+   * for `c1` alongside the newest one, ordered as the real query would
+   * (`created_at desc`) — proving the reduction keeps the first row it sees
+   * per channel rather than the last, or an unordered fixture would pass by
+   * accident either way.
+   */
+  it("adds each channel's latest message time from a single query, keyed by channel", async () => {
+    rows.channels = [
+      {
+        id: 'c1', kind: 'dm', title: null, match_id: null,
+        channel_members: [{ user_id: 'me', last_read_at: null }],
+      },
+      {
+        id: 'c2', kind: 'group', title: 'Squad', match_id: null,
+        channel_members: [{ user_id: 'me', last_read_at: '2026-01-01T00:00:00Z' }],
+      },
+    ];
+    rows.messages = [
+      { channel_id: 'c1', created_at: '2026-01-03T00:00:00Z' },
+      { channel_id: 'c2', created_at: '2026-01-02T00:00:00Z' },
+      { channel_id: 'c1', created_at: '2026-01-01T00:00:00Z' },
+    ];
+    expect(await listChannelsWithActivity()).toEqual([
+      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z' },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' },
+    ]);
+    // Exactly one `messages` query for both channels together — an N+1 here
+    // would show up as one `in` call per channel instead of one call
+    // carrying both ids.
+    const inCalls = calls.filter((c) => c.table === 'messages' && c.op === 'in');
+    expect(inCalls).toEqual([{ table: 'messages', op: 'in', payload: ['channel_id', ['c1', 'c2']] }]);
+  });
+
+  it('marks a channel with no messages yet as lastMessageAt: null, rather than dropping it', async () => {
+    rows.channels = [
+      { id: 'c1', kind: 'group', title: 'New', match_id: null, channel_members: [] },
+    ];
+    rows.messages = [];
+    expect(await listChannelsWithActivity()).toEqual([
+      { id: 'c1', kind: 'group', title: 'New', matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+  });
+
+  it('returns no channels, and never queries messages, with no session', async () => {
+    getSession.mockResolvedValue({ data: { session: null }, error: null });
+    rows.channels = [
+      { id: 'c1', kind: 'dm', title: null, match_id: null, channel_members: [] },
+    ];
+    expect(await listChannelsWithActivity()).toEqual([]);
+    expect(calls.some((c) => c.table === 'messages')).toBe(false);
+  });
+});
+
+describe('isChannelUnread', () => {
+  const base = { id: 'c1', kind: 'dm' as const, title: null, matchId: null };
+
+  it('is unread when the latest message postdates the viewer\'s lastReadAt', () => {
+    expect(isChannelUnread({ ...base, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' })).toBe(true);
+  });
+
+  it('is unread when lastReadAt has never been stamped but a message exists', () => {
+    expect(isChannelUnread({ ...base, lastReadAt: null, lastMessageAt: '2026-01-02T00:00:00Z' })).toBe(true);
+  });
+
+  it('is read once lastReadAt catches up to the latest message', () => {
+    expect(isChannelUnread({ ...base, lastReadAt: '2026-01-02T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' })).toBe(false);
+  });
+
+  it('is never unread with no messages at all, regardless of lastReadAt', () => {
+    expect(isChannelUnread({ ...base, lastReadAt: null, lastMessageAt: null })).toBe(false);
   });
 });
 

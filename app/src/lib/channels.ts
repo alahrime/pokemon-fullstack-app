@@ -191,6 +191,160 @@ export interface ChannelActivity extends Channel {
 }
 
 /**
+ * `profiles` by id, batched into ONE `IN` query no matter how many ids are
+ * passed — never one query per id. `profiles`' SELECT policy is "readable by
+ * anyone signed in" (`to authenticated using (true)`), so this succeeds for a
+ * fellow channel member, a friend, a stranger, or anyone else with a row in
+ * that table. `withDisplayNames` below and `FriendsScreen` both resolve names
+ * through this one function — the same helper, so a person is a display name
+ * in both places, never the uuid `channel_members`/`friendships` actually
+ * stores.
+ *
+ * A duplicate id in the input is queried once. An id with no matching row (a
+ * deleted profile, say) is simply absent from the returned map — this
+ * function invents no fallback of its own; that is each caller's call to make
+ * about what "unknown" should say in its own context.
+ */
+export async function resolveDisplayNames(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .in('id', unique);
+  if (error) throw new Error(error.message);
+  return new Map(
+    ((data ?? []) as { id: string; display_name: string }[]).map((r) => [r.id, r.display_name]),
+  );
+}
+
+/** Honest, human fallback for a channel whose name cannot be resolved — never
+ * the raw channel uuid the rail used to fall back to before this existed. */
+const FALLBACK_TITLE: Record<ChannelKind, string> = {
+  dm: 'Direct message',
+  group: 'Group',
+  match: 'Match chat',
+};
+
+export interface ChannelDisplay extends ChannelActivity {
+  /** Who or what the conversation is: the OTHER member's display name for a
+   * `dm`/`match`, the channel's own `title` for a `group`, or
+   * `FALLBACK_TITLE` when that cannot be resolved. Never a uuid. */
+  displayTitle: string;
+  /** Total member count — the one extra fact a `group`'s sub-line shows
+   * instead of a timestamp (see the approved design canvas). `null` for a
+   * `dm`/`match`. */
+  memberCount: number | null;
+}
+
+/**
+ * Attaches a human `displayTitle` (and, for a `group`, a `memberCount`) to
+ * every channel passed in — everything `ChatDock`'s rail needs to stop
+ * rendering a raw channel uuid as if it were somebody's identity, and to stop
+ * a `dm` row saying nothing more specific than "Direct message".
+ *
+ * Two queries TOTAL, regardless of how many channels are passed in: one `IN`
+ * query across every one of THEIR members at once (`channel_members`' SELECT
+ * policy already lets a member see every fellow member's row — the same fact
+ * `listChannels`'s own doc comment leans on for `lastReadAt`), then
+ * `resolveDisplayNames`'s own single `IN` query across the distinct set of
+ * OTHER member ids that turns up. Never one query per channel — that is the
+ * exact N+1 shape `listChannelsWithActivity` already exists to avoid for
+ * unread state, and a name lookup done per-row would repeat the very mistake
+ * this file was written to rule out.
+ *
+ * A `dm`/`match` channel's "other" member is whichever row in its member list
+ * is not `me` — the same two-person-channel assumption `create_match_channel`
+ * (see the migration) bakes in when it seeds a match channel with exactly the
+ * two players. A channel that somehow has no resolvable other member (no
+ * session, or a profile that no longer exists) degrades to `FALLBACK_TITLE`,
+ * never to the uuid.
+ */
+export async function withDisplayNames(channels: ChannelActivity[]): Promise<ChannelDisplay[]> {
+  if (channels.length === 0) return [];
+  const { data: session } = await supabase.auth.getSession();
+  const me = session.session?.user.id;
+
+  const { data: memberRows, error: memberError } = await supabase
+    .from('channel_members')
+    .select('channel_id, user_id')
+    .in('channel_id', channels.map((c) => c.id));
+  if (memberError) throw new Error(memberError.message);
+
+  const membersByChannel = new Map<string, string[]>();
+  for (const row of (memberRows ?? []) as { channel_id: string; user_id: string }[]) {
+    const list = membersByChannel.get(row.channel_id);
+    if (list) list.push(row.user_id);
+    else membersByChannel.set(row.channel_id, [row.user_id]);
+  }
+
+  const otherIds: string[] = [];
+  for (const c of channels) {
+    if (c.kind === 'group') continue;
+    for (const id of membersByChannel.get(c.id) ?? []) {
+      if (id !== me) otherIds.push(id);
+    }
+  }
+  const names = await resolveDisplayNames(otherIds);
+
+  return channels.map((c) => {
+    const members = membersByChannel.get(c.id) ?? [];
+    if (c.kind === 'group') {
+      return { ...c, displayTitle: c.title ?? FALLBACK_TITLE.group, memberCount: members.length };
+    }
+    const other = members.find((id) => id !== me);
+    const displayTitle = (other && names.get(other)) || FALLBACK_TITLE[c.kind];
+    return { ...c, displayTitle, memberCount: null };
+  });
+}
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  );
+}
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/**
+ * A timestamp the way a person would say it, never the raw ISO-8601 string
+ * Postgres hands back — the rail used to print that string, microseconds and
+ * all, straight into the sub-line. `now` is an explicit second argument
+ * (defaulting to the real clock) purely so a test can pin "today" instead of
+ * racing whatever moment it happens to run at.
+ *
+ * Four buckets, in order: a clock time (`19:04`) for today, the word
+ * `yesterday`, a weekday name (`Tuesday`) for anything from two to six
+ * calendar days back, and otherwise a short date (`Sep 1`). Calendar days,
+ * not a raw 24-hour divide — a message at 23:59 and a read at 00:01 the next
+ * day are less than an hour apart but are "yesterday" in wall-clock terms,
+ * and the reverse (two calendar days, under 48 raw hours) is just as real.
+ */
+export function humanTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso);
+  if (sameCalendarDay(then, now)) {
+    return `${pad2(then.getHours())}:${pad2(then.getMinutes())}`;
+  }
+
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (sameCalendarDay(then, yesterday)) return 'yesterday';
+
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfThen = new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime();
+  const dayDiff = Math.round((startOfNow - startOfThen) / (24 * 60 * 60 * 1000));
+
+  if (dayDiff > 0 && dayDiff < 7) return WEEKDAYS[then.getDay()];
+  return `${MONTHS[then.getMonth()]} ${then.getDate()}`;
+}
+
+/**
  * `listChannels()` plus, for each of those channels, when the last message in
  * it landed — everything `ChatDock`'s rail needs to sort by recency and to
  * decide which rows are unread (`lastMessageAt` newer than the channel's own

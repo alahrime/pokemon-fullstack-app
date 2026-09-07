@@ -85,6 +85,9 @@ const {
   reportMessage,
   markRead,
   subscribeToChannel,
+  resolveDisplayNames,
+  withDisplayNames,
+  humanTime,
 } = await import('../channels');
 
 beforeEach(() => {
@@ -419,5 +422,176 @@ describe('markRead', () => {
     getSession.mockResolvedValue({ data: { session: null }, error: null });
     await expect(markRead('c1')).resolves.toBeUndefined();
     expect(calls.some((c) => c.table === 'channel_members')).toBe(false);
+  });
+});
+
+describe('resolveDisplayNames', () => {
+  it('batches every id into one IN query and maps id to display_name', async () => {
+    rows.profiles = [
+      { id: 'a', display_name: 'Ally' },
+      { id: 'b', display_name: 'Bree' },
+    ];
+    const names = await resolveDisplayNames(['a', 'b']);
+    expect(names.get('a')).toBe('Ally');
+    expect(names.get('b')).toBe('Bree');
+    const inCalls = calls.filter((c) => c.table === 'profiles' && c.op === 'in');
+    expect(inCalls).toEqual([{ table: 'profiles', op: 'in', payload: ['id', ['a', 'b']] }]);
+  });
+
+  it('de-duplicates ids before querying', async () => {
+    rows.profiles = [{ id: 'a', display_name: 'Ally' }];
+    await resolveDisplayNames(['a', 'a', 'a']);
+    const inCalls = calls.filter((c) => c.table === 'profiles' && c.op === 'in');
+    expect(inCalls).toEqual([{ table: 'profiles', op: 'in', payload: ['id', ['a']] }]);
+  });
+
+  it('never queries, and returns an empty map, for no ids', async () => {
+    const names = await resolveDisplayNames([]);
+    expect(names.size).toBe(0);
+    expect(calls.some((c) => c.table === 'profiles')).toBe(false);
+  });
+
+  it('leaves an unmatched id absent from the map rather than inventing a fallback', async () => {
+    rows.profiles = [];
+    const names = await resolveDisplayNames(['ghost']);
+    expect(names.has('ghost')).toBe(false);
+  });
+});
+
+describe('withDisplayNames', () => {
+  /**
+   * Pins the core defect this function exists to close: a `dm` row used to
+   * show "Direct message" and nothing more specific. `c1`'s members are
+   * `me` and `them`; `them`'s profile resolves to `Ally`, so the row must
+   * show that name, not the channel's own uuid or the generic fallback.
+   */
+  it("shows the other member's display name on a dm row, never a uuid", async () => {
+    rows.channel_members = [
+      { channel_id: 'c1', user_id: 'me' },
+      { channel_id: 'c1', user_id: 'them' },
+    ];
+    rows.profiles = [{ id: 'them', display_name: 'Ally' }];
+    const [display] = await withDisplayNames([
+      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect(display.displayTitle).toBe('Ally');
+    expect(display.displayTitle).not.toContain('c1');
+  });
+
+  it("shows the opponent's display name on a match row the same way", async () => {
+    rows.channel_members = [
+      { channel_id: 'c9', user_id: 'me' },
+      { channel_id: 'c9', user_id: 'rival' },
+    ];
+    rows.profiles = [{ id: 'rival', display_name: 'Rival' }];
+    const [display] = await withDisplayNames([
+      { id: 'c9', kind: 'match', title: null, matchId: 'm1', lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect(display.displayTitle).toBe('Rival');
+  });
+
+  it("shows a group's own title and its total member count, not a timestamp", async () => {
+    rows.channel_members = [
+      { channel_id: 'c2', user_id: 'me' },
+      { channel_id: 'c2', user_id: 'a' },
+      { channel_id: 'c2', user_id: 'b' },
+      { channel_id: 'c2', user_id: 'd' },
+    ];
+    rows.profiles = [];
+    const [display] = await withDisplayNames([
+      { id: 'c2', kind: 'group', title: 'Great League Crew', matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect(display.displayTitle).toBe('Great League Crew');
+    expect(display.memberCount).toBe(4);
+  });
+
+  /**
+   * The degrade path: `them`'s profile row is simply missing (a deleted
+   * account, or a lookup that came up empty) — the row must fall back to the
+   * honest, human "Direct message", never to the uuid `channelLabel` used to
+   * fall back to before this function existed.
+   */
+  it('degrades an unresolvable dm to "Direct message", never to the uuid', async () => {
+    rows.channel_members = [
+      { channel_id: 'c1', user_id: 'me' },
+      { channel_id: 'c1', user_id: 'them' },
+    ];
+    rows.profiles = [];
+    const [display] = await withDisplayNames([
+      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect(display.displayTitle).toBe('Direct message');
+  });
+
+  /**
+   * The whole point: TWO queries no matter how many channels are passed in —
+   * one `IN` across every channel's members, one more across the distinct
+   * set of other ids that turns up. A version that queried per-channel would
+   * show up here as three `in` calls on `channel_members` instead of one.
+   */
+  it('costs exactly two queries total, regardless of how many channels are passed', async () => {
+    rows.channel_members = [
+      { channel_id: 'c1', user_id: 'me' },
+      { channel_id: 'c1', user_id: 'a' },
+      { channel_id: 'c3', user_id: 'me' },
+      { channel_id: 'c3', user_id: 'b' },
+    ];
+    rows.profiles = [
+      { id: 'a', display_name: 'Ally' },
+      { id: 'b', display_name: 'Bree' },
+    ];
+    await withDisplayNames([
+      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: null },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null, lastMessageAt: null },
+      { id: 'c3', kind: 'match', title: null, matchId: 'm1', lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect(calls.filter((c) => c.table === 'channel_members' && c.op === 'in')).toHaveLength(1);
+    expect(calls.filter((c) => c.table === 'profiles' && c.op === 'in')).toHaveLength(1);
+  });
+
+  it('returns an empty array, and queries nothing, for no channels', async () => {
+    const result = await withDisplayNames([]);
+    expect(result).toEqual([]);
+    expect(calls.some((c) => c.table === 'channel_members' || c.table === 'profiles')).toBe(false);
+  });
+});
+
+describe('humanTime', () => {
+  const now = new Date(2026, 8, 6, 10, 30, 0);
+
+  it('renders a timestamp from earlier today as a clock time, never an ISO string', () => {
+    const today = new Date(2026, 8, 6, 19, 4, 0).toISOString();
+    expect(humanTime(today, now)).toBe('19:04');
+  });
+
+  it('pads single-digit hours and minutes', () => {
+    const today = new Date(2026, 8, 6, 4, 5, 0).toISOString();
+    expect(humanTime(today, now)).toBe('04:05');
+  });
+
+  it('renders yesterday as the word "yesterday"', () => {
+    const yesterday = new Date(2026, 8, 5, 23, 59, 0).toISOString();
+    expect(humanTime(yesterday, now)).toBe('yesterday');
+  });
+
+  it('renders three days ago as a weekday name', () => {
+    // now is Sunday 2026-09-06; three calendar days back is Thursday.
+    const threeDaysAgo = new Date(2026, 8, 3, 12, 0, 0).toISOString();
+    expect(humanTime(threeDaysAgo, now)).toBe('Thursday');
+  });
+
+  it('renders anything eight or more days back as a short date, never an ISO string', () => {
+    const longAgo = new Date(2026, 7, 20, 12, 0, 0).toISOString();
+    const rendered = humanTime(longAgo, now);
+    expect(rendered).toBe('Aug 20');
+    expect(rendered).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it('never renders microsecond precision, the exact defect measured from the live DOM', () => {
+    // Postgres's own `timestamptz` format, six fractional digits and all.
+    const withMicroseconds = '2026-09-07T00:35:13.94682+00:00';
+    const rendered = humanTime(withMicroseconds, new Date(2026, 8, 7, 1, 0, 0));
+    expect(rendered).not.toContain('94682');
+    expect(rendered).not.toMatch(/T\d{2}:\d{2}:\d{2}/);
   });
 });

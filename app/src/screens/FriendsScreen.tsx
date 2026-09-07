@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { resolveDisplayNames } from '../lib/channels';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../state/SessionContext';
@@ -13,6 +14,11 @@ import {
   unblockUser,
   type Friend,
 } from '../lib/social';
+
+/** Honest fallback for a friend/block row whose profile cannot be resolved
+ * (a deleted account, say) — never the raw uuid `listFriends`/`listBlocks`
+ * actually return. */
+const UNKNOWN_TRAINER = 'Unknown trainer';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -75,9 +81,16 @@ async function searchProfilesByName(term: string): Promise<ProfileHit[]> {
  * falsehood rather than as "you are not signed in."
  *
  * Every row's mutation button (`Remove`, `Block`, `Withdraw`, `Unblock`)
- * carries its own `otherId`/`id` in its visible text, the same way `Accept`
- * and `Decline` already do — a list with more than one row must not leave
- * several buttons sharing one accessible name.
+ * carries a name in its visible text, the same way `Accept` and `Decline`
+ * already do — a list with more than one row must not leave several buttons
+ * sharing one accessible name. That name is a resolved display name, not the
+ * raw `otherId`/`id` uuid `listFriends`/`listBlocks` actually return: `names`
+ * below is built by one call to `resolveDisplayNames()` (`lib/channels.ts`,
+ * shared with `ChatDock`'s own name resolution for the same reason) covering
+ * every id this screen has anywhere on it — incoming, outgoing, accepted and
+ * blocked alike — rather than one profile lookup per row. `UNKNOWN_TRAINER`
+ * is what a row falls back to when that lookup comes up empty; it is never
+ * the uuid itself, the defect this resolution exists to close.
  */
 export function FriendsScreen() {
   const { user } = useSession();
@@ -88,6 +101,7 @@ export function FriendsScreen() {
   // policy the brief refers to), so asking for anyone else's would just be a
   // read RLS was always going to refuse.
   const [codes, setCodes] = useState<Record<string, string | null>>({});
+  const [names, setNames] = useState<Map<string, string>>(new Map());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -103,6 +117,11 @@ export function FriendsScreen() {
       const [f, b] = await Promise.all([listFriends(), listBlocks()]);
       setFriends(f);
       setBlocked(b);
+      // One batched lookup for every id anywhere on this screen — incoming,
+      // outgoing, accepted and blocked alike — rather than one per row. See
+      // this file's own doc comment on why a uuid must never reach a row's
+      // visible text or its accessible name.
+      setNames(await resolveDisplayNames([...f.map((x) => x.otherId), ...b]));
       const acceptedIds = f.filter((x) => x.status === 'accepted').map((x) => x.otherId);
       const pairs = await Promise.all(
         acceptedIds.map(async (id): Promise<[string, string | null]> => {
@@ -126,6 +145,12 @@ export function FriendsScreen() {
     if (!user) return;
     void load();
   }, [user]);
+
+  /** A resolved display name for `id`, or `UNKNOWN_TRAINER` — never `id`
+   * itself. */
+  function nameFor(id: string): string {
+    return names.get(id) ?? UNKNOWN_TRAINER;
+  }
 
   const incoming = (friends ?? []).filter((f) => f.status === 'pending' && f.theyAsked);
   const outgoing = (friends ?? []).filter((f) => f.status === 'pending' && !f.theyAsked);
@@ -252,14 +277,14 @@ export function FriendsScreen() {
         <ul className="match-list">
           {incoming.map((f) => (
             <li key={f.otherId} className="friend-row" data-kind="incoming">
-              <span>{f.otherId}</span>
+              <span>{nameFor(f.otherId)}</span>
               <button
                 type="button"
                 className="btn btn-primary"
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => respondToFriendship(f.otherId, true))}
               >
-                Accept {f.otherId}
+                Accept {nameFor(f.otherId)}
               </button>
               <button
                 type="button"
@@ -267,7 +292,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => respondToFriendship(f.otherId, false))}
               >
-                Decline {f.otherId}
+                Decline {nameFor(f.otherId)}
               </button>
             </li>
           ))}
@@ -280,7 +305,7 @@ export function FriendsScreen() {
         <ul className="match-list">
           {outgoing.map((f) => (
             <li key={f.otherId} className="friend-row" data-kind="outgoing">
-              <span>{f.otherId}</span>
+              <span>{nameFor(f.otherId)}</span>
               <span className="text-faint">Waiting on them</span>
               <button
                 type="button"
@@ -288,7 +313,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
               >
-                Withdraw {f.otherId}
+                Withdraw {nameFor(f.otherId)}
               </button>
             </li>
           ))}
@@ -301,7 +326,7 @@ export function FriendsScreen() {
         <ul className="match-list">
           {accepted.map((f) => (
             <li key={f.otherId} className="friend-row" data-kind="accepted">
-              <span>{f.otherId}</span>
+              <span>{nameFor(f.otherId)}</span>
               {codes[f.otherId] && <span className="friend-code">{codes[f.otherId]}</span>}
               <button
                 type="button"
@@ -309,7 +334,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
               >
-                Remove {f.otherId}
+                Remove {nameFor(f.otherId)}
               </button>
               <button
                 type="button"
@@ -317,7 +342,7 @@ export function FriendsScreen() {
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => blockUser(f.otherId))}
               >
-                Block {f.otherId}
+                Block {nameFor(f.otherId)}
               </button>
             </li>
           ))}
@@ -330,14 +355,14 @@ export function FriendsScreen() {
         <ul className="match-list">
           {(blocked ?? []).map((id) => (
             <li key={id} className="friend-row" data-kind="blocked">
-              <span>{id}</span>
+              <span>{nameFor(id)}</span>
               <button
                 type="button"
                 className="btn"
                 disabled={busyId === id}
                 onClick={() => void act(id, () => unblockUser(id))}
               >
-                Unblock {id}
+                Unblock {nameFor(id)}
               </button>
             </li>
           ))}

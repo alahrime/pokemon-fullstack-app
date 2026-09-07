@@ -2,21 +2,51 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '../state/SessionContext';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import {
+  humanTime,
   isChannelUnread,
   listChannelsWithActivity,
-  type ChannelActivity,
+  withDisplayNames,
+  type ChannelDisplay,
 } from '../lib/channels';
-import { channelLabel, ChatPane } from './ChatPane';
+import { ChatPane } from './ChatPane';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** Kind → the plain word the rail's mono sub-line names it by. */
-function kindWord(kind: ChannelActivity['kind']): string {
-  if (kind === 'match') return 'Match';
-  if (kind === 'group') return 'Group';
-  return 'DM';
+/** Kind → the plain word the rail's mono sub-line names it by, matching the
+ * approved design canvas (`match · 19:04`, `group · 4 people`,
+ * `direct · yesterday`). */
+function kindWord(kind: ChannelDisplay['kind']): string {
+  if (kind === 'match') return 'match';
+  if (kind === 'group') return 'group';
+  return 'direct';
+}
+
+/**
+ * The rail row's mono sub-line: the kind, then either a human time (a `dm` or
+ * `match`, which has no more useful second fact) or a member count (a
+ * `group`, for which "4 people" says more than when the last message
+ * landed — the approved design canvas's own call). Never the raw ISO string
+ * `lastMessageAt` actually is.
+ */
+function subLine(c: ChannelDisplay): string {
+  const kind = kindWord(c.kind);
+  if (c.kind === 'group') {
+    const n = c.memberCount ?? 0;
+    return `${kind} · ${n === 1 ? '1 person' : `${n} people`}`;
+  }
+  return c.lastMessageAt ? `${kind} · ${humanTime(c.lastMessageAt)}` : `${kind} · no messages yet`;
+}
+
+/**
+ * The rail button's whole accessible name — short and specific, never the
+ * concatenation of every text node inside it (title, sub-line and the
+ * "Unread" tag all read together, which is what an unlabelled button would
+ * otherwise expose to a screen reader's rotor).
+ */
+function railAriaLabel(c: ChannelDisplay, unread: boolean): string {
+  return `Open chat with ${c.displayTitle}${unread ? ', 1 unread' : ''}`;
 }
 
 /**
@@ -72,11 +102,21 @@ const POLL_MS = 15_000;
  * `onActivity`/`onRead` below, so a conversation you have a pane open on
  * updates its badge immediately rather than waiting out the next poll — only
  * a channel with NO open pane ever waits the full `POLL_MS`.
+ *
+ * **Names, not uuids.** `withDisplayNames()` (`lib/channels.ts`) runs after
+ * every `listChannelsWithActivity()` call — on the initial load and on every
+ * `POLL_MS` refresh alike — and attaches a human `displayTitle` (a `dm`'s or
+ * `match`'s other member, or a `group`'s own title) plus, for a `group`, a
+ * `memberCount`. It costs exactly two more queries per refresh, same as
+ * `listChannelsWithActivity`'s own extra query above: one `IN` query across
+ * every channel's members, one more across the distinct set of names that
+ * turns up — never a query per row. See its own doc comment for the RLS
+ * facts that make this safe to run for someone else's member rows.
  */
 export function ChatDock() {
   const { user } = useSession();
   const { requestedMatchId, clearRequestedMatchChannel } = useChatDockRequest();
-  const [channels, setChannels] = useState<ChannelActivity[] | null>(null);
+  const [channels, setChannels] = useState<ChannelDisplay[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [openIds, setOpenIds] = useState<string[]>([]);
@@ -84,6 +124,7 @@ export function ChatDock() {
 
   const refresh = useCallback(() => {
     void listChannelsWithActivity()
+      .then((cs) => withDisplayNames(cs))
       .then((cs) => {
         setChannels(cs);
         setLoadError(null);
@@ -222,13 +263,16 @@ export function ChatDock() {
                     type="button"
                     className={`chat-rail-row${openIds.includes(c.id) ? ' is-open' : ''}`}
                     data-kind={c.kind}
+                    aria-label={railAriaLabel(c, unread)}
                     onClick={() => openChannel(c.id)}
                   >
-                    <span className="chat-rail-title">{channelLabel(c)}</span>
-                    <span className="chat-rail-sub text-faint">
-                      {kindWord(c.kind)} · {c.lastMessageAt ?? 'no messages yet'} · {c.id}
-                    </span>
-                    {unread && <span className="chat-rail-unread-tag">Unread</span>}
+                    <span className="chat-rail-title">{c.displayTitle}</span>
+                    <span className="chat-rail-sub text-faint">{subLine(c)}</span>
+                    {unread && (
+                      <span className="chat-rail-unread-tag" aria-hidden="true">
+                        Unread
+                      </span>
+                    )}
                   </button>
                 </li>
               );

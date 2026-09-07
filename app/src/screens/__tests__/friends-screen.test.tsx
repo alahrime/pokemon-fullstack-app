@@ -50,6 +50,19 @@ vi.mock('../../lib/matchmaking', () => ({
 let sessionId: string | null = 'me';
 
 const searchRows: { id: string; display_name: string }[] = [];
+/**
+ * What `resolveDisplayNames()` (`lib/channels.ts`, real and unmocked here —
+ * only the `supabase` client underneath it is a test double) should resolve
+ * each friend/block id to. Defaults to echoing the id back as its own
+ * display name, so every existing test that asserts on, say, `Remove mate`
+ * keeps passing unchanged: with no override, "mate" resolves to "mate". A
+ * test that cares about resolution specifically overrides an entry here; one
+ * that cares about the fallback removes an id via `missingProfileIds`
+ * instead, standing in for a profile that no longer exists.
+ */
+let profileNames: Record<string, string> = {};
+const missingProfileIds = new Set<string>();
+
 vi.mock('../../lib/supabase', () => {
   function chain() {
     // `unknown` rather than `PromiseLike<...>`: the real query builder's
@@ -57,11 +70,33 @@ vi.mock('../../lib/supabase', () => {
     // which a plain mock only has to satisfy at the call site (`await`),
     // never at the type level.
     const q: Record<string, unknown> = {};
-    q.then = (resolve: (v: { data: unknown; error: null }) => unknown) =>
-      Promise.resolve(resolve({ data: searchRows, error: null }));
+    // Two different callers share this same `profiles` chain: the "find a
+    // trainer" search (`.select().ilike().limit()`, answered from
+    // `searchRows`) and `resolveDisplayNames` (`.select().in()`, answered
+    // from `profileNames`/`missingProfileIds`). Which one fired is recorded
+    // by whichever of `.ilike`/`.in` gets called on THIS chain instance.
+    let mode: 'search' | 'names' = 'search';
+    let requestedIds: string[] = [];
     q.select = () => q;
-    q.ilike = () => q;
+    q.ilike = () => {
+      mode = 'search';
+      return q;
+    };
     q.limit = () => q;
+    q.in = (_col: string, ids: string[]) => {
+      mode = 'names';
+      requestedIds = ids;
+      return q;
+    };
+    q.then = (resolve: (v: { data: unknown; error: null }) => unknown) => {
+      if (mode === 'names') {
+        const rows = requestedIds
+          .filter((id) => !missingProfileIds.has(id))
+          .map((id) => ({ id, display_name: profileNames[id] ?? id }));
+        return Promise.resolve(resolve({ data: rows, error: null }));
+      }
+      return Promise.resolve(resolve({ data: searchRows, error: null }));
+    };
     return q;
   }
   return {
@@ -90,6 +125,8 @@ beforeEach(() => {
   unblockUser.mockReset().mockResolvedValue(undefined);
   opponentFriendCode.mockReset().mockResolvedValue(null);
   searchRows.length = 0;
+  profileNames = {};
+  missingProfileIds.clear();
 });
 
 describe('signed out', () => {
@@ -141,6 +178,32 @@ describe('friends screen', () => {
     await waitFor(() => expect(removeFriendship).toHaveBeenCalledWith('mate'));
     fireEvent.click(await screen.findByRole('button', { name: /^block mate$/i }));
     await waitFor(() => expect(blockUser).toHaveBeenCalledWith('mate'));
+  });
+
+  /**
+   * The name-resolution defect this screen shared with `ChatDock`: a row
+   * used to show `f.otherId` — a uuid — as if it were the person's identity.
+   * `profileNames.mate = 'Buddy'` stands in for `profiles.display_name`;
+   * once resolved, "Buddy" is what the row and its buttons must show, and
+   * the raw id must not appear anywhere in the document.
+   */
+  it("resolves a friend's display name instead of rendering their uuid", async () => {
+    profileNames.mate = 'Buddy';
+    renderApp(<FriendsScreen />);
+    expect(await screen.findByRole('button', { name: /^remove buddy$/i })).toBeInTheDocument();
+    expect(screen.queryByText('mate')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The degrade path: `mate`'s profile cannot be resolved at all (a deleted
+   * account, say). The row must fall back to something honest and human,
+   * never to the uuid `resolveDisplayNames` was given.
+   */
+  it('falls back to an honest label, never a uuid, when a profile cannot be resolved', async () => {
+    missingProfileIds.add('mate');
+    renderApp(<FriendsScreen />);
+    expect(await screen.findByRole('button', { name: /^remove unknown trainer$/i })).toBeInTheDocument();
+    expect(screen.queryByText('mate')).not.toBeInTheDocument();
   });
 
   /**

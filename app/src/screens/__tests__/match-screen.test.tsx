@@ -5,6 +5,7 @@ import { renderApp } from '../../test/render';
 import { ThemeProvider } from '../../state/ThemeContext';
 import { SessionProvider } from '../../state/SessionContext';
 import { AppStateProvider } from '../../state/AppState';
+import { ChatDockRequestProvider } from '../../state/ChatDockContext';
 import { MatchScreen } from '../MatchScreen';
 import type { Match } from '../../lib/matches';
 
@@ -44,7 +45,9 @@ function wrapped(ui: ReactElement) {
   return (
     <ThemeProvider>
       <SessionProvider>
-        <AppStateProvider>{ui}</AppStateProvider>
+        <AppStateProvider>
+          <ChatDockRequestProvider>{ui}</ChatDockRequestProvider>
+        </AppStateProvider>
       </SessionProvider>
     </ThemeProvider>
   );

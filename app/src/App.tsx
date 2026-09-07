@@ -3,9 +3,11 @@ import { AppStateProvider, useAppState } from './state/AppState';
 import { SCREEN_DEFS } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
 import { SessionProvider } from './state/SessionContext';
+import { ChatDockRequestProvider } from './state/ChatDockContext';
 import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
+import { ChatDock } from './components/ChatDock';
 import { LeagueTabs } from './components/LeagueTabs';
 import { opponentsFor, randomMatchup } from './lib/data';
 import { defaultSpreadFor } from './lib/engine';
@@ -48,12 +50,6 @@ const MatchmakingScreen = lazy(() =>
 const FriendsScreen = lazy(() =>
   import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
 );
-// Lazy for the same reason as FriendsScreen just above: a secondary screen
-// most visits never open.
-const ChatScreen = lazy(() =>
-  import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })),
-);
-
 function Nav() {
   const { state, set, patch } = useAppState();
   return (
@@ -179,8 +175,6 @@ function Screens() {
       );
     case 'friends':
       return <LazyScreen key="friends"><FriendsScreen /></LazyScreen>;
-    case 'chat':
-      return <LazyScreen key="chat"><ChatScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }
@@ -224,6 +218,16 @@ function Shell() {
           <Screens />
         </div>
         <SiteFooter />
+        {/* A SIBLING of the `key={state.screen}` div above, not a child of
+            it — that `key` forces React to tear the whole subtree down and
+            rebuild it on every navigation, which would destroy every open
+            pane, every draft, and every live `subscribeToChannel` the dock
+            holds the instant someone clicked a different nav tab. Mounted
+            here instead, `ChatDock` survives navigation exactly as `Nav` and
+            `SiteFooter` already do, which is the entire premise of a dock
+            that "rides on top of whatever page you are on" rather than being
+            its own page. See `ChatDock`'s own doc comment. */}
+        <ChatDock />
       </div>
     </div>
   );
@@ -234,7 +238,9 @@ export default function App() {
     <ThemeProvider>
       <SessionProvider>
         <AppStateProvider>
-          <Shell />
+          <ChatDockRequestProvider>
+            <Shell />
+          </ChatDockRequestProvider>
         </AppStateProvider>
       </SessionProvider>
     </ThemeProvider>

@@ -6151,47 +6151,148 @@ th.bt-matrix-head { text-align: center; }
   padding-left: var(--space-3);
 }
 
-/* — chat —
-   Two panels side by side: the channel list and the open thread. Below
-   `--shell-max`'s reading width there is no room for two fixed columns, so
-   the layout wraps to one instead of squeezing either pane illegibly thin —
-   the same `flex-wrap` escape `.friend-search-row` already uses. */
-.chat-layout {
+/* — generic chamfers —
+   The 9px opposite-corner cut and its 5px small-control counterpart had been
+   pasted as a literal `clip-path: polygon(...)` into more than ten separate
+   component rules before this (`grep -c` the two polygons below in this
+   file) rather than shared — the dock below is the first new surface written
+   after that was noticed, so it introduces the shared classes instead of
+   adding an eleventh and twelfth paste. Existing components are left as they
+   were; retrofitting them is a separate cleanup, not this one. */
+.chamfer-9 {
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+.chamfer-5 {
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+/* — chat dock —
+   A Messenger-style dock, fixed to the viewport rather than laid out in the
+   page flow — it has to sit on TOP of whatever screen is showing, not take a
+   slot next to it. `.chat-dock-panes` grows LEFTWARD off the rail (row-reverse
+   with `flex-end`, so the most recently opened pane sits nearest the rail
+   rather than furthest from it) and wraps to a second line above the rail on
+   a narrow viewport rather than running panes off the left edge of the
+   screen. */
+.chat-dock {
+  position: fixed;
+  right: var(--space-4);
+  bottom: 0;
+  z-index: 40;
   display: flex;
+  align-items: flex-end;
   gap: var(--space-3);
-  align-items: flex-start;
-  flex-wrap: wrap;
+  max-width: calc(100vw - var(--space-4) * 2);
 }
-.chat-channel-list {
-  flex: 1 1 14rem;
-  min-width: 12rem;
+.chat-dock-panes {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap-reverse;
+  align-items: flex-end;
+  gap: var(--space-3);
 }
-.chat-thread {
-  flex: 2 1 20rem;
-  min-width: 16rem;
+.chat-rail {
+  flex: none;
+  width: 17rem;
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  background: var(--surface-1);
 }
-/* A row is a button, not a link — selecting a channel is a local state
-   change here, not a navigation. The active one carries the accent rail
-   `.friend-row`'s own rows use for a state that matters right now. */
-.chat-channel-row {
-  display: block;
+.chat-rail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chat-rail-header .hud-label { flex: 1; }
+.chat-rail-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-radius: 999px;
+  padding: 0 6px;
+  min-width: 1.4em;
+  text-align: center;
+}
+.chat-rail-toggle { font-size: var(--text-sm); }
+.chat-rail-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+}
+/* One rail colour per channel kind — the same border-left device
+   `.friend-row[data-kind]` and the offer rows already use to tell states
+   apart without another column of text. Matches the approved mapping: the
+   match channel gets the same accent a match report uses elsewhere, a group
+   gets the secondary accent, and a DM (nothing further to distinguish) gets
+   the plain divider colour. */
+.chat-rail-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: none;
-  border-left: 3px solid transparent;
-  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--rule-strong);
+  padding: var(--space-1) var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-text);
   cursor: pointer;
 }
-.chat-channel-row:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
-.chat-channel-row.is-active {
-  border-left-color: var(--color-accent);
+.chat-rail-row[data-kind='match'] { border-left-color: var(--color-accent); }
+.chat-rail-row[data-kind='group'] { border-left-color: var(--color-accent-2); }
+.chat-rail-row:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.chat-rail-row.is-open {
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.chat-rail-title { font-size: var(--text-sm); }
+.chat-rail-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+.chat-rail-unread-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+/* A pane sits above the rail's own header height so neither obscures the
+   other when both are visible at once. */
+.chat-pane {
+  flex: none;
+  width: 20rem;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--surface-1);
+}
+.chat-pane.is-minimized { gap: 0; }
+.chat-pane-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chat-pane-kind { flex: none; }
+.chat-pane-title {
+  flex: 1;
+  font-size: var(--text-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-pane-controls {
+  display: flex;
+  gap: var(--space-1);
 }
 .chat-transcript {
   list-style: none;

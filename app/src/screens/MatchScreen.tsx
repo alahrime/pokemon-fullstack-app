@@ -4,7 +4,7 @@ import {
   adjudicatedRounds, myMatches, myReport, submitReport, toMatchTerms, toMyTerms,
   type Match, type MatchState,
 } from '../lib/matches';
-import { useAppState } from '../state/AppState';
+import { useChatDockRequest } from '../state/ChatDockContext';
 
 /** A best-of-N ends the moment one side reaches this many wins, not before. */
 const needed = (bestOf: number) => Math.floor(bestOf / 2) + 1;
@@ -75,7 +75,7 @@ const HEADLINE: Record<Match['state'], string> = {
  * that could leak the other side's claim before it is safe to.
  */
 export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () => void }) {
-  const { set } = useAppState();
+  const { requestMatchChannel } = useChatDockRequest();
   const [iWon, setIWon] = useState<RoundResult[]>([]);
   const [rounds, setRounds] = useState<{ roundNo: number; winner: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -179,11 +179,12 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
         title="Match"
         blurb="Report the rounds you played and see the adjudicated result."
         aside={
-          // `activeMatch` (the state slot this screen is already rendered
-          // from — see App.tsx's `case 'match'`) stays set across this
-          // navigation, so ChatScreen's own effect can find the channel
-          // whose `matchId` is this match's id and open straight to it.
-          <button type="button" className="btn" onClick={() => set('screen', 'chat')}>
+          // Chat is a dock now, not a destination — there is no `chat`
+          // screen to navigate to any more. `requestMatchChannel` asks
+          // `ChatDock` (mounted once, as a sibling of this remounting screen
+          // tree — see App.tsx) to open this match's channel in a pane on
+          // top of whatever is on screen, which stays this very match report.
+          <button type="button" className="btn" onClick={() => requestMatchChannel(match.id)}>
             Open match chat
           </button>
         }

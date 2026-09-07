@@ -6,7 +6,7 @@ import {
   reportMessage,
   sendMessage,
   subscribeToChannel,
-  type Channel,
+  type ChannelDisplay,
   type Message,
 } from '../lib/channels';
 
@@ -15,15 +15,18 @@ function messageOf(e: unknown): string {
 }
 
 /**
- * What a pane's header (and a rail row, which imports this too) reads for a
- * channel — a group by its own title, and the two kinds that have no title of
- * their own by what they are. Lifted from the old full-page `ChatScreen`
- * unchanged; see `git log` on that file for its history.
+ * The pane's `.hud-label` kind badge — the same three kinds the rail keys its
+ * border colour off (`data-kind` in `ChatDock`), spelled out for a header
+ * that has no adjoining sub-line to disambiguate what's chatting the way the
+ * rail's `direct · 20:35` does. `match` reads `match chat` here rather than
+ * the rail's bare `match`, matching the approved design canvas's pane header
+ * (`DM` / `GROUP` / `MATCH CHAT` once CSS's `text-transform: uppercase`
+ * runs). `dm`/`group` already equal their own uppercased kind, so only
+ * `match` needs the extra word.
  */
-export function channelLabel(c: Channel): string {
-  if (c.kind === 'group') return c.title ?? 'Group';
-  if (c.kind === 'match') return 'Match chat';
-  return 'Direct message';
+function kindLabel(kind: ChannelDisplay['kind']): string {
+  if (kind === 'match') return 'match chat';
+  return kind;
 }
 
 /**
@@ -52,6 +55,15 @@ export function channelLabel(c: Channel): string {
  * `reportedIds` is local, per-mount UI state, not a fact the server
  * remembers, so it lives and dies with this pane exactly as it did with
  * `ChatScreen`'s per-channel state.
+ *
+ * `channel` is a `ChannelDisplay`, not a bare `Channel` — `ChatDock` already
+ * resolved every open channel's `displayTitle` once, up front, for the rail
+ * (`withDisplayNames` in `lib/channels.ts`), and passes that same object down
+ * here rather than this pane re-resolving or re-querying anything of its own.
+ * The header below reads `channel.displayTitle` directly, so a DM pane names
+ * itself "Ally" exactly when the rail row for the same channel does, and
+ * degrades to the identical honest fallback ("Direct message") — never a
+ * uuid — when `withDisplayNames` itself couldn't resolve one.
  */
 export function ChatPane({
   channel,
@@ -61,7 +73,7 @@ export function ChatPane({
   onActivity,
   onRead,
 }: {
-  channel: Channel;
+  channel: ChannelDisplay;
   minimized: boolean;
   onToggleMinimize: () => void;
   onClose: () => void;
@@ -184,18 +196,24 @@ export function ChatPane({
     }
   }
 
-  const label = channelLabel(channel);
+  const label = channel.displayTitle;
 
   return (
     <section className={`chat-pane chamfer-9 panel${minimized ? ' is-minimized' : ''}`}>
       <div className="chat-pane-header">
-        <span className="hud-label chat-pane-kind">{channel.kind}</span>
+        <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
         <span className="chat-pane-title">{label}</span>
         <div className="chat-pane-controls">
+          {/* "chat with <name>" rather than a trailing `· ${channel.id}` — with
+              two panes open side by side, a resolved `displayTitle` already
+              distinguishes them (the same assumption `ChatDock`'s own
+              `railAriaLabel` makes for the rail row), and reads far better on
+              a screen reader's rotor than the raw uuid the old fallback-label
+              version needed to stay unique. */}
           <button
             type="button"
             className="btn btn-ghost chamfer-5"
-            aria-label={`${minimized ? 'Expand' : 'Minimize'} ${label} · ${channel.id}`}
+            aria-label={`${minimized ? 'Expand' : 'Minimize'} chat with ${label}`}
             onClick={onToggleMinimize}
           >
             {minimized ? '▴' : '▾'}
@@ -203,7 +221,7 @@ export function ChatPane({
           <button
             type="button"
             className="btn btn-ghost chamfer-5"
-            aria-label={`Close ${label} · ${channel.id}`}
+            aria-label={`Close chat with ${label}`}
             onClick={onClose}
           >
             ✕

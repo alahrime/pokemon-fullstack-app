@@ -203,3 +203,147 @@ unchanged (see above). Nothing under `supabase/` was touched.
   `innerText`/accessible name) and was left alone to keep the diff scoped,
   but it's a visible inconsistency a follow-up could close by threading
   `displayTitle` into `ChatPane` too.
+
+## Follow-up — closing the `ChatPane` inconsistency
+
+The gap flagged directly above is now closed.
+
+### What was wrong (recap, measured from the live DOM)
+
+The rail's row correctly read `TEST OPPONENT 2 / direct · 20:35`. The open
+pane's header for the SAME channel read `DM / Direct message` — `ChatPane`
+was calling its own `channelLabel(channel)`, a pure kind-based function that
+never saw `displayTitle` at all, so the same conversation had two different
+names six inches apart on screen.
+
+### What changed
+
+`app/src/components/ChatPane.tsx`:
+
+- **`channelLabel` removed.** It was the exact source of the defect — a
+  second, independent, kind-only naming function living alongside
+  `withDisplayNames`'s `FALLBACK_TITLE` table, which already computes the
+  correct honest label (real name when resolvable, "Direct message" /
+  "Group" / "Match chat" otherwise). Its doc comment's claim that "a rail
+  row... imports this too" was already false (the rail reads
+  `c.displayTitle` directly, confirmed by grep) — a second reason to remove
+  rather than patch it.
+- **`channel` prop widened from `Channel` to `ChannelDisplay`.** `ChatDock`
+  was already passing a `ChannelDisplay` object at the one call site
+  (`channels?.find(...)`, where `channels: ChannelDisplay[] | null`); the
+  prop type just hadn't caught up, which is why `displayTitle` was sitting on
+  the object unused.
+- **`const label = channel.displayTitle`** replaces the `channelLabel(channel)`
+  call. This is the one-line fix: it reads the SAME field, resolved ONCE by
+  `withDisplayNames` inside `ChatDock`'s `refresh()`, that the rail's own
+  `chat-rail-title` renders — no new query, no independent re-resolution.
+  Because `withDisplayNames` already degrades an unresolvable dm/match to
+  `FALLBACK_TITLE` (never a uuid), `ChatPane` inherits that same honest
+  fallback for free.
+- **`kindLabel(kind)` added** for the `.hud-label` kind badge above the
+  title: `dm`/`group` render as before (CSS-uppercases to `DM`/`GROUP`), but
+  `match` now renders `match chat` (→ `MATCH CHAT`) instead of the old bare
+  `match` (→ `MATCH`), matching the design canvas's pane header.
+- **Close/Minimize `aria-label`s reworded** from `` `Close ${label} · ${channel.id}` ``
+  to `` `Close chat with ${label}` `` (and the Minimize/Expand equivalent).
+  The old form was already technically unique per pane (the uuid tail
+  guaranteed it) but unfriendly to read aloud; the new form matches the
+  rail's own `railAriaLabel` convention (`"Open chat with Ally"`) and stays
+  unique across open panes on the same assumption the rail already makes
+  (distinct display names) — not a new risk, the same accepted trade-off
+  called out under "Display-name collisions" above.
+
+### Tests
+
+`app/src/components/__tests__/chat-pane.test.tsx`:
+- Replaced the `describe('channelLabel', …)` block (testing now-deleted code)
+  with `describe("the pane header's title and kind badge", …)`: resolved
+  `displayTitle` renders in `.chat-pane-title`; an unresolvable channel
+  degrades to `"Direct message"` with the channel id absent from the
+  document; the kind badge reads `dm`/`group`/`match chat` for the three
+  kinds.
+- New `describe('close/minimise control names', …)`: two panes open at once
+  (`Ally`, `Buddy`) produce two `Close` buttons with distinct, name-based
+  accessible names (`"Close chat with Ally"` / `"Close chat with Buddy"`),
+  neither containing either channel's raw id.
+- Fixtures (`dm`, `group`) are now `ChannelDisplay` objects carrying
+  `displayTitle`/`memberCount`/`lastMessageAt`, matching what `ChatDock`
+  actually passes at runtime.
+
+`app/src/components/__tests__/chat-dock.test.tsx` (11 → 13 tests):
+- Updated the pre-existing "closes an open pane" test: the close button is
+  now found by `/close chat with ally/i` (was `/close direct message.*c1/i`),
+  and its comment rewritten — it no longer describes `ChatPane` as a
+  "separate concern" from the rail's naming, since that's precisely what
+  this follow-up closed.
+- New `describe('ChatDock rail and pane agreement', …)`:
+  - Opens the `Ally` dm from the rail and asserts the open pane's
+    `.chat-pane-title` equals the rail row's `.chat-rail-title` (both
+    `"Ally"`), and is explicitly not `"Direct message"` — the regression
+    test for the exact defect in this brief.
+  - A second test overrides `withDisplayNames` so the dm can't resolve a
+    name, and asserts rail and pane both degrade to `"Direct message"` in
+    agreement, with the channel's raw id (`c1`) absent from
+    `container.textContent`.
+
+### Commands run, verbatim
+
+```
+$ npm run check > check1.log 2>&1; echo "EXIT=$?"
+EXIT=1
+```
+Tail: `Test Files  1 failed | 89 passed (90)` / `Tests  1 failed | 1304 passed (1305)`
+— the one failure was `team-builder.test.tsx`'s `Show 6` search test, timing
+out and throwing `no search result for "azumarill"`, the exact starvation
+signature this brief warns about. Every file this change touched
+(`chat-pane.test.tsx`, `chat-dock.test.tsx`, `channels.test.ts`) passed.
+
+An isolated run of just the three touched test files first caught a real
+issue introduced along the way: an unawaited async render in the new
+kind-badge test left a stray "not wrapped in act(...)" warning when a later
+`pane()` call's mocked promises resolved after `cleanup()`. Fixed by awaiting
+`screen.findByText('hey')` after every `pane()` call in that test before
+tearing it down. Re-running just those three files afterward:
+
+```
+$ npx vitest run src/components/__tests__/chat-pane.test.tsx src/components/__tests__/chat-dock.test.tsx src/lib/__tests__/channels.test.ts
+EXIT=0 — Test Files 3 passed (3), Tests 70 passed (70), no act warnings.
+```
+
+A second full `npm run check` afterward:
+```
+$ npm run check > check2.log 2>&1; echo "EXIT=$?"
+EXIT=1
+```
+Tail: `Test Files  2 failed | 88 passed (90)` / `Tests  3 failed | 1302 passed (1305)`
+— a **different** pair of files this time (`screen-leaves.test.tsx`,
+`team-saves.test.tsx`), all `Test timed out in 5000ms`, none in a file this
+change touched. The failing set wandering between runs (first
+`team-builder.test.tsx`, then `screen-leaves.test.tsx` + `team-saves.test.tsx`)
+is the starvation signature, not a regression — no timeout was raised, no
+test weakened. In both full runs, `tsc -b`, `oxlint`, `themes`, `tokens`,
+`verify`, `audit:spreads`, `rules:node` and `verify:coordinator-bundle` all
+passed (the `&&`-chained `check` script only reaches `vitest run` after every
+prior step succeeds), and every file this follow-up touched passed
+completely both times.
+
+### Files touched (this follow-up)
+
+- `app/src/components/ChatPane.tsx`
+- `app/src/components/__tests__/chat-pane.test.tsx`
+- `app/src/components/__tests__/chat-dock.test.tsx`
+
+Nothing under `supabase/` was touched. `channelLabel` is gone (dead after
+this fix, and its own doc comment was already inaccurate); nothing else in
+the tree referenced it outside these two files' tests.
+
+### Concerns
+
+- **Display-name collisions**, same accepted trade-off as before: two open
+  panes for people who happen to share a `display_name` would get identical
+  Close/Minimize accessible names. This mirrors the rail's own
+  `railAriaLabel`, which already accepts this trade for the same reason
+  (name over uuid); not solved here, not a new risk introduced here.
+- **Test count arithmetic**: total went from 1300 to 1305 net (+3
+  `chat-pane.test.tsx`, +2 `chat-dock.test.tsx`) after removing the 1-test
+  `channelLabel` describe block and adding 4 + 3 new tests respectively.

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, fireEvent, cleanup, screen, waitFor, type RenderResult } from '@testing-library/react';
 import type { Session } from '@supabase/supabase-js';
 import { renderApp } from '../../test/render';
-import { ChatPane, channelLabel } from '../ChatPane';
-import type { Channel } from '../../lib/channels';
+import { ChatPane } from '../ChatPane';
+import type { ChannelDisplay } from '../../lib/channels';
 
 const sendMessage = vi.fn();
 const unsubscribe = vi.fn();
@@ -39,10 +39,20 @@ beforeEach(() => {
   onMessage = null;
 });
 
-const dm: Channel = { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null };
-const group: Channel = { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null };
+// `displayTitle`/`memberCount` are what `ChatDock` actually passes down —
+// `withDisplayNames`'s own resolved fields, not something `ChatPane` computes
+// itself. `dm`'s "Ally" matches `chat-dock.test.tsx`'s fixture of the same
+// shape, so a name showing up in the wrong file is easy to spot.
+const dm: ChannelDisplay = {
+  id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null,
+  lastMessageAt: null, displayTitle: 'Ally', memberCount: null,
+};
+const group: ChannelDisplay = {
+  id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null,
+  lastMessageAt: null, displayTitle: 'Squad', memberCount: 4,
+};
 
-function pane(channel: Channel, overrides: Partial<Parameters<typeof ChatPane>[0]> = {}) {
+function pane(channel: ChannelDisplay, overrides: Partial<Parameters<typeof ChatPane>[0]> = {}) {
   const onActivity = vi.fn();
   const onRead = vi.fn();
   const onToggleMinimize = vi.fn();
@@ -61,12 +71,75 @@ function pane(channel: Channel, overrides: Partial<Parameters<typeof ChatPane>[0
   return { ...view, onActivity, onRead, onToggleMinimize, onClose };
 }
 
-describe('channelLabel', () => {
-  it('names a group by its own title, and the two title-less kinds by what they are', () => {
-    expect(channelLabel(dm)).toBe('Direct message');
-    expect(channelLabel(group)).toBe('Squad');
-    expect(channelLabel({ ...group, title: null })).toBe('Group');
-    expect(channelLabel({ id: 'c3', kind: 'match', title: null, matchId: 'm1', lastReadAt: null })).toBe('Match chat');
+describe("the pane header's title and kind badge", () => {
+  it("renders the channel's resolved displayTitle, the same value ChatDock's rail row shows — never a recomputed generic label", async () => {
+    const { container } = pane(dm);
+    await screen.findByText('hey');
+    expect(container.querySelector('.chat-pane-title')!.textContent).toBe('Ally');
+  });
+
+  it('degrades to the honest fallback, never a uuid, when the channel carries no resolvable name', async () => {
+    const unresolved: ChannelDisplay = { ...dm, displayTitle: 'Direct message' };
+    const { container } = pane(unresolved);
+    await screen.findByText('hey');
+    expect(container.querySelector('.chat-pane-title')!.textContent).toBe('Direct message');
+    expect(container.textContent).not.toContain(unresolved.id);
+  });
+
+  it("labels the kind badge dm/group/match chat — match spelled out, since the header has no sub-line to say what's chatting", async () => {
+    const match: ChannelDisplay = {
+      id: 'c3', kind: 'match', title: null, matchId: 'm1', lastReadAt: null,
+      lastMessageAt: null, displayTitle: 'Rival', memberCount: null,
+    };
+    // Each render's own `listMessages`/`markRead` promises are awaited out
+    // (via the same "hey" the mocked transcript always resolves to) before
+    // `cleanup()` tears it down — otherwise one of those promises settles
+    // after the next pane has already replaced it, updating an unmounted
+    // component outside of `act`.
+    const { container: dmContainer } = pane(dm);
+    await screen.findByText('hey');
+    expect(dmContainer.querySelector('.chat-pane-kind')!.textContent).toBe('dm');
+    cleanup();
+
+    const { container: groupContainer } = pane(group);
+    await screen.findByText('hey');
+    expect(groupContainer.querySelector('.chat-pane-kind')!.textContent).toBe('group');
+    cleanup();
+
+    const { container: matchContainer } = pane(match);
+    await screen.findByText('hey');
+    expect(matchContainer.querySelector('.chat-pane-kind')!.textContent).toBe('match chat');
+  });
+});
+
+describe('close/minimise control names', () => {
+  it('names Close and Minimize after the resolved channel, not the generic word or the raw uuid — unique across two open panes', async () => {
+    const other: ChannelDisplay = {
+      id: 'c9', kind: 'dm', title: null, matchId: null, lastReadAt: null,
+      lastMessageAt: null, displayTitle: 'Buddy', memberCount: null,
+    };
+    const { container } = renderApp(
+      <>
+        <ChatPane channel={dm} minimized={false} onToggleMinimize={() => {}} onClose={() => {}} onActivity={() => {}} onRead={() => {}} />
+        <ChatPane channel={other} minimized={false} onToggleMinimize={() => {}} onClose={() => {}} onActivity={() => {}} onRead={() => {}} />
+      </>,
+    );
+    // Both panes' `listMessages` mock returns the same fixture transcript
+    // regardless of channel id, so two "hey" texts land on screen at once —
+    // `findAllByText` (not `findByText`, which requires exactly one match)
+    // is what proves both panes actually finished loading before this reads
+    // their close buttons.
+    await screen.findAllByText('hey');
+    const closeButtons = [...container.querySelectorAll('.chat-pane-controls button')].filter(
+      (b) => b.getAttribute('aria-label')?.startsWith('Close'),
+    );
+    expect(closeButtons).toHaveLength(2);
+    const names = closeButtons.map((b) => b.getAttribute('aria-label'));
+    expect(new Set(names).size).toBe(2);
+    expect(names).toContain('Close chat with Ally');
+    expect(names).toContain('Close chat with Buddy');
+    expect(names.join(' ')).not.toContain('c1');
+    expect(names.join(' ')).not.toContain('c9');
   });
 });
 

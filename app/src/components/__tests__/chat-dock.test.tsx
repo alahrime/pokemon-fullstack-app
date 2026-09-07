@@ -200,14 +200,70 @@ describe('ChatDock, signed in', () => {
     await mount(fakeSession('me'));
     fireEvent.click(await screen.findByRole('button', { name: /open chat with ally/i }));
     await screen.findByText('hey');
-    // The pane's own close button still carries `channelLabel`'s generic
-    // kind-based text (`ChatPane` is a separate concern from the rail's
-    // display-name resolution) — unaffected by this change.
-    fireEvent.click(screen.getByRole('button', { name: /close direct message.*c1/i }));
+    // The pane's own close button now carries the SAME resolved name the
+    // rail row does ("Ally", from the shared `withDisplayNames` result
+    // `ChatDock` passes it) — not `channelLabel`'s old generic "Direct
+    // message" fallback, and not the raw channel id either.
+    fireEvent.click(screen.getByRole('button', { name: /close chat with ally/i }));
     await waitFor(() => expect(screen.queryByText('hey')).not.toBeInTheDocument());
     // The rail itself still lists the channel — closing a pane is not the
     // same as the conversation disappearing from the dock entirely.
     expect(screen.getByRole('button', { name: /open chat with ally/i })).toBeInTheDocument();
+  });
+});
+
+describe('ChatDock rail and pane agreement', () => {
+  beforeEach(() => cleanup());
+
+  /**
+   * The defect this closes: the rail resolved `displayTitle` ("Ally") but
+   * the open pane's own header recomputed a generic, kind-based label
+   * ("Direct message") independently — the same conversation named two
+   * different things six inches apart on screen. `ChatPane` no longer
+   * recomputes anything; it reads the identical `ChannelDisplay` object (and
+   * therefore the identical `displayTitle`) `ChatDock` already resolved once
+   * for the rail.
+   */
+  it("shows the pane header naming the SAME resolved dm as the rail row for that channel, never the generic 'Direct message'", async () => {
+    await mount(fakeSession('me'));
+    const railRow = await screen.findByRole('button', { name: /open chat with ally/i });
+    fireEvent.click(railRow);
+    await screen.findByText('hey');
+
+    const openPane = screen.getByText('hey').closest('.chat-pane')!;
+    const paneTitle = openPane.querySelector('.chat-pane-title')!.textContent;
+    const railTitle = railRow.querySelector('.chat-rail-title')!.textContent;
+    expect(paneTitle).toBe('Ally');
+    expect(paneTitle).toBe(railTitle);
+    expect(paneTitle).not.toBe('Direct message');
+  });
+
+  /**
+   * The honest-degrade path, at the dock's own wiring level (the pure
+   * fallback itself is `withDisplayNames`'s own concern, proven in
+   * `channels.test.ts`): when name resolution can't produce one, rail and
+   * pane still agree, and neither ever shows the channel's uuid.
+   */
+  it('degrades both rail and pane to the same fallback, never the uuid, when a dm cannot be resolved', async () => {
+    // Only `c1` (the dm) degrades here — `c3` (the match) keeps resolving to
+    // "Rival" so the rail has just ONE "Direct message" row for
+    // `findByRole` to find unambiguously.
+    withDisplayNames.mockImplementation(async (cs: typeof channelsFixture) =>
+      cs.map((c) => {
+        if (c.kind === 'group') return { ...c, displayTitle: c.title ?? 'Group', memberCount: 4 };
+        if (c.id === 'c3') return { ...c, displayTitle: 'Rival', memberCount: null };
+        return { ...c, displayTitle: 'Direct message', memberCount: null };
+      }),
+    );
+    const { container } = await mount(fakeSession('me'));
+    const railRow = await screen.findByRole('button', { name: /open chat with direct message/i });
+    fireEvent.click(railRow);
+    await screen.findByText('hey');
+
+    const openPane = screen.getByText('hey').closest('.chat-pane')!;
+    expect(openPane.querySelector('.chat-pane-title')!.textContent).toBe('Direct message');
+    expect(railRow.querySelector('.chat-rail-title')!.textContent).toBe('Direct message');
+    expect(container.textContent).not.toContain('c1');
   });
 });
 

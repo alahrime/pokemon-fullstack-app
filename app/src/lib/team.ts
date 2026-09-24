@@ -59,7 +59,8 @@ function resolve(teamA: readonly BattleMon[], teamB: readonly BattleMon[], o: Te
     // No lead means no bar to fill; `?? 0` keeps an empty team from throwing.
     eA: teamA.length ? startingEnergy(teamA[0], o.bankedA ?? 0) : 0,
     eB: teamB.length ? startingEnergy(teamB[0], o.bankedB ?? 0) : 0,
-    optimize: o.optimizeTiming ?? false,
+    // PvPoke's engine optimises move timing by default, as the battle screen does.
+    optimize: o.optimizeTiming ?? true,
     pA: o.policyA ?? 'always',
     pB: o.policyB ?? 'always',
   };

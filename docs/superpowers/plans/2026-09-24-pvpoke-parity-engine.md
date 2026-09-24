@@ -77,7 +77,14 @@ Diagnosed from 24 sampled 0-shield mismatches (first divergence per battle):
    for the `always` policy; our `read` policy is unchanged. (1154–1260)
 5. Cramorant stacking (cd729db) then follows PvPoke's planned move, not ours.
 
-## Decision point
+## Decision (2026-09-24): option B
+
+B is the app's engine (`battle()`): 93.6% exact / 97.7% same winner at half
+A's cost, keeping the `read` policy, the bait marker and the per-turn log.
+A stays as the reference: `npm run parity` holds B to it in `npm run check`,
+so a regression in the port fails the gate. A3-A6 are not pursued.
+
+## Decision point (as planned)
 
 When A2–A5 and B1–B2 are done, compare on: parity, ms/battle, rankings runtime,
 bundle size, features kept. Record the numbers here and choose.

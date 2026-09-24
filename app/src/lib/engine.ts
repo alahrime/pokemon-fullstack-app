@@ -1776,6 +1776,8 @@ export function battle(
   let catkA = 0, catkB = 0;
   let rolesA!: ChargeRoles, rolesB!: ChargeRoles;
   let chargeDmgA: number[] = [], chargeDmgB: number[] = [];
+  // PvPoke's active-move order per side; it only moves when damage does.
+  let acmA: Rated[] = [], acmB: Rated[] = [];
   let worstFromA = 0, worstFromB = 0;
 
   // ── Form changes (see Species.forms) ──
@@ -1879,8 +1881,7 @@ export function battle(
     const would = () => wouldShield(att, move, x.eAtt);
     const bf = move.buffs;
     if (bf && selfBuffing(move) && ((bf.target === 'self' && bf.atkStage > 0) || (bf.target === 'opponent' && bf.defStage < 0))) use = would();
-    const defDmgs = x.def.charges.map((c) => dmg(chargeAtk(x.def) * buffMultiplier(x.stDef.atk), x.att.def * buffMultiplier(x.stAtt.def), c, x.att.types));
-    const defAcm = activeOrder(x.def.charges, defDmgs);
+    const defAcm = att === 'A' ? acmB : acmA;
     const defBest = defAcm.length ? bestCharged(defAcm) : null;
     if (defBest && selfDefenseDebuffing(defBest.c)) {
       if (x.sAtt > 0) use = would();
@@ -1888,7 +1889,7 @@ export function battle(
         const defFast = dmg(x.def.atk * buffMultiplier(x.stDef.atk), x.att.def * buffMultiplier(x.stAtt.def), x.def.fast, x.att.types);
         const fastToNext = Math.ceil((defBest.c.energy - x.eDef) / x.def.fast.energyGain);
         const cycleDamage = fastToNext * defFast + defBest.dmg;
-        const attAcm = activeOrder(x.att.charges, x.att.charges.map((c) => hitWith(x, c, true)));
+        const attAcm = att === 'A' ? acmA : acmB;
         let attTurns = Math.ceil((attAcm[0].c.energy - x.eAtt) / x.att.fast.energyGain) * x.att.fast.turns;
         if (x.att.cmpAtk > x.def.cmpAtk) attTurns--;
         if (fastToNext * x.def.fast.turns >= attTurns && x.hpAtt <= cycleDamage) use = would();
@@ -1931,9 +1932,9 @@ export function battle(
     const m = x.att, o = x.def;
     const e = x.eAtt;
     if (!m.charges.length) return null;
-    const acm = activeOrder(m.charges, me === 'A' ? chargeDmgA : chargeDmgB);
+    const acm = me === 'A' ? acmA : acmB;
     if (e < acm[0].c.energy) return null;
-    const oppAcm = activeOrder(o.charges, me === 'A' ? chargeDmgB : chargeDmgA);
+    const oppAcm = me === 'A' ? acmB : acmA;
     const fastDmg = me === 'A' ? fA : fB, oppFastDmg = me === 'A' ? fB : fA;
     const oppCooldown = me === 'A' ? (tB >= b.fast.turns ? 0 : tB * 500) : (tA >= a.fast.turns ? 0 : tA * 500);
     const v: TimingView = {
@@ -1986,7 +1987,15 @@ export function battle(
       return sel.c;
     }
 
-    // The DP. Priority queue ordered by turn.
+    // The DP. Priority queue ordered by turn. Damage depends only on the move
+    // and the attack stage it is tried at, so each pair is computed once.
+    // Indexed by attack stage + 4; one slot per charged move plus the fast move.
+    const memo = acm.map(() => new Array<number>(9));
+    const fastMemo = new Array<number>(9);
+    const hitDP = (n: number, buff: number) => {
+      const row = n < 0 ? fastMemo : memo[n];
+      return (row[buff + 4] ??= n < 0 ? hitAt(x, m.fast, false, buff) : hitAt(x, acm[n].c, true, buff));
+    };
     const Q: DPState[] = [{ energy: e, oppHealth: x.hpDef, turn: 0, oppShields: x.sDef, moves: [], buffs: 0, chance: 1 }];
     const found: DPState[] = [];
     let states = 0;
@@ -2012,8 +2021,8 @@ export function battle(
       const rdy = acm.map((r) => (cur.energy >= r.c.energy ? 0 : Math.ceil((r.c.energy - cur.energy) / m.fast.energyGain) * m.fast.turns));
       for (let n = 0; n < acm.length; n++) {
         const mv = acm[n].c;
-        const moveDamage = hitAt(x, mv, true, cur.buffs);
-        const fastSim = hitAt(x, m.fast, false, cur.buffs);
+        const moveDamage = hitDP(n, cur.buffs);
+        const fastSim = hitDP(-1, cur.buffs);
         const toFarm = Math.ceil(cur.oppHealth / fastSim);
         place({ energy: cur.energy + m.fast.energyGain * toFarm, oppHealth: 0, turn: cur.turn + toFarm * m.fast.turns,
           oppShields: undefined as unknown as number, moves: cur.moves, buffs: cur.buffs, chance: cur.chance },
@@ -2122,6 +2131,8 @@ export function battle(
     rolesB = classifyCharges(catkB, defA, b.charges, a.types);
     chargeDmgA = a.charges.map((c) => dmg(catkA, defB, c, b.types));
     chargeDmgB = b.charges.map((c) => dmg(catkB, defA, c, a.types));
+    acmA = activeOrder(a.charges, chargeDmgA);
+    acmB = activeOrder(b.charges, chargeDmgB);
     worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
     worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
   };

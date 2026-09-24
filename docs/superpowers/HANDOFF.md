@@ -263,8 +263,14 @@ failure mode is silence in every surface — no error in the app, none in the da
    `http://127.0.0.1:5173/**` (added the same day), so a local build against the hosted project
    returns locally from either origin, including the two-origin, two-account setup. Change these in the dashboard, **not** via
    `supabase config push`, which pushes the whole auth block from `config.toml` and could clobber
-   the Discord provider settings. (The CLI has no login on this machine: `config diff` fails with
-   `Access token not provided` until `npx supabase login` is run.)
+   the Discord provider settings. `npx supabase config diff --project-ref kgfxzjgpjsiaxvlneufz`
+   (read-only; the CLI is logged in as of 2026-09-24) confirmed both lists and found 16 hosted
+   settings `config.toml` does not match, all of which a push would revert: site URL back to
+   localhost, the redirect list back to the two bare localhost entries, `otp_length` 8 -> 6
+   (harmless: the app uses links, never typed codes), email `max_frequency` 1m -> 1s, TOTP MFA
+   enroll/verify, the OAuth server, Twilio SMS and storage analytics all on -> off, and the pooler
+   sizes. Discord is remote-only, so a push leaves it alone, contrary to the old warning — but
+   the rest is reason enough never to push.
 3. **The production account cannot post an offer** and this is not a bug: the Post control is not
    rendered without a saved format for that league (`MatchmakingScreen.tsx:621`). Author one on
    the Formats screen and save it.

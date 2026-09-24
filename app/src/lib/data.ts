@@ -171,12 +171,10 @@ export function teamIsLegal(refs: readonly string[]): boolean {
 /**
  * Species held out of the simulator because it cannot model them correctly.
  *
- * Each has a mechanic with no representation in the engine yet: Mimikyu's
- * built-in shield. Until one exists, any number
- * produced for them is confidently wrong, which is worse than absent. Mimikyu
- * in particular ranks 1st in both Great and Ultra, so it led every board.
- * Aegislash's stance change and Morpeko's form change are modelled (see
- * Species.forms) and both are back.
+ * Empty since the engine learned form changes (see Species.forms): Aegislash,
+ * Morpeko and Mimikyu were held out for mechanics it lacked, because a number
+ * produced without them is confidently wrong, which is worse than absent. A
+ * species with a mechanic the engine cannot model goes back in here.
  *
  * Held out rather than deleted: the data stays complete in species.json, and
  * only selection and the opponent pool skip them. The 2026 engine rewrite is
@@ -186,9 +184,7 @@ export function teamIsLegal(refs: readonly string[]): boolean {
  * TO RESTORE: empty this set. Nothing else needs changing — every picker and
  * pool derives from it.
  */
-export const UNSIMULATED_IDS: ReadonlySet<string> = new Set([
-  'mimikyu',
-]);
+export const UNSIMULATED_IDS: ReadonlySet<string> = new Set<string>([]);
 
 /** False for a ref whose species the engine cannot model. Shadow-aware. */
 export function isSimulated(ref: string): boolean {

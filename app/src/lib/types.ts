@@ -114,6 +114,8 @@ export interface SpeciesForm {
   fastMoves: FastMove[];
   chargeMoves: ChargeMove[];
   rule: FormRule | null;
+  /** Stat stages applied on entering this form (Mimikyu Busted: def -1). */
+  stages?: { atk: number; def: number };
 }
 
 /** One form's battle stats for a particular roll, as the engine uses them. */

@@ -123,8 +123,25 @@ console.log('\n── league membership (ranked) ──────────�
       check(`${id} is held out of every picker and pool`,
         !pool.includes(id) && !inRoster.has(id) && !inRoster.has(makeRef(id, true)));
     }
-    const s = SPECIES_BY_ID.get('mimikyu');
-    check('...while its league data stays intact for when it returns', !!s?.leagueRank.great);
+  }
+  {
+    // Mimikyu's Disguise, as PvPoke has it: the first charged move it does not
+    // shield hits for 1 and busts it, and Busted is a stage down on defense.
+    // With no shields, the attacker opens with its cheapest charged move.
+    check('mimikyu is back in the Great pool', opponentCandidatesFor('great').includes('mimikyu'));
+    const sp = speciesOf('mimikyu')!, foe = speciesOf('registeel')!;
+    const e = getEntry('mimikyu', { a: 4, d: 14, s: 15 }, 'great').entry;
+    const fe = getEntry('registeel', { a: 8, d: 15, s: 14 }, 'great').entry;
+    const cannon = foe.chargeMoves.find((c) => c.id === 'FLASH_CANNON')!;
+    const blast = foe.chargeMoves.find((c) => c.id === 'FOCUS_BLAST')!;
+    const A = mkBattleMon(e, sp.fastMoves[0], [sp.chargeMove], sp.types);
+    const B = mkBattleMon(fe, foe.fastMoves[0], [blast, cannon], foe.types);
+    const hits = battle(A, B, 0, 0, 0, 0).log.filter((l) => l.actor === 'B' && l.kind === 'charge');
+    check('...its Disguise takes the first charged move for 1', hits[0]?.damage === 1 && hits[0]?.moveName === cannon.name,
+      `${hits[0]?.moveName} ${hits[0]?.damage}`);
+    const busted = dmg(fe.atk, e.def * buffMultiplier(-1), cannon, sp.types);
+    check('...and the next lands on Busted defense, a stage down', hits[1]?.damage === busted,
+      `${hits[1]?.damage} vs ${busted}`);
   }
   {
     // Aegislash, back since its stance change is modelled. Shield form's fast

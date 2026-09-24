@@ -1703,6 +1703,9 @@ export function battle(
   // A form change rewrites the mon in place, so a form-changing mon is copied
   // first: the caller's stays in its starting form, which is also what makes
   // every battle begin there (PvPoke's resetOnSwitch).
+  // ponytail: Mimikyu's rule has resetOnSwitch false, so across a teamBattle
+  // chain PvPoke keeps it Busted and we restore its Disguise each fight. Carry
+  // the form out in BattleResult if chained team play needs it.
   if (a.forms) a = { ...a };
   if (b.forms) b = { ...b };
   let hpA = startHpA ?? a.hp;
@@ -1768,8 +1771,24 @@ export function battle(
   };
   // Called only once the loop is running, by which time syncDerived exists.
   const toForm = (m: BattleMon) => {
-    setForm(m, rule(m)!.to);
+    const to = rule(m)!.to;
+    setForm(m, to);
+    // A form can arrive with stat stages of its own: Mimikyu Busted is def -1.
+    const add = m.forms!.by[to].stages, st = m === a ? stA : stB;
+    if (add) {
+      st.atk = clampStage(st.atk + add.atk);
+      st.def = clampStage(st.def + add.def);
+    }
     syncDerived();
+  };
+  // PvPoke: against an intact Disguise with no shield left in front of it,
+  // throw the cheapest charged move the moment it is affordable - unless it
+  // lowers the thrower's own stats.
+  const breaker = (m: BattleMon, e: number, foe: BattleMon, foeShields: number) => {
+    if (foeShields > 0 || !triggers(foe, 'charged_move_damage') || !m.charges.length) return null;
+    const c = m.charges.reduce((x, y) => (y.energy < x.energy ? y : x));
+    const selfDebuff = c.buffs?.target === 'self' && (c.buffs.atkStage < 0 || c.buffs.defStage < 0);
+    return e >= c.energy && !selfDebuff ? c : null;
   };
   const chargeAtk = (m: BattleMon) => (triggers(m, 'activate_charged') ? m.forms!.by[rule(m)!.to].atk : m.atk);
   // PvPoke's Aegislash Shield banks energy before it commits to Blade, unless
@@ -1922,8 +1941,10 @@ export function battle(
     holdA = readyA && !wantA ? holdA + 1 : 0;
     holdB = readyB && !wantB ? holdB + 1 : 0;
 
-    const moveA = wantA ? readyA : null;
-    const moveB = wantB ? readyB : null;
+    const breakA = freeA && !killsB ? breaker(a, eA, b, sB) : null;
+    const breakB = freeB && !killsA ? breaker(b, eB, a, sA) : null;
+    const moveA = breakA ?? (wantA ? readyA : null);
+    const moveB = breakB ?? (wantB ? readyB : null);
 
     // A fast move that lands this turn and kills resolves first, ahead of any
     // charged move either side has banked. The charged move costs a turn to
@@ -1950,12 +1971,18 @@ export function battle(
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
           if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
-          const damage = shielded ? 1 : raw;
+          // Mimikyu's Disguise takes the first charged move it does not shield.
+          const disguisedB = !shielded && triggers(b, 'charged_move_damage');
+          const damage = shielded || disguisedB ? 1 : raw;
           if (shielded) sB--;
           if (shielded && triggers(b, 'activate_shield')) toForm(b);
           hpB -= damage;
           // A shield blocks damage, never the secondary effect.
-          const buffTextA = applyBuff(moveA, true);
+          let buffTextA = applyBuff(moveA, true);
+          if (disguisedB) {
+            toForm(b);
+            buffTextA = [buffTextA, 'Disguise busted'].filter(Boolean).join(' · ');
+          }
           // After the move resolves: Morpeko (Cramorant's `variable` comes later).
           if (triggers(a, 'charged_move', moveA.id) && rule(a)!.to !== 'variable') toForm(a);
           // The sequence resets both animations — that reset is what grants
@@ -1988,11 +2015,16 @@ export function battle(
           const raw = dmg(atkB, defA, moveB, a.types);
           const shielded = sA > 0 && !(triggers(a, 'activate_charged') && raw * 2 < hpA) && shieldCall(policyA, raw, hpA, worstFromB);
           if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
-          const damage = shielded ? 1 : raw;
+          const disguisedA = !shielded && triggers(a, 'charged_move_damage');
+          const damage = shielded || disguisedA ? 1 : raw;
           if (shielded) sA--;
           if (shielded && triggers(a, 'activate_shield')) toForm(a);
           hpA -= damage;
-          const buffTextB = applyBuff(moveB, false);
+          let buffTextB = applyBuff(moveB, false);
+          if (disguisedA) {
+            toForm(a);
+            buffTextB = [buffTextB, 'Disguise busted'].filter(Boolean).join(' · ');
+          }
           if (triggers(b, 'charged_move', moveB.id) && rule(b)!.to !== 'variable') toForm(b);
           tA = a.fast.turns;
           tB = b.fast.turns;

@@ -6,7 +6,6 @@ import { Board } from '../Board';
 import { IVAdjuster } from '../IVAdjuster';
 import { PokemonCard } from '../PokemonCard';
 import { SpeciesSearch } from '../SpeciesSearch';
-import { HeldOutNote } from '../HeldOutNote';
 import { TypeBadge } from '../TypeBadge';
 import { Sprite } from '../Sprite';
 import { SpeciesHero } from '../SpeciesHero';
@@ -214,22 +213,6 @@ describe('SpeciesSearch', () => {
     fireEvent.focus(container.querySelector('input')!);
     const row = container.querySelector('.search-row');
     if (row) { fireEvent.mouseDown(row); expect(onChange).toHaveBeenCalled(); }
-  });
-});
-
-describe('HeldOutNote', () => {
-  it('names only the species asked for', () => {
-    const { container } = renderApp(<HeldOutNote only={['mimikyu']} />);
-    expect(container.textContent).toContain('Mimikyu');
-    expect(container.textContent).not.toContain('Aegislash');
-  });
-  it('renders nothing when the filter matches nothing', () => {
-    const { container } = renderApp(<HeldOutNote only={['azumarill']} />);
-    expect(container.textContent).toBe('');
-  });
-  it('keeps the full explanation one hover away', () => {
-    const { container } = renderApp(<HeldOutNote only={['mimikyu']} />);
-    expect(container.querySelector('.held-out-legend')!.getAttribute('title')!.length).toBeGreaterThan(60);
   });
 });
 

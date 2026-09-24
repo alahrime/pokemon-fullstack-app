@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolvePool } from '../pool';
 import { RULES_SCHEMA, type Format } from '../types';
-import { opponentCandidatesFor, parseRef, speciesOf } from '../../lib/data';
+import { UNSIMULATED_IDS, opponentCandidatesFor, parseRef, speciesOf } from '../../lib/data';
 
 function fmt(pool: Format['pool']): Format {
   return {
@@ -79,7 +79,7 @@ describe('resolvePool', () => {
 
   it('never admits a species the engine cannot simulate', () => {
     const { legal } = resolvePool(fmt([]));
-    expect(legal).not.toContain('mimikyu');
+    for (const id of UNSIMULATED_IDS) expect(legal).not.toContain(id);
   });
 });
 

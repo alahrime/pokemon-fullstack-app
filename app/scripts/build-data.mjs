@@ -298,6 +298,8 @@ function formsOf(p) {
       fastMoves: (f.fastMoves ?? []).map((id) => intern(fastMove(id, types))),
       chargeMoves: [...(f.chargedMoves ?? []), ...(f.extraChargedMoves ?? [])].map((id) => intern(chargeMove(id, types))),
       rule,
+      // Stat stages a form arrives with: Mimikyu Busted is -1 Defense.
+      ...(f.nativeStatBuffs?.some(Boolean) ? { stages: { atk: f.nativeStatBuffs[0], def: f.nativeStatBuffs[1] } } : {}),
     };
     // Cramorant's "variable" resolves at runtime to whichever of these fits.
     const next = rule?.to === 'variable' ? [`${p.speciesId}_gulping`, `${p.speciesId}_gorging`] : [rule?.to];

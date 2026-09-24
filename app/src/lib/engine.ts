@@ -235,22 +235,22 @@ const clampStage = (n: number): number => Math.max(STAGE_MIN, Math.min(STAGE_MAX
  * restart that made it a systematic bias, and it inflated the Ancient Power
  * carriers by 500+ ranking places before it was caught.
  *
- * A fractional stage is the honest model instead. Rankings aggregate thousands
- * of matchups, so the expected effect is what the average should reflect, and
- * `buffMultiplier` is continuous — a 10% chance of +2 is applied as +0.2 of a
- * stage. It is deterministic, identical across every IV cell, and unbiased,
- * which is everything the PRNG was reaching for and none of what it delivered.
+ * A fractional stage (10% of +2 applied as +0.2) replaced the PRNG, and is
+ * now replaced in turn by what PvPoke's simulator does (Battle.js): no roll at
+ * all, but a meter per move that starts at its chance - at 0 for a 50% move -
+ * and gains the chance on every use, the effect landing in full each time the
+ * meter crosses a whole number. A 50% move lands on its 2nd use, 30% on its
+ * 3rd, 10% on its 10th (in practice never). Deterministic and pure per battle,
+ * which is all the PRNG was reaching for, and the same fights PvPoke reports.
  */
 
 /** Human-readable summary of a buff that landed, for the battle log. */
 function describeBuff(buffs: MoveBuffs, dAtk: number, dDef: number, selfLabel: string, oppLabel: string): string {
-  const fmt = (n: number) => `${n > 0 ? '+' : ''}${Number(n.toFixed(2))}`;
+  const fmt = (n: number) => `${n > 0 ? '+' : ''}${n}`;
   const parts: string[] = [];
   if (dAtk) parts.push(`Atk ${fmt(dAtk)}`);
   if (dDef) parts.push(`Def ${fmt(dDef)}`);
-  // Names the nominal effect and its chance when the two differ, so a
-  // fractional stage reads as "10% of +2" rather than as a strange constant.
-  const gated = buffs.chance < 1 ? ` (${Math.round(buffs.chance * 100)}% of ${buffs.atkStage || buffs.defStage > 0 ? '' : ''}${[buffs.atkStage && `Atk ${buffs.atkStage > 0 ? '+' : ''}${buffs.atkStage}`, buffs.defStage && `Def ${buffs.defStage > 0 ? '+' : ''}${buffs.defStage}`].filter(Boolean).join(', ')})` : '';
+  const gated = buffs.chance < 1 ? ` (${Math.round(buffs.chance * 100)}% move)` : '';
   return `${buffs.target === 'self' ? selfLabel : oppLabel} ${parts.join(', ')}${gated}`;
 }
 
@@ -1722,9 +1722,10 @@ export function battle(
   let tB = b.fast.turns;
   let cmpDecided = false;
 
-  // Stat stages. Fractional, because chance-gated buffs apply at their
-  // expected value rather than being rolled — see applyBuff.
+  // Stat stages. Chance-gated buffs land whole, on PvPoke's meter - see
+  // describeBuff's note and applyBuff.
   const stA = { atk: 0, def: 0 };
+  const meters = new Map<string, number>();
   const stB = { atk: 0, def: 0 };
 
   // Effective battle stats at the current stages. Every damage figure below is
@@ -1873,9 +1874,15 @@ export function battle(
   const applyBuff = (move: ChargeMove, selfIsA: boolean): string | null => {
     const buffs = move.buffs;
     if (!buffs) return null;
-    // Scaled by apply-chance — see the note above on why this is not a roll.
-    const dAtk = buffs.atkStage * buffs.chance;
-    const dDef = buffs.defStage * buffs.chance;
+    if (buffs.chance < 1) {
+      // PvPoke's meter, one per move per side, float ops in its order.
+      const key = (selfIsA ? 'A' : 'B') + move.id;
+      const was = meters.get(key) ?? (buffs.chance === 0.5 ? 0 : buffs.chance);
+      meters.set(key, was + buffs.chance);
+      if (Math.floor(was + buffs.chance) <= Math.floor(was)) return null;
+    }
+    const dAtk = buffs.atkStage;
+    const dDef = buffs.defStage;
     if (!dAtk && !dDef) return null;
     const toSelf = buffs.target === 'self';
     const target = (selfIsA ? toSelf : !toSelf) ? stA : stB;
@@ -1996,9 +2003,12 @@ export function battle(
       // case the comparison is read in.
       const priorityA = () => a.cmpAtk * buffMultiplier(stA.atk) >= b.cmpAtk * buffMultiplier(stB.atk);
       const order: ('A' | 'B')[] = moveA && moveB ? (priorityA() ? ['A', 'B'] : ['B', 'A']) : moveA ? ['A'] : ['B'];
+      // PvPoke uses charge priority only when the Attack stats differ (or in a
+      // Cramorant mirror); on a tie both moves resolve, so both can faint.
+      const simultaneous = a.cmpAtk === b.cmpAtk && !(cramorant(a) && cramorant(b));
       if (moveA && moveB) cmpDecided = true;
       for (const who of order) {
-        if (who === 'A' && hpA > 0 && moveA) {
+        if (who === 'A' && (hpA > 0 || simultaneous) && moveA) {
           eA -= moveA.energy;
           if (triggers(a, 'activate_charged', moveA.id)) toForm(a);
           const raw = dmg(atkA, defB, moveA, b.types);
@@ -2059,7 +2069,7 @@ export function battle(
               atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: text });
           }
         }
-        if (who === 'B' && hpB > 0 && moveB) {
+        if (who === 'B' && (hpB > 0 || simultaneous) && moveB) {
           eB -= moveB.energy;
           if (triggers(b, 'activate_charged', moveB.id)) toForm(b);
           const raw = dmg(atkB, defA, moveB, a.types);

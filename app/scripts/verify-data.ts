@@ -144,6 +144,22 @@ console.log('\n── league membership (ranked) ──────────�
       `${hits[1]?.damage} vs ${busted}`);
   }
   {
+    // Chance effects land whole on PvPoke's meter, not as a fractional stage:
+    // a 50% move's meter starts at 0 and gains .5 a use, so Razor Shell's
+    // defense drop lands on the 2nd and 4th throws, never the 1st or 3rd.
+    const user = SPECIES.find((sp) => sp.chargeMoves.some((c) => c.id === 'RAZOR_SHELL'))!;
+    const shell = user.chargeMoves.find((c) => c.id === 'RAZOR_SHELL')!;
+    const wall = speciesOf('blissey')!;
+    const A = mkBattleMon(getEntry(user.id, { a: 15, d: 15, s: 15 }, 'great').entry, user.fastMoves[0], [shell], user.types);
+    const B = mkBattleMon(getEntry('blissey', { a: 0, d: 15, s: 15 }, 'great').entry, wall.fastMoves[0], [wall.chargeMove], wall.types);
+    // Starting HP high enough that the fight outlasts four throws; this is
+    // about the meter, not the matchup.
+    const landed = battle(A, B, 0, 0, 0, 0, true, false, 10000).log
+      .filter((l) => l.actor === 'A' && l.kind === 'charge').map((l) => (l.buffText ? 'hit' : '-'));
+    check('a 50% chance effect lands on the 2nd and 4th use, as PvPoke meters it',
+      landed.slice(0, 4).join() === '-,hit,-,hit', `${user.id} Razor Shell on Blissey: ${landed.join(' ')}`);
+  }
+  {
     // Cramorant: Dive leaves it Gulping (above half HP), and the next charged
     // move that reaches it unshielded draws a Gulp Missile back at once - 15%
     // of the attacker's max HP + 1 and a defense stage - as PvPoke has it.

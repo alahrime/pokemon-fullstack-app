@@ -144,6 +144,26 @@ console.log('\n── league membership (ranked) ──────────�
       `${hits[1]?.damage} vs ${busted}`);
   }
   {
+    // Cramorant: Dive leaves it Gulping (above half HP), and the next charged
+    // move that reaches it unshielded draws a Gulp Missile back at once - 15%
+    // of the attacker's max HP + 1 and a defense stage - as PvPoke has it.
+    const sp = speciesOf('cramorant')!, foe = speciesOf('registeel')!;
+    const e = getEntry('cramorant', { a: 5, d: 15, s: 13 }, 'great').entry;
+    const fe = getEntry('registeel', { a: 8, d: 15, s: 14 }, 'great').entry;
+    const move = (id: string) => sp.chargeMoves.find((c) => c.id === id)!;
+    const A = mkBattleMon(e, sp.fastMoves.find((f) => f.id === 'PECK')!, [move('DIVE'), move('FLY')], sp.types);
+    const B = mkBattleMon(fe, foe.fastMoves[0], [foe.chargeMoves.find((c) => c.id === 'FLASH_CANNON')!], foe.types);
+    const log = battle(A, B, 0, 0, 0, 0).log.filter((l) => l.kind === 'charge');
+    const hit = log.findIndex((l) => l.actor === 'B');
+    const missile = log[hit + 1];
+    check('cramorant answers a charged hit with a Gulp Missile',
+      log[0]?.moveName === 'Dive' && !!missile && missile.actor === 'A' && /Arrokuda/.test(missile.moveName),
+      log.map((l) => `${l.actor}:${l.moveName}`).join(' '));
+    check('...for 15% of the attacker\'s max HP + 1, and a defense stage',
+      missile?.damage === Math.floor(0.15 * fe.hp) + 1 && missile?.defStageB === -1,
+      `${missile?.damage} vs ${Math.floor(0.15 * fe.hp) + 1}, def ${missile?.defStageB}`);
+  }
+  {
     // Aegislash, back since its stance change is modelled. Shield form's fast
     // move is 1 damage for 6 energy; its charged moves hit with Blade's attack,
     // and throwing one leaves it in Blade (PvPoke's form-change rules).

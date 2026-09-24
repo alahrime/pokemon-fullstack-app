@@ -1770,8 +1770,9 @@ export function battle(
     });
   };
   // Called only once the loop is running, by which time syncDerived exists.
-  const toForm = (m: BattleMon) => {
-    const to = rule(m)!.to;
+  const toForm = (m: BattleMon, hp = 0) => {
+    // Cramorant's `variable`: Gulping above half HP, Gorging at or below.
+    const to = rule(m)!.to === 'variable' ? `${m.forms!.start}_${hp / m.hp > 0.5 ? 'gulping' : 'gorging'}` : rule(m)!.to;
     setForm(m, to);
     // A form can arrive with stat stages of its own: Mimikyu Busted is def -1.
     const add = m.forms!.by[to].stages, st = m === a ? stA : stB;
@@ -1790,6 +1791,36 @@ export function battle(
     const selfDebuff = c.buffs?.target === 'self' && (c.buffs.atkStage < 0 || c.buffs.defStage < 0);
     return e >= c.energy && !selfDebuff ? c : null;
   };
+  // ── Cramorant (PvPoke Battle.js / ActionLogic.js) ──
+  const cramorant = (m: BattleMon) => m.forms?.start === 'cramorant';
+  // Gulping or Gorging: the only forms whose way out is a Gulp Missile.
+  const missileOf = (m: BattleMon) => {
+    const r = rule(m);
+    return r?.moves[0].startsWith('GULP_MISSILE') ? m.forms!.by[m.form!].chargeMoves.find((c) => c.id === r.moves[0])! : null;
+  };
+  // Unformed Cramorant throws Dive or Surf as soon as it can, unless another
+  // move is meaningfully better. PvPoke's "other move" test reads `moveID`
+  // for Surf, so in practice it is the first move that is not Dive.
+  const gulper = (m: BattleMon, e: number, oppHp: number, atk: number, oppDef: number, oppTypes: readonly string[]) => {
+    if (!cramorant(m) || m.form !== m.forms!.start) return null;
+    const byEnergy = [...m.charges].sort((x, y) => x.energy - y.energy);
+    const gulp = byEnergy.find((c) => c.id === 'DIVE' || c.id === 'SURF');
+    const other = byEnergy.find((c) => c.id !== 'DIVE');
+    if (!gulp || !other || e < gulp.energy) return null;
+    const dG = dmg(atk, oppDef, gulp, oppTypes), dO = dmg(atk, oppDef, other, oppTypes);
+    return oppHp > dO * 1.3 && dO / other.energy / (dG / gulp.energy) < 1.5 ? gulp : null;
+  };
+  // Facing a loaded Cramorant, bank energy to throw back to back, unless the
+  // move kills through no shields or the fast-move race says not to wait.
+  const stacking = (m: BattleMon, e: number, move: ChargeMove, foe: BattleMon, foeHp: number, foeShields: number,
+    myHp: number, foeFast: number, moveDmg: number) =>
+    !!missileOf(foe) && e < Math.floor(100 / move.energy) * move.energy &&
+    (foeHp > moveDmg || foeShields !== 0) && (myHp > foeFast * 2 || (foe.fast.turns - m.fast.turns) * 500 > 500);
+  // PvPoke's shield overrides beyond Aegislash's: a loaded Cramorant keeps its
+  // shields for a hit it can take 2.2 times over, and nobody shields a
+  // Cramorant hit worth under a third of their HP.
+  const holdsShield = (def: BattleMon, att: BattleMon, raw: number, hp: number) =>
+    (triggers(def, 'activate_charged') && raw * 2 < hp) || (!!missileOf(def) && raw * 2.2 < hp) || (cramorant(att) && raw / hp < 0.33);
   const chargeAtk = (m: BattleMon) => (triggers(m, 'activate_charged') ? m.forms!.by[rule(m)!.to].atk : m.atk);
   // PvPoke's Aegislash Shield banks energy before it commits to Blade, unless
   // its first charged move would already finish the opponent.
@@ -1919,7 +1950,8 @@ export function battle(
     const killsA = sA === 0 && !!readyB && dmg(catkB, defA, readyB, a.types) >= hpA;
     const wantA =
       !!readyA &&
-      (killsB || !banking(a, eA, cheapDmgA, hpB)) &&
+      (killsB || (!banking(a, eA, cheapDmgA, hpB) &&
+        !stacking(a, eA, readyA, b, hpB, sB, hpA, fB, dmg(catkA, defB, readyA, b.types)))) &&
       (!optimizeTiming ||
         killsB ||
         incomingKOa ||
@@ -1929,7 +1961,8 @@ export function battle(
         holdA >= b.fast.turns);
     const wantB =
       !!readyB &&
-      (killsA || !banking(b, eB, cheapDmgB, hpA)) &&
+      (killsA || (!banking(b, eB, cheapDmgB, hpA) &&
+        !stacking(b, eB, readyB, a, hpA, sA, hpB, fA, dmg(catkB, defA, readyB, a.types)))) &&
       (!optimizeTiming ||
         killsA ||
         incomingKOb ||
@@ -1943,8 +1976,10 @@ export function battle(
 
     const breakA = freeA && !killsB ? breaker(a, eA, b, sB) : null;
     const breakB = freeB && !killsA ? breaker(b, eB, a, sA) : null;
-    const moveA = breakA ?? (wantA ? readyA : null);
-    const moveB = breakB ?? (wantB ? readyB : null);
+    const gulpA = freeA && !killsB ? gulper(a, eA, hpB, catkA, defB, b.types) : null;
+    const gulpB = freeB && !killsA ? gulper(b, eB, hpA, catkB, defA, a.types) : null;
+    const moveA = breakA ?? gulpA ?? (wantA ? readyA : null);
+    const moveB = breakB ?? gulpB ?? (wantB ? readyB : null);
 
     // A fast move that lands this turn and kills resolves first, ahead of any
     // charged move either side has banked. The charged move costs a turn to
@@ -1967,7 +2002,7 @@ export function battle(
           if (triggers(a, 'activate_charged', moveA.id)) toForm(a);
           const raw = dmg(atkA, defB, moveA, b.types);
           // Aegislash Shield keeps its shields for Blade against a hit it can take twice.
-          const shielded = sB > 0 && !(triggers(b, 'activate_charged') && raw * 2 < hpB) && shieldCall(policyB, raw, hpB, worstFromA);
+          const shielded = sB > 0 && !holdsShield(b, a, raw, hpB) && shieldCall(policyB, raw, hpB, worstFromA);
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
           if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
@@ -1983,8 +2018,8 @@ export function battle(
             toForm(b);
             buffTextA = [buffTextA, 'Disguise busted'].filter(Boolean).join(' · ');
           }
-          // After the move resolves: Morpeko (Cramorant's `variable` comes later).
-          if (triggers(a, 'charged_move', moveA.id) && rule(a)!.to !== 'variable') toForm(a);
+          // After the move resolves: Morpeko, and Cramorant's Dive or Surf.
+          if (triggers(a, 'charged_move', moveA.id)) toForm(a, hpA);
           // The sequence resets both animations — that reset is what grants
           // the defender "free" turns when thrown at the wrong moment.
           tA = a.fast.turns;
@@ -2008,12 +2043,26 @@ export function battle(
             defStageB: stB.def,
             buffText: buffTextA,
           });
+          // Gulp Missile: a loaded Cramorant hit by a charged move it did not
+          // shield fires back at once - 15% of the attacker's max HP + 1, no
+          // shield, even from 0 HP (PvPoke's instant and ignoresFaint) - then
+          // returns to its base form.
+          const missileB = shielded ? null : missileOf(b);
+          if (missileB) {
+            const hit = Math.floor((missileB.power / 100) * a.hp) + 1;
+            hpA -= hit;
+            const text = applyBuff(missileB, false);
+            toForm(b, hpB);
+            if (collectLog) log.push({ turn, actor: 'B', kind: 'charge', moveName: missileB.name, bait: false,
+              shielded: false, damage: hit, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
+              atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: text });
+          }
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
           if (triggers(b, 'activate_charged', moveB.id)) toForm(b);
           const raw = dmg(atkB, defA, moveB, a.types);
-          const shielded = sA > 0 && !(triggers(a, 'activate_charged') && raw * 2 < hpA) && shieldCall(policyA, raw, hpA, worstFromB);
+          const shielded = sA > 0 && !holdsShield(a, b, raw, hpA) && shieldCall(policyA, raw, hpA, worstFromB);
           if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const disguisedA = !shielded && triggers(a, 'charged_move_damage');
           const damage = shielded || disguisedA ? 1 : raw;
@@ -2025,7 +2074,7 @@ export function battle(
             toForm(a);
             buffTextB = [buffTextB, 'Disguise busted'].filter(Boolean).join(' · ');
           }
-          if (triggers(b, 'charged_move', moveB.id) && rule(b)!.to !== 'variable') toForm(b);
+          if (triggers(b, 'charged_move', moveB.id)) toForm(b, hpB);
           tA = a.fast.turns;
           tB = b.fast.turns;
           holdB = 0;
@@ -2047,6 +2096,20 @@ export function battle(
             defStageB: stB.def,
             buffText: buffTextB,
           });
+          // Gulp Missile: a loaded Cramorant hit by a charged move it did not
+          // shield fires back at once - 15% of the attacker's max HP + 1, no
+          // shield, even from 0 HP (PvPoke's instant and ignoresFaint) - then
+          // returns to its base form.
+          const missileA = shielded ? null : missileOf(a);
+          if (missileA) {
+            const hit = Math.floor((missileA.power / 100) * b.hp) + 1;
+            hpB -= hit;
+            const text = applyBuff(missileA, true);
+            toForm(a, hpA);
+            if (collectLog) log.push({ turn, actor: 'A', kind: 'charge', moveName: missileA.name, bait: false,
+              shielded: false, damage: hit, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
+              atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: text });
+          }
         }
       }
       // The sneak, and it is GUARANTEED rather than incidental.

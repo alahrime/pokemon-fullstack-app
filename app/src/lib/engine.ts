@@ -1663,6 +1663,98 @@ function pickCharge(
  * per turn dominated that sweep. Same simulation either way - one branch, no
  * parallel implementation to drift.
  */
+/** One side's view of the fight at a decision point, for PvPoke's timing rule. */
+interface TimingView {
+  hp: number; energy: number; shields: number; cmpAtk: number;
+  fast: FastMove; charges: ChargeMove[];
+  /** Damage of each of our charged moves to the opponent, now. */
+  chargeDmg: number[];
+  oppHp: number; oppEnergy: number; oppShields: number; oppCmpAtk: number;
+  oppFast: FastMove; oppCharges: ChargeMove[];
+  /** Damage the opponent's fast move and each charged move would do to us. */
+  oppFastDmg: number; oppChargeDmg: number[];
+  /** Milliseconds left in the opponent's current fast move; 0 when it is free. */
+  oppCooldown: number;
+}
+
+const byEnergy = (cs: ChargeMove[]) => cs.map((c, i) => ({ c, i })).sort((x, y) => x.c.energy - y.c.energy);
+
+/**
+ * PvPoke's turns-to-live search (ActionLogic.decideAction): how many turns
+ * until the opponent can knock us out, walking its fast moves, its cheapest
+ * charged move into our shields, and its charged moves once they are gone.
+ * Ported literally, including the extra turn when we win CMP against a fast
+ * move that divides evenly into ours.
+ */
+function turnsToLive(v: TimingView): number {
+  let ttl = Infinity;
+  const winsCMP = v.cmpAtk >= v.oppCmpAtk;
+  const cheapest = byEnergy(v.oppCharges)[0]?.c;
+  const queue = v.oppCooldown !== 0
+    ? [{ hp: v.hp - v.oppFastDmg, opE: v.oppEnergy + v.oppFast.energyGain, turn: v.oppCooldown / 500, sh: v.shields }]
+    : [{ hp: v.hp, opE: v.oppEnergy, turn: 0, sh: v.shields }];
+  while (queue.length) {
+    const s = queue.shift()!;
+    if (s.hp > v.oppFastDmg && s.turn > v.fast.turns + (winsCMP ? 0 : 1)) continue;
+    if (s.sh !== 0) {
+      if (cheapest && s.opE >= cheapest.energy) queue.unshift({ hp: s.hp - 1, opE: s.opE - cheapest.energy, turn: s.turn + 1, sh: s.sh - 1 });
+    } else {
+      for (let n = 0; n < v.oppCharges.length; n++) {
+        if (s.opE < v.oppCharges[n].energy) continue;
+        const d = v.oppChargeDmg[n];
+        if (d >= s.hp) {
+          ttl = Math.min(s.turn, ttl);
+          if (v.cmpAtk > v.oppCmpAtk && (v.oppFast.turns * 500) % (v.fast.turns * 500) === 0) ttl++;
+          break;
+        }
+        queue.unshift({ hp: s.hp - d, opE: s.opE - v.oppCharges[n].energy, turn: s.turn + 1, sh: s.sh });
+      }
+    }
+    if (s.hp - v.oppFastDmg <= 0) {
+      ttl = Math.min(s.turn + v.oppFast.turns, ttl);
+      break;
+    }
+    queue.unshift({ hp: s.hp - v.oppFastDmg, opE: s.opE + v.oppFast.energyGain, turn: s.turn + v.oppFast.turns, sh: s.sh });
+  }
+  return ttl;
+}
+
+/**
+ * PvPoke's move-timing rule (ActionLogic.decideAction, optimizeMoveTiming):
+ * true when a charged move that is ready should wait for a fast move, so it
+ * lands as the opponent's fast move registers rather than handing it turns.
+ */
+function holdsForTiming(v: TimingView): boolean {
+  const my = v.fast.turns * 500, opp = v.oppFast.turns * 500;
+  let target = 500;
+  if (my >= 2000) target = 1000;
+  if (my >= 1500 && opp === 2500) target = 1000;
+  if (my === 1000 && opp === 2000) target = 1000;
+  if (my === opp) target = 0;
+  if (my % opp === 0 && my > opp) target = 0;
+  if (!(target > 0 && (v.oppCooldown === 0 || v.oppCooldown > target))) return false;
+  // About to faint from a fast move.
+  if (v.hp <= v.oppFastDmg) return false;
+  // Would overflow 100 energy with the fast move it would throw instead.
+  if (v.energy + v.fast.energyGain > 100) return false;
+  // Fewer turns to live than it takes to throw what it has.
+  const first = byEnergy(v.charges)[0].c;
+  const planned = v.fast.turns + Math.floor(v.energy / first.energy) + (v.cmpAtk < v.oppCmpAtk ? 1 : 0);
+  if (planned > turnsToLive(v)) return false;
+  // Can knock the opponent out now.
+  if (v.oppShields === 0 && v.charges.some((c, i) => v.energy >= c.energy && v.chargeDmg[i] >= v.oppHp)) return false;
+  // The opponent can knock us out inside the fast move we would add.
+  const fastIn = Math.floor(my / opp);
+  for (let n = 0; n < v.oppCharges.length; n++) {
+    const c = v.oppCharges[n];
+    const turnsFrom = Math.ceil((c.energy - v.oppEnergy) / v.oppFast.energyGain) * v.oppFast.turns + 1;
+    const hit = (v.shields > 0 ? 1 : v.oppChargeDmg[n]) + v.oppFastDmg * fastIn;
+    if (turnsFrom <= v.fast.turns && hit >= v.hp) return false;
+  }
+  if (v.hp <= v.oppFastDmg * Math.floor((my + 500) / opp)) return false;
+  return true;
+}
+
 /**
  * Whether to spend a shield on this hit.
  *
@@ -1894,11 +1986,6 @@ export function battle(
 
   const log: BattleLogEntry[] = [];
 
-  // Turns held with a charged move available but deliberately not thrown,
-  // waiting for the timing window. Bounded so an unreachable window (aligned
-  // fast moves) cannot stall the fight forever.
-  let holdA = 0;
-  let holdB = 0;
 
   for (let turn = 0; turn < 480 && hpA > 0 && hpB > 0; turn++) {
     // A move registers on the last turn of its animation.
@@ -1933,59 +2020,41 @@ export function battle(
         })
       : null;
 
-    // With optimizeTiming off, throw the moment a move is available. That is
-    // not PvPoke's engine, which optimises timing by default (see AppState).
-    //
-    // With it on, hold until the release lands on the turn the opponent's fast
-    // move registers: zero free turns granted, and the hit denied. Holding is
-    // abandoned in five situations, and each one is a case where waiting for
-    // the perfect turn loses more than the free turn costs:
-    //
-    //   kills        the fight ends; alignment is irrelevant afterwards.
-    //   aboutToDie   holding a move you never get to throw is the worst
-    //                outcome available. If their next action kills you, the
-    //                move goes out now — a shielded hit still strips a shield,
-    //                and an unshielded one still lands.
-    //   theyAreReady both sides holding is a CMP race, not a standoff. Throwing
-    //                first forces them either to shield — spending a shield to
-    //                answer yours — or to eat it before their own comes out.
-    //                Waiting hands them that same choice against you.
-    //   capped       energy over 100 is discarded, so holding burns the very
-    //                resource it is trying to spend well.
-    //   unreachable  a 2-turn fast move against a 4-turn never coincides, so
-    //                the window would never arrive and the hold never end.
     const killsB = sB === 0 && !!readyA && dmg(catkA, defB, readyA, b.types) >= hpB;
     const killsA = sA === 0 && !!readyB && dmg(catkB, defA, readyB, a.types) >= hpA;
+    // Move timing, as PvPoke's engine decides it (holdsForTiming). With
+    // optimizeTiming off, a ready move goes out at once, which PvPoke's
+    // engine does not do by default. The opponent's remaining cooldown maps
+    // from its turn counter: PvPoke decrements cooldowns at the start of each
+    // turn and decides before setting a new one, so it reads 0 when the
+    // opponent starts a fast move this turn and tB * 500 while one is running
+    // (500 on the turn it registers). (tB - 1) * 500 scored 31.7% exact on
+    // npm run parity against 49.5% for this.
+    const view = (me: 'A' | 'B'): TimingView => me === 'A'
+      ? { hp: hpA, energy: eA, shields: sA, cmpAtk: a.cmpAtk, fast: a.fast, charges: a.charges, chargeDmg: chargeDmgA,
+          oppHp: hpB, oppEnergy: eB, oppShields: sB, oppCmpAtk: b.cmpAtk, oppFast: b.fast, oppCharges: b.charges,
+          oppFastDmg: fB, oppChargeDmg: chargeDmgB, oppCooldown: freeB ? 0 : tB * 500 }
+      : { hp: hpB, energy: eB, shields: sB, cmpAtk: b.cmpAtk, fast: b.fast, charges: b.charges, chargeDmg: chargeDmgB,
+          oppHp: hpA, oppEnergy: eA, oppShields: sA, oppCmpAtk: a.cmpAtk, oppFast: a.fast, oppCharges: a.charges,
+          oppFastDmg: fA, oppChargeDmg: chargeDmgA, oppCooldown: freeA ? 0 : tA * 500 };
+    const holdA = optimizeTiming && !!readyA && !killsB && holdsForTiming(view('A'));
+    const holdB = optimizeTiming && !!readyB && !killsA && holdsForTiming(view('B'));
     const wantA =
       !!readyA &&
       (killsB || (!banking(a, eA, cheapDmgA, hpB) &&
         !stacking(a, eA, readyA, b, hpB, sB, hpA, fB, dmg(catkA, defB, readyA, b.types)))) &&
-      (!optimizeTiming ||
-        killsB ||
-        incomingKOa ||
-        !!readyB ||
-        registersB ||
-        eA + a.fast.energyGain > 100 ||
-        holdA >= b.fast.turns);
+      !holdA;
     const wantB =
       !!readyB &&
       (killsA || (!banking(b, eB, cheapDmgB, hpA) &&
         !stacking(b, eB, readyB, a, hpA, sA, hpB, fA, dmg(catkB, defA, readyB, a.types)))) &&
-      (!optimizeTiming ||
-        killsA ||
-        incomingKOb ||
-        !!readyA ||
-        registersA ||
-        eB + b.fast.energyGain > 100 ||
-        holdB >= a.fast.turns);
+      !holdB;
 
-    holdA = readyA && !wantA ? holdA + 1 : 0;
-    holdB = readyB && !wantB ? holdB + 1 : 0;
 
     const breakA = freeA && !killsB ? breaker(a, eA, b, sB) : null;
     const breakB = freeB && !killsA ? breaker(b, eB, a, sA) : null;
-    const gulpA = freeA && !killsB ? gulper(a, eA, hpB, catkA, defB, b.types) : null;
-    const gulpB = freeB && !killsA ? gulper(b, eB, hpA, catkB, defA, a.types) : null;
+    const gulpA = freeA && !killsB && !holdA ? gulper(a, eA, hpB, catkA, defB, b.types) : null;
+    const gulpB = freeB && !killsA && !holdB ? gulper(b, eB, hpA, catkB, defA, a.types) : null;
     const moveA = breakA ?? gulpA ?? (wantA ? readyA : null);
     const moveB = breakB ?? gulpB ?? (wantB ? readyB : null);
 
@@ -2035,7 +2104,6 @@ export function battle(
           // the defender "free" turns when thrown at the wrong moment.
           tA = a.fast.turns;
           tB = b.fast.turns;
-          holdA = 0;
           if (collectLog) log.push({
             turn,
             actor: 'A',
@@ -2088,7 +2156,6 @@ export function battle(
           if (triggers(b, 'charged_move', moveB.id)) toForm(b, hpB);
           tA = a.fast.turns;
           tB = b.fast.turns;
-          holdB = 0;
           if (collectLog) log.push({
             turn,
             actor: 'B',

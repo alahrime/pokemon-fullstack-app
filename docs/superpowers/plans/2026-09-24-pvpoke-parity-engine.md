@@ -13,17 +13,21 @@ checksummed). Reports exact end HP, same winner, mean HP gap and ms/battle.
 | Engine | Exact end HP | Same winner | ms/battle |
 |---|---|---|---|
 | A — vendored PvPoke (`app/vendor/pvpoke`, `src/lib/pvpoke.ts`) | 100.0% | 100.0% | 0.217 |
-| B — ours, optimised timing (`src/lib/engine.ts` `battle()`) | 40.9% | 86.7% | 0.016 |
+| A — through the adapter, our identifiers (`pvpokeBattle`) | 100.0% | 100.0% | 0.121 |
+| B — ours, optimised timing (`src/lib/engine.ts` `battle()`) | 49.5% | 87.5% | 0.017 |
 | B — ours, immediate timing | 35.2% | 85.1% | 0.010 |
 
-B started at 35.3% / 85.4%; the chance-effect meter and simultaneous CMP ties
-(f1d18e1) are already ported. A is PvPoke's code unmodified, so parity is by
+B started at 35.3% / 85.4%. Ported so far: the chance-effect meter and
+simultaneous CMP ties (f1d18e1, to 40.9%), then PvPoke's move-timing rule and
+turns-to-live search (B1, to 49.5%). `npm run parity` is in `npm run check`
+with floors: A must stay exact, B must not fall below where it stands. A is PvPoke's code unmodified, so parity is by
 construction; its costs are speed, bundle size and features ours has that
 PvPoke's does not.
 
 ## Option A — remaining
 
-- **A2 Adapter.** `BattleMon`/entry → PvPoke `Pokemon`: species id (Shadow via
+- ~~**A2 Adapter.**~~ Done (a66e229): 100% on the fixture; top-30 Ultra and
+  Master levels and 870 battles match PvPoke's own runs. Original scope: `BattleMon`/entry → PvPoke `Pokemon`: species id (Shadow via
   `_shadow`), level and IVs, moves by id, shields, start energy; map PvPoke's
   timeline back to `BattleResult` and `BattleLogEntry`. Parity stays 100% on
   the fixture and must hold for Ultra/Master spot checks.
@@ -43,7 +47,8 @@ PvPoke's does not.
 
 Diagnosed from 24 sampled 0-shield mismatches (first divergence per battle):
 
-1. **Move-timing rules** (ActionLogic 254–365): when to hold a charged move for
+1. ~~**Move-timing rules**~~ Done (B1). The opponent's cooldown maps to
+   `tB * 500` (0 when free); `(tB - 1) * 500` scored 31.7%. Original scope: (ActionLogic 254–365): when to hold a charged move for
    the opponent's registration. Needs the opponent's remaining cooldown and
    PvPoke's turns-to-live search (65–140).
 2. **Self-debuffing moves** (890–1000): defer until after survivable hits,

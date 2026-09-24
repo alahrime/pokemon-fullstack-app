@@ -91,14 +91,18 @@ const ours = (optimised: boolean) => (sh: number, i: number, j: number): number[
   return [Math.max(0, Math.round(r.hpA)), Math.max(0, Math.round(r.hpB))];
 };
 
-const ENGINES: [string, (sh: number, i: number, j: number) => number[]][] = [
-  ['A  vendored PvPoke', vendored],
-  ['A  via adapter (our ids)', adapted],
-  ['B  ours, optimised timing', ours(true)],
-  ['B  ours, immediate timing', ours(false)],
+// Floors on exact end HP, so a regression fails `npm run check`. Option A is
+// PvPoke's own code and must stay exact; option B's floor is where the port
+// stands and is raised as it moves (never lowered to get a change through).
+const ENGINES: [string, (sh: number, i: number, j: number) => number[], number][] = [
+  ['A  vendored PvPoke', vendored, 100],
+  ['A  via adapter (our ids)', adapted, 100],
+  ['B  ours, optimised timing', ours(true), 49.5],
+  ['B  ours, immediate timing', ours(false), 35.2],
 ];
+const failures: string[] = [];
 
-for (const [name, run] of ENGINES) {
+for (const [name, run, floor] of ENGINES) {
   let exact = 0, same = 0, total = 0, gap = 0;
   const perShield: string[] = [];
   const flips = new Map<string, number>();
@@ -121,10 +125,16 @@ for (const [name, run] of ENGINES) {
   const ms = (performance.now() - t0) / total;
   console.log(`${name.padEnd(28)} ${pct(exact, total).padStart(6)} exact end HP  ${pct(same, total).padStart(6)} same winner  gap ${(gap / total).toFixed(1).padStart(4)}  ${ms.toFixed(3)} ms/battle`);
   console.log(`${''.padEnd(28)} ${perShield.join('  ')}`);
+  if (Math.round((1000 * exact) / total) / 10 < floor) failures.push(`${name.trim()} ${pct(exact, total)} exact, below its floor of ${floor}%`);
   if (flips.size) console.log(`${''.padEnd(28)} most winner flips: ${[...flips].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => `${id} ${n}`).join(', ')}`);
 }
 
 console.log(`adapter log drift: ${logDrift} battles whose rebuilt log disagrees with PvPoke's final HP`);
+if (logDrift) failures.push(`${logDrift} rebuilt logs disagree with PvPoke's final HP`);
+if (failures.length) {
+  console.error('\nPARITY REGRESSED:\n  ' + failures.join('\n  '));
+  process.exit(1);
+}
 
 function pct(a: number, b: number) {
   return `${((100 * a) / b).toFixed(1)}%`;

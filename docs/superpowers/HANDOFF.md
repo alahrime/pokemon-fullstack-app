@@ -257,12 +257,15 @@ failure mode is silence in every surface — no error in the app, none in the da
    `GET /auth/v1/verify?token=invalid&type=signup` now `303`s to
    `https://paragon2.alahrime.workers.dev/#error=…otp_expired`. Production is covered whatever
    the Redirect URLs list holds: the app asks for `window.location.origin`, which there *is* the
-   Site URL, and a disallowed `redirect_to` falls back to it anyway. **Unverified:** whether
-   `http://localhost:5173/**` is on that list — the authorize step no longer exposes it (its
-   `state` is an opaque id, not a JWT). If it is missing, a local build pointed at the hosted
-   project finishes sign-in on production instead. Check in Dashboard → Authentication → URL
-   Configuration; **not** via `supabase config push`, which pushes the whole auth block from
-   `config.toml` and could clobber the Discord provider settings.
+   Site URL, and a disallowed `redirect_to` falls back to it anyway. Redirect URLs, read off
+   Dashboard → Authentication → URL Configuration on 2026-09-24: `http://localhost:5173`,
+   `http://localhost:5173/**`, `https://paragon2.alahrime.workers.dev/**`. So a local build
+   against the hosted project also returns locally. `http://127.0.0.1:5173/**` is **not** listed
+   — add it only to run the two-origin, two-account setup against the hosted project (the local
+   stack already allows it via `config.toml`). Change these in the dashboard, **not** via
+   `supabase config push`, which pushes the whole auth block from `config.toml` and could clobber
+   the Discord provider settings. (The CLI has no login on this machine: `config diff` fails with
+   `Access token not provided` until `npx supabase login` is run.)
 3. **The production account cannot post an offer** and this is not a bug: the Post control is not
    rendered without a saved format for that league (`MatchmakingScreen.tsx:621`). Author one on
    the Formats screen and save it.

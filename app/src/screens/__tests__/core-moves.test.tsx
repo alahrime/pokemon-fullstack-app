@@ -30,12 +30,12 @@ describe('fast-move counts are the timing the reference shows', () => {
     expect(rollout.energyGain).toBe(13);
 
     const by = (name: string) => sp.chargeMoves.find((c) => c.name === name)!;
-    expect(fastMoveCounts(lick, by('Body Slam'))).toEqual([12, 12, 11, 12]);
+    expect(fastMoveCounts(lick, by('Body Slam'))).toEqual([14, 13, 13, 14]);
     expect(fastMoveCounts(lick, by('Shadow Ball'))).toEqual([17, 17, 16, 17]);
     expect(fastMoveCounts(lick, by('Earthquake'))).toEqual([22, 22, 21, 22]);
     expect(fastMoveCounts(lick, by('Hyper Beam'))).toEqual([27, 27, 26, 27]);
 
-    expect(fastMoveCounts(rollout, by('Body Slam'))).toEqual([3, 3, 3, 2]);
+    expect(fastMoveCounts(rollout, by('Body Slam'))).toEqual([4, 3, 3, 3]);
     expect(fastMoveCounts(rollout, by('Shadow Ball'))).toEqual([4, 4, 4, 4]);
     expect(fastMoveCounts(rollout, by('Earthquake'))).toEqual([5, 5, 5, 5]);
     expect(fastMoveCounts(rollout, by('Hyper Beam'))).toEqual([7, 6, 6, 6]);

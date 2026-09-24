@@ -53,14 +53,18 @@ const CHART: Chart = {
  *
  * Dual types multiply, which is where 2.56 and 0.244 come from — they are not
  * separate rules, just both halves applying.
+ *
+ * `se` lets damage pass the game's float32 1.60000002. It stays out of the
+ * default because 1.60000002 x 0.625 > 1, which would read a neutral pairing
+ * as a weakness everywhere that compares against 1.
  */
-export function typeEffectiveness(moveType: string, defenderTypes: readonly string[]): number {
+export function typeEffectiveness(moveType: string, defenderTypes: readonly string[], se = SE): number {
   const row = CHART[moveType?.toLowerCase()];
   if (!row) return 1;
   let mult = 1;
   for (const t of defenderTypes) {
     const m = row[t?.toLowerCase()];
-    if (m !== undefined) mult *= m;
+    if (m !== undefined) mult *= m === SE ? se : m;
   }
   return mult;
 }

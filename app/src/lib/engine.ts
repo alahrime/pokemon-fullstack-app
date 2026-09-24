@@ -134,7 +134,14 @@ function levelCapIdx(species: Species, league: League, bestBuddy: boolean): numb
  * for 4, and we said 3. floor(0.5 * 7 * 104.3/136.6 * 1.3) + 1 = 4 exactly,
  * against 3 without it.
  */
-export const PVP_BONUS = 1.3;
+//
+// The multipliers are the game's float32 values widened to double, exactly as
+// PvPoke's DamageMultiplier carries them, and multiplied in PvPoke's order.
+// Both matter only when a product lands on an integer before the floor - which
+// is exactly when a breakpoint is being asked about.
+export const PVP_BONUS = Math.fround(1.3);
+const STAB_F32 = Math.fround(1.2);
+const SE_F32 = Math.fround(1.6);
 
 export function dmg(
   atk: number,
@@ -142,17 +149,18 @@ export function dmg(
   move: FastMove | ChargeMove,
   defTypes: readonly string[],
 ): number {
-  const eff = typeEffectiveness(move.type, defTypes);
-  return Math.floor(0.5 * move.power * (atk / def) * move.stab * eff * PVP_BONUS) + 1;
+  const eff = typeEffectiveness(move.type, defTypes, SE_F32);
+  const stab = move.stab === 1 ? 1 : STAB_F32;
+  return Math.floor(move.power * stab * (atk / def) * eff * 0.5 * PVP_BONUS) + 1;
 }
 
 /**
  * Shadow multipliers, as the game applies them: ×6/5 attack, ×5/6 defense.
  *
- * Note 1.2 × (5/6) === 1 exactly, so a Shadow's stat product - and therefore
- * its rank within the 4096 - is identical to its non-Shadow counterpart. CP is
- * likewise unchanged, because CP is derived from base stats and IVs before any
- * Shadow adjustment. So the multipliers are applied *after* sp/cp/rank are
+ * Defense is PvPoke's float32 0.83333331, not an exact 5/6. Neither touches a
+ * Shadow's stat product or its rank within the 4096, and CP is derived from
+ * base stats and IVs before any Shadow adjustment. So the multipliers are
+ * applied *after* sp/cp/rank are
  * computed, touching only the battle stats that feed damage, breakpoints,
  * bulkpoints and the simulator.
  *
@@ -160,7 +168,7 @@ export function dmg(
  * never moves your rank. It moves every damage threshold.
  */
 export const SHADOW_ATK_MULT = 6 / 5;
-export const SHADOW_DEF_MULT = 5 / 6;
+export const SHADOW_DEF_MULT = 0.83333331;
 
 // ── Stat stages (attack/defence buffs and debuffs) ────────────────────────
 //

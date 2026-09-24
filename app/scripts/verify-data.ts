@@ -396,11 +396,12 @@ console.log('\n── move economics ──────────────�
   const rollout = lick.fastMoves.find((m) => m.id === 'ROLLOUT');
   check('lickilicky has Rollout', !!rollout, rollout ? `gain ${rollout.energyGain}/${rollout.turns}t` : '');
 
-  // Worked example supplied as the spec. Damage is STAB-adjusted power, which
-  // is why Body Slam reads 66 rather than its raw 55.
+  // Worked example supplied as the spec, updated for the 2026 rebalance (Body
+  // Slam 55/35 -> 65/40, Shadow Ball 100 -> 90). Damage is STAB-adjusted
+  // power, which is why Body Slam reads 78 rather than its raw 65.
   const EXPECT: Record<string, { dmg: number; energy: number; dpe: string; counts: string }> = {
-    BODY_SLAM: { dmg: 66, energy: 35, dpe: '1.89', counts: '3-3-3-2' },
-    SHADOW_BALL: { dmg: 100, energy: 50, dpe: '2.00', counts: '4-4-4-4' },
+    BODY_SLAM: { dmg: 78, energy: 40, dpe: '1.95', counts: '4-3-3-3' },
+    SHADOW_BALL: { dmg: 90, energy: 50, dpe: '1.80', counts: '4-4-4-4' },
     EARTHQUAKE: { dmg: 120, energy: 65, dpe: '1.85', counts: '5-5-5-5' },
     SOLAR_BEAM: { dmg: 150, energy: 80, dpe: '1.88', counts: '7-6-6-6' },
     HYPER_BEAM: { dmg: 180, energy: 80, dpe: '2.25', counts: '7-6-6-6' },
@@ -628,12 +629,20 @@ console.log('\n── rank-1 spread index ────────────�
 // direction rather than breaking anything outright.
 console.log('\n── PvP damage bonus and sneak ─────────────────────────');
 {
-  check('the Trainer Battle bonus is 1.3', PVP_BONUS === 1.3, String(PVP_BONUS));
+  check('the Trainer Battle bonus is float32 1.3, as PvPoke carries it', PVP_BONUS === Math.fround(1.3), String(PVP_BONUS));
 
   const azu = getEntry('azumarill', { a: 0, d: 15, s: 15 }, 'great').entry;
   const lick = getEntry('lickilicky', { a: 0, d: 15, s: 10 }, 'great').entry;
   const azuSp = speciesOf('azumarill')!, lickSp = speciesOf('lickilicky')!;
   const azuM = movesFor(azuSp, 'great'), lickM = movesFor(lickSp, 'great');
+  // The report predates the 2026 rebalance, so the fight replays Lickilicky's
+  // moves as they were then: Body Slam 55/35, Shadow Ball 100/50. Current
+  // stats would test the rebalance, not the two mechanics this block is for.
+  const THEN: Record<string, { power: number; energy: number }> = {
+    BODY_SLAM: { power: 55, energy: 35 },
+    SHADOW_BALL: { power: 100, energy: 50 },
+  };
+  lickM.charges = lickM.charges.map((c) => ({ ...c, ...THEN[c.id] }));
 
   // Reported from the game: Rollout hits this Azumarill for 4, Bubble hits
   // this Lickilicky for 5. Neither is reachable without the 1.3.

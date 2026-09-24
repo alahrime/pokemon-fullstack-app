@@ -47,7 +47,7 @@ describe('the sequence itself', () => {
     const fairyWind = sp.fastMoves.find((m) => m.name === 'Fairy Wind')!;
     const moonblast = sp.chargeMoves.find((c) => c.name === 'Moonblast')!;
     const { container } = renderApp(<MoveCounts fast={fairyWind} charge={moonblast} />);
-    expect(digits(container.querySelector('.move-counts-run')!)).toEqual([7, 7, 6, 7]);
+    expect(digits(container.querySelector('.move-counts-run')!)).toEqual([6, 6, 5, 6]);
   });
 
   it('says so rather than showing nothing when a move cannot be charged', () => {

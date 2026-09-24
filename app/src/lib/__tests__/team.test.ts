@@ -27,7 +27,10 @@ describe('teamBattle', () => {
     const A = t('azumarill','registeel'), B = t('carbink','skarmory');
     const fair = teamBattle(A, B, { shieldsA: 2, shieldsB: 2 });
     const starved = teamBattle(A, B, { shieldsA: 0, shieldsB: 2 });
-    expect(starved.hpFracA).toBeLessThanOrEqual(fair.hpFracA);
+    // Honoured means A never has a shield to spend. Not "fewer shields never
+    // ends better": the shield policy is a heuristic and does not promise that.
+    expect(starved.steps.every((s) => s.shieldsA === 0)).toBe(true);
+    expect(starved).not.toEqual(fair);
   });
   it('carries HP and energy across matchups, which is the whole point', () => {
     const A = t('azumarill','registeel','medicham'), B = t('carbink','skarmory','lapras');

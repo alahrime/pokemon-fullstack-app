@@ -224,7 +224,8 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     const before = b.textContent;
     const steppers = b.querySelectorAll('.iv-adjuster button');
     expect(steppers.length).toBeGreaterThan(0);
-    fireEvent.click(steppers[0]);
+    // The first enabled one: a 0 Attack IV disables "Decrease Attack".
+    fireEvent.click([...steppers].find((s) => !(s as HTMLButtonElement).disabled)!);
     expect(b.textContent).not.toBe(before);
   });
 

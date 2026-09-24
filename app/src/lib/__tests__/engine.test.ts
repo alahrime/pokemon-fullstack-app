@@ -19,8 +19,9 @@ const mon = (o: { atk?: number; def?: number; hp?: number; types?: string[]; fas
 
 describe('dmg', () => {
   it('applies the PvP bonus multiplier', () => {
-    // floor(0.5 * 100 * 1 * 1 * 1 * 1.3) + 1
-    expect(dmg(100, 100, C({ power: 100 }), ['normal'])).toBe(66);
+    // 100 * 0.5 * 1.3 is exactly 65 in real numbers, but the game's float32
+    // 1.3 is a hair under, so it floors to 64 and lands 65 - as PvPoke does.
+    expect(dmg(100, 100, C({ power: 100 }), ['normal'])).toBe(65);
   });
   it('never deals zero — there is always the +1', () => {
     expect(dmg(1, 1000, C({ power: 1 }), ['normal'])).toBeGreaterThanOrEqual(1);
@@ -50,14 +51,14 @@ describe('dmg', () => {
 });
 
 describe('constants', () => {
-  it('carries the Trainer Battle bonus, not the raid formula', () => expect(PVP_BONUS).toBe(1.3));
+  it('carries the Trainer Battle bonus as float32 1.3, as PvPoke does', () => expect(PVP_BONUS).toBe(Math.fround(1.3)));
   it('caps energy at 100', () => expect(ENERGY_CAP).toBe(100));
   it('prices a kept bar and full HP on the same scale as the rating', () => {
     expect(ENERGY_KEPT).toBe(100);
     expect(HP_WEIGHT).toBe(500);
   });
-  it('uses the game shadow multipliers, whose product is exactly 1', () => {
-    expect(SHADOW_ATK_MULT * SHADOW_DEF_MULT).toBeCloseTo(1, 12);
+  it("uses PvPoke's shadow multipliers, 1.2 and float32 5/6", () => {
+    expect([SHADOW_ATK_MULT, SHADOW_DEF_MULT]).toEqual([1.2, 0.83333331]);
   });
 });
 
@@ -189,9 +190,11 @@ describe('opponent relevance is weighted by who you actually meet', () => {
 
   it('surfaces a top-of-meta opponent ahead of everything', () => {
     const rel = rankedOpponents('lickilicky', 'great', 0, 'either', 40);
-    const tinkaton = rel.findIndex((r) => parseRef(r.info.id).id === 'tinkaton');
-    expect(tinkaton).toBeGreaterThanOrEqual(0);
-    expect(tinkaton).toBeLessThan(5);
+    // Altaria is #2 in Great. (Tinkaton was the example until the 2026
+    // rebalance moved Lickilicky's breakpoints off it.)
+    const altaria = rel.findIndex((r) => parseRef(r.info.id).id === 'altaria');
+    expect(altaria).toBeGreaterThanOrEqual(0);
+    expect(altaria).toBeLessThan(5);
   });
 
   it('never surfaces a Pokémon nobody brings', () => {

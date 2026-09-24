@@ -11,10 +11,17 @@ const reportMessage = vi.fn();
 const markRead = vi.fn();
 let onMessage: ((m: unknown) => void) | null = null;
 
+// UUID-shaped on purpose: these ids are what used to leak into every Report
+// control's accessible name, and the guard test at the bottom of this file
+// cannot catch a regression unless the fixture actually carries the shape.
+const M1 = '9b5df0aa-1e0a-42fd-ad95-6a9a7be1412c';
+const M2 = '92c75e91-a7d4-4233-8e61-6668cc31a76f';
+const M3 = '7c1e4d02-3f55-4a91-9b7e-1d2c3f4a5b6c';
+
 const transcript = [
-  { id: 'm1', channelId: 'c1', authorId: 'them', body: 'hey', createdAt: 't1', editedAt: null, deletedAt: null },
-  { id: 'm2', channelId: 'c1', authorId: 'them', body: 'gone now', createdAt: 't2', editedAt: null, deletedAt: 't3' },
-  { id: 'm3', channelId: 'c1', authorId: 'me', body: 'my own message', createdAt: 't4', editedAt: null, deletedAt: null },
+  { id: M1, channelId: 'c1', authorId: 'them', body: 'hey', createdAt: 't1', editedAt: null, deletedAt: null },
+  { id: M2, channelId: 'c1', authorId: 'them', body: 'gone now', createdAt: 't2', editedAt: null, deletedAt: 't3' },
+  { id: M3, channelId: 'c1', authorId: 'me', body: 'my own message', createdAt: 't4', editedAt: null, deletedAt: null },
 ];
 
 vi.mock('../../lib/channels', () => ({
@@ -217,10 +224,10 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     expect(new Set(names).size).toBe(names.length);
 
     fireEvent.click(reportButtons[0]);
-    const reasonBox = await screen.findByRole('textbox', { name: /report reason for message m1/i });
+    const reasonBox = await screen.findByRole('textbox', { name: /reason for reporting “hey”/i });
     fireEvent.change(reasonBox, { target: { value: 'spam' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit report for message m1/i }));
-    await waitFor(() => expect(reportMessage).toHaveBeenCalledWith('m1', 'spam'));
+    fireEvent.click(screen.getByRole('button', { name: /submit report for “hey”/i }));
+    await waitFor(() => expect(reportMessage).toHaveBeenCalledWith(M1, 'spam'));
     expect(await screen.findByText('Reported')).toBeInTheDocument();
   });
 
@@ -228,7 +235,7 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     pane(dm);
     await screen.findByText('hey');
     fireEvent.click(screen.getAllByRole('button', { name: /^report message/i })[0]);
-    const submit = await screen.findByRole('button', { name: /submit report for message m1/i });
+    const submit = await screen.findByRole('button', { name: /submit report for “hey”/i });
     expect(submit).toBeDisabled();
     expect(reportMessage).not.toHaveBeenCalled();
   });
@@ -237,13 +244,13 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     pane(dm);
     await screen.findByText('hey');
     fireEvent.click(screen.getAllByRole('button', { name: /^report message/i })[0]);
-    fireEvent.change(screen.getByRole('textbox', { name: /report reason for message m1/i }), {
+    fireEvent.change(screen.getByRole('textbox', { name: /reason for reporting “hey”/i }), {
       target: { value: 'spam' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /cancel report for message m1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancel reporting “hey”/i }));
     expect(reportMessage).not.toHaveBeenCalled();
-    expect(screen.queryByRole('textbox', { name: /report reason for message m1/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^report message m1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /reason for reporting “hey”/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^report message “hey”/i })).toBeInTheDocument();
   });
 
   it('does not mark the channel read again for a message that arrives while minimised', async () => {
@@ -327,6 +334,42 @@ describe('ChatPane, signed in as the author of one message in the transcript', (
     expect(own.textContent).not.toMatch(/Reported/);
 
     const theirs = screen.getByText('hey').closest('li')!;
-    expect(theirs.querySelector('button[aria-label="Report message m1"]')).not.toBeNull();
+    expect(theirs.querySelector('button[aria-label="Report message “hey”"]')).not.toBeNull();
+  });
+});
+
+/**
+ * The assertion that stops one defect class coming back.
+ *
+ * Raw uuids reached users four separate times in this project — as visible
+ * text on the Friends screen, in the dock's rail sub-line, and twice in
+ * `aria-label`s here, where nobody was looking because the visible text was
+ * already clean. A screen reader speaks a uuid character by character.
+ *
+ * This walks everything rendered rather than naming individual controls, so
+ * a NEW control that interpolates an id fails it without anyone remembering
+ * to extend a list.
+ */
+describe('the pane never shows anyone a uuid', () => {
+  beforeEach(() => cleanup());
+
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+  it('leaks no uuid through text, aria-label or title — with the report form open', async () => {
+    const view = await mountSignedIn('me');
+    fireEvent.click(await screen.findByRole('button', { name: /^report message “hey”/i }));
+    await screen.findByRole('textbox', { name: /reason for reporting “hey”/i });
+
+    const root = view.container;
+    expect(root.textContent ?? '').not.toMatch(UUID);
+
+    const offenders: string[] = [];
+    root.querySelectorAll('*').forEach((el) => {
+      for (const attr of ['aria-label', 'title', 'placeholder']) {
+        const v = el.getAttribute(attr);
+        if (v && UUID.test(v)) offenders.push(`${el.tagName.toLowerCase()}[${attr}]="${v}"`);
+      }
+    });
+    expect(offenders).toEqual([]);
   });
 });

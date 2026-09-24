@@ -15,6 +15,21 @@ function messageOf(e: unknown): string {
 }
 
 /**
+ * How a message is named to a screen reader.
+ *
+ * These controls repeat once per message, so their accessible names have to
+ * be distinct or a rotor lists a column of identical `Report`s. They used to
+ * be disambiguated with `m.id` — which is unique and completely unreadable,
+ * since a uuid is spoken out character by character. A short quotation of the
+ * body is how a person would actually refer to a message, and it is unique in
+ * practice among the handful of messages a pane holds at once.
+ */
+function snippetOf(body: string): string {
+  const flat = body.replace(/\s+/g, ' ').trim();
+  return flat.length > 32 ? `${flat.slice(0, 32)}…` : flat;
+}
+
+/**
  * The pane's `.hud-label` kind badge — the same three kinds the rail keys its
  * border colour off (`data-kind` in `ChatDock`), spelled out for a header
  * that has no adjoining sub-line to disambiguate what's chatting the way the
@@ -263,7 +278,7 @@ export function ChatPane({
                       <input
                         type="text"
                         className="input"
-                        aria-label={`Report reason for message ${m.id}`}
+                        aria-label={`Reason for reporting “${snippetOf(m.body)}”`}
                         placeholder="Why are you reporting this message?"
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value)}
@@ -271,7 +286,7 @@ export function ChatPane({
                       <button
                         type="submit"
                         className="btn btn-primary"
-                        aria-label={`Submit report for message ${m.id}`}
+                        aria-label={`Submit report for “${snippetOf(m.body)}”`}
                         disabled={!reportReason.trim() || reportingId === m.id}
                       >
                         {reportingId === m.id ? 'Reporting…' : 'Report'}
@@ -279,7 +294,7 @@ export function ChatPane({
                       <button
                         type="button"
                         className="btn btn-ghost"
-                        aria-label={`Cancel report for message ${m.id}`}
+                        aria-label={`Cancel reporting “${snippetOf(m.body)}”`}
                         onClick={() => {
                           setOpenReportId(null);
                           setReportReason('');
@@ -293,7 +308,7 @@ export function ChatPane({
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      aria-label={`Report message ${m.id}`}
+                      aria-label={`Report message “${snippetOf(m.body)}”`}
                       onClick={() => {
                         setOpenReportId(m.id);
                         setReportReason('');
@@ -316,14 +331,14 @@ export function ChatPane({
           >
             <textarea
               className="input"
-              aria-label={`Message · ${label} · ${channel.id}`}
+              aria-label={`Message to ${label}`}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
             <button
               type="submit"
               className="btn btn-primary"
-              aria-label={`Send · ${label} · ${channel.id}`}
+              aria-label={`Send message to ${label}`}
               disabled={!draft.trim() || sending}
             >
               {sending ? 'Sending…' : 'Send'}

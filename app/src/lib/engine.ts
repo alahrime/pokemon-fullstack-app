@@ -1956,6 +1956,8 @@ export function battle(
           hpB -= damage;
           // A shield blocks damage, never the secondary effect.
           const buffTextA = applyBuff(moveA, true);
+          // After the move resolves: Morpeko (Cramorant's `variable` comes later).
+          if (triggers(a, 'charged_move', moveA.id) && rule(a)!.to !== 'variable') toForm(a);
           // The sequence resets both animations — that reset is what grants
           // the defender "free" turns when thrown at the wrong moment.
           tA = a.fast.turns;
@@ -1991,6 +1993,7 @@ export function battle(
           if (shielded && triggers(a, 'activate_shield')) toForm(a);
           hpA -= damage;
           const buffTextB = applyBuff(moveB, false);
+          if (triggers(b, 'charged_move', moveB.id) && rule(b)!.to !== 'variable') toForm(b);
           tA = a.fast.turns;
           tB = b.fast.turns;
           holdB = 0;

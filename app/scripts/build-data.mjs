@@ -303,11 +303,8 @@ function formsOf(p) {
     const next = rule?.to === 'variable' ? [`${p.speciesId}_gulping`, `${p.speciesId}_gorging`] : [rule?.to];
     for (const id of next) if (id && POKEMON_BY_ID.has(id) && !(id in forms)) todo.push(id);
   }
-  // A toggle (Morpeko) is written once, on the default form; the way back is implied.
-  if (p.formChange.type === 'toggle') {
-    const there = forms[p.speciesId].rule;
-    forms[there.to].rule = { ...there, to: p.speciesId };
-  }
+  // Morpeko's formChange says `toggle`, but PvPoke never reads that: Hangry has
+  // no rule of its own, so once Hangry it stays Hangry. We follow PvPoke.
   return forms;
 }
 

@@ -147,6 +147,26 @@ console.log('\n── league membership (ranked) ──────────�
     const after = log.filter((l) => l.kind === 'fast' && l.turn > (charge?.turn ?? 0))[0];
     check('...after which it fights as Blade', !!after && after.damage > 1, `${after?.moveName} ${after?.damage}`);
   }
+  {
+    // Morpeko: its first charged move turns it Hangry, which swaps Aura Wheel
+    // from Electric to Dark. Galarian Stunfisk tells them apart: ground takes
+    // Electric at x0.39, Dark neutrally. Aura Wheel also raises Morpeko's own
+    // attack a stage, so the second throw is Dark at +1. (Staying Hangry, as
+    // PvPoke has it, is in the data: Hangry carries no rule to leave by.)
+    check('morpeko_full_belly is back in the Great pool', opponentCandidatesFor('great').includes('morpeko_full_belly'));
+    const sp = speciesOf('morpeko_full_belly')!, foe = speciesOf('stunfisk_galarian')!;
+    const e = getEntry('morpeko_full_belly', { a: 15, d: 15, s: 15 }, 'great').entry;
+    const fe = getEntry('stunfisk_galarian', { a: 0, d: 15, s: 15 }, 'great').entry;
+    const wheel = (id: string) => sp.forms!.morpeko_full_belly.chargeMoves.concat(sp.forms!.morpeko_hangry.chargeMoves).find((c) => c.id === id)!;
+    const A = mkBattleMon(e, sp.fastMoves[0], [wheel('AURA_WHEEL_ELECTRIC')], sp.types);
+    const B = mkBattleMon(fe, foe.fastMoves[0], [foe.chargeMove], foe.types);
+    const throws = battle(A, B, 0, 0, 0, 0).log.filter((l) => l.actor === 'A' && l.kind === 'charge').map((l) => l.damage);
+    const elec = dmg(e.atk, fe.def, wheel('AURA_WHEEL_ELECTRIC'), foe.types);
+    const dark = dmg(e.atk * buffMultiplier(1), fe.def, wheel('AURA_WHEEL_DARK'), foe.types);
+    check('...Aura Wheel is Electric first, then Dark once Hangry',
+      throws.length >= 2 && throws[0] === elec && throws[1] === dark,
+      `${throws.join('/')} (electric ${elec}, dark ${dark})`);
+  }
   // In uncapped Master a low ceiling is forfeited power, so these are dropped.
   for (const id of ['umbreon', 'registeel']) {
     const s = SPECIES_BY_ID.get(id);

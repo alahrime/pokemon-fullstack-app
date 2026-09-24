@@ -647,7 +647,11 @@ console.log('\n── team chains ───────────────�
   // Banked energy likewise, and only for the lead.
   const cold = teamBattle(A, B, { shields: 1, bankedA: 0 });
   const hot = teamBattle(A, B, { shields: 1, bankedA: 1 });
-  check('a banked lead changes the chain', cold.hpFracA !== hot.hpFracA, `${cold.hpFracA.toFixed(3)} -> ${hot.hpFracA.toFixed(3)}`);
+  // Read off the exchanges, not the final fraction: this team loses either way
+  // under PvPoke's AI, but the lead's banked bar still has to reach the fight
+  // (it leaves Swampert on 31 HP instead of 111).
+  const chain = (t: typeof cold) => t.steps.map((st) => `${st.a}${st.b}${st.aWon ? 'w' : 'l'}${Math.round(st.hp)}`).join(' ');
+  check('a banked lead changes the chain', chain(cold) !== chain(hot), `${chain(cold)} -> ${chain(hot)}`);
 
   check('survivor energy is reported', hot.energyA >= 0 && hot.energyA <= 100, `${hot.energyA}`);
   const wiper = teamBattle(A, A.slice(0, 1), {});
@@ -887,12 +891,10 @@ console.log('\n── stat stages ───────────────�
 }
 
 // ── farm-downs and carried energy ──────────────────────────────────────────
-// `pickCharge` used to return main the instant it was affordable, so a mon
-// that could finish the job on fast moves alone still spent its bar on a kill
-// it already had — 46.3% of all charged throws in Great went into an opponent
-// fast moves had already killed. Shadow Marowak's Mud Slap into Registeel is
-// the clean case: no fast pressure coming back, so the farm is nearly free and
-// the energy is worth far more carried into the next Pokemon. See §1h.
+// Charged-move decisions are PvPoke's (decideAction, ported in B3), so whether
+// a mon farms down or spends its bar is whatever PvPoke's engine would do. Our
+// own rule once farmed Shadow Marowak's Mud Slap into Registeel to carry the
+// bar onward (§1h); PvPoke spends it, and these checks now hold that.
 console.log('\n── farm-downs ─────────────────────────────────────────');
 {
   const mk = (r: string) => monFor(r, 'great');
@@ -900,7 +902,10 @@ console.log('\n── farm-downs ───────────────�
   const reg = mk('registeel');
   const r = battle(wak, reg, 0, 0, 0, 0, true, true, undefined, undefined, 'always', 'always');
   check('the farm-down still wins the matchup', r.win, `hpA ${r.hpA}`);
-  check('...and walks out holding most of a bar', r.energyA >= 60, `${r.energyA} energy`);
+  // Our own rule used to farm this down and carry the bar onward. PvPoke's
+  // engine spends it: run on app/vendor/pvpoke it ends 65 / 0 with 0 energy,
+  // and so do we now that its decision logic is ported (B3).
+  check('...spending its energy as PvPoke\'s engine does', r.energyA === 0, `${r.energyA} energy`);
 
   // The other side of the rule: real fast pressure must still get the move
   // thrown. Lickilicky and Registeel chip each other, so farming loses more

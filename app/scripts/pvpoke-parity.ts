@@ -99,8 +99,8 @@ const ours = (optimised: boolean) => (sh: number, i: number, j: number): number[
 const ENGINES: [string, (sh: number, i: number, j: number) => number[], number][] = [
   ['A  vendored PvPoke', vendored, 100],
   ['A  via adapter (our ids)', adapted, 100],
-  ['B  ours, optimised timing', ours(true), 55.3],
-  ['B  ours, immediate timing', ours(false), 39.5],
+  ['B  ours, optimised timing', ours(true), 93.6],
+  ['B  ours, immediate timing', ours(false), 61.9],
 ];
 const failures: string[] = [];
 

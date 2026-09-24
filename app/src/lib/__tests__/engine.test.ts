@@ -193,13 +193,15 @@ describe('opponent relevance is weighted by who you actually meet', () => {
     expect(Math.max(...ranks.filter((r) => r < 9999))).toBeLessThan(300);
   });
 
-  it('surfaces a top-of-meta opponent ahead of everything', () => {
+  it('puts meta opponents ahead of everything', () => {
+    // Which meta mons decide a roll depends on the battle model, so this
+    // holds the weighting, not a name: it named Tinkaton until the 2026
+    // rebalance, then Altaria until PvPoke's decision logic (B3) moved
+    // Lickilicky's IV-sensitive matchups onto others.
     const rel = rankedOpponents('lickilicky', 'great', 0, 'either', 40);
-    // Altaria is #2 in Great. (Tinkaton was the example until the 2026
-    // rebalance moved Lickilicky's breakpoints off it.)
-    const altaria = rel.findIndex((r) => parseRef(r.info.id).id === 'altaria');
-    expect(altaria).toBeGreaterThanOrEqual(0);
-    expect(altaria).toBeLessThan(5);
+    const lead = rel.slice(0, 5).map((r) => rankOf(r.info.id));
+    expect(Math.max(...lead)).toBeLessThanOrEqual(50);
+    expect(Math.min(...lead)).toBeLessThanOrEqual(20);
   });
 
   it('never surfaces a Pokémon nobody brings', () => {

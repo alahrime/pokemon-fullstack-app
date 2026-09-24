@@ -1442,27 +1442,11 @@ export function buildHeatCells(
 interface ChargeRoles {
   main: ChargeMove;
   secondary: ChargeMove | null;
-  /** Damage per energy of each, in this matchup. See BAIT_MIN_EFFICIENCY. */
+  /** Damage per energy of each, in this matchup. */
   mainDpe: number;
   secondDpe: number;
 }
 
-/**
- * How efficient a bait has to be, against the move it delays, to be worth it.
- *
- * Baiting is not free even when it works: the energy spent on the cheap move is
- * energy the real one does not get, so a bait that trades badly is a loss the
- * removed shield does not pay for. The old rule ignored this and threw the
- * secondary whenever the opponent held a shield and it was affordable, which
- * over-stated baiting throughout the rankings.
- *
- * Lickilicky into Registeel is the clean case: Body Slam is resisted by Steel
- * at 1.18 damage per energy against Shadow Ball's neutral 2.00, so baiting
- * spends 35 energy to remove a shield and gives up most of a Shadow Ball doing
- * it. At 0.7 that bait is declined and the coverage move comes out instead;
- * a bait worth making — one within a third of main's efficiency — still does.
- */
-const BAIT_MIN_EFFICIENCY = 0.7;
 
 /**
  * Main is the best damage per energy — the most efficient move in this
@@ -1501,160 +1485,6 @@ function classifyCharges(
     mainDpe: scored[0].dpe,
     secondDpe: pick ? pick.dpe : 0,
   };
-}
-
-/**
- * The fixed facts the farm-down test needs — everything that cannot change
- * once the matchup is set. Built once per battle; the parts that move from
- * turn to turn ride on ThrowContext instead.
- */
-interface FarmProfile {
-  /** My fast move: damage per hit, and what it costs in turns. */
-  fastDamage: number;
-  fastTurns: number;
-  /** Theirs, plus what it pays them — a farm hands the victim energy. */
-  oppFastDamage: number;
-  oppFastTurns: number;
-  oppFastEnergy: number;
-  /** Their cheapest charged move, which sets how many they get off. */
-  oppCheapest: number;
-  /** Their hardest hit, which is what each of those is assumed to be. */
-  oppWorst: number;
-}
-
-/** What the secondary move needs to know beyond energy. */
-interface ThrowContext {
-  /** Damage the secondary would deal, for the "would this KO" test. */
-  oppHp: number;
-  /** True when the opponent's next action would knock us out. */
-  incomingKO: boolean;
-  atk: number;
-  oppDef: number;
-  oppTypes: readonly string[];
-  /**
-   * True once a bait has been thrown and deliberately not shielded.
-   *
-   * Without this the attacker baits forever. The rule below throws the
-   * secondary whenever the opponent holds a shield, on the assumption that a
-   * bait draws it — which is true against `always` and false against `read`,
-   * where declining the bait is the entire policy. Against a reading defender
-   * the shield therefore never came down, the condition stayed true, and the
-   * attacker re-threw the cheap move every time it could afford it and never
-   * banked the energy for its main.
-   *
-   * Lickilicky vs Registeel was four Body Slams and not one Shadow Ball, peak
-   * energy 47 against the 50 it needed, with Registeel's shield still up at the
-   * end. Its coverage move never existed. Baiting is a read, and a read that
-   * comes back wrong has to change the plan.
-   */
-  baitRefused: boolean;
-  /** The static half of the farm-down test. */
-  farm: FarmProfile;
-  /** My HP now, and at full — the test trades chip damage against energy. */
-  myHp: number;
-  myMaxHp: number;
-  /** Shields I still hold, which is what makes a farm safe to commit to. */
-  myShields: number;
-  /** Their energy now, which decides what they get to do about it. */
-  oppEnergy: number;
-}
-
-/**
- * Can I finish them on fast moves alone, and is it worth doing?
- *
- * This is the farm-down: the opponent is close enough to dead that my fast
- * move gets there on its own, so throwing a charged move spends energy on a
- * kill I already had. A human who can see that ending holds the energy and
- * walks into the next Pokemon with a charged move already loaded. The engine
- * could not — `pickCharge` returned main the instant it was affordable — so
- * every farm-down in the rankings ended with the winner's bar emptied into a
- * corpse. Measured across 60x60x3 in Great, 46.3% of all charged throws were
- * made into an opponent that fast moves had already killed.
- *
- * Two conditions, and both have to hold:
- *
- * SAFE. Count the fast moves it takes to kill them, and give them everything
- * they can do in that window — their own fast chip, the energy that chip pays
- * them, and every charged move that energy buys, each assumed to be their
- * hardest hit. My shields eat the first few. If what is left still kills me,
- * this is a race and not a farm. The pessimism is deliberate: a farm I am not
- * certain of is not a farm, and the cost of being wrong is the whole fight.
- *
- * WORTH IT. Farming is not free, but it is much cheaper than it first looks.
- * The cost is not the whole window's chip damage — throwing does not end the
- * fight either, and I would have eaten most of those turns anyway. What
- * farming actually costs is the turns it adds *over* throwing, which is only
- * the stretch the charged move would have skipped. That marginal chip goes on
- * the scale the result is scored on, against the energy banked at
- * ENERGY_KEPT. Against something with real fast pressure the chip still
- * outruns the energy and the move goes out now; against Registeel's Lock On it
- * never does, which is the case that started this.
- *
- * Only when their shields are down. With a shield up the question is not
- * whether fast moves finish the job but whether stripping the shield is worth
- * the energy, which is the bait rule's decision and already made above.
- */
-function canFarmDown(main: ChargeMove, oppShields: number, ctx: ThrowContext): boolean {
-  if (oppShields > 0) return false;
-  // Never hold into a knockout. The window test below would usually catch this
-  // on its own, but not when the farm is one or two turns long: a window
-  // shorter than their fast move rounds their damage down to nothing, and the
-  // hold would look free right up until it lost the fight.
-  if (ctx.incomingKO) return false;
-  const f = ctx.farm;
-  if (f.fastDamage <= 0 || ctx.myMaxHp <= 0) return false;
-  const windowFarm = Math.ceil(ctx.oppHp / f.fastDamage) * f.fastTurns;
-
-  // Safety is judged over the whole farm, not the marginal part of it.
-  const theirHits = Math.floor(windowFarm / f.oppFastTurns);
-  const theirEnergy = Math.min(ENERGY_CAP, ctx.oppEnergy + theirHits * f.oppFastEnergy);
-  const theirThrows = f.oppCheapest > 0 ? Math.floor(theirEnergy / f.oppCheapest) : 0;
-  const unshielded = Math.max(0, theirThrows - ctx.myShields);
-  if (theirHits * f.oppFastDamage + unshielded * f.oppWorst >= ctx.myHp) return false;
-
-  // The counterfactual: throw now, then finish whatever survives on fast
-  // moves. The difference between the two windows is all farming really costs.
-  const landed = dmg(ctx.atk, ctx.oppDef, main, ctx.oppTypes);
-  const windowThrow = 1 + Math.ceil(Math.max(0, ctx.oppHp - landed) / f.fastDamage) * f.fastTurns;
-  const extraHits = Math.max(0, Math.floor((windowFarm - windowThrow) / f.oppFastTurns));
-
-  const banked = ENERGY_KEPT * Math.min(1, main.energy / ENERGY_CAP);
-  const cost = HP_WEIGHT * ((extraHits * f.oppFastDamage) / ctx.myMaxHp);
-  return banked > cost;
-}
-
-/**
- * Main move first whenever it is affordable — that is PvPoke's rule 1, and it
- * holds unless the kill is already banked on fast moves, in which case the
- * energy is worth more carried out than spent here. See canFarmDown.
- *
- * The secondary only comes out when main is still out of reach and one of
- * three things is true: it kills, the opponent is holding a shield worth
- * burning, or we are about to be knocked out and this is the last damage we
- * will ever deal.
- */
-function pickCharge(
-  roles: ChargeRoles,
-  energy: number,
-  oppShields: number,
-  ctx: ThrowContext,
-): ChargeMove | null {
-  if (energy >= roles.main.energy) {
-    // Hold the bar through a farm-down. Re-tested every turn, so the moment
-    // the farm stops being safe the move goes out.
-    return canFarmDown(roles.main, oppShields, ctx) ? null : roles.main;
-  }
-  const second = roles.secondary;
-  if (second && energy >= second.energy) {
-    const kills = oppShields === 0 && dmg(ctx.atk, ctx.oppDef, second, ctx.oppTypes) >= ctx.oppHp;
-    // Bait only while there is reason to think it draws a shield, AND the
-    // trade is worth making. A resisted cheap move spends energy the real move
-    // needed and buys a shield that was not the thing stopping you.
-    const worthBaiting = roles.mainDpe <= 0 || roles.secondDpe / roles.mainDpe >= BAIT_MIN_EFFICIENCY;
-    const baiting = oppShields > 0 && !ctx.baitRefused && worthBaiting;
-    if (kills || baiting || ctx.incomingKO) return second;
-  }
-  return null;
 }
 
 /**
@@ -1787,8 +1617,6 @@ interface TimingView {
   oppCooldown: number;
 }
 
-const byEnergy = (cs: ChargeMove[]) => cs.map((c, i) => ({ c, i })).sort((x, y) => x.c.energy - y.c.energy);
-
 /**
  * PvPoke's turns-to-live search (ActionLogic.decideAction): how many turns
  * until the opponent can knock us out, walking its fast moves, its cheapest
@@ -1799,7 +1627,8 @@ const byEnergy = (cs: ChargeMove[]) => cs.map((c, i) => ({ c, i })).sort((x, y) 
 function turnsToLive(v: TimingView): number {
   let ttl = Infinity;
   const winsCMP = v.cmpAtk >= v.oppCmpAtk;
-  const cheapest = byEnergy(v.oppCharges)[0]?.c;
+  // oppCharges arrive in PvPoke's active order, so [0] is its fastestChargedMove.
+  const cheapest = v.oppCharges[0];
   const queue = v.oppCooldown !== 0
     ? [{ hp: v.hp - v.oppFastDmg, opE: v.oppEnergy + v.oppFast.energyGain, turn: v.oppCooldown / 500, sh: v.shields }]
     : [{ hp: v.hp, opE: v.oppEnergy, turn: 0, sh: v.shields }];
@@ -1834,7 +1663,7 @@ function turnsToLive(v: TimingView): number {
  * true when a charged move that is ready should wait for a fast move, so it
  * lands as the opponent's fast move registers rather than handing it turns.
  */
-function holdsForTiming(v: TimingView): boolean {
+function holdsForTiming(v: TimingView, ttl: number): boolean {
   const my = v.fast.turns * 500, opp = v.oppFast.turns * 500;
   let target = 500;
   if (my >= 2000) target = 1000;
@@ -1848,9 +1677,9 @@ function holdsForTiming(v: TimingView): boolean {
   // Would overflow 100 energy with the fast move it would throw instead.
   if (v.energy + v.fast.energyGain > 100) return false;
   // Fewer turns to live than it takes to throw what it has.
-  const first = byEnergy(v.charges)[0].c;
+  const first = v.charges[0];
   const planned = v.fast.turns + Math.floor(v.energy / first.energy) + (v.cmpAtk < v.oppCmpAtk ? 1 : 0);
-  if (planned > turnsToLive(v)) return false;
+  if (planned > ttl) return false;
   // Can knock the opponent out now.
   if (v.oppShields === 0 && v.charges.some((c, i) => v.energy >= c.energy && v.chargeDmg[i] >= v.oppHp)) return false;
   // The opponent can knock us out inside the fast move we would add.
@@ -1917,9 +1746,6 @@ export function battle(
   let eB = energyB;
   let sA = shieldsA;
   let sB = shieldsB;
-  // Whether each side's bait has been called. See ThrowContext.baitRefused.
-  let baitRefusedA = false;
-  let baitRefusedB = false;
   let tA = a.fast.turns;
   let tB = b.fast.turns;
   let cmpDecided = false;
@@ -1948,13 +1774,9 @@ export function battle(
   // Attack behind charged moves. Differs from atkA/atkB only for Aegislash
   // Shield, whose charged moves hit with Blade's attack (PvPoke damageByStats).
   let catkA = 0, catkB = 0;
-  let cheapDmgA = 0, cheapDmgB = 0;
   let rolesA!: ChargeRoles, rolesB!: ChargeRoles;
   let chargeDmgA: number[] = [], chargeDmgB: number[] = [];
   let worstFromA = 0, worstFromB = 0;
-  let farmA!: FarmProfile, farmB!: FarmProfile;
-  const cheapA = a.charges.length ? Math.min(...a.charges.map((c) => c.energy)) : 0;
-  const cheapB = b.charges.length ? Math.min(...b.charges.map((c) => c.energy)) : 0;
 
   // ── Form changes (see Species.forms) ──
   const rule = (m: BattleMon) => (m.forms ? m.forms.by[m.form!].rule : null);
@@ -1989,12 +1811,8 @@ export function battle(
   // PvPoke: against an intact Disguise with no shield left in front of it,
   // throw the cheapest charged move the moment it is affordable - unless it
   // lowers the thrower's own stats.
-  const breaker = (m: BattleMon, e: number, foe: BattleMon, foeShields: number) => {
-    if (foeShields > 0 || !triggers(foe, 'charged_move_damage') || !m.charges.length) return null;
-    const c = m.charges.reduce((x, y) => (y.energy < x.energy ? y : x));
-    const selfDebuff = c.buffs?.target === 'self' && (c.buffs.atkStage < 0 || c.buffs.defStage < 0);
-    return e >= c.energy && !selfDebuff ? c : null;
-  };
+  const breaker = (acm: Rated[], e: number, foe: BattleMon, foeShields: number) =>
+    foeShields === 0 && triggers(foe, 'charged_move_damage') && e >= acm[0].c.energy && !selfDebuffing(acm[0].c) ? acm[0].c : null;
   // ── Cramorant (PvPoke Battle.js / ActionLogic.js) ──
   const cramorant = (m: BattleMon) => m.forms?.start === 'cramorant';
   // Gulping or Gorging: the only forms whose way out is a Gulp Missile.
@@ -2005,14 +1823,12 @@ export function battle(
   // Unformed Cramorant throws Dive or Surf as soon as it can, unless another
   // move is meaningfully better. PvPoke's "other move" test reads `moveID`
   // for Surf, so in practice it is the first move that is not Dive.
-  const gulper = (m: BattleMon, e: number, oppHp: number, atk: number, oppDef: number, oppTypes: readonly string[]) => {
+  const gulper = (m: BattleMon, e: number, oppHp: number, acm: Rated[]) => {
     if (!cramorant(m) || m.form !== m.forms!.start) return null;
-    const byEnergy = [...m.charges].sort((x, y) => x.energy - y.energy);
-    const gulp = byEnergy.find((c) => c.id === 'DIVE' || c.id === 'SURF');
-    const other = byEnergy.find((c) => c.id !== 'DIVE');
-    if (!gulp || !other || e < gulp.energy) return null;
-    const dG = dmg(atk, oppDef, gulp, oppTypes), dO = dmg(atk, oppDef, other, oppTypes);
-    return oppHp > dO * 1.3 && dO / other.energy / (dG / gulp.energy) < 1.5 ? gulp : null;
+    const gulp = acm.find((r) => r.c.id === 'DIVE' || r.c.id === 'SURF');
+    const other = acm.find((r) => r.c.id !== 'DIVE');
+    if (!gulp || !other || e < gulp.c.energy) return null;
+    return oppHp > other.dmg * 1.3 && other.dpe / gulp.dpe < 1.5 ? gulp.c : null;
   };
   // PvPoke's shield overrides beyond Aegislash's: a loaded Cramorant keeps its
   // shields for a hit it can take 2.2 times over, and nobody shields a
@@ -2081,12 +1897,215 @@ export function battle(
     if (holdsShield(x.def, x.att, raw, x.hpDef)) use = false;
     return use;
   };
+  // ── PvPoke's charged-move decision (ActionLogic.decideAction), in its order ──
+  // PvPoke's turn counter runs one ahead of ours and adds a turn per charged
+  // round; turnsToKO is kept per side across decisions, as PvPoke keeps it on
+  // each Pokemon.
+  let chargedRounds = 0;
+  const tko = { A: -1, B: -1 };
+  // Damage with an extra attack stage, as the planner tries buffs on.
+  const hitAt = (x: ReturnType<typeof sideOf>, move: FastMove | ChargeMove, charged: boolean, buff: number) =>
+    dmg((charged ? chargeAtk(x.att) : x.att.atk) * buffMultiplier(clampStage(x.stAtt.atk + buff)),
+      x.def.def * buffMultiplier(x.stDef.def), move, x.def.types);
+  const boostMove = (m: BattleMon) => {
+    let boost: ChargeMove | null = null;
+    for (const c of m.charges) if (c.buffs && c.buffs.chance >= 0.5 && !selfDebuffing(c)) boost = c;
+    return boost;
+  };
+  interface DPState { energy: number; oppHealth: number; turn: number; oppShields: number; moves: ChargeMove[]; buffs: number; chance: number }
+  /**
+   * Which charged move to throw now, or null for a fast move. A port of
+   * decideAction after the preamble: last-gasp throw, lethal throw, Mimikyu
+   * breaker, move timing, Cramorant's rush, then the planner (a short-cut when
+   * the KO is many cycles away, else its DP over energy, opponent HP, shields
+   * and attack buffs), its post-plan overrides (refineChoice), and Aegislash
+   * banking. The DP keeps PvPoke's JavaScript as it runs: states have no
+   * `hp`/`shields`, so those dominance checks never prune; the fast-farm state
+   * reads an `opponentShields` that is undefined; and one insertion reads the
+   * function-scoped `newEnergy` left by an earlier branch.
+   * ponytail: skips the Melmetal-vs-Cresselia special case (needs species
+   * ids, which BattleMon does not carry).
+   */
+  const decide = (me: 'A' | 'B', turn: number): ChargeMove | null => {
+    const x = sideOf(me);
+    const m = x.att, o = x.def;
+    const e = x.eAtt;
+    if (!m.charges.length) return null;
+    const acm = activeOrder(m.charges, me === 'A' ? chargeDmgA : chargeDmgB);
+    if (e < acm[0].c.energy) return null;
+    const oppAcm = activeOrder(o.charges, me === 'A' ? chargeDmgB : chargeDmgA);
+    const fastDmg = me === 'A' ? fA : fB, oppFastDmg = me === 'A' ? fB : fA;
+    const oppCooldown = me === 'A' ? (tB >= b.fast.turns ? 0 : tB * 500) : (tA >= a.fast.turns ? 0 : tA * 500);
+    const v: TimingView = {
+      hp: x.hpAtt, energy: e, shields: x.sAtt, cmpAtk: m.cmpAtk, fast: m.fast,
+      charges: acm.map((r) => r.c), chargeDmg: acm.map((r) => r.dmg),
+      oppHp: x.hpDef, oppEnergy: x.eDef, oppShields: x.sDef, oppCmpAtk: o.cmpAtk, oppFast: o.fast,
+      oppCharges: oppAcm.map((r) => r.c), oppFastDmg, oppChargeDmg: oppAcm.map((r) => r.dmg), oppCooldown,
+    };
+    const winsCMP = m.cmpAtk >= o.cmpAtk;
+    const myCd = m.fast.turns * 500, oppFastCd = o.fast.turns * 500;
+    const readyIn = acm.map((r) => (e >= r.c.energy ? 0 : Math.ceil((r.c.energy - e) / m.fast.energyGain) * m.fast.turns));
+    let ttl = turnsToLive(v);
+    // If it cannot throw a fast move and live, throw the most damaging move it can.
+    if (x.hpAtt <= oppFastDmg * 2 && oppFastCd === 500) ttl--;
+    if (x.hpAtt <= oppFastDmg && oppCooldown > 0 && oppFastCd > 500) {
+      ttl = oppCooldown / 500;
+      if (x.hpDef > fastDmg) ttl--;
+    }
+    if (x.hpAtt <= oppFastDmg && oppCooldown === 0 && oppFastCd <= myCd + 500 && x.hpDef > fastDmg) ttl--;
+    if (ttl * 500 < myCd || (ttl * 500 === myCd && !winsCMP) || (ttl * 500 === myCd && x.hpAtt <= oppFastDmg)) {
+      let pick: ChargeMove | null = null, prev = -1;
+      for (let n = acm.length - 1; n >= 0; n--) {
+        if (readyIn[n] !== 0) continue;
+        if (acm[n].dmg > prev) { pick = acm[n].c; prev = acm[n].dmg; }
+        if (e >= acm[n].c.energy * 2 && m.cmpAtk > o.cmpAtk && acm[n].dmg * 2 > prev) { pick = acm[n].c; prev = acm[n].dmg * 2; }
+      }
+      return pick;
+    }
+    // A lethal charged move, if the opponent is not about to fall to a fast move.
+    if (x.sDef === 0 && e >= acm[0].c.energy && x.hpDef <= acm[0].dmg && !selfDebuffing(acm[0].c) && x.hpDef > fastDmg) return acm[0].c;
+    const broken = breaker(acm, e, o, x.sDef);
+    if (broken) return broken;
+    if (optimizeTiming && holdsForTiming(v, ttl)) return null;
+    const gulp = gulper(m, e, x.hpDef, acm);
+    if (gulp) return gulp;
+
+    const best = bestCharged(acm), fastest = acm[0];
+    const bestCycle = best.dmg + fastDmg * Math.ceil(best.c.energy / m.fast.energyGain);
+    const minCycle = selfDebuffing(best.c) && best.c.energy > fastest.c.energy && best.dpe / fastest.dpe < 2 ? 1.1 : 2;
+    if (x.hpDef / bestCycle > minCycle) {
+      // The KO is cycles away: build to the best move.
+      let sel = best;
+      if (acm.length > 1)
+        for (let i = 0; i < acm.length; i++) {
+          if (selfDebuffing(best.c) && !selfDebuffing(acm[i].c) && sel.dpe / acm[i].dpe < 2) sel = acm[i];
+          if (x.sDef > 0 && !selfDebuffing(acm[0].c) && wouldShield(me, acm[i].c, e)) sel = acm[0];
+        }
+      if (e < sel.c.energy) return null;
+      if (selfDebuffing(sel.c) && e < e + Math.floor((100 - e) / m.fast.energyGain) * m.fast.energyGain) return null;
+      return sel.c;
+    }
+
+    // The DP. Priority queue ordered by turn.
+    const Q: DPState[] = [{ energy: e, oppHealth: x.hpDef, turn: 0, oppShields: x.sDef, moves: [], buffs: 0, chance: 1 }];
+    const found: DPState[] = [];
+    let states = 0;
+    let newEnergy = undefined as unknown as number; // PvPoke's function-scoped var
+    const place = (st: DPState, until: number, strict: boolean) => {
+      if (!Q.length) { Q.unshift(st); return; }
+      let i = 0;
+      while (strict ? Q[i].turn < until : Q[i].turn <= until) { i++; if (i === Q.length) break; }
+      Q.splice(i, 0, st);
+    };
+    const debuffScore = (moves: ChargeMove[]) => moves.reduce((n, c) =>
+      n + (selfDebuffing(c) ? 1 : 0) - (c.buffs && c.buffs.chance === 1 && c.buffs.target === 'self' && c.buffs.atkStage + c.buffs.defStage > 0 ? 1 : 0), 0);
+    while (Q.length) {
+      if (states >= 500) return null;
+      states++;
+      const cur = Q.shift()!;
+      cur.buffs = Math.max(-4, Math.min(4, cur.buffs));
+      if (cur.oppHealth <= 0) {
+        found.push(cur);
+        if (cur.chance === 1) break;
+        continue;
+      }
+      const rdy = acm.map((r) => (cur.energy >= r.c.energy ? 0 : Math.ceil((r.c.energy - cur.energy) / m.fast.energyGain) * m.fast.turns));
+      for (let n = 0; n < acm.length; n++) {
+        const mv = acm[n].c;
+        const moveDamage = hitAt(x, mv, true, cur.buffs);
+        const fastSim = hitAt(x, m.fast, false, cur.buffs);
+        const toFarm = Math.ceil(cur.oppHealth / fastSim);
+        place({ energy: cur.energy + m.fast.energyGain * toFarm, oppHealth: 0, turn: cur.turn + toFarm * m.fast.turns,
+          oppShields: undefined as unknown as number, moves: cur.moves, buffs: cur.buffs, chance: cur.chance },
+          cur.turn + toFarm * m.fast.turns, false);
+        let attackMult = cur.buffs;
+        if (mv.buffs && mv.buffs.chance === 1) {
+          if (mv.buffs.target === 'self') attackMult += mv.buffs.atkStage;
+          else attackMult -= mv.buffs.defStage;
+        }
+        const stackTwo = selfDebuffing(mv) && mv.buffs!.atkStage < 0 && mv.energy * 2 <= 100;
+        let newShields = cur.oppShields > 0 ? cur.oppShields - 1 : cur.oppShields;
+        if (rdy[n] === 0) {
+          let newOppHealth = cur.oppShields > 0 ? cur.oppHealth - 1 : cur.oppHealth - moveDamage;
+          let i = 0, insertEl = true;
+          while (i < Q.length && Q[i].turn === cur.turn + 1) {
+            if (Q[i].oppHealth === newOppHealth && Q[i].buffs === attackMult) {
+              if (Q[i].energy === cur.energy - mv.energy && debuffScore(Q[i].moves) > debuffScore([...cur.moves, mv])) Q.splice(i, 1);
+              else { insertEl = false; i++; }
+            } else i++;
+          }
+          if (insertEl) {
+            // With the queue empty PvPoke inserts the stale newEnergy; otherwise the true one.
+            const energy = Q.length ? cur.energy - mv.energy : newEnergy;
+            place({ energy, oppHealth: newOppHealth, turn: cur.turn + 1, oppShields: newShields, moves: [...cur.moves, mv], buffs: attackMult, chance: cur.chance }, cur.turn + 1, false);
+          }
+          if (stackTwo) {
+            let newTurn = Math.ceil((mv.energy * 2 - cur.energy) / m.fast.energyGain) * m.fast.turns;
+            newEnergy = Math.floor(newTurn / m.fast.turns) * m.fast.energyGain + cur.energy - mv.energy;
+            if (newTurn !== 0) {
+              newOppHealth = cur.oppHealth - fastSim * (newTurn / m.fast.turns) - (cur.oppShields > 0 ? 1 : moveDamage);
+              newTurn += cur.turn + 1;
+              place({ energy: newEnergy, oppHealth: newOppHealth, turn: newTurn, oppShields: newShields, moves: [...cur.moves, mv], buffs: attackMult, chance: cur.chance }, newTurn, false);
+            }
+          }
+        } else {
+          newEnergy = cur.energy - mv.energy + m.fast.energyGain * (rdy[n] / m.fast.turns);
+          let newOppHealth = cur.oppShields > 0
+            ? cur.oppHealth - fastSim * (rdy[n] / m.fast.turns) - 1
+            : cur.oppHealth - moveDamage - fastSim * (rdy[n] / m.fast.turns);
+          let newTurn = cur.turn + rdy[n] + 1;
+          newShields = cur.oppShields > 0 ? cur.oppShields - 1 : cur.oppShields;
+          place({ energy: newEnergy, oppHealth: newOppHealth, turn: newTurn, oppShields: newShields, moves: [...cur.moves, mv], buffs: attackMult, chance: cur.chance }, newTurn, true);
+          if (stackTwo) {
+            newTurn = Math.ceil((mv.energy * 2 - cur.energy) / m.fast.energyGain) * m.fast.turns;
+            newEnergy = Math.floor(newTurn / m.fast.turns) * m.fast.energyGain + cur.energy - mv.energy;
+            newOppHealth = cur.oppHealth - fastSim * (newTurn / m.fast.turns) - (cur.oppShields > 0 ? 1 : moveDamage);
+            newTurn += cur.turn + 1;
+            place({ energy: newEnergy, oppHealth: newOppHealth, turn: newTurn, oppShields: newShields, moves: [...cur.moves, mv], buffs: attackMult, chance: cur.chance }, newTurn, true);
+          }
+        }
+      }
+    }
+    if (!found.length) return null;
+    const pvTurn = turn + 1 + chargedRounds;
+    tko[me] = pvTurn + found[found.length - 1].turn;
+    // With more than one plan and the opponent faster, PvPoke compares chance
+    // against a state object here (always false), so it keeps the first plan.
+    const other = me === 'A' ? 'B' : 'A';
+    const plan = found.length === 1 ? found[0] : tko[other] !== -1 && tko[me] > tko[other] ? found[0] : found[found.length - 1];
+    const moves = plan.moves.slice();
+    if (!moves.length) {
+      const boost = boostMove(m);
+      if (!boost) return null;
+      moves.push(boost);
+    }
+    const rated = (c: ChargeMove) => acm.find((r) => r.c === c) ?? { c, dmg: 0, dpe: 0 };
+    // Bait: build to a more efficient move the opponent would have to shield.
+    if (x.sDef > 0 && acm.length > 1)
+      for (let i = 1; i < acm.length; i++)
+        if (e < acm[i].c.energy && acm[i].dpe > rated(moves[0]).dpe &&
+          !(acm[i].dpe / acm[0].dpe <= 1.5 && selfBuffing(acm[0].c))) return null;
+    // Don't bait if the opponent won't shield.
+    if (x.sDef > 0 && acm.length > 1)
+      for (let i = 1; i < acm.length; i++) {
+        const ratio = (acm[i].dmg / acm[i].c.energy) / (rated(moves[0]).dmg / moves[0].energy);
+        if (e >= acm[i].c.energy && ratio > 1.5 && !wouldShield(me, acm[i].c, e)) moves[0] = acm[i].c;
+      }
+    if (x.sDef === 0 && !moves.some(selfDebuffing)) moves.sort((p, q) => rated(q).dmg - rated(p).dmg);
+    const choice = refineChoice(moves[0], {
+      hp: x.hpAtt, maxHp: m.hp, energy: e, shields: x.sAtt, fastTurns: m.fast.turns, acm,
+      oppHp: x.hpDef, oppEnergy: x.eDef, oppShields: x.sDef, oppFastDmg, oppFastTurns: o.fast.turns,
+      oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
+      wouldShieldOppBest: () => wouldShield(other, bestCharged(oppAcm).c, x.eDef),
+      oppWouldShield: (c) => wouldShield(me, c, e),
+    });
+    if (choice && banking(m, e, best.dmg, x.hpDef)) return null;
+    return choice;
+  };
   // PvPoke's Aegislash Shield banks energy before it commits to Blade, unless
-  // its first charged move would already finish the opponent.
-  // ponytail: "first" is the cheapest; PvPoke's bestChargedMove is its sorted
-  // activeChargedMoves[0], which is nearly always the same move.
-  const banking = (m: BattleMon, e: number, cheapDmg: number, oppHp: number) =>
-    triggers(m, 'activate_charged') && e < 100 - m.fast.energyGain / 2 && cheapDmg < oppHp;
+  // its best charged move would already finish the opponent.
+  const banking = (m: BattleMon, e: number, bestDmg: number, oppHp: number) =>
+    triggers(m, 'activate_charged') && e < 100 - m.fast.energyGain / 2 && bestDmg < oppHp;
 
   const syncDerived = () => {
     atkA = a.atk * buffMultiplier(stA.atk);
@@ -2103,20 +2122,8 @@ export function battle(
     rolesB = classifyCharges(catkB, defA, b.charges, a.types);
     chargeDmgA = a.charges.map((c) => dmg(catkA, defB, c, b.types));
     chargeDmgB = b.charges.map((c) => dmg(catkB, defA, c, a.types));
-    cheapDmgA = chargeDmgA[a.charges.findIndex((c) => c.energy === cheapA)] ?? 0;
-    cheapDmgB = chargeDmgB[b.charges.findIndex((c) => c.energy === cheapB)] ?? 0;
     worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
     worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
-    farmA = {
-      fastDamage: fA, fastTurns: a.fast.turns,
-      oppFastDamage: fB, oppFastTurns: b.fast.turns, oppFastEnergy: b.fast.energyGain,
-      oppCheapest: cheapB, oppWorst: worstFromB,
-    };
-    farmB = {
-      fastDamage: fB, fastTurns: b.fast.turns,
-      oppFastDamage: fA, oppFastTurns: a.fast.turns, oppFastEnergy: a.fast.energyGain,
-      oppCheapest: cheapA, oppWorst: worstFromA,
-    };
   };
   syncDerived();
 
@@ -2160,84 +2167,8 @@ export function battle(
     const freeA = tA >= a.fast.turns;
     const freeB = tB >= b.fast.turns;
 
-    // "Would the opponent's next action knock us out?" — their fast move if it
-    // registers this turn, or a charged move they can already afford and would
-    // land unshielded. Drives the secondary move's last-gasp condition.
-    const incomingKOa =
-      (registersB && fB >= hpA) ||
-      (sA === 0 && b.charges.some((c, i) => eB >= c.energy && chargeDmgB[i] >= hpA));
-    const incomingKOb =
-      (registersA && fA >= hpB) ||
-      (sB === 0 && a.charges.some((c, i) => eA >= c.energy && chargeDmgA[i] >= hpB));
-
-    const readyA = freeA
-      ? pickCharge(rolesA, eA, sB, {
-          oppHp: hpB, incomingKO: incomingKOa, atk: catkA, oppDef: defB, oppTypes: b.types,
-          baitRefused: baitRefusedA,
-          farm: farmA, myHp: hpA, myMaxHp: a.hp, myShields: sA, oppEnergy: eB,
-        })
-      : null;
-    const readyB = freeB
-      ? pickCharge(rolesB, eB, sA, {
-          oppHp: hpA, incomingKO: incomingKOb, atk: catkB, oppDef: defA, oppTypes: a.types,
-          baitRefused: baitRefusedB,
-          farm: farmB, myHp: hpB, myMaxHp: b.hp, myShields: sB, oppEnergy: eA,
-        })
-      : null;
-
-    const killsB = sB === 0 && !!readyA && dmg(catkA, defB, readyA, b.types) >= hpB;
-    const killsA = sA === 0 && !!readyB && dmg(catkB, defA, readyB, a.types) >= hpA;
-    // PvPoke's preferences over the chosen move (refineChoice); a kill is
-    // thrown as chosen, as PvPoke's lethal check comes first.
-    const refine = (me: 'A' | 'B', ready: ChargeMove | null, kills: boolean): ChargeMove | null => {
-      if (!ready || kills) return ready;
-      const [m, o] = me === 'A' ? [a, b] : [b, a];
-      const oppAcm = activeOrder(o.charges, me === 'A' ? chargeDmgB : chargeDmgA);
-      return refineChoice(ready, me === 'A'
-        ? { hp: hpA, maxHp: a.hp, energy: eA, shields: sA, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgA),
-            oppHp: hpB, oppEnergy: eB, oppShields: sB, oppFastDmg: fB, oppFastTurns: o.fast.turns,
-            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
-            wouldShieldOppBest: () => wouldShield('B', bestCharged(oppAcm).c, eB), oppWouldShield: (c) => wouldShield('A', c, eA) }
-        : { hp: hpB, maxHp: b.hp, energy: eB, shields: sB, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgB),
-            oppHp: hpA, oppEnergy: eA, oppShields: sA, oppFastDmg: fA, oppFastTurns: o.fast.turns,
-            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
-            wouldShieldOppBest: () => wouldShield('A', bestCharged(oppAcm).c, eA), oppWouldShield: (c) => wouldShield('B', c, eB) });
-    };
-    const pickA = refine('A', readyA, killsB);
-    const pickB = refine('B', readyB, killsA);
-    // Move timing, as PvPoke's engine decides it (holdsForTiming). With
-    // optimizeTiming off, a ready move goes out at once, which PvPoke's
-    // engine does not do by default. The opponent's remaining cooldown maps
-    // from its turn counter: PvPoke decrements cooldowns at the start of each
-    // turn and decides before setting a new one, so it reads 0 when the
-    // opponent starts a fast move this turn and tB * 500 while one is running
-    // (500 on the turn it registers). (tB - 1) * 500 scored 31.7% exact on
-    // npm run parity against 49.5% for this.
-    const view = (me: 'A' | 'B'): TimingView => me === 'A'
-      ? { hp: hpA, energy: eA, shields: sA, cmpAtk: a.cmpAtk, fast: a.fast, charges: a.charges, chargeDmg: chargeDmgA,
-          oppHp: hpB, oppEnergy: eB, oppShields: sB, oppCmpAtk: b.cmpAtk, oppFast: b.fast, oppCharges: b.charges,
-          oppFastDmg: fB, oppChargeDmg: chargeDmgB, oppCooldown: freeB ? 0 : tB * 500 }
-      : { hp: hpB, energy: eB, shields: sB, cmpAtk: b.cmpAtk, fast: b.fast, charges: b.charges, chargeDmg: chargeDmgB,
-          oppHp: hpA, oppEnergy: eA, oppShields: sA, oppCmpAtk: a.cmpAtk, oppFast: a.fast, oppCharges: a.charges,
-          oppFastDmg: fA, oppChargeDmg: chargeDmgA, oppCooldown: freeA ? 0 : tA * 500 };
-    const holdA = optimizeTiming && !!pickA && !killsB && holdsForTiming(view('A'));
-    const holdB = optimizeTiming && !!pickB && !killsA && holdsForTiming(view('B'));
-    const wantA =
-      !!pickA &&
-      (killsB || !banking(a, eA, cheapDmgA, hpB)) &&
-      !holdA;
-    const wantB =
-      !!pickB &&
-      (killsA || !banking(b, eB, cheapDmgB, hpA)) &&
-      !holdB;
-
-
-    const breakA = freeA && !killsB ? breaker(a, eA, b, sB) : null;
-    const breakB = freeB && !killsA ? breaker(b, eB, a, sA) : null;
-    const gulpA = freeA && !killsB && !holdA ? gulper(a, eA, hpB, catkA, defB, b.types) : null;
-    const gulpB = freeB && !killsA && !holdB ? gulper(b, eB, hpA, catkB, defA, a.types) : null;
-    const moveA = breakA ?? gulpA ?? (wantA ? pickA : null);
-    const moveB = breakB ?? gulpB ?? (wantB ? pickB : null);
+    const moveA = freeA ? decide('A', turn) : null;
+    const moveB = freeB ? decide('B', turn) : null;
 
     // A fast move that lands this turn and kills resolves first, ahead of any
     // charged move either side has banked. The charged move costs a turn to
@@ -2246,6 +2177,7 @@ export function battle(
     // move registering *this* turn qualifies; one still mid-animation does not.
     const snipe = (registersA && fA >= hpB) || (registersB && fB >= hpA);
     if ((moveA || moveB) && !snipe) {
+      chargedRounds++;
       // Priority is decided on the Attack *stat*, so this reads `cmpAtk` and
       // not `atkA`/`atkB`: those carry Shadow's x6/5 damage multiplier, which
       // is not part of the stat. Stat stages *are* part of it, and stay.
@@ -2266,7 +2198,6 @@ export function battle(
           const shielded = sB > 0 && (policyB === 'always' ? pvpokeShields('A', moveA, raw) : !holdsShield(b, a, raw, hpB) && shieldCall(policyB, raw, hpB, worstFromA));
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
-          if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
           // Mimikyu's Disguise takes the first charged move it does not shield.
           const disguisedB = !shielded && triggers(b, 'charged_move_damage');
           const damage = shielded || disguisedB ? 1 : raw;
@@ -2323,7 +2254,6 @@ export function battle(
           if (triggers(b, 'activate_charged', moveB.id)) toForm(b);
           const raw = dmg(atkB, defA, moveB, a.types);
           const shielded = sA > 0 && (policyA === 'always' ? pvpokeShields('B', moveB, raw) : !holdsShield(a, b, raw, hpA) && shieldCall(policyA, raw, hpA, worstFromB));
-          if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const disguisedA = !shielded && triggers(a, 'charged_move_damage');
           const damage = shielded || disguisedA ? 1 : raw;
           if (shielded) sA--;

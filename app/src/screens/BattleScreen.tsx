@@ -403,8 +403,8 @@ export function BattleScreen() {
         </div>
         <p className="battle-timing-note text-muted">
           {state.optimizeTiming
-            ? 'Holds each charge for the turn the opponent’s fast move registers — fewer free turns given away, but no longer comparable to PvPoke’s numbers.'
-            : 'Throws the moment a move is charged, as PvPoke does. Not optimal play, but it is what published ratings are measured against.'}
+            ? 'Holds each charge for the turn the opponent’s fast move registers, so fewer free turns are given away. PvPoke’s engine times its throws this way by default.'
+            : 'Throws the moment a move is charged, handing the opponent free turns. Simpler, but not how PvPoke’s engine plays.'}
         </p>
       </div>
 

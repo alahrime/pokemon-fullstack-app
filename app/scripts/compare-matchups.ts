@@ -52,7 +52,8 @@ function ours(a: string, b: string) {
   return {
     sh00: one(0), sh11: one(1), sh22: one(2),
     blend: weightedScore(per, overall.weights),
-    // Their engine throws the moment a move is available and always shields.
+    // Throw the moment a move is available and always shield. Not PvPoke's
+    // engine, which optimises timing by default; kept as a baseline reading.
     naive: rating(battle(A, B, 1, 1, 0, 0, false, false, undefined, undefined, 'always', 'always'), 1, 1),
   };
 }

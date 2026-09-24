@@ -169,18 +169,19 @@ describe('BattleScreen — per-side controls', () => {
 });
 
 describe('BattleScreen — the fight itself', () => {
-  it('switches charge timing between immediate and optimised', () => {
+  it('switches charge timing between optimised (the default) and immediate', () => {
     const { container } = renderApp(<BattleScreen />);
     const optimised = container.querySelector('.battle-timing .form-opt-buddy') as HTMLButtonElement;
-    fireEvent.click(optimised);
+    // Optimised is the default because it is what PvPoke's engine does
+    // (optimizeMoveTiming = true in its Pokemon.js).
     expect(optimised.getAttribute('aria-pressed')).toBe('true');
-    // Optimised holds each charge for the opponent's registration turn, so it
-    // is deliberately no longer comparable to PvPoke's published numbers.
-    expect(container.textContent).toMatch(/no longer comparable/);
+    expect(container.textContent).toMatch(/PvPoke’s engine times its throws this way/);
     const immediate = container.querySelector('.battle-timing .form-opt-normal') as HTMLButtonElement;
     fireEvent.click(immediate);
     expect(immediate.getAttribute('aria-pressed')).toBe('true');
-    expect(container.textContent).toMatch(/as PvPoke does/);
+    expect(container.textContent).toMatch(/not how PvPoke’s engine plays/);
+    fireEvent.click(optimised);
+    expect(optimised.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('selects a shield combination from the matrix', () => {

@@ -1926,8 +1926,8 @@ export function battle(
         })
       : null;
 
-    // With optimizeTiming off, throw the moment a move is available — PvPoke's
-    // rule, and deliberately not optimal play.
+    // With optimizeTiming off, throw the moment a move is available. That is
+    // not PvPoke's engine, which optimises timing by default (see AppState).
     //
     // With it on, hold until the release lands on the turn the opponent's fast
     // move registers: zero free turns granted, and the hit denied. Holding is

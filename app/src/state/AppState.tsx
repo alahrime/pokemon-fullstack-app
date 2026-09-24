@@ -102,7 +102,8 @@ export const INITIAL_STATE: AppStateShape = {
   species: 'azumarill',
   shadow: false,
   bestBuddy: false,
-  optimizeTiming: false,
+  // PvPoke's engine optimises move timing by default (Pokemon.js), so do we.
+  optimizeTiming: true,
   chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',

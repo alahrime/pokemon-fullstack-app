@@ -1663,6 +1663,107 @@ function pickCharge(
  * per turn dominated that sweep. Same simulation either way - one branch, no
  * parallel implementation to drift.
  */
+// ── PvPoke's charged-move preferences (GameMaster.js, Pokemon.js, ActionLogic.js) ──
+
+/** Lowers the user's own stats at least half the time (PvPoke's selfDebuffing). */
+const selfDebuffing = (c: ChargeMove) =>
+  !!c.buffs && c.buffs.target === 'self' && c.buffs.chance >= 0.5 && c.id !== 'DRAGON_ASCENT' &&
+  (c.buffs.atkStage < 0 || c.buffs.defStage < 0);
+const selfAttackDebuffing = (c: ChargeMove) => selfDebuffing(c) && c.buffs!.atkStage < 0;
+/** A guaranteed effect in the user's favour, a debuff on the opponent included. */
+const selfBuffing = (c: ChargeMove) =>
+  !!c.buffs && c.buffs.chance === 1 &&
+  (c.buffs.target === 'opponent' || c.buffs.atkStage > 0 || c.buffs.defStage > 0);
+
+interface Rated { c: ChargeMove; dmg: number; dpe: number }
+
+/**
+ * PvPoke's active charged moves, in its order (Pokemon.resetMoves): by energy,
+ * then reshuffled by its tie-breaks. [0] is what it treats as the cheap move.
+ * Ported with its in-place rotation, so it orders exactly as PvPoke's does.
+ * ponytail: skips the Registeel Focus Blast / Zap Cannon clause and Aegislash
+ * Shield's "everything self-debuffs" (banking covers that); add if parity
+ * shows them.
+ */
+function activeOrder(charges: ChargeMove[], dmgs: number[]): Rated[] {
+  const acm = charges.map((c, i) => ({ c, dmg: dmgs[i], dpe: dmgs[i] / c.energy }))
+    .sort((x, y) => (x.c.energy > y.c.energy ? 1 : y.c.energy > x.c.energy ? -1 : 0));
+  const rotate = () => acm.push(acm.splice(0, 1)[0]);
+  for (let i = 1; i < acm.length; i++) {
+    const same = acm[i].c.energy === acm[0].c.energy;
+    if (same && !selfDebuffing(acm[i].c) && (acm[i].c.buffs || acm[i].dmg > acm[0].dmg)) rotate();
+    const b0 = acm[0].c.buffs, bi = acm[i].c.buffs;
+    if (same && b0 && bi && !selfDebuffing(acm[i].c) && bi.chance > b0.chance) rotate();
+    const close = acm[i].c.energy - acm[0].c.energy <= 10;
+    if (close && !selfDebuffing(acm[i].c) && selfBuffing(acm[i].c) && acm[0].dpe - acm[i].dpe < 0.3) rotate();
+    if (close && selfAttackDebuffing(acm[0].c) && !selfDebuffing(acm[i].c)) rotate();
+    if (close && selfDebuffing(acm[0].c) && acm[0].c.energy > 50 && !selfDebuffing(acm[i].c)) rotate();
+    if (acm[i].c.energy - acm[0].c.energy <= 5 && selfBuffing(acm[i].c)) rotate();
+  }
+  return acm;
+}
+
+/** PvPoke's bestChargedMove over that order. */
+function bestCharged(acm: Rated[]): Rated {
+  let best = acm[0];
+  for (const m of acm) {
+    const d = m.dpe - best.dpe;
+    if (((d > 0.03 && m.c.id !== 'SUPER_POWER') || d > 0.3) && (!selfBuffing(best.c) || d > 0.3)) best = m;
+    if (Math.abs(m.dpe - best.dpe) < 0.03 && best.c.buffs && m.c.buffs && m.c.buffs.chance > best.c.buffs.chance && !selfDebuffing(m.c)) best = m;
+    if (m.c.id === 'OBSTRUCT') best = m;
+  }
+  return best;
+}
+
+interface MoveView {
+  hp: number; maxHp: number; energy: number; shields: number;
+  fastTurns: number; acm: Rated[];
+  oppHp: number; oppEnergy: number; oppShields: number; oppFastDmg: number; oppFastTurns: number;
+  /** The opponent's best charged move (PvPoke's bestChargedMove) and whether we could survive... */
+  oppBest: Rated | null;
+  /** A loaded Cramorant across the field: PvPoke stacks against it too. */
+  oppLoaded: boolean;
+}
+
+/**
+ * PvPoke's overrides on the move its planner picked (ActionLogic 904-1000),
+ * applied to ours: prefer efficient cheap moves with shields up, avoid
+ * inefficient self-debuffing moves, never bait with one, defer one until the
+ * opponent's survivable charged move has gone, and stack them. Returns the
+ * move to throw, or null to take a fast move instead.
+ * ponytail: the two branches that ask PvPoke's wouldShield (defer, and the
+ * bait swap after stacking) assume no shield; exact once B4 ports it.
+ */
+function refineChoice(chosen: ChargeMove, v: MoveView): ChargeMove | null {
+  const acm = v.acm;
+  let m = acm.find((r) => r.c === chosen) ?? acm[0];
+  const first = acm[0];
+  const many = acm.length > 1;
+  if (v.oppShields > 0 && many && first.c.energy <= m.c.energy && first.dpe > m.dpe && !selfDebuffing(first.c)) m = first;
+  if (v.oppShields === 0 && many && selfDebuffing(m.c) && m.c.energy > 50 && v.hp / v.maxHp > 0.5 && m.dmg / v.oppHp < 0.8) m = first;
+  if (many && first.c.energy === m.c.energy && first.dpe > m.dpe && !selfDebuffing(first.c)) m = first;
+  if (many && first.c.energy - 10 <= m.c.energy && first.dpe > m.dpe && selfDebuffing(m.c) && !selfDebuffing(first.c)) m = first;
+  if (many && first.c.energy - m.c.energy <= 5 && first.dpe > m.dpe && selfBuffing(first.c)) m = first;
+  // PvPoke baits selectively by default (baitShields 1).
+  if (v.oppShields > 0 && many)
+    for (let i = 1; i < acm.length; i++)
+      if (v.energy >= acm[i].c.energy && acm[i].dpe > m.dpe && selfDebuffing(m.c) && !selfDebuffing(acm[i].c)) m = acm[i];
+  if (v.oppShields === 0 && many && selfDebuffing(m.c))
+    for (let i = 1; i < acm.length; i++) if (acm[i].dpe > m.dpe && !selfDebuffing(acm[i].c)) m = acm[i];
+  if (v.oppShields > 0 && many)
+    for (let i = 1; i < acm.length; i++)
+      if (selfDebuffing(acm[0].c) && !selfDebuffing(acm[i].c) &&
+        acm[i].c.energy - acm[0].c.energy <= 10 && acm[i].dpe / acm[0].dpe > 0.7) m = acm[i];
+  if (selfDebuffing(m.c) && v.shields === 0 && v.energy < 100 && v.oppBest &&
+    v.oppEnergy >= v.oppBest.c.energy && !selfBuffing(first.c)) return null;
+  if (selfDebuffing(m.c) || v.oppLoaded) {
+    const target = Math.floor(100 / m.c.energy) * m.c.energy;
+    if (v.energy < target && (v.oppHp > m.dmg || v.oppShields !== 0) &&
+      (v.hp > v.oppFastDmg * 2 || (v.oppFastTurns - v.fastTurns) * 500 > 500)) return null;
+  }
+  return v.energy >= m.c.energy ? m.c : null;
+}
+
 /** One side's view of the fight at a decision point, for PvPoke's timing rule. */
 interface TimingView {
   hp: number; energy: number; shields: number; cmpAtk: number;
@@ -1904,12 +2005,6 @@ export function battle(
     const dG = dmg(atk, oppDef, gulp, oppTypes), dO = dmg(atk, oppDef, other, oppTypes);
     return oppHp > dO * 1.3 && dO / other.energy / (dG / gulp.energy) < 1.5 ? gulp : null;
   };
-  // Facing a loaded Cramorant, bank energy to throw back to back, unless the
-  // move kills through no shields or the fast-move race says not to wait.
-  const stacking = (m: BattleMon, e: number, move: ChargeMove, foe: BattleMon, foeHp: number, foeShields: number,
-    myHp: number, foeFast: number, moveDmg: number) =>
-    !!missileOf(foe) && e < Math.floor(100 / move.energy) * move.energy &&
-    (foeHp > moveDmg || foeShields !== 0) && (myHp > foeFast * 2 || (foe.fast.turns - m.fast.turns) * 500 > 500);
   // PvPoke's shield overrides beyond Aegislash's: a loaded Cramorant keeps its
   // shields for a hit it can take 2.2 times over, and nobody shields a
   // Cramorant hit worth under a third of their HP.
@@ -2022,6 +2117,22 @@ export function battle(
 
     const killsB = sB === 0 && !!readyA && dmg(catkA, defB, readyA, b.types) >= hpB;
     const killsA = sA === 0 && !!readyB && dmg(catkB, defA, readyB, a.types) >= hpA;
+    // PvPoke's preferences over the chosen move (refineChoice); a kill is
+    // thrown as chosen, as PvPoke's lethal check comes first.
+    const refine = (me: 'A' | 'B', ready: ChargeMove | null, kills: boolean): ChargeMove | null => {
+      if (!ready || kills) return ready;
+      const [m, o] = me === 'A' ? [a, b] : [b, a];
+      const oppAcm = activeOrder(o.charges, me === 'A' ? chargeDmgB : chargeDmgA);
+      return refineChoice(ready, me === 'A'
+        ? { hp: hpA, maxHp: a.hp, energy: eA, shields: sA, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgA),
+            oppHp: hpB, oppEnergy: eB, oppShields: sB, oppFastDmg: fB, oppFastTurns: o.fast.turns,
+            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o) }
+        : { hp: hpB, maxHp: b.hp, energy: eB, shields: sB, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgB),
+            oppHp: hpA, oppEnergy: eA, oppShields: sA, oppFastDmg: fA, oppFastTurns: o.fast.turns,
+            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o) });
+    };
+    const pickA = refine('A', readyA, killsB);
+    const pickB = refine('B', readyB, killsA);
     // Move timing, as PvPoke's engine decides it (holdsForTiming). With
     // optimizeTiming off, a ready move goes out at once, which PvPoke's
     // engine does not do by default. The opponent's remaining cooldown maps
@@ -2037,17 +2148,15 @@ export function battle(
       : { hp: hpB, energy: eB, shields: sB, cmpAtk: b.cmpAtk, fast: b.fast, charges: b.charges, chargeDmg: chargeDmgB,
           oppHp: hpA, oppEnergy: eA, oppShields: sA, oppCmpAtk: a.cmpAtk, oppFast: a.fast, oppCharges: a.charges,
           oppFastDmg: fA, oppChargeDmg: chargeDmgA, oppCooldown: freeA ? 0 : tA * 500 };
-    const holdA = optimizeTiming && !!readyA && !killsB && holdsForTiming(view('A'));
-    const holdB = optimizeTiming && !!readyB && !killsA && holdsForTiming(view('B'));
+    const holdA = optimizeTiming && !!pickA && !killsB && holdsForTiming(view('A'));
+    const holdB = optimizeTiming && !!pickB && !killsA && holdsForTiming(view('B'));
     const wantA =
-      !!readyA &&
-      (killsB || (!banking(a, eA, cheapDmgA, hpB) &&
-        !stacking(a, eA, readyA, b, hpB, sB, hpA, fB, dmg(catkA, defB, readyA, b.types)))) &&
+      !!pickA &&
+      (killsB || !banking(a, eA, cheapDmgA, hpB)) &&
       !holdA;
     const wantB =
-      !!readyB &&
-      (killsA || (!banking(b, eB, cheapDmgB, hpA) &&
-        !stacking(b, eB, readyB, a, hpA, sA, hpB, fA, dmg(catkB, defA, readyB, a.types)))) &&
+      !!pickB &&
+      (killsA || !banking(b, eB, cheapDmgB, hpA)) &&
       !holdB;
 
 
@@ -2055,8 +2164,8 @@ export function battle(
     const breakB = freeB && !killsA ? breaker(b, eB, a, sA) : null;
     const gulpA = freeA && !killsB && !holdA ? gulper(a, eA, hpB, catkA, defB, b.types) : null;
     const gulpB = freeB && !killsA && !holdB ? gulper(b, eB, hpA, catkB, defA, a.types) : null;
-    const moveA = breakA ?? gulpA ?? (wantA ? readyA : null);
-    const moveB = breakB ?? gulpB ?? (wantB ? readyB : null);
+    const moveA = breakA ?? gulpA ?? (wantA ? pickA : null);
+    const moveB = breakB ?? gulpB ?? (wantB ? pickB : null);
 
     // A fast move that lands this turn and kills resolves first, ahead of any
     // charged move either side has banked. The charged move costs a turn to

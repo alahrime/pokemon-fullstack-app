@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseRef, speciesOf } from '../src/lib/data';
 import { battle, getEntry, mkBattleMon } from '../src/lib/engine';
+import { PVPOKE_FILES, loadPvPoke } from '../src/lib/pvpoke';
 
 const FIXTURE = resolve(process.cwd(), '..', 'data-src', 'pvpoke-sweep-1500.json');
 const pv = JSON.parse(readFileSync(FIXTURE, 'utf8')) as {
@@ -44,29 +45,68 @@ const mons = pv.top.map(([id, f, c1, c2]) => {
 
 const winner = ([a, b]: readonly number[]) => (a > 0 && b === 0 ? 'A' : b > 0 && a === 0 ? 'B' : 'draw');
 
-for (const optimised of [true, false]) {
+// Option A: PvPoke's own engine, vendored (app/vendor/pvpoke), on the same
+// inputs. By construction it should score 100%; anything less means the
+// vendored copy or the loader has drifted from what produced the fixture.
+const root = resolve(process.cwd(), '..');
+const pvpoke = loadPvPoke(
+  Object.fromEntries(PVPOKE_FILES.map((f) => [f, readFileSync(resolve(root, 'app/vendor/pvpoke', f + '.js'), 'utf8')])) as never,
+  JSON.parse(readFileSync(resolve(root, 'data-src/gamemaster.min.json'), 'utf8')),
+);
+const vendored = (sh: number, i: number, j: number): number[] => {
+  const b = new pvpoke.Battle();
+  b.setCP(1500);
+  const mk = (t: string[], k: number) => {
+    const p = new pvpoke.Pokemon(t[0], k, b);
+    p.initialize(1500);
+    p.selectMove('fast', t[1]);
+    p.selectMove('charged', t[2], 0);
+    p.selectMove('charged', t[3], 1);
+    p.setShields(sh);
+    return p;
+  };
+  const A = mk(pv.top[i], 0), B = mk(pv.top[j], 1);
+  b.setNewPokemon(A, 0);
+  b.setNewPokemon(B, 1);
+  b.simulate();
+  return [A.hp, B.hp];
+};
+// Option B: our engine, ported rule by rule.
+const ours = (optimised: boolean) => (sh: number, i: number, j: number): number[] => {
+  const r = battle(mons[i], mons[j], sh, sh, 0, 0, false, optimised);
+  return [Math.max(0, Math.round(r.hpA)), Math.max(0, Math.round(r.hpB))];
+};
+
+const ENGINES: [string, (sh: number, i: number, j: number) => number[]][] = [
+  ['A  vendored PvPoke', vendored],
+  ['B  ours, optimised timing', ours(true)],
+  ['B  ours, immediate timing', ours(false)],
+];
+
+for (const [name, run] of ENGINES) {
   let exact = 0, same = 0, total = 0, gap = 0;
   const perShield: string[] = [];
   const flips = new Map<string, number>();
+  const t0 = performance.now();
   for (let sh = 0; sh < 3; sh++) {
     let e = 0, w = 0, n = 0;
     for (let i = 0, p = 0; i < mons.length; i++)
       for (let j = i + 1; j < mons.length; j++, p++) {
-        const r = battle(mons[i], mons[j], sh, sh, 0, 0, false, optimised);
-        const ours = [Math.max(0, Math.round(r.hpA)), Math.max(0, Math.round(r.hpB))];
+        const got = run(sh, i, j);
         const them = theirs[sh][p];
         n++;
-        gap += Math.abs(ours[0] - them[0]) + Math.abs(ours[1] - them[1]);
-        if (ours[0] === them[0] && ours[1] === them[1]) e++;
-        if (winner(ours) === winner(them)) w++;
+        gap += Math.abs(got[0] - them[0]) + Math.abs(got[1] - them[1]);
+        if (got[0] === them[0] && got[1] === them[1]) e++;
+        if (winner(got) === winner(them)) w++;
         else for (const id of [pv.top[i][0], pv.top[j][0]]) flips.set(id, (flips.get(id) ?? 0) + 1);
       }
     exact += e; same += w; total += n;
-    perShield.push(`${sh} shields ${pct(e, n)} exact, ${pct(w, n)} same winner`);
+    perShield.push(`${sh}sh ${pct(e, n)} / ${pct(w, n)}`);
   }
-  console.log(`${optimised ? 'optimised' : 'immediate'} timing: ${pct(exact, total)} exact end HP, ${pct(same, total)} same winner, mean HP gap ${(gap / total).toFixed(1)}  (${total} battles)`);
-  console.log(`  ${perShield.join(' | ')}`);
-  console.log(`  most winner flips: ${[...flips].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, n]) => `${id} ${n}`).join(', ')}`);
+  const ms = (performance.now() - t0) / total;
+  console.log(`${name.padEnd(28)} ${pct(exact, total).padStart(6)} exact end HP  ${pct(same, total).padStart(6)} same winner  gap ${(gap / total).toFixed(1).padStart(4)}  ${ms.toFixed(3)} ms/battle`);
+  console.log(`${''.padEnd(28)} ${perShield.join('  ')}`);
+  if (flips.size) console.log(`${''.padEnd(28)} most winner flips: ${[...flips].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => `${id} ${n}`).join(', ')}`);
 }
 
 function pct(a: number, b: number) {

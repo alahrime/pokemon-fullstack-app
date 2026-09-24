@@ -72,3 +72,5 @@ so a dirty diff after regenerating means the upstream data actually changed.
   forms that exist in the game master but aren't obtainable.
 - Entries with no usable moveset are skipped rather than shipped, since they
   would crash the battle simulator. The generator reports any it drops.
+| `gamemaster.min.json` | PvPoke's whole gamemaster, read only by the vendored PvPoke engine (`app/vendor/pvpoke`, loaded by `app/src/lib/pvpoke.ts`) |
+| `pvpoke-sweep-1500.json` | PvPoke's engine's results over the top 50 Great species, the fixture `npm run parity` scores against |

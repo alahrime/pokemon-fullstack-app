@@ -37,6 +37,8 @@ so a dirty diff after regenerating means the upstream data actually changed.
 | `pokemon.json` | Every species, alternate form and Shadow entry: base stats, typing, movepool, tags, release state |
 | `moves.json` | Move stats — power, energy, energy gain, turns, type |
 | `rankings-1500/2500/10000.json` | PvPoke overall rankings per league, used for `leagueRank`, league membership and the recommended moveset |
+| `gamemaster.min.json` | PvPoke's whole gamemaster, read only by the vendored PvPoke engine (`app/vendor/pvpoke`, loaded by `app/src/lib/pvpoke.ts`) |
+| `pvpoke-sweep-1500.json` | PvPoke's engine's results over the top 50 Great species, the fixture `npm run parity` scores against |
 
 ## Notes
 
@@ -72,5 +74,3 @@ so a dirty diff after regenerating means the upstream data actually changed.
   forms that exist in the game master but aren't obtainable.
 - Entries with no usable moveset are skipped rather than shipped, since they
   would crash the battle simulator. The generator reports any it drops.
-| `gamemaster.min.json` | PvPoke's whole gamemaster, read only by the vendored PvPoke engine (`app/vendor/pvpoke`, loaded by `app/src/lib/pvpoke.ts`) |
-| `pvpoke-sweep-1500.json` | PvPoke's engine's results over the top 50 Great species, the fixture `npm run parity` scores against |

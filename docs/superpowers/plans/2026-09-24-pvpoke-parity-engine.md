@@ -36,10 +36,19 @@ PvPoke's does not.
   - `startHp` / carried energy for team chains — PvPoke has `startHp`/`startEnergy`; confirm they behave.
   - Immediate timing toggle — PvPoke's `optimizeMoveTiming = false`.
   - Battle log shape (bait flags, stat stages per entry) the screens read.
-- **A4 Speed.** 14x slower. Rankings (`build-matrix`, `build-teams`) and the
+- ~~**A4 Speed.**~~ Measured 2026-09-24: A costs 9.4x B per battle (0.140 vs
+  0.015 ms over 3,000 random Great-pool battles at the matrix scenarios). The
+  matrix build is 5.7 min on B (245M battles); on A ~54 min, ~27 min with the
+  `read` policy it cannot run dropped. Report screen, Medicham: ranking every
+  opponent 81 ms on B, ~764 ms on A; flip grid 1 -> ~10 ms; matchup rows
+  0 -> ~3 ms. Original note: 14x slower. Rankings (`build-matrix`, `build-teams`) and the
   per-IV flip grids call `battle()` thousands of times; measure each, decide
   where A is used (e.g. A for the battle screen and rankings, B for the IV grids).
-- **A5 Bundle.** PvPoke's gamemaster is 0.9 MB. Lazy-load it with the engine
+- ~~**A5 Bundle.**~~ Done: `scripts/build-pvpoke-data.mjs` (in `npm run data`)
+  trims the gamemaster to what the engine reads, 904 -> 661 KB (114 -> 87 KB
+  gzipped), and parity runs on that trimmed file. `loadPvPokeLazy()` loads
+  engine and data in their own chunk on first call: ~142 KB gzipped against
+  ~2.3 MB of app JS today, none of it on first load. Original scope: PvPoke's gamemaster is 0.9 MB. Lazy-load it with the engine
   only where A runs, or trim it at build time to the fields the engine reads.
 - **A6 Wire in** behind one switch, regenerate rankings, compare to the B build.
 

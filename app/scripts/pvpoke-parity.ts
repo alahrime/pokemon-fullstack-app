@@ -51,7 +51,9 @@ const winner = ([a, b]: readonly number[]) => (a > 0 && b === 0 ? 'A' : b > 0 &&
 const root = resolve(process.cwd(), '..');
 const pvpoke = loadPvPoke(
   Object.fromEntries(PVPOKE_FILES.map((f) => [f, readFileSync(resolve(root, 'app/vendor/pvpoke', f + '.js'), 'utf8')])) as never,
-  JSON.parse(readFileSync(resolve(root, 'data-src/gamemaster.min.json'), 'utf8')),
+  // The trimmed copy the app ships (scripts/build-pvpoke-data.mjs), so what is
+  // tested is what runs.
+  JSON.parse(readFileSync(resolve(root, 'app/src/data/pvpoke-gamemaster.json'), 'utf8')),
 );
 const vendored = (sh: number, i: number, j: number): number[] => {
   const b = new pvpoke.Battle();

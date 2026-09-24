@@ -99,12 +99,10 @@ export interface FormRule {
   /** activate_charged / activate_shield: Aegislash. charged_move: Morpeko,
    *  Cramorant. charged_move_damage: Mimikyu. */
   trigger: string;
-  effect?: string;
   /** Target form id; `variable` for Cramorant, resolved at runtime. */
   to: string;
   /** Move ids that trigger it, or ['ANY']. */
   moves: string[];
-  resetOnSwitch: boolean;
 }
 
 export interface SpeciesForm {
@@ -120,9 +118,7 @@ export interface SpeciesForm {
 
 /** One form's battle stats for a particular roll, as the engine uses them. */
 export interface BattleForm extends SpeciesForm {
-  atk: number;
   cmpAtk: number;
-  def: number;
 }
 
 export interface BattleForms {

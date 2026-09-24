@@ -278,10 +278,8 @@ const POKEMON_BY_ID = new Map(pokemon.map((p) => [p.speciesId, p]));
 const formRule = (fc) => fc && fc.trigger !== 'none'
   ? {
       trigger: fc.trigger,
-      ...(fc.effect ? { effect: fc.effect } : {}),
       to: fc.alternativeFormId,
       moves: fc.moveIDs ?? (fc.moveId ? [fc.moveId] : ['ANY']),
-      resetOnSwitch: !!fc.resetOnSwitch,
     }
   : null;
 function formsOf(p) {

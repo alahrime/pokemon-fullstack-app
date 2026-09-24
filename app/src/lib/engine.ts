@@ -93,7 +93,7 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
  * a whole level at a time until it fits under the cap. HP never changes.
  */
 function formsAt(
-  species: Species, iv: IV, line: StatLine, league: League, aMult: number, dMult: number,
+  species: Species, iv: IV, line: StatLine, league: League,
 ): BattleForms | undefined {
   if (!species.forms) return undefined;
   const by: BattleForms['by'] = {};
@@ -110,7 +110,8 @@ function formsAt(
       atk = s.atk;
       def = s.def;
     }
-    by[id] = { ...f, atk: atk * aMult, cmpAtk: atk, def: def * dMult };
+    // No form-changer has a Shadow, so these are the stats themselves.
+    by[id] = { ...f, atk, cmpAtk: atk, def };
   }
   return { start: species.id, by };
 }
@@ -287,7 +288,7 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
           atk: r.atk * aMult, statAtk: r.atk,
           def: r.def * dMult, statDef: r.def,
           rank: 0,
-          forms: formsAt(species, { a, d, s }, r, league, aMult, dMult),
+          forms: formsAt(species, { a, d, s }, r, league),
         });
       }
     }
@@ -585,7 +586,7 @@ export function bestSpreadFor(
         def: best!.def * SHADOW_DEF_MULT, statDef: best!.def,
       }
     : { ...best!, statAtk: best!.atk, statDef: best!.def };
-  const forms = formsAt(species, best!, best!, league, shadow ? SHADOW_ATK_MULT : 1, shadow ? SHADOW_DEF_MULT : 1);
+  const forms = formsAt(species, best!, best!, league);
   if (forms) Object.assign(out, { forms });
   bestCache.set(key, out);
   return out;
@@ -1703,9 +1704,9 @@ export function battle(
   // A form change rewrites the mon in place, so a form-changing mon is copied
   // first: the caller's stays in its starting form, which is also what makes
   // every battle begin there (PvPoke's resetOnSwitch).
-  // ponytail: Mimikyu's rule has resetOnSwitch false, so across a teamBattle
-  // chain PvPoke keeps it Busted and we restore its Disguise each fight. Carry
-  // the form out in BattleResult if chained team play needs it.
+  // ponytail: PvPoke keeps Mimikyu Busted across a teamBattle chain (its
+  // resetOnSwitch is false); we restore its Disguise each fight. Generate
+  // resetOnSwitch and carry the form out in BattleResult if chains need it.
   if (a.forms) a = { ...a };
   if (b.forms) b = { ...b };
   let hpA = startHpA ?? a.hp;

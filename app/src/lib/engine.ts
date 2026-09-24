@@ -1670,6 +1670,7 @@ const selfDebuffing = (c: ChargeMove) =>
   !!c.buffs && c.buffs.target === 'self' && c.buffs.chance >= 0.5 && c.id !== 'DRAGON_ASCENT' &&
   (c.buffs.atkStage < 0 || c.buffs.defStage < 0);
 const selfAttackDebuffing = (c: ChargeMove) => selfDebuffing(c) && c.buffs!.atkStage < 0;
+const selfDefenseDebuffing = (c: ChargeMove) => selfDebuffing(c) && c.buffs!.defStage < 0;
 /** A guaranteed effect in the user's favour, a debuff on the opponent included. */
 const selfBuffing = (c: ChargeMove) =>
   !!c.buffs && c.buffs.chance === 1 &&
@@ -1723,6 +1724,10 @@ interface MoveView {
   oppBest: Rated | null;
   /** A loaded Cramorant across the field: PvPoke stacks against it too. */
   oppLoaded: boolean;
+  /** PvPoke's wouldShield: would we shield the opponent's best move now? */
+  wouldShieldOppBest: () => boolean;
+  /** ...and would the opponent shield this move of ours? */
+  oppWouldShield: (c: ChargeMove) => boolean;
 }
 
 /**
@@ -1731,8 +1736,6 @@ interface MoveView {
  * inefficient self-debuffing moves, never bait with one, defer one until the
  * opponent's survivable charged move has gone, and stack them. Returns the
  * move to throw, or null to take a fast move instead.
- * ponytail: the two branches that ask PvPoke's wouldShield (defer, and the
- * bait swap after stacking) assume no shield; exact once B4 ports it.
  */
 function refineChoice(chosen: ChargeMove, v: MoveView): ChargeMove | null {
   const acm = v.acm;
@@ -1755,11 +1758,17 @@ function refineChoice(chosen: ChargeMove, v: MoveView): ChargeMove | null {
       if (selfDebuffing(acm[0].c) && !selfDebuffing(acm[i].c) &&
         acm[i].c.energy - acm[0].c.energy <= 10 && acm[i].dpe / acm[0].dpe > 0.7) m = acm[i];
   if (selfDebuffing(m.c) && v.shields === 0 && v.energy < 100 && v.oppBest &&
-    v.oppEnergy >= v.oppBest.c.energy && !selfBuffing(first.c)) return null;
+    v.oppEnergy >= v.oppBest.c.energy && !v.wouldShieldOppBest() && !selfBuffing(first.c)) return null;
   if (selfDebuffing(m.c) || v.oppLoaded) {
     const target = Math.floor(100 / m.c.energy) * m.c.energy;
-    if (v.energy < target && (v.oppHp > m.dmg || v.oppShields !== 0) &&
-      (v.hp > v.oppFastDmg * 2 || (v.oppFastTurns - v.fastTurns) * 500 > 500)) return null;
+    if (v.energy < target) {
+      if ((v.oppHp > m.dmg || v.oppShields !== 0) &&
+        (v.hp > v.oppFastDmg * 2 || (v.oppFastTurns - v.fastTurns) * 500 > 500)) return null;
+    } else if (v.oppShields > 0 && first.c.energy - m.c.energy <= 10 && !selfDebuffing(first.c) &&
+      (selfBuffing(first.c) || v.oppWouldShield(m.c))) {
+      // Bait with the cheaper move if it boosts, or if the bigger one would be shielded.
+      m = first;
+    }
   }
   return v.energy >= m.c.energy ? m.c : null;
 }
@@ -2011,6 +2020,67 @@ export function battle(
   const holdsShield = (def: BattleMon, att: BattleMon, raw: number, hp: number) =>
     (triggers(def, 'activate_charged') && raw * 2 < hp) || (!!missileOf(def) && raw * 2.2 < hp) || (cramorant(att) && raw / hp < 0.33);
   const chargeAtk = (m: BattleMon) => (triggers(m, 'activate_charged') ? m.forms!.by[rule(m)!.to].atk : m.atk);
+  // ── PvPoke's shielding (ActionLogic.wouldShield, Battle.js) ──
+  const sideOf = (att: 'A' | 'B') => att === 'A'
+    ? { att: a, def: b, stAtt: stA, stDef: stB, hpAtt: hpA, hpDef: hpB, sAtt: sA, sDef: sB, eAtt: eA, eDef: eB }
+    : { att: b, def: a, stAtt: stB, stDef: stA, hpAtt: hpB, hpDef: hpA, sAtt: sB, sDef: sA, eAtt: eB, eDef: eA };
+  // Damage from `att` with stage deltas applied to either side, as wouldShield
+  // does while it tries a move's buffs on.
+  const hitWith = (x: ReturnType<typeof sideOf>, move: FastMove | ChargeMove, charged: boolean,
+    dAtt = { atk: 0, def: 0 }, dDef = { atk: 0, def: 0 }) =>
+    dmg((charged ? chargeAtk(x.att) : x.att.atk) * buffMultiplier(clampStage(x.stAtt.atk + dAtt.atk)),
+      x.def.def * buffMultiplier(clampStage(x.stDef.def + dDef.def)), move, x.def.types);
+  /** Would the defender shield `move`? PvPoke's wouldShield, ported literally. */
+  const wouldShield = (att: 'A' | 'B', move: ChargeMove, attEnergy: number): boolean => {
+    const x = sideOf(att);
+    const damage = hitWith(x, move, true);
+    const mb = move.buffs ? { atk: move.buffs.atkStage, def: move.buffs.defStage } : { atk: 0, def: 0 };
+    // PvPoke tries the move's buffs on the attacker if they raise attack, else on the defender.
+    const fast = mb.atk > 0 ? hitWith(x, x.att.fast, false, mb) : hitWith(x, x.att.fast, false, undefined, mb);
+    const fastAttacks = Math.ceil((move.energy - Math.max(attEnergy - move.energy, 0)) / x.att.fast.energyGain) + 1;
+    const cycle = (fastAttacks * fast + 1) * x.sDef;
+    let use = x.hpDef - damage <= cycle;
+    const dpt = fast / x.att.fast.turns;
+    for (const c of x.att.charges) {
+      const cd = hitWith(x, c, true);
+      if (cd >= x.hpDef / 1.4 && dpt > 1.5) use = true;
+      if (cd >= x.hpDef - cycle) use = true;
+    }
+    if (selfAttackDebuffing(move) && damage / x.hpDef > 0.55) use = true;
+    if (holdsShield(x.def, x.att, damage, x.hpDef)) use = false;
+    // PvPoke's "moveID" typo makes this Dive only.
+    if (cramorant(x.att) && move.id === 'DIVE' && damage > x.hpDef) use = false;
+    return use;
+  };
+  /**
+   * The shield call itself (Battle.js): shield, except where PvPoke defers to
+   * wouldShield - an attacker's guaranteed boost, a defender whose best move
+   * drops its own defense, and the Aegislash and Cramorant cases.
+   */
+  const pvpokeShields = (att: 'A' | 'B', move: ChargeMove, raw: number): boolean => {
+    const x = sideOf(att);
+    let use = true;
+    const would = () => wouldShield(att, move, x.eAtt);
+    const bf = move.buffs;
+    if (bf && selfBuffing(move) && ((bf.target === 'self' && bf.atkStage > 0) || (bf.target === 'opponent' && bf.defStage < 0))) use = would();
+    const defDmgs = x.def.charges.map((c) => dmg(chargeAtk(x.def) * buffMultiplier(x.stDef.atk), x.att.def * buffMultiplier(x.stAtt.def), c, x.att.types));
+    const defAcm = activeOrder(x.def.charges, defDmgs);
+    const defBest = defAcm.length ? bestCharged(defAcm) : null;
+    if (defBest && selfDefenseDebuffing(defBest.c)) {
+      if (x.sAtt > 0) use = would();
+      else if (x.att.charges.length) {
+        const defFast = dmg(x.def.atk * buffMultiplier(x.stDef.atk), x.att.def * buffMultiplier(x.stAtt.def), x.def.fast, x.att.types);
+        const fastToNext = Math.ceil((defBest.c.energy - x.eDef) / x.def.fast.energyGain);
+        const cycleDamage = fastToNext * defFast + defBest.dmg;
+        const attAcm = activeOrder(x.att.charges, x.att.charges.map((c) => hitWith(x, c, true)));
+        let attTurns = Math.ceil((attAcm[0].c.energy - x.eAtt) / x.att.fast.energyGain) * x.att.fast.turns;
+        if (x.att.cmpAtk > x.def.cmpAtk) attTurns--;
+        if (fastToNext * x.def.fast.turns >= attTurns && x.hpAtt <= cycleDamage) use = would();
+      }
+    }
+    if (holdsShield(x.def, x.att, raw, x.hpDef)) use = false;
+    return use;
+  };
   // PvPoke's Aegislash Shield banks energy before it commits to Blade, unless
   // its first charged move would already finish the opponent.
   // ponytail: "first" is the cheapest; PvPoke's bestChargedMove is its sorted
@@ -2126,10 +2196,12 @@ export function battle(
       return refineChoice(ready, me === 'A'
         ? { hp: hpA, maxHp: a.hp, energy: eA, shields: sA, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgA),
             oppHp: hpB, oppEnergy: eB, oppShields: sB, oppFastDmg: fB, oppFastTurns: o.fast.turns,
-            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o) }
+            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
+            wouldShieldOppBest: () => wouldShield('B', bestCharged(oppAcm).c, eB), oppWouldShield: (c) => wouldShield('A', c, eA) }
         : { hp: hpB, maxHp: b.hp, energy: eB, shields: sB, fastTurns: m.fast.turns, acm: activeOrder(m.charges, chargeDmgB),
             oppHp: hpA, oppEnergy: eA, oppShields: sA, oppFastDmg: fA, oppFastTurns: o.fast.turns,
-            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o) });
+            oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
+            wouldShieldOppBest: () => wouldShield('A', bestCharged(oppAcm).c, eA), oppWouldShield: (c) => wouldShield('B', c, eB) });
     };
     const pickA = refine('A', readyA, killsB);
     const pickB = refine('B', readyB, killsA);
@@ -2191,7 +2263,7 @@ export function battle(
           if (triggers(a, 'activate_charged', moveA.id)) toForm(a);
           const raw = dmg(atkA, defB, moveA, b.types);
           // Aegislash Shield keeps its shields for Blade against a hit it can take twice.
-          const shielded = sB > 0 && !holdsShield(b, a, raw, hpB) && shieldCall(policyB, raw, hpB, worstFromA);
+          const shielded = sB > 0 && (policyB === 'always' ? pvpokeShields('A', moveA, raw) : !holdsShield(b, a, raw, hpB) && shieldCall(policyB, raw, hpB, worstFromA));
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
           if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
@@ -2250,7 +2322,7 @@ export function battle(
           eB -= moveB.energy;
           if (triggers(b, 'activate_charged', moveB.id)) toForm(b);
           const raw = dmg(atkB, defA, moveB, a.types);
-          const shielded = sA > 0 && !holdsShield(a, b, raw, hpA) && shieldCall(policyA, raw, hpA, worstFromB);
+          const shielded = sA > 0 && (policyA === 'always' ? pvpokeShields('B', moveB, raw) : !holdsShield(a, b, raw, hpA) && shieldCall(policyA, raw, hpA, worstFromB));
           if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const disguisedA = !shielded && triggers(a, 'charged_move_damage');
           const damage = shielded || disguisedA ? 1 : raw;

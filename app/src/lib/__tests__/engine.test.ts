@@ -174,8 +174,13 @@ describe('chargesOf and fastMoveCounts', () => {
 });
 
 describe('opponent relevance is weighted by who you actually meet', () => {
-  const rankOf = (ref: string) =>
-    SPECIES_BY_ID.get(parseRef(ref).id)?.leagueRank.great ?? 9999;
+  // Shadow-aware: a Shadow is its own opponent with its own rank. Reading the
+  // base form's instead counted Shadow Houndoom (#144) as Houndoom (#307).
+  const rankOf = (ref: string) => {
+    const { id, shadow } = parseRef(ref);
+    const sp = SPECIES_BY_ID.get(id);
+    return (shadow ? sp?.shadowLeagueRank : sp?.leagueRank)?.great ?? 9999;
+  };
 
   it('leads with the meta and leaves the tail out', () => {
     // The rank term used to be `- rank * 0.1` against bonuses of 400 to 600,

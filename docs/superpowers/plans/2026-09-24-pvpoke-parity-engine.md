@@ -14,13 +14,14 @@ checksummed). Reports exact end HP, same winner, mean HP gap and ms/battle.
 |---|---|---|---|
 | A — vendored PvPoke (`app/vendor/pvpoke`, `src/lib/pvpoke.ts`) | 100.0% | 100.0% | 0.217 |
 | A — through the adapter, our identifiers (`pvpokeBattle`) | 100.0% | 100.0% | 0.121 |
-| B — ours, optimised timing (`src/lib/engine.ts` `battle()`) | 51.4% | 88.8% | 0.024 |
-| B — ours, immediate timing | 36.6% | 86.4% | 0.011 |
+| B — ours, optimised timing (`src/lib/engine.ts` `battle()`) | 55.3% | 91.2% | 0.025 |
+| B — ours, immediate timing | 39.5% | 88.9% | 0.012 |
 
 B started at 35.3% / 85.4%. Ported so far: the chance-effect meter and
 simultaneous CMP ties (f1d18e1, to 40.9%), then PvPoke's move-timing rule and
 turns-to-live search (B1, to 49.5%), then its charged-move preferences and
-self-debuff rules (B2, to 51.4% / 88.8%; 0 shields 68.7% / 94.0%). `npm run parity` is in `npm run check`
+self-debuff rules (B2, to 51.4% / 88.8%; 0 shields 68.7% / 94.0%), then its
+shield decisions (B4, to 55.3% / 91.2%). `npm run parity` is in `npm run check`
 with floors: A must stay exact, B must not fall below where it stands. A is PvPoke's code unmodified, so parity is by
 construction; its costs are speed, bundle size and features ours has that
 PvPoke's does not.
@@ -68,7 +69,8 @@ Diagnosed from 24 sampled 0-shield mismatches (first divergence per battle):
    Deoxys-D, Malamar, Hisuian Electrode (Superpower, Psycho Boost, Wild Charge).
 3. **Move-order planner** (439–804): PvPoke's DP over energy, HP, shields and
    buffs choosing which charged move and when.
-4. **Shield decisions** (`wouldShield`, 1154–1260).
+4. ~~**Shield decisions**~~ Done (B4): Battle.js's shield call and wouldShield,
+   for the `always` policy; our `read` policy is unchanged. (1154–1260)
 5. Cramorant stacking (cd729db) then follows PvPoke's planned move, not ours.
 
 ## Decision point

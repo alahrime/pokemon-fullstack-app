@@ -259,10 +259,9 @@ failure mode is silence in every surface — no error in the app, none in the da
    the Redirect URLs list holds: the app asks for `window.location.origin`, which there *is* the
    Site URL, and a disallowed `redirect_to` falls back to it anyway. Redirect URLs, read off
    Dashboard → Authentication → URL Configuration on 2026-09-24: `http://localhost:5173`,
-   `http://localhost:5173/**`, `https://paragon2.alahrime.workers.dev/**`. So a local build
-   against the hosted project also returns locally. `http://127.0.0.1:5173/**` is **not** listed
-   — add it only to run the two-origin, two-account setup against the hosted project (the local
-   stack already allows it via `config.toml`). Change these in the dashboard, **not** via
+   `http://localhost:5173/**`, `https://paragon2.alahrime.workers.dev/**`, and
+   `http://127.0.0.1:5173/**` (added the same day), so a local build against the hosted project
+   returns locally from either origin, including the two-origin, two-account setup. Change these in the dashboard, **not** via
    `supabase config push`, which pushes the whole auth block from `config.toml` and could clobber
    the Discord provider settings. (The CLI has no login on this machine: `config diff` fails with
    `Access token not provided` until `npx supabase login` is run.)

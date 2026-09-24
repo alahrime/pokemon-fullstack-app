@@ -93,8 +93,15 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *      Measured at the fix: 1.5% of Shadow-involving battles change, 0.4% of
  *      them changing the winner outright, and 10% of board rows change their
  *      CMP verdict. Stat stages still count, because those are stat changes.
+ *  15  PvPoke parity (docs/superpowers/plans/2026-09-24-pvpoke-parity-engine.md):
+ *      its float32 damage multipliers; form changes for Aegislash, Morpeko,
+ *      Mimikyu and Cramorant; the chance-effect meter in place of fractional
+ *      stages; simultaneous CMP ties; and its decision logic - move timing,
+ *      charged-move preferences, shielding and the decideAction planner - in
+ *      place of our own AI and farm-down rule. Against PvPoke's engine on the
+ *      3,675-battle parity fixture: 93.6% exact end HP, 97.7% same winner.
  */
-const ENGINE_REV = 14;
+const ENGINE_REV = 15;
 
 /**
  * Loadouts considered per species.

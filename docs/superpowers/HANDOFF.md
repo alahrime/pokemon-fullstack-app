@@ -253,11 +253,16 @@ failure mode is silence in every surface — no error in the app, none in the da
 ### Open, in the order they block things
 
 1. **Prove the tick** — above.
-2. **Site URL is still `http://localhost:5173`** — re-measured 2026-09-04, not recalled:
-   `GET /auth/v1/verify?token=invalid&type=signup` `303`s there. Fix in Dashboard →
-   Authentication → URL Configuration: Site URL to the deployed origin, and add both it and
-   `http://localhost:5173/**` to Redirect URLs. **Not** via `supabase config push`, which would
-   push the whole auth block from `config.toml` and could clobber the Discord provider settings.
+2. ~~Site URL is still `http://localhost:5173`~~ **Fixed** — measured 2026-09-24:
+   `GET /auth/v1/verify?token=invalid&type=signup` now `303`s to
+   `https://paragon2.alahrime.workers.dev/#error=…otp_expired`. Production is covered whatever
+   the Redirect URLs list holds: the app asks for `window.location.origin`, which there *is* the
+   Site URL, and a disallowed `redirect_to` falls back to it anyway. **Unverified:** whether
+   `http://localhost:5173/**` is on that list — the authorize step no longer exposes it (its
+   `state` is an opaque id, not a JWT). If it is missing, a local build pointed at the hosted
+   project finishes sign-in on production instead. Check in Dashboard → Authentication → URL
+   Configuration; **not** via `supabase config push`, which pushes the whole auth block from
+   `config.toml` and could clobber the Discord provider settings.
 3. **The production account cannot post an offer** and this is not a bug: the Post control is not
    rendered without a saved format for that league (`MatchmakingScreen.tsx:621`). Author one on
    the Formats screen and save it.
@@ -650,7 +655,8 @@ because Vault is the per-environment store the operator can actually write.
       to `succeeded`; it does not change that there are ~1,440 of them a day and nothing deletes
       them. Not urgent and not a correctness problem, but it is a table that only grows. A second
       cron job pruning rows older than a few days is the usual answer.
-- [ ] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** Still `http://localhost:5173`
+- [x] **AT DEPLOY TIME: change the hosted Site URL to the real domain.** Done — measured
+      2026-09-24, now `https://paragon2.alahrime.workers.dev` (see open item 2). History: was `http://localhost:5173`
       — re-measured 2026-09-04, not assumed: `GET /auth/v1/verify?token=invalid&type=signup` on the
       hosted project `303`s to `http://localhost:5173/#error=access_denied&error_code=otp_expired`.
       The database is now live ahead of any frontend, so this gap is open from here on. Forgotten,

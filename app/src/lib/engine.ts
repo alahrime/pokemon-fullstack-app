@@ -12,6 +12,7 @@ import {
 } from './data';
 import type {
   MoveBuffs,
+  BattleForms,
   BattleLogEntry,
   BattleMon,
   BattleResult,
@@ -81,6 +82,37 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
   const s = statsAt(species, iv, CPM[0]);
   const hp = Math.max(10, s.h);
   return { lvl: 1, cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
+}
+
+/**
+ * Every form's battle stats for one roll, for a species that changes form.
+ *
+ * PvPoke's getFormStats: a form with the same base stats (Morpeko, Mimikyu,
+ * Cramorant) keeps the roll's stats. Aegislash Blade does not - its level is
+ * derived from Shield's (x0.5 + 1 in Great, x0.75 in Ultra), then stepped down
+ * a whole level at a time until it fits under the cap. HP never changes.
+ */
+function formsAt(
+  species: Species, iv: IV, line: StatLine, league: League, aMult: number, dMult: number,
+): BattleForms | undefined {
+  if (!species.forms) return undefined;
+  const by: BattleForms['by'] = {};
+  for (const [id, f] of Object.entries(species.forms)) {
+    let atk = line.atk, def = line.def;
+    if (f.atk !== species.atk || f.def !== species.def) {
+      let lvl = line.lvl;
+      if (id === 'aegislash_blade') {
+        lvl = league.cap === 1500 ? Math.ceil(lvl * 0.5) + 1 : league.cap === 2500 ? Math.ceil(lvl * 0.75) : lvl;
+      }
+      const form = { ...species, atk: f.atk, def: f.def };
+      let s = statsAt(form, iv, CPM[(lvl - 1) * 2]);
+      while (cpOf(s) > league.cap && lvl > 1) s = statsAt(form, iv, CPM[(--lvl - 1) * 2]);
+      atk = s.atk;
+      def = s.def;
+    }
+    by[id] = { ...f, atk: atk * aMult, cmpAtk: atk, def: def * dMult };
+  }
+  return { start: species.id, by };
 }
 
 /**
@@ -255,6 +287,7 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
           atk: r.atk * aMult, statAtk: r.atk,
           def: r.def * dMult, statDef: r.def,
           rank: 0,
+          forms: formsAt(species, { a, d, s }, r, league, aMult, dMult),
         });
       }
     }
@@ -355,6 +388,7 @@ export interface OpponentInfo {
   fastMove: FastMove;
   chargeMove: ChargeMove;
   chargeMove2: ChargeMove | null;
+  forms?: BattleForms;
 }
 
 // Every charge move a mon actually has equipped, for the battle simulator's
@@ -498,7 +532,7 @@ export function bestSpreadFor(
   ref: string,
   leagueId: LeagueId,
   bestBuddy = false,
-): StatLine & { a: number; d: number; s: number; statAtk: number; statDef: number } {
+): StatLine & { a: number; d: number; s: number; statAtk: number; statDef: number; forms?: BattleForms } {
   const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const hit = bestCache.get(key);
   if (hit) return hit;
@@ -551,6 +585,8 @@ export function bestSpreadFor(
         def: best!.def * SHADOW_DEF_MULT, statDef: best!.def,
       }
     : { ...best!, statAtk: best!.atk, statDef: best!.def };
+  const forms = formsAt(species, best!, best!, league, shadow ? SHADOW_ATK_MULT : 1, shadow ? SHADOW_DEF_MULT : 1);
+  if (forms) Object.assign(out, { forms });
   bestCache.set(key, out);
   return out;
 }
@@ -585,6 +621,7 @@ export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
     def: best.def,
     statDef: best.statDef,
     hp: best.hp,
+    forms: best.forms,
     // Resolved per league: an opponent runs the set that league rates, not
     // whichever one happened to be read first when the data was generated.
     ...(() => {
@@ -1663,6 +1700,11 @@ export function battle(
   policyA: ShieldPolicy = 'always',
   policyB: ShieldPolicy = 'always',
 ): BattleResult {
+  // A form change rewrites the mon in place, so a form-changing mon is copied
+  // first: the caller's stays in its starting form, which is also what makes
+  // every battle begin there (PvPoke's resetOnSwitch).
+  if (a.forms) a = { ...a };
+  if (b.forms) b = { ...b };
   let hpA = startHpA ?? a.hp;
   let hpB = startHpB ?? b.hp;
   let eA = energyA;
@@ -1696,6 +1738,10 @@ export function battle(
   // most, so this keeps the original optimisation almost entirely intact while
   // being correct under stages.
   let fA = 0, fB = 0;
+  // Attack behind charged moves. Differs from atkA/atkB only for Aegislash
+  // Shield, whose charged moves hit with Blade's attack (PvPoke damageByStats).
+  let catkA = 0, catkB = 0;
+  let cheapDmgA = 0, cheapDmgB = 0;
   let rolesA!: ChargeRoles, rolesB!: ChargeRoles;
   let chargeDmgA: number[] = [], chargeDmgB: number[] = [];
   let worstFromA = 0, worstFromB = 0;
@@ -1703,19 +1749,53 @@ export function battle(
   const cheapA = a.charges.length ? Math.min(...a.charges.map((c) => c.energy)) : 0;
   const cheapB = b.charges.length ? Math.min(...b.charges.map((c) => c.energy)) : 0;
 
+  // ── Form changes (see Species.forms) ──
+  const rule = (m: BattleMon) => (m.forms ? m.forms.by[m.form!].rule : null);
+  const triggers = (m: BattleMon, trigger: string, moveId?: string) => {
+    const r = rule(m);
+    return !!r && r.trigger === trigger && (r.moves[0] === 'ANY' || (!!moveId && r.moves.includes(moveId)));
+  };
+  // Stats, typing and moves all swap. Moves pair up by position in each form's
+  // movepool, which is how PvPoke's replaceMove pairs Shield's and Blade's.
+  const setForm = (m: BattleMon, id: string) => {
+    const from = m.forms!.by[m.form!], to = m.forms!.by[id];
+    const swap = <T extends { id: string }>(x: T, was: T[], now: T[]) => now[was.findIndex((y) => y.id === x.id)] ?? x;
+    Object.assign(m, {
+      form: id, atk: to.atk, cmpAtk: to.cmpAtk, def: to.def, types: to.types,
+      fast: swap(m.fast, from.fastMoves, to.fastMoves),
+      charges: m.charges.map((c) => swap(c, from.chargeMoves, to.chargeMoves)),
+    });
+  };
+  // Called only once the loop is running, by which time syncDerived exists.
+  const toForm = (m: BattleMon) => {
+    setForm(m, rule(m)!.to);
+    syncDerived();
+  };
+  const chargeAtk = (m: BattleMon) => (triggers(m, 'activate_charged') ? m.forms!.by[rule(m)!.to].atk : m.atk);
+  // PvPoke's Aegislash Shield banks energy before it commits to Blade, unless
+  // its first charged move would already finish the opponent.
+  // ponytail: "first" is the cheapest; PvPoke's bestChargedMove is its sorted
+  // activeChargedMoves[0], which is nearly always the same move.
+  const banking = (m: BattleMon, e: number, cheapDmg: number, oppHp: number) =>
+    triggers(m, 'activate_charged') && e < 100 - m.fast.energyGain / 2 && cheapDmg < oppHp;
+
   const syncDerived = () => {
     atkA = a.atk * buffMultiplier(stA.atk);
     defA = a.def * buffMultiplier(stA.def);
     atkB = b.atk * buffMultiplier(stB.atk);
     defB = b.def * buffMultiplier(stB.def);
+    catkA = chargeAtk(a) * buffMultiplier(stA.atk);
+    catkB = chargeAtk(b) * buffMultiplier(stB.atk);
     fA = dmg(atkA, defB, a.fast, b.types);
     fB = dmg(atkB, defA, b.fast, a.types);
     // Move roles are re-derived too: damage per energy is what decides main
     // from secondary, and a debuff can genuinely reorder them.
-    rolesA = classifyCharges(atkA, defB, a.charges, b.types);
-    rolesB = classifyCharges(atkB, defA, b.charges, a.types);
-    chargeDmgA = a.charges.map((c) => dmg(atkA, defB, c, b.types));
-    chargeDmgB = b.charges.map((c) => dmg(atkB, defA, c, a.types));
+    rolesA = classifyCharges(catkA, defB, a.charges, b.types);
+    rolesB = classifyCharges(catkB, defA, b.charges, a.types);
+    chargeDmgA = a.charges.map((c) => dmg(catkA, defB, c, b.types));
+    chargeDmgB = b.charges.map((c) => dmg(catkB, defA, c, a.types));
+    cheapDmgA = chargeDmgA[a.charges.findIndex((c) => c.energy === cheapA)] ?? 0;
+    cheapDmgB = chargeDmgB[b.charges.findIndex((c) => c.energy === cheapB)] ?? 0;
     worstFromA = chargeDmgA.length ? Math.max(...chargeDmgA) : 0;
     worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
     farmA = {
@@ -1782,14 +1862,14 @@ export function battle(
 
     const readyA = freeA
       ? pickCharge(rolesA, eA, sB, {
-          oppHp: hpB, incomingKO: incomingKOa, atk: atkA, oppDef: defB, oppTypes: b.types,
+          oppHp: hpB, incomingKO: incomingKOa, atk: catkA, oppDef: defB, oppTypes: b.types,
           baitRefused: baitRefusedA,
           farm: farmA, myHp: hpA, myMaxHp: a.hp, myShields: sA, oppEnergy: eB,
         })
       : null;
     const readyB = freeB
       ? pickCharge(rolesB, eB, sA, {
-          oppHp: hpA, incomingKO: incomingKOb, atk: atkB, oppDef: defA, oppTypes: a.types,
+          oppHp: hpA, incomingKO: incomingKOb, atk: catkB, oppDef: defA, oppTypes: a.types,
           baitRefused: baitRefusedB,
           farm: farmB, myHp: hpB, myMaxHp: b.hp, myShields: sB, oppEnergy: eA,
         })
@@ -1816,10 +1896,11 @@ export function battle(
     //                resource it is trying to spend well.
     //   unreachable  a 2-turn fast move against a 4-turn never coincides, so
     //                the window would never arrive and the hold never end.
-    const killsB = sB === 0 && !!readyA && dmg(atkA, defB, readyA, b.types) >= hpB;
-    const killsA = sA === 0 && !!readyB && dmg(atkB, defA, readyB, a.types) >= hpA;
+    const killsB = sB === 0 && !!readyA && dmg(catkA, defB, readyA, b.types) >= hpB;
+    const killsA = sA === 0 && !!readyB && dmg(catkB, defA, readyB, a.types) >= hpA;
     const wantA =
       !!readyA &&
+      (killsB || !banking(a, eA, cheapDmgA, hpB)) &&
       (!optimizeTiming ||
         killsB ||
         incomingKOa ||
@@ -1829,6 +1910,7 @@ export function battle(
         holdA >= b.fast.turns);
     const wantB =
       !!readyB &&
+      (killsA || !banking(b, eB, cheapDmgB, hpA)) &&
       (!optimizeTiming ||
         killsA ||
         incomingKOb ||
@@ -1861,13 +1943,16 @@ export function battle(
       for (const who of order) {
         if (who === 'A' && hpA > 0 && moveA) {
           eA -= moveA.energy;
+          if (triggers(a, 'activate_charged', moveA.id)) toForm(a);
           const raw = dmg(atkA, defB, moveA, b.types);
-          const shielded = sB > 0 && shieldCall(policyB, raw, hpB, worstFromA);
+          // Aegislash Shield keeps its shields for Blade against a hit it can take twice.
+          const shielded = sB > 0 && !(triggers(b, 'activate_charged') && raw * 2 < hpB) && shieldCall(policyB, raw, hpB, worstFromA);
           // A bait thrown into a live shield and waved through is a read that
           // came back wrong; stop baiting this opponent.
           if (!shielded && sB > 0 && moveA === rolesA.secondary) baitRefusedA = true;
           const damage = shielded ? 1 : raw;
           if (shielded) sB--;
+          if (shielded && triggers(b, 'activate_shield')) toForm(b);
           hpB -= damage;
           // A shield blocks damage, never the secondary effect.
           const buffTextA = applyBuff(moveA, true);
@@ -1897,11 +1982,13 @@ export function battle(
         }
         if (who === 'B' && hpB > 0 && moveB) {
           eB -= moveB.energy;
+          if (triggers(b, 'activate_charged', moveB.id)) toForm(b);
           const raw = dmg(atkB, defA, moveB, a.types);
-          const shielded = sA > 0 && shieldCall(policyA, raw, hpA, worstFromB);
+          const shielded = sA > 0 && !(triggers(a, 'activate_charged') && raw * 2 < hpA) && shieldCall(policyA, raw, hpA, worstFromB);
           if (!shielded && sA > 0 && moveB === rolesB.secondary) baitRefusedB = true;
           const damage = shielded ? 1 : raw;
           if (shielded) sA--;
+          if (shielded && triggers(a, 'activate_shield')) toForm(a);
           hpA -= damage;
           const buffTextB = applyBuff(moveB, false);
           tA = a.fast.turns;
@@ -2038,7 +2125,7 @@ export function battle(
 }
 
 export function mkBattleMon(
-  entry: { atk: number; def: number; hp: number; statAtk?: number },
+  entry: { atk: number; def: number; hp: number; statAtk?: number; forms?: BattleForms },
   fast: FastMove,
   charges: ChargeMove[],
   types: readonly string[],
@@ -2053,6 +2140,7 @@ export function mkBattleMon(
     fast,
     charges,
     types,
+    ...(entry.forms ? { forms: entry.forms, form: entry.forms.start } : {}),
   };
 }
 

@@ -86,6 +86,47 @@ export interface Species {
    * the index the hot path uses.
    */
   bestIvBB?: Partial<Record<LeagueId, number>>;
+  /**
+   * Present only for species that change form mid-battle (Aegislash, Morpeko,
+   * Mimikyu, Cramorant): every form reachable from this one, keyed by PvPoke id
+   * and including this one. Generated from PvPoke's `formChange`.
+   */
+  forms?: Record<string, SpeciesForm>;
+}
+
+/** What makes a mon leave a form, and for which one. PvPoke's `formChange`. */
+export interface FormRule {
+  /** activate_charged / activate_shield: Aegislash. charged_move: Morpeko,
+   *  Cramorant. charged_move_damage: Mimikyu. */
+  trigger: string;
+  effect?: string;
+  /** Target form id; `variable` for Cramorant, resolved at runtime. */
+  to: string;
+  /** Move ids that trigger it, or ['ANY']. */
+  moves: string[];
+  resetOnSwitch: boolean;
+}
+
+export interface SpeciesForm {
+  atk: number;
+  def: number;
+  types: string[];
+  fastMoves: FastMove[];
+  chargeMoves: ChargeMove[];
+  rule: FormRule | null;
+}
+
+/** One form's battle stats for a particular roll, as the engine uses them. */
+export interface BattleForm extends SpeciesForm {
+  atk: number;
+  cmpAtk: number;
+  def: number;
+}
+
+export interface BattleForms {
+  /** The form a battle starts in, which is the species itself. */
+  start: string;
+  by: Record<string, BattleForm>;
 }
 
 /**
@@ -137,6 +178,8 @@ export interface RankedEntry extends StatLine {
   statAtk: number;
   /** The Defense stat, i.e. `def` before the Shadow multiplier. */
   statDef: number;
+  /** Form-changing species only: every form's stats at this roll. */
+  forms?: BattleForms;
 }
 
 export interface SpeciesTable {
@@ -204,6 +247,10 @@ export interface BattleMon {
   // classifyCharges sorts by damage per energy to pick main, and takes the
   // secondary from what remains.
   charges: ChargeMove[];
+  /** Form-changing species only; see Species.forms. */
+  forms?: BattleForms;
+  /** The form this mon is currently in. Set with `forms`. */
+  form?: string;
 }
 
 export interface BattleLogEntry {

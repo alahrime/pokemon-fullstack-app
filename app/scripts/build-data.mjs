@@ -269,6 +269,48 @@ const intern = (m) => {
   return key;
 };
 
+// ── form changes ───────────────────────────────────────────────────────────
+// Aegislash, Morpeko, Mimikyu and Cramorant change form mid-battle. PvPoke
+// keeps each alternate form as its own (unreleased) entry, so the base species
+// carries the forms it can reach, each with the rule that leaves it. The rule
+// is PvPoke's `formChange`, trimmed to what the engine reads.
+const POKEMON_BY_ID = new Map(pokemon.map((p) => [p.speciesId, p]));
+const formRule = (fc) => fc && fc.trigger !== 'none'
+  ? {
+      trigger: fc.trigger,
+      ...(fc.effect ? { effect: fc.effect } : {}),
+      to: fc.alternativeFormId,
+      moves: fc.moveIDs ?? (fc.moveId ? [fc.moveId] : ['ANY']),
+      resetOnSwitch: !!fc.resetOnSwitch,
+    }
+  : null;
+function formsOf(p) {
+  const forms = {};
+  const todo = [p.speciesId];
+  while (todo.length) {
+    const f = POKEMON_BY_ID.get(todo.pop());
+    const rule = formRule(f.formChange);
+    const types = (f.types ?? []).filter((t) => t && t !== 'none');
+    forms[f.speciesId] = {
+      atk: f.baseStats.atk,
+      def: f.baseStats.def,
+      types,
+      fastMoves: (f.fastMoves ?? []).map((id) => intern(fastMove(id, types))),
+      chargeMoves: [...(f.chargedMoves ?? []), ...(f.extraChargedMoves ?? [])].map((id) => intern(chargeMove(id, types))),
+      rule,
+    };
+    // Cramorant's "variable" resolves at runtime to whichever of these fits.
+    const next = rule?.to === 'variable' ? [`${p.speciesId}_gulping`, `${p.speciesId}_gorging`] : [rule?.to];
+    for (const id of next) if (id && POKEMON_BY_ID.has(id) && !(id in forms)) todo.push(id);
+  }
+  // A toggle (Morpeko) is written once, on the default form; the way back is implied.
+  if (p.formChange.type === 'toggle') {
+    const there = forms[p.speciesId].rule;
+    forms[there.to].rule = { ...there, to: p.speciesId };
+  }
+  return forms;
+}
+
 // ── build ──────────────────────────────────────────────────────────────────
 const released = pokemon.filter((p) => p.released);
 const shadowIds = new Set(released.filter((p) => (p.tags ?? []).includes('shadow')).map((p) => p.speciesId));
@@ -399,6 +441,7 @@ for (const p of bases) {
     shadowLeagues,
     leagueRank,
     shadowLeagueRank: shadowRank,
+    ...(formRule(p.formChange) ? { forms: formsOf(p) } : {}),
   });
 }
 

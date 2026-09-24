@@ -123,8 +123,29 @@ console.log('\n── league membership (ranked) ──────────�
       check(`${id} is held out of every picker and pool`,
         !pool.includes(id) && !inRoster.has(id) && !inRoster.has(makeRef(id, true)));
     }
-    const s = SPECIES_BY_ID.get('aegislash_shield');
+    const s = SPECIES_BY_ID.get('mimikyu');
     check('...while its league data stays intact for when it returns', !!s?.leagueRank.great);
+  }
+  {
+    // Aegislash, back since its stance change is modelled. Shield form's fast
+    // move is 1 damage for 6 energy; its charged moves hit with Blade's attack,
+    // and throwing one leaves it in Blade (PvPoke's form-change rules).
+    check('aegislash_shield is back in the Great pool', opponentCandidatesFor('great').includes('aegislash_shield'));
+    const e = getEntry('aegislash_shield', { a: 0, d: 15, s: 15 }, 'great').entry;
+    const blade = e.forms?.by.aegislash_blade;
+    check('...with Blade stats at this roll', !!blade && blade.atk > e.atk && blade.def < e.def,
+      blade ? `atk ${e.atk.toFixed(1)} -> ${blade.atk.toFixed(1)}` : 'no Blade form');
+    const sp = speciesOf('aegislash_shield')!, foe = speciesOf('azumarill')!;
+    const A = mkBattleMon(e, sp.fastMoves[0], [sp.chargeMoves[0]], sp.types);
+    const B = mkBattleMon(getEntry('azumarill', { a: 0, d: 15, s: 15 }, 'great').entry,
+      foe.fastMoves[0], [foe.chargeMove], foe.types);
+    const log = battle(A, B, 0, 0, 0, 0).log.filter((l) => l.actor === 'A');
+    const fast = log.find((l) => l.kind === 'fast'), charge = log.find((l) => l.kind === 'charge');
+    check('...Shield form fast moves deal 1', fast?.damage === 1, String(fast?.damage));
+    check('...and its charged move hits with Blade attack', !!blade && charge?.damage === dmg(blade.atk, B.def, sp.chargeMoves[0], foe.types),
+      `${charge?.damage}`);
+    const after = log.filter((l) => l.kind === 'fast' && l.turn > (charge?.turn ?? 0))[0];
+    check('...after which it fights as Blade', !!after && after.damage > 1, `${after?.moveName} ${after?.damage}`);
   }
   // In uncapped Master a low ceiling is forfeited power, so these are dropped.
   for (const id of ['umbreon', 'registeel']) {

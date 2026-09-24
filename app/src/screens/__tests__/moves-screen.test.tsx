@@ -29,15 +29,17 @@ describe('the move catalogue', () => {
     // The interned table keys on ID|stab, so a move learned by a same-type and
     // an off-type species is two entries there and must be one here.
     for (const s of SPECIES.filter((sp) => isSimulated(sp.id))) {
-      for (const m of s.fastMoves) expect(fast.has(m.id), `${s.id} fast ${m.id}`).toBe(true);
+      // Aegislash Shield's stand-ins excepted; see DISTINCT_MOVES.
+      for (const m of s.fastMoves.filter((x) => !x.id.startsWith('AEGISLASH_CHARGE_')))
+        expect(fast.has(m.id), `${s.id} fast ${m.id}`).toBe(true);
       for (const m of s.chargeMoves) expect(charge.has(m.id), `${s.id} charge ${m.id}`).toBe(true);
     }
   });
 
   it('inherits the held-out species rather than restating them', () => {
-    // Aegislash's stance-change moves are named "Air Slash" and "Psycho Cut"
-    // like the real ones and carry 0 power. Listed, they are duplicate rows
-    // with broken numbers for a species the engine will not model at all.
+    // A held-out species' own moves would be rows for something the engine
+    // will not model. (Aegislash's stand-in moves, the old example, are now
+    // excluded by id; the name-uniqueness check below covers them.)
     const ids = new Set([...FAST_MOVES, ...CHARGE_MOVES].map((m) => m.id));
     for (const held of UNSIMULATED_IDS) {
       const sp = SPECIES.find((s) => s.id === held);

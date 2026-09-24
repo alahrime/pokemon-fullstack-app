@@ -1,6 +1,6 @@
 import speciesRaw from '../data/species.json';
 import opponentsRaw from '../data/opponents.json';
-import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesRef } from './types';
+import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesForm, SpeciesRef } from './types';
 import { artefact } from './artefact';
 
 /**
@@ -25,7 +25,8 @@ import { artefact } from './artefact';
  * are a bonus: identity comparison on moves now works.
  */
 interface RawSpecies
-  extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2' | 'leagueMoves'> {
+  extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2' | 'leagueMoves' | 'forms'> {
+  forms?: Record<string, Omit<SpeciesForm, 'fastMoves' | 'chargeMoves'> & { fastMoves: string[]; chargeMoves: string[] }>;
   fastMoves: string[];
   chargeMoves: string[];
   chargeMove: string;
@@ -61,6 +62,18 @@ export const SPECIES: Species[] = raw.species.map((s) => ({
             fast: raw.moves[m.fast] as FastMove,
             charge: raw.moves[m.charge] as ChargeMove,
             charge2: m.charge2 ? (raw.moves[m.charge2] as ChargeMove) : null,
+          },
+        ]),
+      )
+    : undefined,
+  forms: s.forms
+    ? Object.fromEntries(
+        Object.entries(s.forms).map(([id, f]) => [
+          id,
+          {
+            ...f,
+            fastMoves: f.fastMoves.map((k) => raw.moves[k] as FastMove),
+            chargeMoves: f.chargeMoves.map((k) => raw.moves[k] as ChargeMove),
           },
         ]),
       )
@@ -158,11 +171,11 @@ export function teamIsLegal(refs: readonly string[]): boolean {
 /**
  * Species held out of the simulator because it cannot model them correctly.
  *
- * Each has a mechanic with no representation in the engine: Mimikyu's built-in
- * shield, Morpeko's form change, Aegislash's stance change. None is a stat
- * adjustment — each needs its own code path — and until that exists any number
+ * Each has a mechanic with no representation in the engine yet: Mimikyu's
+ * built-in shield and Morpeko's form change. Until one exists, any number
  * produced for them is confidently wrong, which is worse than absent. Mimikyu
  * in particular ranks 1st in both Great and Ultra, so it led every board.
+ * Aegislash's stance change is modelled (see Species.forms) and it is back.
  *
  * Held out rather than deleted: the data stays complete in species.json, and
  * only selection and the opponent pool skip them. The 2026 engine rewrite is
@@ -175,7 +188,6 @@ export function teamIsLegal(refs: readonly string[]): boolean {
 export const UNSIMULATED_IDS: ReadonlySet<string> = new Set([
   'mimikyu',
   'morpeko_full_belly',
-  'aegislash_shield',
 ]);
 
 /** False for a ref whose species the engine cannot model. Shadow-aware. */
@@ -202,12 +214,14 @@ export function isSimulated(ref: string): boolean {
  * they have no per-turn figures to report.
  *
  * And it is built from what SIMULATED species learn, so it inherits
- * UNSIMULATED_IDS rather than restating it. Aegislash is the case that forces
- * this: its two form-change moves are named "Air Slash" and "Psycho Cut" like
- * the real ones, carry 0 power, and belong to a species the engine refuses to
- * model at all. Listed, they read as duplicate rows with broken numbers.
- * Emptying UNSIMULATED_IDS restores them here with no other edit, which is the
- * same property the pickers have.
+ * UNSIMULATED_IDS rather than restating it. Emptying UNSIMULATED_IDS restores
+ * those species' moves here with no other edit, the same property the pickers
+ * have.
+ *
+ * Aegislash Shield's two fast moves are left out by id, the way PvPoke's
+ * Battle.js singles them out: named "Air Slash" and "Psycho Cut" like the
+ * real ones, 0 power, they are stand-ins for the form rather than moves.
+ * Listed, they read as duplicate rows with broken numbers.
  */
 const DISTINCT_MOVES = (() => {
   const learned = new Set<string>();
@@ -218,6 +232,7 @@ const DISTINCT_MOVES = (() => {
   }
   const byId = new Map<string, FastMove & ChargeMove>();
   for (const m of Object.values(raw.moves)) {
+    if (m.id.startsWith('AEGISLASH_CHARGE_')) continue;
     if (learned.has(m.id) && !byId.has(m.id)) byId.set(m.id, { ...m, stab: 1 });
   }
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));

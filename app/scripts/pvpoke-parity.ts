@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseRef, speciesOf } from '../src/lib/data';
 import { battle, getEntry, mkBattleMon } from '../src/lib/engine';
-import { PVPOKE_FILES, loadPvPoke } from '../src/lib/pvpoke';
+import { PVPOKE_FILES, loadPvPoke, pvpokeBattle } from '../src/lib/pvpoke';
 
 const FIXTURE = resolve(process.cwd(), '..', 'data-src', 'pvpoke-sweep-1500.json');
 const pv = JSON.parse(readFileSync(FIXTURE, 'utf8')) as {
@@ -71,6 +71,20 @@ const vendored = (sh: number, i: number, j: number): number[] => {
   b.simulate();
   return [A.hp, B.hp];
 };
+// Option A as the app will call it: our identifiers in (our table's level,
+// IVs, move ids), our BattleResult out. Also holds the rebuilt log to account:
+// its last HP must be PvPoke's final HP.
+const sides = pv.top.map(([id, f, c1, c2]) => {
+  const [, a, d, s] = pv.ivs[id];
+  return { ref: id, iv: { a, d, s }, lvl: getEntry(id, { a, d, s }, 'great').entry.lvl, fast: f, charges: [c1, c2] };
+});
+let logDrift = 0;
+const adapted = (sh: number, i: number, j: number): number[] => {
+  const r = pvpokeBattle(pvpoke, 1500, { ...sides[i], shields: sh }, { ...sides[j], shields: sh });
+  const last = r.log[r.log.length - 1];
+  if (last && (last.hpA !== r.hpA || last.hpB !== r.hpB)) logDrift++;
+  return [r.hpA, r.hpB];
+};
 // Option B: our engine, ported rule by rule.
 const ours = (optimised: boolean) => (sh: number, i: number, j: number): number[] => {
   const r = battle(mons[i], mons[j], sh, sh, 0, 0, false, optimised);
@@ -79,6 +93,7 @@ const ours = (optimised: boolean) => (sh: number, i: number, j: number): number[
 
 const ENGINES: [string, (sh: number, i: number, j: number) => number[]][] = [
   ['A  vendored PvPoke', vendored],
+  ['A  via adapter (our ids)', adapted],
   ['B  ours, optimised timing', ours(true)],
   ['B  ours, immediate timing', ours(false)],
 ];
@@ -108,6 +123,8 @@ for (const [name, run] of ENGINES) {
   console.log(`${''.padEnd(28)} ${perShield.join('  ')}`);
   if (flips.size) console.log(`${''.padEnd(28)} most winner flips: ${[...flips].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => `${id} ${n}`).join(', ')}`);
 }
+
+console.log(`adapter log drift: ${logDrift} battles whose rebuilt log disagrees with PvPoke's final HP`);
 
 function pct(a: number, b: number) {
   return `${((100 * a) / b).toFixed(1)}%`;

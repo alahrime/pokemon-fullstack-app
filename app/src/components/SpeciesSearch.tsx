@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   BASE_ROSTER,
   ROSTER,
@@ -254,8 +254,10 @@ export function SpeciesSearch({
   }, [debounced]);
 
   // A new query resets the scroll, or the window would open part-way down a
-  // list that no longer has those rows.
-  useEffect(() => {
+  // list that no longer has those rows. A layout effect, so the reset lands in
+  // the same commit as the new rows: as a passive effect it could be deferred
+  // past their paint, and a scroll in that gap was undone when it flushed.
+  useLayoutEffect(() => {
     setScrollTop(0);
     if (listRef.current) listRef.current.scrollTop = 0;
   }, [debounced]);

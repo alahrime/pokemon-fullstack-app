@@ -1,8 +1,9 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-09-05. **Branch:** `main`, pushed and up to date
-with `origin/main` (`81a6ef4`). Start at "Where this session left off" below — it is the only
-part of this document that is about *right now*; everything under it is standing reference.
+**Written:** 2026-09-01. **Last updated:** 2026-09-25. **Branch:** `main`, pushed and up to date
+with `origin/main` (`232a415` + this doc). Start at the newest "Where this session left off" below —
+it is the only part of this document that is about *right now*; everything under it is standing
+reference.
 
 Read this, then `docs/superpowers/specs/2026-08-31-paragon-platform-design.md`. The spec is the
 design authority; the plans argue from it.
@@ -24,6 +25,60 @@ design authority; the plans argue from it.
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
 | M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
+
+---
+
+## Where this session left off — 2026-09-25 (PvPoke parity: engine and rankings)
+
+**Done, gate-green (`npm run check` 1285/1285, `ALL CHECKS PASSED`) and pushed.** Not platform
+work: this session made the battle engine and the rankings match PvPoke, which is now the source
+of truth for both. Engine rev **17**; all artefacts (`rankings`, `matrix`, `teams`, `summary`) were
+regenerated on it.
+
+**Engine (option B is the app's engine).** `battle()` in `app/src/lib/engine.ts` now carries
+PvPoke's float32 damage multipliers, form changes (Aegislash, Morpeko, Mimikyu's Disguise,
+Cramorant's Gulp Missile), the chance-effect meter, CMP ties, and PvPoke's whole decision layer
+(move timing, charged-move preferences and self-debuffs, shielding, the decideAction planner).
+PvPoke's own engine is vendored unmodified as option A (`app/vendor/pvpoke`, `src/lib/pvpoke.ts`)
+and is the reference: `npm run parity` (inside `npm run check`) replays 3,675 top-50 Great battles
+against a checksummed PvPoke sweep. A must stay 100%; B stands at **93.6% exact end HP / 97.7% same
+winner**, and that is its floor — raise it as the port improves, never lower it. Decision record
+and remaining gaps: `docs/superpowers/plans/2026-09-24-pvpoke-parity-engine.md`.
+
+**Rating.** Our `rating()`/`teamRating()` are now PvPoke's shape only: HP kept + damage dealt,
++100 per shield forced/kept on a win, soft cap above 700, curve below 300. The energy-kept bonus
+(rev 16) and the energy-debt penalty (rev 17) are gone. Optimised move timing is the default.
+
+**Rankings are PvPoke's ranking method on our battles** (`app/scripts/pvpoke-method.ts`, used by
+`build-matrix.ts`): five scenarios against PvPoke's ranked field, one re-weighting pass with
+PvPoke's override weights (`data-src/overrides-*.json`), categories 0–100 of the best, Overall as
+its weighted geometric mean with consistency. `npm run rank:pvpoke [league] [--engine=pvpoke]`
+checks the port — on PvPoke's engine it reproduces PvPoke's computed order exactly. Top-100 rank
+correlation with PvPoke's computed order: **Great 0.869, Ultra 0.931, Master 0.951** (old method
+0.499 / 0.525 / 0.820). Against PvPoke's *published* order Great is only ~0.44, and that is
+expected, not a bug: PvPoke's editors set 75% of the published score for most of the Great head.
+Rankings UI lost its tier selector, the Even/Graded (d1/d2) toggle and the Pressure category
+(user rulings — do not reinstate); loadouts are kept and scored by the same method. Teams keep
+their own opponent-depth tiers (`TIERS` in `build-teams.ts`) and d1/d2/syn passes. Return is
+taught where PvPoke teaches it (purifiable, level-25 CP within the cap).
+
+**Regenerating.** `npm run data` is the full rebuild; matrix + rankings take ~25 min, teams
+1–3 h on a quiet machine (11 h once under load). Run it plugged in, under `caffeinate`. If only
+rating/engine code changed, `npm run matrix && npm run teams && npm run summary` is enough, and
+bump `ENGINE_REV` in `build-matrix.ts` with a changelog line. After any change reaching
+`src/rules`, run `npm run build:coordinator` or the gate fails on a stale bundle.
+
+**Hosted Supabase, touched this session (details in item 2 of "Open" below).** Site URL and
+Redirect URLs are fixed. Twilio SMS and the OAuth server were switched off in the dashboard by the
+user on 2026-09-24 so two-account login testing works; the user later reported toggling the OAuth
+server again, and its current state was **not re-measured** — check the dashboard before relying on
+it. Still never `supabase config push`.
+
+**Known, not fixed.** B's remaining parity gap is mostly Thievul and a few shadows (see `npm run
+parity`'s "most winner flips"). 13 Great species PvPoke ranks are skipped because they need moves
+we do not model (e.g. Wobbuffet, Noctowl); Porygon2 in Master likewise. The app gate still times
+out under load — see "This machine can no longer run `npm run check` reliably"; rerun the failing
+files alone before believing a red.
 
 ---
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CATEGORIES, SCENARIOS, SCENARIO_IDS, SHIELD_STATES, SOFT_CAP, LOSS_CURVE, SHIELD_BONUS,
-  ENERGY_DEBT, bankedEnergy, consistencyScore, rating, weightedScore,
+  bankedEnergy, consistencyScore, rating, weightedScore,
 } from '../scenarios';
 import type { BattleResult } from '../types';
 import type { ScenarioId } from '../scenarios';
@@ -25,10 +25,9 @@ describe('rating', () => {
   it('gives no credit for energy carried out of a win, as PvPoke does not', () => {
     expect(rating(res({ energyA: 100 }), 1, 1)).toBe(rating(res({ energyA: 0 }), 1, 1));
   });
-  it('docks a loss that leaves the opponent holding energy', () => {
-    const clean = rating(res({ win: false, hpB: 40, energyB: 0 }), 1, 1);
-    const banked = rating(res({ win: false, hpB: 40, energyB: 100 }), 1, 1);
-    expect(banked).toBeLessThan(clean);
+  it('does not dock a loss for the energy the opponent holds, as PvPoke does not', () => {
+    expect(rating(res({ win: false, hpB: 40, energyB: 100 }), 1, 1))
+      .toBe(rating(res({ win: false, hpB: 40, energyB: 0 }), 1, 1));
   });
   it('soft-caps a blowout, so crushing is barely better than clean', () => {
     const clean = rating(res({ mine: 0.75, theirs: 0 }), 0, 0);
@@ -52,7 +51,6 @@ describe('rating', () => {
   });
   it('exposes its constants for the team rating to reuse', () => {
     expect(SHIELD_BONUS).toBe(100);
-    expect(ENERGY_DEBT).toBe(100);
   });
 });
 

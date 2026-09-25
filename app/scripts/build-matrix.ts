@@ -105,8 +105,10 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *      ranked field: five scenarios, opponent weights with its overrides,
  *      categories 0-100 of the best and its Overall. Tiers, the graded pass
  *      and Pressure are gone; Return is taught where PvPoke teaches it.
+ *  17  the rating's energy-debt penalty removed (single matchups and teams),
+ *      the last term in it PvPoke's rating does not have.
  */
-const ENGINE_REV = 16;
+const ENGINE_REV = 17;
 
 /**
  * Loadouts considered per species.

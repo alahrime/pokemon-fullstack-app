@@ -75,8 +75,8 @@ server again, and its current state was **not re-measured** — check the dashbo
 it. Still never `supabase config push`.
 
 **Known, not fixed.** B's remaining parity gap is mostly Thievul and a few shadows (see `npm run
-parity`'s "most winner flips"). 13 Great species PvPoke ranks are skipped because they need moves
-we do not model (e.g. Wobbuffet, Noctowl); Porygon2 in Master likewise. The app gate still times
+parity`'s "most winner flips"). `npm run rank:pvpoke` prints any PvPoke-ranked species it has
+to skip for a move we do not model; teaching Return cleared the last known ones. The app gate still times
 out under load — see "This machine can no longer run `npm run check` reliably"; rerun the failing
 files alone before believing a red.
 

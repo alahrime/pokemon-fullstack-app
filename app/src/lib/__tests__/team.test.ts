@@ -50,10 +50,10 @@ describe('teamRating', () => {
     const lost = teamRating({ win: false, hpFracA: 0, hpFracB: 0.6, shieldsA: 0, shieldsB: 1, energyA: 0, energyB: 0, aliveA: 0, aliveB: 2, steps: [] } as never);
     expect(won).toBeGreaterThan(lost);
   });
-  it('credits energy carried out of a won set', () => {
+  it('gives no credit for energy carried out of a won set, as PvPoke does not', () => {
     const base = { win: true, hpFracA: 0.5, hpFracB: 0, shieldsA: 0, shieldsB: 0, energyB: 0, aliveA: 1, aliveB: 0, steps: [] };
     expect(teamRating({ ...base, energyA: 100 } as never))
-      .toBeGreaterThan(teamRating({ ...base, energyA: 0 } as never));
+      .toBe(teamRating({ ...base, energyA: 0 } as never));
   });
   it('never returns a negative score', () => {
     expect(teamRating({ win: false, hpFracA: 0, hpFracB: 1, shieldsA: 0, shieldsB: 2, energyA: 0, energyB: 100, aliveA: 0, aliveB: 3, steps: [] } as never))

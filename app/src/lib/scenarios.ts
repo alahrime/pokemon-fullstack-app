@@ -1,4 +1,4 @@
-import { ENERGY_CAP, ENERGY_KEPT } from './engine';
+import { ENERGY_CAP } from './engine';
 import type { BattleMon, BattleResult, ChargeMove } from './types';
 
 /**
@@ -77,12 +77,6 @@ export function rating(r: BattleResult, _startShieldsA = 0, startShieldsB = 0): 
   if (r.win) {
     v += SHIELD_BONUS * Math.max(0, startShieldsB - r.shieldsB);
     v += SHIELD_BONUS * Math.max(0, r.shieldsA);
-    // Energy you walk out with, on the same footing as a kept shield. This is
-    // the credit that makes the engine's farm-down rule rational: holding a
-    // bar through a kill costs a little health, and without something on the
-    // other side of that trade the correct play would score worse than the
-    // careless one. See ENERGY_KEPT and canFarmDown in engine.ts.
-    v += ENERGY_KEPT * Math.min(1, r.energyA / ENERGY_CAP);
   }
 
   // The reverse, and it applies whenever they are left standing: energy they
@@ -168,7 +162,6 @@ export type CategoryId =
   | 'switches'
   | 'chargers'
   | 'attackers'
-  | 'pressure'
   | 'consistency';
 
 export interface Category {
@@ -246,14 +239,6 @@ export const CATEGORIES: readonly Category[] = [
     weights: { sh01: 0.45, sh12: 0.35, sh02: 0.2 },
   },
   {
-    id: 'pressure',
-    label: 'Pressure',
-    blurb:
-      'How reliably this Pokémon can threaten at all, independent of whether it wins: energy generated per turn, how quickly that becomes a charged move, and how much of the field its coverage is not resisted by. A Pokémon that always has a move ready is never a free switch-in.',
-    // Not a weighting — see pressureScore in lib/pressure.ts.
-    weights: {},
-  },
-  {
     id: 'consistency',
     label: 'Consistency',
     blurb:
@@ -280,26 +265,16 @@ export const CATEGORY_MARK: Record<CategoryId, string> = {
   switches: '\u21c4',     // ⇄  comes in on someone else's turn
   chargers: '\u26a1',     // ⚡ arrives holding energy
   attackers: '\u2726',    // ✦  raw offence
-  pressure: '\u25d1',     // ◑  how fast it forces the issue
   consistency: '\u2261',  // ≡  the same whatever the shields
 };
 
 export const CATEGORY_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 /**
- * What each slot of PvPoke's published `scores` array means.
- *
- * The ranking files carry six numbers per species with no key, so this was
- * recovered by correlating each column against our own categories over the 773
- * Great League species that appear in both. Four land unambiguously — leads
- * 0.835 on col0, closers 0.891 on col1, chargers on col3, attackers 0.858 on
- * col4 — and the remaining two follow by elimination in the same order.
- *
- * One caveat worth keeping visible: col5 correlates with *nothing* we compute
- * (−0.13 to 0.00 across all seven categories), so while its position says
- * consistency, our consistency and theirs are demonstrably not measuring the
- * same thing. Treat that column's side-by-side delta as uninformative until
- * one of the two definitions is pinned down.
+ * What each slot of PvPoke's published `scores` array means: its five role
+ * categories in Ranker.js's order, then consistency (RankerOverall.js).
+ * Once guessed by correlation; now exact, since the rankings are PvPoke's own
+ * method (scripts/pvpoke-method.ts) and land on these columns to a tenth.
  */
 export const PVPOKE_SCORE_COLUMNS: readonly CategoryId[] = [
   'leads',
@@ -329,8 +304,8 @@ export const PVPOKE_SCORE_COLUMNS: readonly CategoryId[] = [
  */
 export function consistencyScore(
   perScenario: Record<ScenarioId, number>,
-  // Retained so the call in makeOverall keeps its shape; the fast-move length
-  // is no longer priced here, for the reason given below.
+  // Unused: the fast-move length is no longer priced here, for the reason
+  // given below. Team scoring (build-teams) is the one caller left.
   _fastTurns?: number,
 ): number {
   // Spread across the whole nine-state lattice, which is the honest measure of
@@ -383,81 +358,6 @@ export function consistencyScore(
  * property of the pool, not of one Pokemon: nothing can be scored until every
  * candidate has been scored.
  */
-/**
- * The composite's exponents, exported so prose about it can be derived.
- *
- * `exportAll`'s `scale` field described Overall as "a weighted geometric mean
- * of the five role scores, strongest weighted 12x" long after Pressure and
- * Consistency became axes with their own exponents — and it was never quite
- * right about the roles either, since the weakest of the five carries no slot
- * at all. That text ships inside the JSON export, so it is documentation with
- * a reader. Deriving it from the same constants the maths uses is the rule the
- * README states for `QUERY_FORMS` and `UNSIMULATED_IDS`, applied here.
- */
-export const OVERALL_EXPONENTS = {
-  /** Slots for the role scores, strongest first. Any role past the last is dropped. */
-  roles: [12, 6, 4, 2],
-  consistency: 2,
-  pressure: 3,
-} as const;
-
-/** What the geometric mean is rooted by — every exponent that is spent. */
-export const OVERALL_ROOT =
-  OVERALL_EXPONENTS.roles.reduce((a, b) => a + b, 0) +
-  OVERALL_EXPONENTS.consistency +
-  OVERALL_EXPONENTS.pressure;
-
-export function makeOverall(
-  perScenario: readonly Record<ScenarioId, number>[],
-  fastTurns: readonly number[],
-  /** Pressure per variant, 0–1000. See lib/pressure.ts and BACKLOG §1o. */
-  pressures: readonly number[],
-): (i: number) => number {
-  const roleCats = CATEGORIES.filter((c) => c.id !== 'overall');
-  const raw = perScenario.map((per, i) =>
-    roleCats.map((c) =>
-      c.id === 'consistency'
-        ? consistencyScore(per, fastTurns[i])
-        : c.id === 'pressure'
-          ? (pressures[i] ?? 0)
-          : weightedScore(per, c.weights),
-    ),
-  );
-  const max = roleCats.map((_, ci) => Math.max(1, ...raw.map((r) => r[ci])));
-
-  return (i: number) => {
-    // 0–100 per category, floored at 1 so a zero cannot annihilate the product.
-    const norm = raw[i].map((v, ci) => Math.max(1, (v / max[ci]) * 100));
-    // Pressure and consistency are both axes rather than roles, so neither
-    // competes for the 12/6/4/2 slots — they carry their own exponents. See
-    // BACKLOG §1o for why pressure is composed here rather than added to the
-    // rating: the simulator already plays energy and resistance out inside a
-    // matchup, and pricing them again there would charge twice for one thing.
-    const byId = Object.fromEntries(roleCats.map((c, ci) => [c.id, norm[ci]]));
-    const pressure = byId.pressure ?? 1;
-    const consistency = byId.consistency ?? 1;
-    const roles = roleCats
-      .filter((c) => c.id !== 'consistency' && c.id !== 'pressure')
-      .map((c) => byId[c.id])
-      .sort((a, b) => b - a);
-    // Roles past the last slot carry no weight at all — with five roles and
-    // four slots, a species' weakest role is dropped rather than diluted.
-    let product = 1;
-    OVERALL_EXPONENTS.roles.forEach((e, n) => {
-      product *= Math.pow(roles[n], e);
-    });
-    const composite = Math.pow(
-      product *
-        Math.pow(consistency, OVERALL_EXPONENTS.consistency) *
-        Math.pow(pressure, OVERALL_EXPONENTS.pressure),
-      1 / OVERALL_ROOT,
-    );
-    // x10 so Overall shares the 0–1000 axis the category scores are shown on.
-    // Ordering is what the composite decides; the scale is presentation.
-    return Math.round(composite * 10);
-  };
-}
-
 /** Blend a scenario record by a category's weights. */
 export function weightedScore(
   perScenario: Record<ScenarioId, number>,

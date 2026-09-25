@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, CATEGORY_MARK, type CategoryId } from '../lib/scenarios';
-import { DEFAULT_TIER, ENGINE_REV, TIERS, exportAll, rankingsFor, type RankOrder, type RankRow } from '../lib/rankings';
+import { DEFAULT_TIER, ENGINE_REV, exportAll, rankingsFor, type RankRow } from '../lib/rankings';
 import { downloadCsv, downloadJson, stamp } from '../lib/exportData';
 import { LEAGUE_BY_ID, movesFor, parseRef, speciesOf } from '../lib/data';
 import { moveTypeStyle } from '../lib/pokemonTypes';
@@ -38,7 +38,7 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
 }) {
   const { shadow } = parseRef(row.ref);
   const sp = speciesOf(row.ref);
-  const gain = row.bestScore - row.score;
+  const gain = Math.round((row.bestScore - row.score) * 10) / 10;
   // Read back from the same calls the build made, so the row cannot show a
   // spread or a set that did not earn the score beside it.
   const spread = useMemo(() => (sp ? defaultSpreadFor(row.ref, league, true) : null), [sp, row.ref, league]);
@@ -145,13 +145,12 @@ export function RankingsScreen() {
   const { state } = useAppState();
   const league = state.league;
   const [cat, setCat] = useState<CategoryId>('overall');
-  const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
-  const [order, setOrder] = useState<RankOrder>('d1');
+  const tier = DEFAULT_TIER(league);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [open, setOpen] = useState<string | null>(null);
 
-  const rows = useMemo(() => rankingsFor(league, tier, cat, order), [league, tier, cat, order]);
+  const rows = useMemo(() => rankingsFor(league, tier, cat), [league, tier, cat]);
   const max = rows[0]?.score ?? 1000;
   const pages = Math.ceil(rows.length / pageSize);
   const slice = rows.slice(page * pageSize, page * pageSize + pageSize);
@@ -171,46 +170,24 @@ export function RankingsScreen() {
           <>
             <p className="info-pop-lead">{category.blurb}</p>
 
-        <strong>Category scores are mean battle ratings</strong>, on PvPoke's 0–1000 scale — every
-        pool member played against every other, at each of the nine shield states and both shield
-        policies, with each species swept across up to 12 loadouts. Ranked on the league's rated set
-        so the column is comparable; the best swept set is the right-hand column.
+        Scored by <strong>PvPoke's own ranking method</strong> run on our battles: each species
+        against PvPoke's ranked field, one battle per role at PvPoke's shields and starting energy.
+        A battle rating is <em>health kept plus damage dealt</em>, with +100 per shield forced or
+        kept on a win; wins above 700 are <strong>soft-capped</strong> and losses under 300{' '}
+        <strong>curved down</strong>. Each opponent is weighted by its own score and PvPoke's
+        override weights, and every column is <strong>0–100 of the best in it</strong>.
         <br />
-        A rating is <em>health kept plus damage dealt</em>, then three adjustments taken from
-        PvPoke's own ranker: a win earns <strong>+100 per shield it forced and per shield it kept</strong>,
-        wins above 700 are <strong>soft-capped</strong> so a blowout is worth barely more than a
-        clean win, and losses under 300 are <strong>curved down</strong> so failing to trade costs
-        more than losing gracefully. Their editor override — which replaces 75% of a published score
-        with a hand-set value — is deliberately <em>not</em> reproduced here.
+        <strong>Overall</strong> is PvPoke's weighted geometric mean of the role scores, sorted
+        strongest first (12×, 6×, 4×, 2×; Switches and Chargers share a slot), and consistency (2×).
+        Loadouts are each scored the same way; the league's rated set is ranked, the best swept set
+        is the right-hand column.
         <br />
-        <strong>Overall is not a battle rating.</strong> It is a weighted geometric mean of this
-        Pokémon's own five role scores, each first normalised against the best in that category, with
-        its strongest role weighted 12× and consistency 2×. That asks how strong a Pokémon is at what
-        it does rather than how it averages, so a specialist outranks a generalist. It is shown ×10
-        to share an axis with the other columns, but only its <em>order</em> is meaningful.
-        <br />
-        {order === 'd1' ? (
-          <>
-            <strong>Even field:</strong> every swept loadout, scored against a top-N opponent
-            cutoff where everyone inside it counts the same — beating rank 98 is worth beating rank 2.
-          </>
-        ) : (
-          <>
-            <strong>Graded field:</strong> the same opponent pool, but graded — each opponent
-            weighted by the first pass's own Overall, so beating the head of the format counts for
-            more than beating its shoulder. Both sides are restricted to their rated loadout, which
-            makes it a measure of the matchup rather than of the movepool.
-          </>
-        )}
-        <br />
-        PvPoke's <em>position</em> is shown alongside, not their score. Their number is a 0–100 index
-        topping out near 93; ours is a mean battle rating where 500 is even. Rescaling one onto the
-        other would produce a difference that looks like an error term and is nothing of the kind, so
-        only rank order — the part that genuinely compares — is shown. Both columns are ranked over
-        the species PvPoke publishes, which excludes Shadows. Engine rev {ENGINE_REV(league)}.
+        PvPoke's <em>position</em> is shown alongside. Their published Overall blends in an
+        editor-set score (75% of it for most of the Great League head), which no simulation
+        reproduces, so positions differ most there. Engine rev {ENGINE_REV(league)}.
           </>
         }
-        blurb="Every league-legal form, scored in seven roles at five opponent-pool depths."
+        blurb="Every league-legal form, ranked by PvPoke's method on our battles."
       />
       <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
         <div>
@@ -227,40 +204,6 @@ export function RankingsScreen() {
           </SegGroup>
         </div>
         <div>
-          <div className="hud-label">Pass</div>
-          <SegGroup>
-            <SegButton
-              active={order === 'd1'}
-              onClick={() => reset(() => setOrder('d1'))}
-              title="Every swept loadout, scored against a hard top-N opponent cutoff — every opponent inside it counts the same"
-            >
-              Even field
-            </SegButton>
-            <SegButton
-              active={order === 'd2'}
-              onClick={() => reset(() => setOrder('d2'))}
-              title="The same cutoff, but each opponent weighted by its own Overall; rated loadout only"
-            >
-              Graded field
-            </SegButton>
-          </SegGroup>
-        </div>
-        <div>
-          <div className="hud-label">Opponent pool</div>
-          <SegGroup>
-            {TIERS(league).map((t) => (
-              <SegButton
-                key={t}
-                active={tier === t}
-                onClick={() => reset(() => setTier(t))}
-                title={t === 'all' ? 'Every league-legal form' : `Only the top ${t} by Overall`}
-              >
-                {t === 'all' ? 'All' : `Top ${t}`}
-              </SegButton>
-            ))}
-          </SegGroup>
-        </div>
-        <div>
           <div className="hud-label">Export</div>
           <div className="best-teams-export">
             <button
@@ -268,15 +211,13 @@ export function RankingsScreen() {
               title="This view as CSV — one row per species, the columns as shown"
               onClick={() =>
                 downloadCsv(
-                  `paragon-rankings-${league}-${tier}-${cat}-${order}-${stamp()}`,
+                  `paragon-rankings-${league}-${cat}-${stamp()}`,
                   rows.map((r) => ({
                     rank: r.rank,
                     ref: r.ref,
                     name: r.name,
                     league,
-                    tier,
                     category: cat,
-                    pass: order,
                     score: r.score,
                     bestScore: r.bestScore,
                     bestLoadout: r.bestLoadout,
@@ -291,10 +232,10 @@ export function RankingsScreen() {
             </button>
             <button
               className="btn btn-sm"
-              title="Every tier, category and pass for this league, plus each species' swept loadouts"
+              title="Every category for this league, plus each species' swept loadouts"
               onClick={() => downloadJson(`paragon-rankings-full-${league}-${stamp()}`, exportAll(league))}
             >
-              All strata
+              All categories
             </button>
           </div>
         </div>
@@ -341,7 +282,7 @@ export function RankingsScreen() {
           {/* Keyed on everything that changes the contents, so React remounts
               these rows and the arrival replays: a new page, a new category or
               a new pool is dealt, not swapped. */}
-          <tbody className="stagger-drop-rows" key={`${cat}-${tier}-${order}-${page}-${pageSize}`}>
+          <tbody className="stagger-drop-rows" key={`${cat}-${page}-${pageSize}`}>
             {slice.map((r, n) => (
               <Row
                 key={r.ref}

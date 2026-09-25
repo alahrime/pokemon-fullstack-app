@@ -75,7 +75,10 @@ describe('the cores screen states a build the way the team screens do', () => {
     fireEvent.click(container.querySelector('.core-row')!);
     const card = container.querySelector('.core-timing')!;
     const who = card.querySelector('.core-timing-who')!.textContent!.trim();
-    const sp = [...SPECIES_BY_ID.values()].find((s) => who.startsWith(s.name));
+    // Longest name first, or "Marowak (Alolan)" would resolve to Marowak.
+    const sp = [...SPECIES_BY_ID.values()]
+      .filter((s) => who.startsWith(s.name))
+      .sort((a, b) => b.name.length - a.name.length)[0];
     expect(sp, `no species for "${who}"`).toBeTruthy();
     const rated = movesFor(sp!, 'great');
     expect(card.querySelector('.core-timing-fast')!.textContent).toContain(rated.fast.name);

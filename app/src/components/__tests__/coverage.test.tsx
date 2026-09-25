@@ -211,12 +211,11 @@ describe('exportAll', () => {
     const t = first.tiers[tierKeys[0]];
     // Scores are zipped back to their category names — nothing outside
     // rankings.ts should have to know the wire format is a bare array.
-    expect(Object.keys(t.d1)).toEqual(all.categories);
+    expect(Object.keys(t.rec)).toEqual(all.categories);
     expect(Object.keys(t.best)).toEqual(all.categories);
-    expect(Object.keys(t.d2)).toEqual(all.categories);
   });
-  it('says on the tin that Overall is not a battle rating', () => {
-    expect(exportAll('great').scale).toMatch(/Overall is NOT a battle rating/);
+  it("says on the tin that the scores are PvPoke's method", () => {
+    expect(exportAll('great').scale).toMatch(/PvPoke's ranking method/);
   });
 });
 

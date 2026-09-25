@@ -45,7 +45,7 @@ describe('Cores screen', () => {
 });
 
 describe('Rankings screen', () => {
-  it('changes category, pass and tier without throwing', () => {
+  it('changes category without throwing', () => {
     const { container } = renderApp(<RankingsScreen />);
     expect(clickAll(container, '.seg-btn', 20)).toBeGreaterThan(0);
   });

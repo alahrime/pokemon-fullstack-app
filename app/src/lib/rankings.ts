@@ -1,12 +1,6 @@
 import rankingsRaw from '../data/rankings.json';
 import matrixRaw from '../data/matrix.json';
-import {
-  CATEGORIES,
-  OVERALL_EXPONENTS,
-  OVERALL_ROOT,
-  PVPOKE_SCORE_COLUMNS,
-  type CategoryId,
-} from './scenarios';
+import { CATEGORIES, PVPOKE_SCORE_COLUMNS, type CategoryId } from './scenarios';
 import type { LeagueId } from './types';
 import { leagueArtefact } from './artefact';
 
@@ -35,8 +29,6 @@ interface RawEntry {
   name: string;
   loadouts: RawLoadout[];
   tiers: Record<string, RawTier>;
-  /** Second-derivative scores per tier, each in CATEGORIES order. */
-  d2: Record<string, number[]>;
   pvpoke: { score: number; scores: number[] } | null;
   /** Latent strength per tier from the Bradley-Terry fit, log-odds. See btFit.
    *  null where the ref is outside that tier. */
@@ -109,17 +101,18 @@ export function btCyclicByTier(lg: LeagueId): { tier: string; cyclicPct: number;
 export function btComparison(lg: LeagueId, tier: string) {
   // Both sides restricted to the same tier, so the comparison is like with
   // like. The fit is run per tier for exactly this reason.
+  const overall = (e: RawEntry) => e.tiers[tier].rec[0];
   const ent = RANKINGS[lg].entries.filter(
-    (e) => e.d2[tier] && e.bt?.[tier] !== undefined && e.bt?.[tier] !== null,
+    (e) => e.tiers[tier] && e.bt?.[tier] !== undefined && e.bt?.[tier] !== null,
   );
-  const byComposite = [...ent].sort((a, b) => b.d2[tier][0] - a.d2[tier][0]);
+  const byComposite = [...ent].sort((a, b) => overall(b) - overall(a));
   const byBt = [...ent].sort((a, b) => (b.bt![tier] ?? 0) - (a.bt![tier] ?? 0));
   const cPos = new Map(byComposite.map((e, i) => [e.ref, i + 1]));
   const bPos = new Map(byBt.map((e, i) => [e.ref, i + 1]));
   const rows = byComposite.map((e) => ({
     ref: e.ref,
     name: e.name,
-    composite: e.d2[tier][0],
+    composite: overall(e),
     compositeRank: cPos.get(e.ref)!,
     bt: e.bt![tier] ?? 0,
     btRank: bPos.get(e.ref)!,
@@ -178,14 +171,12 @@ export interface RankRow {
   /**
    * PvPoke's position in the same ordering, over the same set of species.
    *
-   * Deliberately a rank and not a score. Their number is a 0–100 index where
-   * the top of the format sits near 93; ours is a mean battle rating where 500
-   * is the win/loss line. Rescaling one onto the other produces a difference that
-   * looks like an error term and is nothing of the kind — the two are not
-   * measuring the same quantity. Rank order is the part that is genuinely
-   * comparable, so that is what is shown.
+   * Our scores are PvPoke's own method on our battles, on the same 0-100 axis.
+   * A rank is still what is shown: their published Overall blends in editor
+   * scores (75% of the number for most of the Great League head), which no
+   * simulation reproduces.
    *
-   * Null for Shadows, which PvPoke does not publish separately.
+   * Null for anything PvPoke does not rank.
    */
   pvpokeRank: number | null;
   /** Their rank minus ours: positive means we rate it higher than they do. */
@@ -195,13 +186,8 @@ export interface RankRow {
 const CAT_INDEX = new Map(CATEGORIES.map((c, i) => [c.id, i]));
 
 /**
- * PvPoke publishes Overall as `score` and the other six in `scores`, both on a
- * 0–100 scale where ~93 is the top of the format. Ours is a mean battle rating
- * where the category columns are battle ratings and Overall is a normalised
-   * composite. The two are not
- * measuring the same thing on the same axis, so the comparison is presented as
- * a rank-order sanity check rather than an equivalence — see the note the
- * Rankings screen carries.
+ * PvPoke publishes Overall as `score` and the other six in `scores`, on the
+ * 0-100 scale ours use. See RankRow.pvpokeRank on why positions are compared.
  */
 function pvpokeRaw(entry: RawEntry, cat: CategoryId): number | null {
   if (!entry.pvpoke) return null;
@@ -212,24 +198,9 @@ function pvpokeRaw(entry: RawEntry, cat: CategoryId): number | null {
 }
 
 /**
- * Which pass to read.
+ * Sorted rankings are memoised per (league, tier, category).
  *
- * `d1` is the first derivative: every swept loadout, scored against a top-N
- * opponent cutoff where everyone inside it counts equally. `d2` keeps the same
- * cutoff but grades the inside of it by d1's own Overall, so beating the head
- * of the format is worth more than beating its shoulder, and reads only the
- * rated loadout on both sides — a measure of the matchup, not the movepool.
- *
- * Both run at every tier, and the two axes are independent: the tier decides
- * who is in the room, the pass decides whether they all count the same.
- */
-export type RankOrder = 'd1' | 'd2';
-
-/**
- * Sorted rankings are memoised per (league, tier, category, order).
- *
- * There are 3 x 5 x 7 x 2 = 210 possible views over ~2300 entries, and the
- * screen re-derives one on every control click. The underlying numbers are a
+ * The screen re-derives a view on every control click. The underlying numbers are a
  * build artefact and never change at runtime, so a view computed once is
  * correct forever — the cache has no invalidation because it has nothing to
  * invalidate.
@@ -240,35 +211,22 @@ export function rankingsFor(
   lg: LeagueId,
   tier: string,
   cat: CategoryId,
-  order: RankOrder = 'd1',
 ): RankRow[] {
-  const key = `${lg}|${tier}|${cat}|${order}`;
+  const key = `${lg}|${tier}|${cat}`;
   const hit = viewCache.get(key);
   if (hit) return hit;
-  const out = computeRankings(lg, tier, cat, order);
+  const out = computeRankings(lg, tier, cat);
   viewCache.set(key, out);
   return out;
 }
 
-/**
- * What the numbers in the export mean, derived from the maths that makes them.
- *
- * This ships inside the JSON a reader takes away, so it is the one piece of
- * prose here with an audience that cannot check it against the source. Built
- * from `OVERALL_EXPONENTS` for that reason: the previous hand-written version
- * still called Overall "a weighted geometric mean of the five role scores",
- * which predated Pressure and Consistency becoming axes with their own
- * exponents, and glossed over the weakest role carrying no slot at all.
- */
+/** What the numbers in the export mean. Ships inside the JSON export. */
 export const OVERALL_SCALE_NOTE = [
-  'Category columns are 0-1000 battle ratings (health kept + damage dealt, with PvPoke',
-  'shield-pressure credit, a soft cap on blowouts above 700 and a curve on losses below 300).',
-  'Overall is NOT a battle rating: it is a weighted geometric mean, each factor normalised',
-  'against the best in its category, rooted by the total weight',
-  `(${OVERALL_ROOT}) and shown x10. The role scores are sorted strongest first and take the`,
-  `slots ${OVERALL_EXPONENTS.roles.join('/')} — a species' remaining roles carry no weight.`,
-  `Pressure (^${OVERALL_EXPONENTS.pressure}) and Consistency (^${OVERALL_EXPONENTS.consistency})`,
-  'are axes rather than roles and do not compete for those slots. Only its order is meaningful.',
+  "PvPoke's ranking method (Ranker.js, RankerOverall.js) run on our battles.",
+  "Each category is 0-100 of the best in it: a mean battle rating against PvPoke's field, each",
+  "opponent weighted by its own score and PvPoke's override weights, blowouts above 700 softened",
+  'and losses below 300 curved. Overall is the weighted geometric mean of the sorted categories',
+  '(12/6/4/2, Switches and Chargers sharing a slot) and Consistency (2), as PvPoke computes it.',
 ].join(' ');
 
 /**
@@ -287,7 +245,6 @@ export function exportAll(lg: LeagueId) {
     tiers: league.tiers,
     defaultTier: league.defaultTier,
     categories: league.categories,
-    passes: ['d1', 'd2'] as RankOrder[],
     scale: OVERALL_SCALE_NOTE,
     species: league.entries.map((e) => ({
       ref: e.ref,
@@ -301,10 +258,9 @@ export function exportAll(lg: LeagueId) {
         Object.entries(e.tiers).map(([t, v]) => [
           t,
           {
-            d1: Object.fromEntries(league.categories.map((c, i) => [c, v.rec[i]])),
+            rec: Object.fromEntries(league.categories.map((c, i) => [c, v.rec[i]])),
             best: Object.fromEntries(league.categories.map((c, i) => [c, v.best[i]])),
             bestSet: v.set,
-            d2: Object.fromEntries(league.categories.map((c, i) => [c, e.d2[t][i]])),
           },
         ]),
       ),
@@ -312,13 +268,10 @@ export function exportAll(lg: LeagueId) {
   };
 }
 
-function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: RankOrder): RankRow[] {
+function computeRankings(lg: LeagueId, tier: string, cat: CategoryId): RankRow[] {
   const league = RANKINGS[lg];
   const ci = CAT_INDEX.get(cat)!;
-  const scoreOf = (e: RawEntry) =>
-    order === 'd2'
-      ? (e.d2[tier] ?? e.d2[league.defaultTier])[ci]
-      : (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
+  const scoreOf = (e: RawEntry) => (e.tiers[tier] ?? e.tiers[league.defaultTier]).rec[ci];
 
   // Their ranking is built over only the species they publish, so ours has to
   // be too or the two positions would be counting different populations and
@@ -337,9 +290,7 @@ function computeRankings(lg: LeagueId, tier: string, cat: CategoryId, order: Ran
       ref: e.ref,
       name: e.name,
       score: scoreOf(e),
-      // d2 fixes the loadout by definition, so there is no alternative set to
-      // gain from; reporting the d1 best there would be comparing two passes.
-      bestScore: order === 'd2' ? scoreOf(e) : t.best[ci],
+      bestScore: t.best[ci],
       bestLoadout: e.loadouts[t.set]?.[0] ?? e.loadouts[0]?.[0] ?? '',
       bestIsRecommended: t.set === 0,
       loadouts: e.loadouts,

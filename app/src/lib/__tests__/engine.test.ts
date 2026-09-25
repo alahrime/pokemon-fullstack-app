@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PVP_BONUS, ENERGY_CAP, ENERGY_KEPT, HP_WEIGHT, SHADOW_ATK_MULT, SHADOW_DEF_MULT,
+  PVP_BONUS, ENERGY_CAP, HP_WEIGHT, SHADOW_ATK_MULT, SHADOW_DEF_MULT,
   STAGE_MIN, STAGE_MAX, buffMultiplier, dmg, battle, mkBattleMon, chargesOf, fastMoveCounts,
   rankedOpponents,
 } from '../engine';
@@ -53,10 +53,7 @@ describe('dmg', () => {
 describe('constants', () => {
   it('carries the Trainer Battle bonus as float32 1.3, as PvPoke does', () => expect(PVP_BONUS).toBe(Math.fround(1.3)));
   it('caps energy at 100', () => expect(ENERGY_CAP).toBe(100));
-  it('prices a kept bar and full HP on the same scale as the rating', () => {
-    expect(ENERGY_KEPT).toBe(100);
-    expect(HP_WEIGHT).toBe(500);
-  });
+  it('prices full HP on the same scale as the rating', () => expect(HP_WEIGHT).toBe(500));
   it("uses PvPoke's shadow multipliers, 1.2 and float32 5/6", () => {
     expect([SHADOW_ATK_MULT, SHADOW_DEF_MULT]).toEqual([1.2, 0.83333331]);
   });

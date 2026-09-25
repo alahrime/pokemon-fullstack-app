@@ -142,9 +142,9 @@ describe('MovesPanel', () => {
     // Azumarill is over the threshold in both columns and gets pickers; a
     // Pokemon with one of each gets the note instead, which is what answers
     // "is there more, or is that everything?".
-    const magikarp = SPECIES_BY_ID.get('magikarp')!;
+    const combee = SPECIES_BY_ID.get('combee')!;
     const { container } = renderApp(
-      <MovesPanel species={magikarp} moveIdx={0} onMoveIdx={() => {}}
+      <MovesPanel species={combee} moveIdx={0} onMoveIdx={() => {}}
         chargeIds={[]} onChargeIds={() => {}} />);
     const notes = [...container.querySelectorAll('.move-slot-note')].map((n) => n.textContent);
     expect(notes).toHaveLength(2);

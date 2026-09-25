@@ -87,6 +87,11 @@ export interface Species {
    */
   bestIvBB?: Partial<Record<LeagueId, number>>;
   /**
+   * CP at level 25, for purifiable species only: PvPoke teaches Return where
+   * this fits under the league cap (a purified mon arrives at level 25).
+   */
+  level25CP?: number;
+  /**
    * Present only for species that change form mid-battle (Aegislash, Morpeko,
    * Mimikyu, Cramorant): every form reachable from this one, keyed by PvPoke id
    * and including this one. Generated from PvPoke's `formChange`.

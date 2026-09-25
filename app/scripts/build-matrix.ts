@@ -26,7 +26,6 @@
  */
 import { writeFileSync, readFileSync } from 'node:fs';
 import { fitBradleyTerry } from './bradley-terry';
-import { pressureScore, pressureWeight } from '../src/lib/pressure';
 import { resolve, join } from 'node:path';
 import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { cpus } from 'node:os';
@@ -38,18 +37,17 @@ import {
   movesFor,
   LEAGUES,
 } from '../src/lib/data';
-import { battle, bestSpreadFor, mkBattleMon } from '../src/lib/engine';
+import { battle, bestSpreadFor, getEntry, mkBattleMon } from '../src/lib/engine';
 import {
   SCENARIOS,
-  SCENARIO_IDS,
   CATEGORIES,
-  makeOverall,
   rating,
   startingEnergy,
-  weightedScore,
-  consistencyScore,
-  type ScenarioId,
 } from '../src/lib/scenarios';
+import {
+  PV_CP, PV_SCENARIOS, adjRatings, categoryScore, loadPvPokeNode, normalise, opponentWeight, overallScore,
+  pvField, pvStatics, startEnergy,
+} from './pvpoke-method';
 import type { BattleMon, ChargeMove, FastMove, LeagueId, ShieldPolicy, Species } from '../src/lib/types';
 
 const OUT = resolve(process.cwd(), 'src/data');
@@ -100,8 +98,15 @@ const SRC = resolve(process.cwd(), '..', 'data-src');
  *      charged-move preferences, shielding and the decideAction planner - in
  *      place of our own AI and farm-down rule. Against PvPoke's engine on the
  *      3,675-battle parity fixture: 93.6% exact end HP, 97.7% same winner.
+ *  16  the rating's energy-kept bonus removed (single matchups and teams). It
+ *      existed to reward the farm-down rule, which rev 15 replaced with
+ *      PvPoke's decisions; PvPoke's rating has no such term. Rankings now
+ *      use PvPoke's ranking method (scripts/pvpoke-method.ts) against its
+ *      ranked field: five scenarios, opponent weights with its overrides,
+ *      categories 0-100 of the best and its Overall. Tiers, the graded pass
+ *      and Pressure are gone; Return is taught where PvPoke teaches it.
  */
-const ENGINE_REV = 15;
+const ENGINE_REV = 16;
 
 /**
  * Loadouts considered per species.
@@ -116,54 +121,19 @@ const FAST_K = 3;
 const CHARGE_K = 4;
 const MOVESETS_MAX = 12;
 
-/**
- * Opponent re-weighting when seeding the order: iterate until the order stops
- * changing, not for a fixed count.
- *
- * This is a fixed-point iteration — score everyone with uniform weights, feed
- * those scores back as the weights, rescore. It was capped at 4 rounds, and
- * measurement showed 4 is not enough. In Great the order is still moving at
- * round 4 (325 of 1140 refs shifting, largest jump 9 places) and does not
- * settle until round 7:
- *
- *   round 1: 1096 moved   round 4: 325 moved   round 7: 0
- *   round 2:  954         round 5:  71
- *   round 3:  631         round 6:  44
- *
- * That matters more than it looks: the seeded order decides tier membership,
- * so "top 50" and "top 100" were drawn from a list still in motion, and every
- * tier average, d2 weight and team candidate pool inherited it.
- *
- * The loop costs no simulation — same matrix, different weights — so running
- * it to convergence is nearly free. The cap is a guard against a cycle, not a
- * budget; if it is ever hit, the order is oscillating and that is worth
- * knowing rather than silently truncating.
- */
-const WEIGHT_ROUNDS_MAX = 40;
+
 
 /**
- * Opponent pools the rankings are computed against, as "top N by Overall".
- *
- * One ranking over the whole pool answers "how does this do against every
- * released form", which is not a question anyone has: several hundred of the
- * 1140 in Great are unevolved, unranked or simply outclassed, and beating them
- * says nothing. Restricting the opponent set asks the question people mean,
- * and the answer genuinely differs by N — a mon can farm the mid-field while
- * folding to the top 20. 0 means the whole pool.
+ * PvPoke's method has no opponent tiers - it weights every opponent by its
+ * own score - so the rankings carry one, the whole field.
  */
-const TIERS = [50, 100, 200, 300, 500, 0] as const;
-const tierLabel = (n: number) => (n === 0 ? 'all' : String(n));
-
-/** Which tier the UI opens on, and which orders the shipped matrix. */
-const DEFAULT_TIER = 100;
+const ALL = 'all';
 
 /** Team-builder pool size. Beyond this a builder is offering noise. */
 const TEAM_POOL_N = 100;
 
 const S = SCENARIOS.length;
 
-/** Position of Overall within CATEGORIES, which score arrays are ordered by. */
-const OVERALL = CATEGORIES.findIndex((c) => c.id === 'overall');
 
 /**
  * Both shield policies, simulated for every matchup.
@@ -194,49 +164,6 @@ const POLICIES: readonly ShieldPolicy[] = ['always', 'read'];
  */
 const OPTIMAL_TIMING = true;
 
-/**
- * Second-order weighting.
- *
- * The first pass answers "how does this do against the top N" with every
- * opponent inside the cutoff counting equally — beating rank 98 is worth as
- * much as beating rank 2. The second pass keeps the cutoff but grades the
- * inside of it, weighting each opponent by the first pass's own Overall, so
- * what a mon beats matters as much as how many. Both sides are restricted to
- * their rated loadout, which makes it a measure of the matchup rather than of
- * the movepool.
- *
- * Run at every tier, because the cutoff and the weighting answer different
- * questions and compose: "top 50, graded" is the sharp read of the format's
- * head, "all, graded" is the whole roster with the tail fading out on its own
- * rather than being chopped.
- *
- * Costs no simulation at any tier: same matrix, different weights.
- *
- * ── Weighted by log of RANK, not by score ────────────────────────────────
- * This used to be `((o - min) / span) ** 3` — the first-pass Overall
- * normalised against the field's worst, then cubed. It looked concentrated and
- * measured almost flat, because scores are compressed and the floor is set by
- * the very bottom of the roster. Unown at 166 anchored the span, which put
- * rank 100 at 82% of the way up it; cubing 0.82 is still 0.55.
- *
- * What that produced, in Great:
- *
- *   rank 50 carried 63% of rank 1's weight, rank 200 carried 46%,
- *   and the bottom HALF of the roster held 22% of all weight —
- *   nearly twice what the top 50 held (11.6%).
- *
- * So beating the 200th-best Pokemon counted almost half as much as beating the
- * best one, and the tail collectively outvoted the head. That is not a graded
- * pass, it is an average wearing one.
- *
- * Rank is the honest axis: it is what "top meta" means, and it does not care
- * how compressed the score scale happens to be. `1 - ln(rank)/ln(N)` squared
- * gives rank 1 the full weight, rank 10 about 45%, rank 100 about 12%, rank
- * 500 about 1%, and the last-ranked Pokemon exactly zero. Top 50 now hold
- * 38.7% and the bottom half 3.4% — beating Unown moves the needle by an
- * epsilon, which is the whole point.
- */
-const D2_POWER = 3;
 
 // ── Moveset enumeration ─────────────────────────────────────────────────────
 
@@ -282,8 +209,11 @@ function loadoutsFor(sp: Species, lg: LeagueId, usage: Usage): Loadout[] {
   const uc = (m: ChargeMove) => u?.charge.get(m.id.split('|')[0]) ?? 0;
 
   const rec = movesFor(sp, lg);
+  // PvPoke teaches Return only where a purified mon (level 25) fits the cap.
+  const cap = LEAGUES.find((l) => l.id === lg)!.cap;
+  const learnable = sp.chargeMoves.filter((c) => c.id !== 'RETURN' || (sp.level25CP ?? Infinity) <= cap);
   const fasts = [...sp.fastMoves].sort((a, b) => uf(b) - uf(a)).slice(0, FAST_K);
-  const charges = [...sp.chargeMoves].sort((a, b) => uc(b) - uc(a)).slice(0, CHARGE_K);
+  const charges = [...learnable].sort((a, b) => uc(b) - uc(a)).slice(0, CHARGE_K);
   if (!fasts.some((f) => f.id === rec.fast.id)) fasts.push(rec.fast);
   for (const c of rec.charges) if (!charges.some((x) => x.id === c.id)) charges.push(c);
 
@@ -326,8 +256,6 @@ interface Variant {
   recommended: boolean;
   mon: BattleMon;
   fastTurns: number;
-  /** Pressure, 0–1000. See lib/pressure.ts and BACKLOG §1o. */
-  pressure: number;
   label: string;
 }
 
@@ -350,26 +278,11 @@ function buildPool(lg: LeagueId): { variants: Variant[]; foes: BattleMon[]; refs
         recommended: l.recommended,
         mon: mkBattleMon(best, l.fast, l.charges, sp.types),
         fastTurns: l.fast.turns,
-        // Computed against a FIXED reference field — the default tier — rather
-        // than per tier. Coverage breadth is a property of a movepool against
-        // the meta, not something that should change definition when the
-        // opponent cutoff moves, and recomputing it per tier would be 150M
-        // extra type lookups for a number that means the same thing.
-        pressure: 0,
         label: `${l.fast.name} · ${l.charges.map((c) => c.name).join(' / ')}`,
       });
     });
     const rec = movesFor(sp, lg);
     foes.push(mkBattleMon(best, rec.fast, rec.charges, sp.types));
-  }
-  // Reference field for coverage breadth: the default tier's species.
-  const refField = refs
-    .slice(0, Math.min(DEFAULT_TIER, refs.length))
-    .map((r) => speciesOf(r))
-    .filter((x): x is NonNullable<typeof x> => !!x);
-  for (const v of variants) {
-    const sp = speciesOf(v.ref);
-    if (sp) v.pressure = pressureScore(v.mon.fast, v.mon.charges, refField, sp.id);
   }
   return { variants, foes, refs };
 }
@@ -408,105 +321,118 @@ function sweep(variants: Variant[], foes: BattleMon[], out: Uint8Array, from: nu
 
 // ── Worker plumbing ─────────────────────────────────────────────────────────
 
-interface Job { league: LeagueId; from: number; to: number; buffer: SharedArrayBuffer }
+// ── Rankings sweep: PvPoke's method (scripts/pvpoke-method.ts) ───────────────
+
+interface PvVariant {
+  ref: string;
+  set: number;
+  recommended: boolean;
+  /** False for a field member we do not rank (a Master form under 3000 CP):
+   *  it gets a row only so its own score can weight the others. */
+  ranked: boolean;
+  mon: BattleMon;
+  label: string;
+  moves: [string, string[]];
+}
+interface PvPool { variants: PvVariant[]; field: { ref: string; mon: BattleMon; weight: number }[] }
+
+/**
+ * Every loadout of every ranked species, at PvPoke's default IVs, and
+ * PvPoke's field: its published list with its published movesets. Rebuilt
+ * identically in every worker, like buildPool.
+ */
+function buildPvPool(lg: LeagueId): PvPool {
+  const cp = PV_CP[lg];
+  const pv = loadPvPokeNode();
+  const { list, weightOf } = pvField(cp);
+  const usage = loadUsage(lg);
+  const entryOf = new Map<string, ReturnType<typeof getEntry>['entry']>();
+  const monAt = (ref: string, fast: FastMove, charges: ChargeMove[]) => {
+    let e = entryOf.get(ref);
+    if (!e) {
+      const st = pvStatics(pv, ref, cp, fast.id, charges.map((c) => c.id));
+      e = getEntry(ref, st.iv, lg, st.lvl > 50).entry;
+      entryOf.set(ref, e);
+    }
+    return mkBattleMon(e, fast, charges, speciesOf(ref)!.types);
+  };
+  const field: PvPool['field'] = [];
+  for (const r of list) {
+    const sp = speciesOf(parseRef(r.speciesId).id);
+    const ids = r.moveset.filter((m) => m && m !== 'none');
+    const fast = sp?.fastMoves.find((m) => m.id === ids[0]);
+    const charges = ids.slice(1, 3).map((c) => sp?.chargeMoves.find((m) => m.id === c));
+    if (!sp || !fast || charges.some((c) => !c)) continue;
+    field.push({ ref: r.speciesId, mon: monAt(r.speciesId, fast, charges as ChargeMove[]), weight: weightOf(r.speciesId) });
+  }
+  const variants: PvVariant[] = [];
+  const refs = opponentCandidatesFor(lg);
+  for (const ref of refs) {
+    const sp = speciesOf(ref)!;
+    loadoutsFor(sp, lg, usage).forEach((l, set) =>
+      variants.push({
+        ref, set, recommended: l.recommended, ranked: true,
+        mon: monAt(ref, l.fast, l.charges),
+        label: `${l.fast.name} · ${l.charges.map((c) => c.name).join(' / ')}`,
+        moves: [l.fast.id, l.charges.map((c) => c.id)],
+      }));
+  }
+  const inRefs = new Set(refs);
+  for (const f of field)
+    if (!inRefs.has(f.ref))
+      variants.push({ ref: f.ref, set: 0, recommended: true, ranked: false, mon: f.mon, label: '',
+        moves: [f.mon.fast.id, f.mon.charges.map((c) => c.id)] });
+  return { variants, field };
+}
+
+/** Adjusted rating of every variant against every field member, per scenario. */
+function pvSweep(pool: PvPool, out: Uint16Array, from: number, to: number) {
+  const nJ = pool.field.length, nS = PV_SCENARIOS.length;
+  for (let i = from; i < to; i++) {
+    const me = pool.variants[i].mon;
+    for (let j = 0; j < nJ; j++)
+      for (let s = 0; s < nS; s++) {
+        const sc = PV_SCENARIOS[s];
+        const r = battle(me, pool.field[j].mon, sc.shields[0], sc.shields[1], startEnergy(me.fast, sc.energy), 0, false, true);
+        out[(i * nJ + j) * nS + s] = adjRatings(r, sc.shields)[0];
+      }
+  }
+}
+
+// ── Worker plumbing ─────────────────────────────────────────────────────────
+
+interface Job { kind: 'matrix' | 'pv'; league: LeagueId; from: number; to: number; buffer: SharedArrayBuffer }
 
 if (!isMainThread) {
-  const { league, from, to, buffer } = workerData as Job;
-  const { variants, foes } = buildPool(league);
-  sweep(variants, foes, new Uint8Array(buffer), from, to);
+  const { kind, league, from, to, buffer } = workerData as Job;
+  if (kind === 'pv') pvSweep(buildPvPool(league), new Uint16Array(buffer), from, to);
+  else {
+    const { variants, foes } = buildPool(league);
+    sweep(variants, foes, new Uint8Array(buffer), from, to);
+  }
   parentPort!.postMessage('done');
 }
 
-async function sweepParallel(lg: LeagueId, variants: Variant[], foes: BattleMon[]): Promise<Uint8Array> {
-  const cells = variants.length * foes.length * S * POLICIES.length;
-  const buffer = new SharedArrayBuffer(cells);
-  const view = new Uint8Array(buffer);
+/** Run `run` over [0, rows) on up to 8 workers sharing `buffer`. */
+async function parallel(kind: Job['kind'], lg: LeagueId, rows: number, buffer: SharedArrayBuffer, run: (from: number, to: number) => void) {
   const workers = Math.max(1, Math.min(cpus().length - 1, 8));
-  if (workers === 1) {
-    sweep(variants, foes, view, 0, variants.length);
-    return view;
-  }
-  const chunk = Math.ceil(variants.length / workers);
+  if (workers === 1) return run(0, rows);
+  const chunk = Math.ceil(rows / workers);
   await Promise.all(
     Array.from({ length: workers }, (_, w) => {
       const from = w * chunk;
-      const to = Math.min(variants.length, from + chunk);
+      const to = Math.min(rows, from + chunk);
       if (from >= to) return Promise.resolve();
       return new Promise<void>((res, rej) => {
-        const worker = new Worker(new URL(import.meta.url), {
-          workerData: { league: lg, from, to, buffer } satisfies Job,
-        });
+        const worker = new Worker(new URL(import.meta.url), { workerData: { kind, league: lg, from, to, buffer } satisfies Job });
         worker.on('message', () => res());
         worker.on('error', rej);
       });
     }),
   );
-  return view;
 }
-
-// ── Aggregation ─────────────────────────────────────────────────────────────
 
 const decode = (b: number) => (b / 255) * 1000;
-
-/** Mean rating per scenario for every variant, against a weighted foe set. */
-/**
- * @param policy index into POLICIES, or -1 to average across them.
- */
-function scoreAgainst(
-  variants: Variant[],
-  nF: number,
-  matrix: Uint8Array,
-  weights: Float64Array,
-  selfIdx: Int32Array,
-  policy: number,
-): Record<ScenarioId, number>[] {
-  const P = POLICIES.length;
-  const rows: Record<ScenarioId, number>[] = [];
-  for (let i = 0; i < variants.length; i++) {
-    const acc = new Float64Array(S);
-    let wsum = 0;
-    const skip = selfIdx[i];
-    for (let j = 0; j < nF; j++) {
-      if (j === skip) continue;
-      const w = weights[j];
-      if (w === 0) continue;
-      const base = (i * nF + j) * S;
-      for (let s = 0; s < S; s++) {
-        const cell = (base + s) * P;
-        if (policy >= 0) acc[s] += decode(matrix[cell + policy]) * w;
-        else {
-          let sum = 0;
-          for (let p = 0; p < P; p++) sum += decode(matrix[cell + p]);
-          acc[s] += (sum / P) * w;
-        }
-      }
-      wsum += w;
-    }
-    const row = {} as Record<ScenarioId, number>;
-    SCENARIO_IDS.forEach((id, s) => {
-      row[id] = wsum === 0 ? 0 : acc[s] / wsum;
-    });
-    rows.push(row);
-  }
-  return rows;
-}
-
-/** Best Overall any loadout of each ref achieves, given per-variant rows. */
-function perRefBest(variants: Variant[], rows: Record<ScenarioId, number>[], refIdx: Int32Array, nRefs: number) {
-  const best = new Float64Array(nRefs).fill(-Infinity);
-  const bestVariant = new Int32Array(nRefs).fill(-1);
-  // Overall is normalised against this row set's own maxima, so it has to be
-  // built per call — the maxima differ between tiers and between passes.
-  const overallOf = makeOverall(rows, variants.map((v) => v.fastTurns), variants.map((v) => v.pressure));
-  for (let i = 0; i < variants.length; i++) {
-    const o = overallOf(i);
-    if (o > best[refIdx[i]]) {
-      best[refIdx[i]] = o;
-      bestVariant[refIdx[i]] = i;
-    }
-  }
-  return { best, bestVariant };
-}
 
 function loadReference(lg: LeagueId) {
   const file = { great: 'rankings-1500.json', ultra: 'rankings-2500.json', master: 'rankings-10000.json' }[lg];
@@ -523,120 +449,24 @@ function loadReference(lg: LeagueId) {
 async function main() {
   const rankings: Record<string, unknown> = {};
   const matrices: Record<string, unknown> = {};
-
+  const categories = CATEGORIES.map((c) => c.id);
   for (const league of LEAGUES) {
     const lg = league.id;
     const t0 = performance.now();
+
+    // The scenario matrix: every loadout against every rated foe, our eleven
+    // scenarios and both shield policies. Teams are built on it, and the
+    // Bradley-Terry fit below reads it; the rankings do not.
     const { variants, foes, refs } = buildPool(lg);
     const nF = foes.length;
-
+    const mBuf = new SharedArrayBuffer(variants.length * nF * S * POLICIES.length);
+    await parallel('matrix', lg, variants.length, mBuf, (f, t) => sweep(variants, foes, new Uint8Array(mBuf), f, t));
+    const matrix = new Uint8Array(mBuf);
     const refPos = new Map(refs.map((r, i) => [r, i]));
-    const refIdx = Int32Array.from(variants.map((v) => refPos.get(v.ref)!));
-    // A variant must not be scored against its own species: it would be
-    // playing a mirror it is guaranteed to draw or win by CMP, which flatters
-    // whatever is currently top of the pool.
-    const selfIdx = refIdx;
-
-    const matrix = await sweepParallel(lg, variants, foes);
-    const tSim = performance.now();
-
-    // Seed an order by re-weighting foes by their own strength until it settles.
-    let weights = new Float64Array(nF).fill(1);
-    let rows: Record<ScenarioId, number>[] = [];
-    let prevOrder: string | null = null;
-    let rounds = 0;
-    // How far the order is still moving when the guard bites. "Never settled"
-    // on its own cannot distinguish two refs trading places forever from a
-    // list genuinely churning, and those call for opposite responses.
-    let moved = 0;
-    let worstJump = 0;
-    for (; rounds < WEIGHT_ROUNDS_MAX; rounds++) {
-      rows = scoreAgainst(variants, nF, matrix, weights, selfIdx, -1);
-      const { best } = perRefBest(variants, rows, refIdx, nF);
-      const ranked = Array.from({ length: nF }, (_, i) => i).sort((a, b) => best[b] - best[a]);
-      const ord = ranked.join(',');
-      if (ord === prevOrder) break;
-      if (prevOrder !== null) {
-        const prev = prevOrder.split(',').map(Number);
-        const wasAt = new Map(prev.map((r, i) => [r, i]));
-        moved = 0;
-        worstJump = 0;
-        ranked.forEach((r, i) => {
-          const d = Math.abs(i - wasAt.get(r)!);
-          if (d > 0) moved++;
-          if (d > worstJump) worstJump = d;
-        });
-      }
-      prevOrder = ord;
-      const max = Math.max(...best);
-      const min = Math.min(...best);
-      const span = max - min || 1;
-      weights = new Float64Array(Array.from(best, (o) => ((o - min) / span) ** 2));
-    }
-    if (rounds >= WEIGHT_ROUNDS_MAX) {
-      console.log(
-        `  ${lg}: WARNING seed order never settled in ${WEIGHT_ROUNDS_MAX} rounds` +
-          ` — last round moved ${moved} of ${nF} refs, largest jump ${worstJump}`,
-      );
-    }
-    const seeded = perRefBest(variants, rows, refIdx, nF);
-    const order = Array.from({ length: nF }, (_, i) => i).sort((a, b) => seeded.best[b] - seeded.best[a]);
-
-    // Each tier is a flat average over the top N of that seeded order.
-    const tierRows: Record<string, Record<ScenarioId, number>[]> = {};
-    for (const t of TIERS) {
-      const w = new Float64Array(nF);
-      const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
-      for (const j of keep) w[j] = 1;
-      tierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
-    }
-
-    // Index of each ref's rated variant, used by both the d2 opponent weight
-    // and the Bradley-Terry matrix below.
     const ratedOf = new Int32Array(nF).fill(-1);
     variants.forEach((v, i) => {
-      if (v.recommended && ratedOf[refIdx[i]] < 0) ratedOf[refIdx[i]] = i;
+      if (v.recommended && ratedOf[refPos.get(v.ref)!] < 0) ratedOf[refPos.get(v.ref)!] = i;
     });
-
-    // ── Second derivative ───────────────────────────────────────────────────
-    // The first pass is now fixed. Feed its Overall back as the opponent
-    // weight, so beating the head of the format counts for more than beating
-    // its shoulder, and read only the rated loadout on both sides. Run at
-    // every tier: the cutoff picks who is in the room, the weighting grades
-    // them once they are. Same matrix, so this costs aggregations, no battles.
-    const d1 = perRefBest(variants, tierRows[tierLabel(DEFAULT_TIER)], refIdx, nF).best;
-    // Rank each opponent by its first-pass Overall, then weight by log of that
-    // rank. See the note on D2_RANK_POWER for why rank rather than score.
-    const d1Min = Math.min(...d1);
-    const d1Span = (Math.max(...d1) - d1Min) || 1;
-    // Opponent pressure, at each foe's own rated loadout — the same number the
-    // Pressure category scores, reused as a weight.
-    //
-    // Beating something that cannot threaten you is worth less than beating
-    // something that can. The floor is deliberately high (PRESSURE_FLOOR) and
-    // this multiplies a weight already graded by strength: stacking two
-    // aggressive curves on one axis is exactly what made the log-rank
-    // experiment regress every league (§1l), so this is a nudge rather than a
-    // second cutoff.
-    const foePressure = new Float64Array(nF);
-    for (let b = 0; b < nF; b++) {
-      const i = ratedOf[b];
-      foePressure[b] = i >= 0 ? pressureWeight(variants[i].pressure) : 1;
-    }
-    const graded = Array.from(d1, (o, i) =>
-      ((o - d1Min) / d1Span) ** D2_POWER * foePressure[i]);
-    const d2TierRows: Record<string, Record<ScenarioId, number>[]> = {};
-    for (const t of TIERS) {
-      const w = new Float64Array(nF);
-      const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
-      for (const j of keep) w[j] = graded[j];
-      d2TierRows[tierLabel(t)] = scoreAgainst(variants, nF, matrix, w, selfIdx, -1);
-    }
-
-    // ── Bradley-Terry, as an alternative to the composite ────────────────
-    // Ref-by-ref rating matrix at each species' RATED loadout, averaged over
-    // every scenario and both shield policies. This is the same data the
-    // composite aggregates; the difference is entirely in what is done with it.
     const R = new Float64Array(nF * nF);
     const P = POLICIES.length;
     for (let a = 0; a < nF; a++) {
@@ -646,186 +476,94 @@ async function main() {
         if (a === b) continue;
         let sum = 0;
         const base = (i * nF + b) * S;
-        for (let sc = 0; sc < S; sc++) {
-          for (let pol = 0; pol < P; pol++) sum += decode(matrix[(base + sc) * P + pol]);
-        }
+        for (let sc = 0; sc < S; sc++) for (let pol = 0; pol < P; pol++) sum += decode(matrix[(base + sc) * P + pol]);
         R[a * nF + b] = sum / (S * P);
       }
     }
+    const bt = fitBradleyTerry(R, nF);
+    const tSim = performance.now();
 
-    // Fit PER TIER, not once over the whole field.
-    //
-    // The composite is computed against a tier, so a whole-field fit was not
-    // comparing like with like — and the Diagnostics screen's tier control
-    // moved only one of the two columns. Restricting the fit to a tier costs
-    // nothing: it is a closed-form row mean over a submatrix, no battles.
-    //
-    // It also answers a question the single fit could not. Transitivity is not
-    // uniform across the field: the head of a format is where Pokemon are
-    // chosen to check each other, so it is where cycles should concentrate.
-    const btTiers: Record<string, ReturnType<typeof fitBradleyTerry>> = {};
-    for (const t of TIERS) {
-      const keep = t === 0 ? order : order.slice(0, Math.min(t, nF));
-      const idx = Array.from(keep).sort((x, y) => x - y);
-      const m = idx.length;
-      const sub = new Float64Array(m * m);
-      for (let a = 0; a < m; a++) {
-        for (let b = 0; b < m; b++) {
-          if (a === b) continue;
-          sub[a * m + b] = R[idx[a] * nF + idx[b]];
-        }
-      }
-      const fit = fitBradleyTerry(sub, m);
-      // Re-expand to full-field indices so the emit step stays simple.
-      const full = new Float64Array(nF).fill(NaN);
-      idx.forEach((refI, a) => { full[refI] = fit.strength[a]; });
-      btTiers[tierLabel(t)] = {
-        ...fit,
-        strength: full,
-        worst: fit.worst.map((w) => ({ ...w, a: idx[w.a], b: idx[w.b] })),
-      };
+    // The rankings: PvPoke's method, every loadout against PvPoke's field.
+    const pool = buildPvPool(lg);
+    const nV = pool.variants.length, nJ = pool.field.length, nS = PV_SCENARIOS.length;
+    const aBuf = new SharedArrayBuffer(nV * nJ * nS * 2);
+    await parallel('pv', lg, nV, aBuf, (f, t) => pvSweep(pool, new Uint16Array(aBuf), f, t));
+    const adj = new Uint16Array(aBuf);
+    const fieldIdx = new Map(pool.field.map((f, j) => [f.ref, j]));
+    const recOf = new Map<string, number>();
+    pool.variants.forEach((v, i) => { if (v.recommended && !recOf.has(v.ref)) recOf.set(v.ref, i); });
+    const pv = loadPvPokeNode();
+    const statics = pool.variants.map((v) => pvStatics(pv, v.ref, PV_CP[lg], v.moves[0], v.moves[1]));
+    const cat = pool.variants.map(() => new Array<number>(nS));
+    const row = new Float64Array(nJ);
+    for (let s = 0; s < nS; s++) {
+      const mean = (i: number) => { let t = 0; for (let k = 0; k < nJ; k++) t += adj[(i * nJ + k) * nS + s]; return Math.floor(t / nJ); };
+      const base = pool.field.map((f) => mean(recOf.get(f.ref)!));
+      const best = Math.max(...base);
+      const w = base.map((b, j) => opponentWeight(b, best, pool.field[j].weight));
+      const raw = pool.variants.map((v, i) => {
+        for (let k = 0; k < nJ; k++) row[k] = adj[(i * nJ + k) * nS + s];
+        const self = fieldIdx.get(v.ref);
+        const wv = self === undefined ? w : w.map((x, k) => (k === self ? 0 : x));
+        const sc = categoryScore(row, wv, PV_SCENARIOS[s].slug === 'switches');
+        return PV_SCENARIOS[s].slug === 'chargers' ? sc * statics[i].chargerMult : sc;
+      });
+      // Normalised against the field's own sets, as PvPoke normalises its list.
+      const top = Math.max(...pool.field.map((f) => raw[recOf.get(f.ref)!]));
+      raw.forEach((x, i) => { cat[i][s] = normalise(x, top); });
     }
-    console.log(
-      `  ${lg}: Bradley-Terry by tier — ` +
-        TIERS.map((t) => {
-          const f = btTiers[tierLabel(t)];
-          return `${tierLabel(t)}:${((100 * f.cycles.cyclic) / (f.cycles.total || 1)).toFixed(1)}%`;
-        }).join('  '),
-    );
+    const overall = pool.variants.map((_, i) => overallScore(cat[i], statics[i].consistency));
+    // Score arrays follow CATEGORIES: overall, the five roles, consistency.
+    const scoresOf = (i: number) => [overall[i], ...cat[i], statics[i].consistency];
 
     const ref = loadReference(lg);
     const byRef = new Map<string, number[]>();
-    variants.forEach((v, i) => {
-      const list = byRef.get(v.ref);
-      if (list) list.push(i);
-      else byRef.set(v.ref, [i]);
-    });
-
-    // Scores go out as a bare array in CATEGORIES order, not an object. Keyed
-    // objects repeated the seven category names ten times per species and blew
-    // rankings.json out to 4.9MB — the keys outweighed the numbers roughly two
-    // to one. The reader zips them back against CATEGORIES.
-    // Overall is no longer a scenario weighting — it is a geometric mean over
-    // this species' own role scores after each is normalised against the pool's
-    // best in that category. See makeOverall.
-    const turnsOf = variants.map((v) => v.fastTurns);
-    const pressureOf = variants.map((v) => v.pressure);
-    const overallFor = new Map<Record<ScenarioId, number>[], (i: number) => number>();
-    const overallIn = (rws: Record<ScenarioId, number>[]) => {
-      let f = overallFor.get(rws);
-      if (!f) { f = makeOverall(rws, turnsOf, pressureOf); overallFor.set(rws, f); }
-      return f;
-    };
-    const scoresOf = (rws: Record<ScenarioId, number>[], i: number) =>
-      CATEGORIES.map((c) =>
-        c.id === 'overall' ? overallIn(rws)(i)
-          : c.id === 'consistency' ? consistencyScore(rws[i], turnsOf[i])
-          : c.id === 'pressure' ? pressureOf[i]
-          : weightedScore(rws[i], c.weights),
-      );
-
+    pool.variants.forEach((v, i) => { if (v.ranked) (byRef.get(v.ref) ?? byRef.set(v.ref, []).get(v.ref)!).push(i); });
     const entries = refs.map((r) => {
       const mine = byRef.get(r)!;
-      const tiers: Record<string, { rec: number[]; best: number[]; set: number }> = {};
-      for (const t of TIERS) {
-        const key = tierLabel(t);
-        const rws = tierRows[key];
-        // Two answers, deliberately kept apart.
-        //
-        // `rec` is the league's rated set — one fixed loadout for everyone, so
-        // the column is comparable across species. `best` is the strongest of
-        // the swept sets, which answers "what should I put on this mon" but is
-        // NOT a fair ranking basis: taking a maximum over 12 draws flatters
-        // whoever has the widest movepool, and the score it produces correlates
-        // 0.32 with moveset count alone. Ranking on `rec` and offering `best`
-        // as its own view keeps both honest.
-        const recIdx = mine.find((i) => variants[i].recommended) ?? mine[0];
-        let bi = mine[0];
-        let bo = -Infinity;
-        const ovIn = overallIn(rws);
-        for (const i of mine) {
-          const o = ovIn(i);
-          if (o > bo) { bo = o; bi = i; }
-        }
-        tiers[key] = {
-          rec: scoresOf(rws, recIdx),
-          best: scoresOf(rws, bi),
-          set: variants[bi].set,
-        };
-      }
-      const { id, shadow } = parseRef(r);
-      const pv = shadow ? undefined : ref.get(id);
-      const dRows = tierRows[tierLabel(DEFAULT_TIER)];
-      const recIdx = mine.find((i) => variants[i].recommended) ?? mine[0];
-      // Second derivative, per tier: rated loadout only, opponents inside the
-      // cutoff weighted by their first-pass Overall rather than counted flat.
-      const d2: Record<string, number[]> = {};
-      for (const t of TIERS)
-        d2[tierLabel(t)] = scoresOf(d2TierRows[tierLabel(t)], recIdx);
+      const rec = recOf.get(r) ?? mine[0];
+      const bestI = mine.reduce((x, y) => (overall[y] > overall[x] ? y : x));
+      // PvPoke ranks Shadows as their own entries, under the same ref.
+      const pvRef = ref.get(r);
+      const strength = bt.strength[refPos.get(r)!];
       return {
         ref: r,
-        // Latent strength from the Bradley-Terry fit, per tier, on the
-        // log-odds scale. Emitted alongside the composite rather than
-        // replacing it — the two answer different questions, and the
-        // Diagnostics screen compares them at a matching tier.
-        bt: Object.fromEntries(
-          TIERS.map((t) => {
-            const v = btTiers[tierLabel(t)].strength[refPos.get(r)!];
-            return [tierLabel(t), Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null];
-          }),
-        ),
         name: displayName(r),
-        d2,
-        // [label, overall-at-default-tier]. Index 0 is the league's rated set
-        // by construction (loadoutsFor pushes it first), so `recommended` does
-        // not need storing 28,000 times.
-        loadouts: mine.map((i) => [variants[i].label, overallIn(dRows)(i)]),
-        tiers,
-        pvpoke: pv ? { score: pv.score, scores: pv.scores } : null,
+        bt: { [ALL]: Number.isFinite(strength) ? Math.round(strength * 1000) / 1000 : null },
+        loadouts: mine.map((i) => [pool.variants[i].label, overall[i]]),
+        tiers: { [ALL]: { rec: scoresOf(rec), best: scoresOf(bestI), set: pool.variants[bestI].set } },
+        pvpoke: pvRef ? { score: pvRef.score, scores: pvRef.scores } : null,
       };
     });
-
-    const dk = tierLabel(DEFAULT_TIER);
-    entries.sort((a, b) => b.tiers[dk].rec[OVERALL] - a.tiers[dk].rec[OVERALL]);
-
+    entries.sort((a, b) => b.tiers[ALL].rec[0] - a.tiers[ALL].rec[0]);
     rankings[lg] = {
       engineRev: ENGINE_REV,
-      tiers: TIERS.map(tierLabel),
-      defaultTier: dk,
-      // The key for every `rec` / `best` array below.
-      categories: CATEGORIES.map((c) => c.id),
+      tiers: [ALL],
+      defaultTier: ALL,
+      categories,
       entries,
-      // How well ONE number can describe this format, per tier. See §1n.
-      btFit: Object.fromEntries(
-        TIERS.map((t) => {
-          const f = btTiers[tierLabel(t)];
-          return [tierLabel(t), {
-            r2: Math.round(f.r2 * 1000) / 1000,
-            rmse: Math.round(f.rmse * 1000) / 1000,
-            cyclicPct: Math.round((1000 * f.cycles.cyclic) / (f.cycles.total || 1)) / 10,
-            total: f.cycles.total,
-            n: f.strength.reduce((acc, v) => acc + (Number.isFinite(v) ? 1 : 0), 0),
-            worst: f.worst.slice(0, 12).map((w) => ({
-              a: refs[w.a],
-              b: refs[w.b],
-              observed: Math.round(w.observed * 100) / 100,
-              predicted: Math.round(w.predicted * 100) / 100,
-            })),
-          }];
-        }),
-      ),
+      btFit: {
+        [ALL]: {
+          r2: Math.round(bt.r2 * 1000) / 1000,
+          rmse: Math.round(bt.rmse * 1000) / 1000,
+          cyclicPct: Math.round((1000 * bt.cycles.cyclic) / (bt.cycles.total || 1)) / 10,
+          total: bt.cycles.total,
+          n: bt.strength.reduce((acc, v) => acc + (Number.isFinite(v) ? 1 : 0), 0),
+          worst: bt.worst.slice(0, 12).map((x) => ({
+            a: refs[x.a], b: refs[x.b],
+            observed: Math.round(x.observed * 100) / 100, predicted: Math.round(x.predicted * 100) / 100,
+          })),
+        },
+      },
     };
     matrices[lg] = { engineRev: ENGINE_REV, refs: entries.slice(0, TEAM_POOL_N).map((e) => e.ref) };
 
     console.log(
-      `${lg.padEnd(7)} ${String(refs.length).padStart(4)} refs x ${(variants.length / refs.length).toFixed(1)} sets` +
-        ` = ${String(variants.length).padStart(5)} variants` +
-        `  sim ${((tSim - t0) / 1000).toFixed(1).padStart(6)}s` +
-        `  ${(variants.length * nF * S / 1e6).toFixed(0).padStart(4)}M battles`,
+      `${lg.padEnd(7)} ${String(refs.length).padStart(4)} refs  matrix ${String(variants.length).padStart(5)} variants` +
+        ` ${((tSim - t0) / 1000).toFixed(0).padStart(4)}s  |  pvpoke method ${nV} variants x ${nJ} field` +
+        ` ${((performance.now() - tSim) / 1000).toFixed(0).padStart(4)}s  |  BT cyclic ${Math.round((1000 * bt.cycles.cyclic) / (bt.cycles.total || 1)) / 10}%`,
     );
-    console.log(
-      `        top@${dk}: ${entries.slice(0, 5).map((e) => `${e.name} ${e.tiers[dk].rec[OVERALL]}`).join(', ')}`,
-    );
+    console.log(`        top 5: ${entries.slice(0, 5).map((e) => `${e.name} ${e.tiers[ALL].rec[0]}`).join(', ')}`);
   }
 
   writeFileSync(join(OUT, 'rankings.json'), JSON.stringify(rankings));

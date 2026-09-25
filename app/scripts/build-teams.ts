@@ -219,6 +219,13 @@ const CORE_POOL_N = 200;
  */
 const CORE_TIER = '500';
 /**
+ * Opponent-field depths the teams are built against: the top N by Overall.
+ * The rankings are one list now (PvPoke's method), so these are the teams'
+ * own axis rather than the rankings' tiers.
+ */
+const TIERS = ['50', '100', '200', '300', '500', 'all'];
+const DEFAULT_TIER = '100';
+/**
  * Opponent species the synergy pass measures coverage against, per tier.
  *
  * Capped because coverage is a question about the meta, not the roster: whether
@@ -462,7 +469,6 @@ interface RawEntry {
   ref: string;
   name: string;
   tiers: Record<string, { rec: number[]; best: number[]; set: number }>;
-  d2: Record<string, number[]>;
 }
 interface RawLeague {
   engineRev: number;
@@ -494,13 +500,12 @@ type Pass = 'd1' | 'd2' | 'syn';
 
 const PASSES: readonly Pass[] = ['d1', 'd2', 'syn'];
 
-/** The stratum's ordering: species best-first under (tier, category, pass). */
-function ordered(lg: LeagueId, tier: string, ci: number, pass: Pass): RawEntry[] {
+/** The stratum's ordering: species best-first under (tier, category). */
+function ordered(lg: LeagueId, tier: string, ci: number): RawEntry[] {
   const es = RANKINGS[lg].entries;
-  // `syn` has no ordering of its own — it ranks teams, not species — so its
-  // candidate pool is the category's own d1 ordering, the same 24 species the
-  // simulated passes consider. Same candidates, different question asked of them.
-  const score = (e: RawEntry) => (pass === 'd2' ? e.d2[tier] : e.tiers[tier].rec)[ci];
+  // Every pass draws candidates from the category's own ranking; the passes
+  // differ in how the teams built from them are scored, not in who is in them.
+  const score = (e: RawEntry) => e.tiers.all.rec[ci];
   return [...es].sort((a, b) => score(b) - score(a));
 }
 
@@ -531,7 +536,7 @@ function topSpecies(ord: RawEntry[], n: number): RawEntry[] {
 /** Overall score at a tier, used to weight opponents in the d2 pass. */
 function overallAt(lg: LeagueId, tier: string): Map<string, number> {
   const oi = RANKINGS[lg].categories.indexOf('overall');
-  return new Map(RANKINGS[lg].entries.map((e) => [e.ref, e.tiers[tier].rec[oi]]));
+  return new Map(RANKINGS[lg].entries.map((e) => [e.ref, e.tiers.all.rec[oi]]));
 }
 
 // ── Deterministic sampling ──────────────────────────────────────────────────
@@ -690,7 +695,7 @@ async function main() {
     const lg = league.id;
     const t0 = performance.now();
     const rk = RANKINGS[lg];
-    const tiers = rk.tiers;
+    const tiers = TIERS;
     const cats = CATEGORIES;
     const perLeague: Record<string, unknown> = {};
     let chains = 0;
@@ -699,12 +704,11 @@ async function main() {
     const refSet = new Set<string>();
     for (const t of tiers)
       for (let ci = 0; ci < cats.length; ci++)
-        for (const pass of PASSES)
-          for (const e of topSpecies(ordered(lg, t, ci, pass), CAND_N)) refSet.add(e.ref);
+        for (const e of topSpecies(ordered(lg, t, ci), CAND_N)) refSet.add(e.ref);
     // The core search reaches deeper than the team search, at the default tier
     // only — see CORE_POOL_N.
     for (let ci = 0; ci < cats.length; ci++)
-      for (const e of ordered(lg, CORE_TIER, ci, 'd1').slice(0, CORE_POOL_N)) refSet.add(e.ref);
+      for (const e of ordered(lg, CORE_TIER, ci).slice(0, CORE_POOL_N)) refSet.add(e.ref);
     // Opponent fields are drawn from the tier itself, so those refs are needed
     // in the index space too — the tier cutoff reaches far past the candidates.
     //
@@ -720,7 +724,7 @@ async function main() {
     for (const t of tiers) {
       const n = t === 'all' ? rk.entries.length : Number(t);
       byOverall[t] = [...rk.entries]
-        .sort((a, b) => b.tiers[t].rec[oi] - a.tiers[t].rec[oi])
+        .sort((a, b) => b.tiers.all.rec[oi] - a.tiers.all.rec[oi])
         .slice(0, Math.min(n, rk.entries.length));
       for (const e of byOverall[t]) refSet.add(e.ref);
       fieldPoolRefs[t] = byOverall[t].map((e) => e.ref);
@@ -843,7 +847,7 @@ async function main() {
       const strata: Stratum[] = [];
       for (let ci = 0; ci < cats.length; ci++) {
         for (const pass of PASSES) {
-          const ord = ordered(lg, tier, ci, pass);
+          const ord = ordered(lg, tier, ci);
           const cand = topSpecies(ord, CAND_N).map((e) => refPos.get(e.ref)!);
           const six = topSpecies(ord, SIX_N).map((e) => refPos.get(e.ref)!);
           const triples = combos(cand, 3, legalPair).map((t) => addRow([...t].sort((a, b) => a - b)));
@@ -868,7 +872,7 @@ async function main() {
       // extra solo sweep over the extra rows, at one tier.
       const corePool = tier === CORE_TIER
         ? cats.flatMap((_, ci) =>
-            ordered(lg, tier, ci, 'd1').slice(0, CORE_POOL_N).map((e) => refPos.get(e.ref)!))
+            ordered(lg, tier, ci).slice(0, CORE_POOL_N).map((e) => refPos.get(e.ref)!))
         : [];
       const candUnion = [...new Set([...strata.flatMap((st) => [...st.cand, ...st.six]), ...corePool])];
       const candPos = new Map(candUnion.map((c, i) => [c, i]));
@@ -1247,7 +1251,7 @@ async function main() {
       // So re-simulate the reported top team from the engine directly — no
       // table, no byte encoding — and compare. Not circular: the only shared
       // input is the mons themselves.
-      if (validate && tier === rk.defaultTier) {
+      if (validate && tier === DEFAULT_TIER) {
         const cat = cats.find((c) => c.id === 'overall')!;
         // Decode from the compact wire format — refs are indices into `refs`.
         const packed = (perLeague[`${tier}|overall|d1`] as { t3: number[][] }).t3[0];
@@ -1357,10 +1361,10 @@ async function main() {
           console.log(`      6: ${r[9]}  ${r.slice(0, 6).map((n) => refs[n]).join(' / ')}` +
             `\n           line: ${r.slice(6, 9).map((n) => refs[n]).join(' / ')}`);
       };
-      show(`${rk.defaultTier}|overall|d1`);
-      show(`${rk.defaultTier}|overall|d2`);
-      show(`${rk.defaultTier}|closers|d1`);
-      show(`50|leads|d2`);
+      show(`${DEFAULT_TIER}|overall|d1`);
+      show(`${DEFAULT_TIER}|overall|d2`);
+      show(`${DEFAULT_TIER}|closers|d1`);
+      show(`${DEFAULT_TIER}|leads|d2`);
     }
   }
 

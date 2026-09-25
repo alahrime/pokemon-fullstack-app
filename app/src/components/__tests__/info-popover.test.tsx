@@ -87,9 +87,9 @@ describe('the screens kept their explanations', () => {
   it('the rankings still say how a rating is built', () => {
     const { container } = renderApp(<RankingsScreen />);
     const text = opened(container);
-    expect(text).toMatch(/mean battle ratings/i);
+    expect(text).toMatch(/PvPoke's own ranking method/i);
     expect(text).toMatch(/soft-capped/i);
-    expect(text).toMatch(/not a battle rating/i);
+    expect(text).toMatch(/geometric mean/i);
     // And the active category's own description leads it.
     expect(text).toContain(CATEGORIES[0].blurb);
   });

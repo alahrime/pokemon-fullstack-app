@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CATEGORIES, SCENARIOS, SCENARIO_IDS, SHIELD_STATES, SOFT_CAP, LOSS_CURVE, SHIELD_BONUS,
-  ENERGY_DEBT, bankedEnergy, consistencyScore, makeOverall, rating, weightedScore,
+  ENERGY_DEBT, bankedEnergy, consistencyScore, rating, weightedScore,
 } from '../scenarios';
 import type { BattleResult } from '../types';
 import type { ScenarioId } from '../scenarios';
@@ -22,10 +22,8 @@ describe('rating', () => {
     const lost = rating(res({ win: false, hpB: 50, shieldsA: 2, shieldsB: 0 }), 2, 2);
     expect(won).toBeGreaterThan(lost);
   });
-  it('credits energy carried out of a win', () => {
-    const empty = rating(res({ energyA: 0 }), 1, 1);
-    const loaded = rating(res({ energyA: 100 }), 1, 1);
-    expect(loaded).toBeGreaterThan(empty);
+  it('gives no credit for energy carried out of a win, as PvPoke does not', () => {
+    expect(rating(res({ energyA: 100 }), 1, 1)).toBe(rating(res({ energyA: 0 }), 1, 1));
   });
   it('docks a loss that leaves the opponent holding energy', () => {
     const clean = rating(res({ win: false, hpB: 40, energyB: 0 }), 1, 1);
@@ -88,11 +86,10 @@ describe('categories', () => {
   it('has an overall plus the roles and the two axes', () => {
     const ids = CATEGORIES.map((c) => c.id);
     expect(ids).toContain('overall');
-    expect(ids).toContain('pressure');
     expect(ids).toContain('consistency');
   });
-  it('pressure and consistency carry no scenario weights — they are not blends', () => {
-    for (const id of ['pressure', 'consistency']) {
+  it('consistency carries no scenario weights — it is not a blend', () => {
+    for (const id of ['consistency']) {
       expect(Object.keys(CATEGORIES.find((c) => c.id === id)!.weights)).toHaveLength(0);
     }
   });
@@ -134,29 +131,6 @@ describe('consistencyScore', () => {
   it('never goes negative', () => {
     const wild = { ...per(0), sh00: 0, sh22: 1000 } as Record<ScenarioId, number>;
     expect(consistencyScore(wild, 4)).toBeGreaterThanOrEqual(0);
-  });
-});
-
-describe('makeOverall', () => {
-  it('scores a uniformly strong mon above a uniformly weak one', () => {
-    const rows = [per(900), per(300)];
-    const f = makeOverall(rows, [1, 1], [900, 300]);
-    expect(f(0)).toBeGreaterThan(f(1));
-  });
-  it('rewards pressure, all else equal', () => {
-    const rows = [per(600), per(600)];
-    const f = makeOverall(rows, [1, 1], [1000, 100]);
-    expect(f(0)).toBeGreaterThan(f(1));
-  });
-  it('a single weak axis drags the geometric mean', () => {
-    const rows = [per(900), per(900)];
-    const strong = makeOverall(rows, [1, 1], [900, 900]);
-    const oneWeak = makeOverall([per(900), { ...per(900), sh00: 1 } as Record<ScenarioId, number>], [1, 1], [900, 900]);
-    expect(oneWeak(1)).toBeLessThanOrEqual(strong(1));
-  });
-  it('never returns NaN even when a category is zero everywhere', () => {
-    const f = makeOverall([per(0)], [1], [0]);
-    expect(Number.isFinite(f(0))).toBe(true);
   });
 });
 

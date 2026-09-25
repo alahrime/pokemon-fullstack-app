@@ -14,6 +14,10 @@ curl -O $B/rankings/all/overall/rankings-1500.json \
      -O $B/rankings/all/overall/rankings-2500.json \
      -O $B/rankings/all/overall/rankings-10000.json
 
+curl -o overrides-1500.json $B/overrides/all/1500.json \
+     -o overrides-2500.json $B/overrides/all/2500.json \
+     -o overrides-10000.json $B/overrides/all/10000.json
+
 cd ../app && npm run data && npm run verify
 ```
 
@@ -38,6 +42,7 @@ so a dirty diff after regenerating means the upstream data actually changed.
 | `moves.json` | Move stats — power, energy, energy gain, turns, type |
 | `rankings-1500/2500/10000.json` | PvPoke overall rankings per league, used for `leagueRank`, league membership and the recommended moveset |
 | `gamemaster.min.json` | PvPoke's whole gamemaster, read only by the vendored PvPoke engine (`app/vendor/pvpoke`, loaded by `app/src/lib/pvpoke.ts`) |
+| `overrides-1500/2500/10000.json` | PvPoke's ranking overrides: opponent weights, moveset picks and editor scores; read by `npm run rank:pvpoke` |
 | `pvpoke-sweep-1500.json` | PvPoke's engine's results over the top 50 Great species, the fixture `npm run parity` scores against |
 
 ## Notes

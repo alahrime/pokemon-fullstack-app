@@ -425,22 +425,6 @@ export function selectedCharges(species: Species, ids?: string[]): ChargeMove[] 
 /** In-game energy ceiling. Overflow past this is lost, not banked. */
 export const ENERGY_CAP = 100;
 
-/**
- * What a full bar carried out of a won matchup is worth, in rating points.
- *
- * The mirror of ENERGY_DEBT in scenarios.ts, which docks you for leaving a
- * surviving opponent with energy. Energy you walk out with is the same
- * resource seen from the other side: a charged move your next opponent has to
- * answer before it has earned anything of its own. Scaled linearly off the
- * cap, so half a bar is worth half of this.
- *
- * It lives here rather than beside ENERGY_DEBT because the engine needs it
- * too — the farm-down rule weighs banked energy against chip damage, and it
- * has to weigh them on the scale the result is actually scored on. A hold that
- * looks clever under one exchange rate and loses rating under another is not a
- * decision, it is a disagreement between two files.
- */
-export const ENERGY_KEPT = 100;
 
 /**
  * What full HP is worth on that same scale — the health term of `rating`.

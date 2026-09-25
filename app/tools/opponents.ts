@@ -295,7 +295,7 @@ function topTeam(league: LeagueId, size: number): string[] {
   const pickable = new Set(pickableFor(league));
   const eligible = new Set(opponentCandidatesFor(league));
   const out: string[] = [];
-  for (const row of rankingsFor(league, DEFAULT_TIER(league), 'overall', 'd1')) {
+  for (const row of rankingsFor(league, DEFAULT_TIER(league), 'overall')) {
     if (!pickable.has(row.ref) || !eligible.has(row.ref)) continue;
     if (out.some((m) => conflictsOnTeam(m, row.ref))) continue;
     out.push(row.ref);

@@ -320,6 +320,11 @@ for (const p of bases) {
   const types = (p.types ?? []).filter((t) => t && t !== 'none');
   const fasts = (p.fastMoves ?? []).map((id) => fastMove(id, types)).filter(Boolean);
   const charges = (p.chargedMoves ?? []).map((id) => chargeMove(id, types)).filter(Boolean);
+  // PvPoke's Pokemon.js: a shadow-eligible species can be purified, which
+  // teaches Return - in a league whose cap its level-25 CP fits under. The
+  // league half of that is applied where movesets are chosen, off level25CP.
+  const purifiable = (p.tags ?? []).includes('shadoweligible') && !charges.some((c) => c.id === 'RETURN');
+  if (purifiable) charges.push(chargeMove('RETURN', types));
 
   // A mon with no usable moveset can't be simulated; drop it rather than ship
   // a row that crashes the battle engine.
@@ -430,6 +435,7 @@ for (const p of bases) {
     shadowEligible: isShadowEligible,
     fastMoves: orderedFasts.map(intern),
     chargeMoves: charges.map(intern),
+    ...(purifiable ? { level25CP: p.level25CP } : {}),
     // Kept for the existing engine/UI shape: the recommended pair.
     chargeMove: intern(defCharges[0]),
     chargeMove2: intern(defCharges[1] ?? null),

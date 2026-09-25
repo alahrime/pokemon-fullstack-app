@@ -23,7 +23,7 @@ describe('rankings artefact', () => {
   });
   it('ranks every league, sorted by Overall descending', () => {
     for (const lg of LEAGUES) {
-      const rows = rankingsFor(lg, DEFAULT_TIER(lg), 'overall', 'd1');
+      const rows = rankingsFor(lg, DEFAULT_TIER(lg), 'overall');
       expect(rows.length).toBeGreaterThan(100);
       for (let i = 1; i < 40; i++) expect(rows[i].score).toBeLessThanOrEqual(rows[i - 1].score);
     }

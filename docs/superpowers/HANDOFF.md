@@ -24,7 +24,8 @@ design authority; the plans argue from it.
 | **M3a** — friendships and blocks | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1233/1233 and 180/180; roundtrips 9/9 and 11/11. |
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
-| M4–M5 — ranked, records, groups | Not started. Spec covers the design. |
+| M4 — ranked, records | Not started. Spec covers the design. |
+| **Shell, challenges, tournaments** (M5 pulled forward) | **Designed 2026-09-29, not started.** Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. Build order: A shell → B challenges/chat → C tournaments + 6-Pokémon roster. No plans written yet. |
 
 ---
 

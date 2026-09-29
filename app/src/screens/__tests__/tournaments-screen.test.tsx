@@ -17,9 +17,12 @@ import { TournamentsScreen } from '../TournamentsScreen';
 import { AppStateProvider, useAppState } from '../../state/AppState';
 
 const ID = '3f2b8a10-5c4d-4e6f-9a1b-0c2d3e4f5a6b';
+const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const NEW = uuid(99);
+const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 30)); });
 const PAST = '2020-01-01T00:00:00Z';
 const tour = (over = {}) => ({
-  id: 't1', organiserId: 'o', title: 'Cup', description: '', formatVersionId: 'fv', league: 'great', rounds: 4,
+  id: uuid(1), organiserId: 'o', title: 'Cup', description: '', formatVersionId: 'fv', league: 'great', rounds: 4,
   roundMinutes: 25, maxPlayers: 64, registrationClosesAt: null, state: 'registration', currentRound: 0,
   roundEndsAt: null, createdAt: PAST, entrants: 7, ...over,
 });
@@ -42,11 +45,11 @@ beforeEach(() => {
   window.location.hash = '#/play/tournaments';
   T.listTournaments.mockReset().mockResolvedValue([
     tour(),
-    tour({ id: 't2', title: 'Late', registrationClosesAt: PAST }),
-    tour({ id: 't3', title: 'Going', state: 'running', currentRound: 2 }),
-    tour({ id: 't4', title: 'Over', state: 'complete' }),
+    tour({ id: uuid(2), title: 'Late', registrationClosesAt: PAST }),
+    tour({ id: uuid(3), title: 'Going', state: 'running', currentRound: 2 }),
+    tour({ id: uuid(4), title: 'Over', state: 'complete' }),
   ]);
-  T.createTournament.mockReset().mockResolvedValue('new1');
+  T.createTournament.mockReset().mockResolvedValue(NEW);
   T.openRegistration.mockReset().mockResolvedValue(true);
   S.listServerFormats.mockReset().mockResolvedValue([fmt('a', 6), fmt('b', 3)]);
 });
@@ -69,6 +72,7 @@ describe('browse', () => {
     expect(screen.getByRole('button', { name: 'Live' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByText('Cup')).toBeNull();
     expect(screen.getByText('Going')).toBeTruthy();
+    expect(screen.getByText('Late')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(screen.getByText('Cup')).toBeTruthy();
     expect(screen.queryByText('Late')).toBeNull();
@@ -78,17 +82,49 @@ describe('browse', () => {
 
   it('opening a card sets the id and the hash once', async () => {
     await mount();
+    const before = history.length;
     fireEvent.click(await screen.findByRole('button', { name: /Cup/ }));
-    expect(screen.getByTestId('active').textContent).toBe('t1');
-    await waitFor(() => expect(window.location.hash).toBe('#/play/tournaments/t1'));
+    await flush();
+    expect(screen.getByTestId('active').textContent).toBe(uuid(1));
+    expect(window.location.hash).toBe(`#/play/tournaments/${uuid(1)}`);
+    expect(history.length).toBe(before + 1);
   });
 
-  it('signed out: browse works, sign-in prompt replaces Host', async () => {
+  it('signed out: no read, a sign-in prompt instead of list or empty state', async () => {
     user = null;
     await mount();
-    await screen.findByText('Cup');
+    expect(screen.getByText('Sign in to see and host tournaments.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Host a tournament' })).toBeNull();
-    expect(screen.getByText(/Sign in to host/)).toBeTruthy();
+    expect(screen.queryByText(/No tournaments/)).toBeNull();
+    expect(T.listTournaments).not.toHaveBeenCalled();
+  });
+
+  it('shows a loading line until the first read resolves', async () => {
+    let done!: (v: unknown[]) => void;
+    T.listTournaments.mockReturnValue(new Promise((r) => (done = r)));
+    await mount();
+    expect(screen.getByText('Loading tournaments…')).toBeTruthy();
+    await act(async () => done([tour()]));
+    expect(screen.queryByText('Loading tournaments…')).toBeNull();
+    expect(screen.getByText('Cup')).toBeTruthy();
+  });
+
+  it('signing in reads at once', async () => {
+    user = null;
+    const { rerender } = render(<AppStateProvider><TournamentsScreen /><Probe /></AppStateProvider>);
+    expect(T.listTournaments).not.toHaveBeenCalled();
+    user = { id: 'me' };
+    rerender(<AppStateProvider><TournamentsScreen /><Probe /></AppStateProvider>);
+    expect(await screen.findByText('Cup')).toBeTruthy();
+    expect(T.listTournaments).toHaveBeenCalledTimes(1);
+  });
+
+  it('the open-tournament view has a way back to Browse', async () => {
+    window.location.hash = `#/play/tournaments/${ID}`;
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /All tournaments/ }));
+    expect(screen.getByTestId('active').textContent).toBe('none');
+    expect(await screen.findByText('Cup')).toBeTruthy();
   });
 });
 
@@ -162,11 +198,14 @@ describe('host', () => {
     await openSheet();
     await fill();
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('new1'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe(NEW));
+    await flush();
+    expect(screen.getByTestId('active').textContent).toBe(NEW);
+    expect(window.location.hash).toBe(`#/play/tournaments/${NEW}`);
     expect(T.createTournament).toHaveBeenCalledWith(expect.objectContaining({
       title: 'My Cup', formatVersionId: 'v-a', rounds: 4, roundMinutes: 25, maxPlayers: 64, closesAt: null,
     }));
-    expect(T.openRegistration).toHaveBeenCalledWith('new1');
+    expect(T.openRegistration).toHaveBeenCalledWith(NEW);
   });
 
   it('unticked: does not open registration', async () => {
@@ -174,7 +213,7 @@ describe('host', () => {
     await fill();
     fireEvent.click(screen.getByLabelText('Open registration now'));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('new1'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe(NEW));
     expect(T.openRegistration).not.toHaveBeenCalled();
   });
 
@@ -196,14 +235,41 @@ describe('host', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Tournament created but registration could not be opened: boom');
     expect((screen.getByRole('button', { name: 'Create' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Open registration' }));
-    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('new1'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe(NEW));
     expect(T.createTournament).toHaveBeenCalledTimes(1);
     expect(T.openRegistration).toHaveBeenCalledTimes(2);
   });
 
-  it('Escape closes', async () => {
+  it('Escape closes before anything is created', async () => {
     await openSheet();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTestId('active').textContent).toBe('none');
+  });
+
+  it('closing after created-but-not-opened lands on the tournament; no second create', async () => {
+    T.openRegistration.mockRejectedValueOnce(new Error('boom'));
+    await openSheet();
+    await fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await screen.findByRole('alert');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await flush();
+    expect(screen.getByTestId('active').textContent).toBe(NEW);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(T.createTournament).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaving mid-flight does nothing', async () => {
+    let done!: (v: string) => void;
+    T.createTournament.mockReturnValue(new Promise((r) => (done = r)));
+    await openSheet();
+    await fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Cancel' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => done(NEW));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe(NEW));
   });
 });

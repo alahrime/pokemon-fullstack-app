@@ -131,11 +131,17 @@ describe('readers', () => {
     const [t] = await T.listTournaments();
     expect(t).toEqual(tour({ state: 'closed', registrationClosesAt: PAST, currentRound: 1, roundEndsAt: FUTURE, entrants: 5 }));
     expect(h.calls).toContainEqual({ op: 'tournaments.select', payload: [expect.stringContaining('tournament_entrants(count)')] });
+    expect(h.calls).toContainEqual({ op: 'tournaments.eq', payload: ['tournament_entrants.dropped', false] });
     expect(h.calls).toContainEqual({ op: 'tournaments.order', payload: ['created_at', { ascending: false }] });
     expect(h.calls).toContainEqual({ op: 'tournaments.limit', payload: [100] });
   });
   it('getTournament is null when there is no row', async () => {
     expect(await T.getTournament('x')).toBeNull();
+  });
+  it('getTournament carries the non-dropped entrant count', async () => {
+    h.rows.tournaments = [{ id: 't', organiser_id: 'o', title: 'T', description: '', format_version_id: 'fv', league: 'great', rounds: 3, round_minutes: 25, max_players: 8, registration_closes_at: null, state: 'registration', current_round: 0, round_ends_at: null, created_at: PAST, tournament_entrants: [{ count: 3 }] }];
+    expect((await T.getTournament('t'))?.entrants).toBe(3);
+    expect(h.calls).toContainEqual({ op: 'tournaments.eq', payload: ['tournament_entrants.dropped', false] });
   });
   it('listEntrants and listPairings map snake_case', async () => {
     h.rows.tournament_entrants = [{ player_id: 'p1', seed: 1, dropped: false, registered_at: PAST }];

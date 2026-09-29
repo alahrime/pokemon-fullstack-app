@@ -20,7 +20,7 @@ type Filter = (typeof FILTERS)[number][0];
 const MATCHES: Record<Filter, (s: TournamentState) => boolean> = {
   all: () => true,
   open: (s) => s === 'registration',
-  live: (s) => s === 'running',
+  live: (s) => s === 'closed' || s === 'running',
   done: (s) => s === 'complete',
 };
 
@@ -52,13 +52,36 @@ export function TournamentsScreen() {
   const [hosting, setHosting] = useState(false);
 
   if (state.activeTournamentId) {
-    // ponytail: placeholder until the tournament screen (Task 6) lands.
-    return <div className="panel chamfer-9">Tournament {state.activeTournamentId}</div>;
+    // ponytail: placeholder until the tournament screen (Task 6) lands; it keeps the back control.
+    return (
+      <div className="tournaments-screen">
+        <div>
+          <button type="button" className="btn" onClick={() => patch({ activeTournamentId: null })}>
+            ← All tournaments
+          </button>
+        </div>
+        <div className="panel chamfer-9">Tournament {state.activeTournamentId}</div>
+      </div>
+    );
   }
 
   const now = new Date();
   const shown = (tournaments ?? []).filter((t) => MATCHES[filter](effectiveState(t, now)));
   const open = (id: string) => patch({ activeTournamentId: id });
+
+  // The data is authenticated-only: signed out there is nothing to list.
+  if (!user) {
+    return (
+      <div className="tournaments-screen">
+        <div className="panel chamfer-9 tournaments-signin">
+          <p className="text-muted">Sign in to see and host tournaments.</p>
+          <button type="button" className="btn btn-primary" onClick={() => patch({ screen: 'account' })}>
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="tournaments-screen">
@@ -76,18 +99,17 @@ export function TournamentsScreen() {
             </button>
           ))}
         </div>
-        {user ? (
+        {user && (
           <button type="button" className="btn btn-primary" onClick={() => setHosting(true)}>
             Host a tournament
           </button>
-        ) : (
-          <p className="text-muted">Sign in to host or join a tournament.</p>
         )}
       </div>
 
       {failed && tournaments === null && (
         <p className="friend-notice" role="alert">Couldn't load tournaments.</p>
       )}
+      {tournaments === null && !failed && <p className="text-muted">Loading tournaments…</p>}
       {tournaments && shown.length === 0 && <p className="panel text-muted">No tournaments here yet.</p>}
 
       <div className="tournament-list">
@@ -135,13 +157,22 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [error, setError] = useState<string | null>(null);
   const firstRef = useRef<HTMLInputElement>(null);
 
+  // Once created, leaving lands the host on the tournament (a fresh form would
+  // invite a duplicate); mid-flight, leaving is blocked.
+  const dismiss = () => {
+    if (busy) return;
+    if (createdId) onCreated(createdId);
+    else onClose();
+  };
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') dismissRef.current();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -202,7 +233,7 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
     <div
       className="challenge-sheet-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div className="challenge-sheet panel chamfer-9" role="dialog" aria-modal="true" aria-label="Host a tournament">
@@ -251,7 +282,7 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
         {error && <p className="friend-notice" role="alert">{error}</p>}
 
         <div className="challenge-sheet-actions">
-          <button type="button" className="btn" onClick={onClose}>{createdId ? 'Close' : 'Cancel'}</button>
+          <button type="button" className="btn" disabled={busy} onClick={dismiss}>{createdId ? 'Close' : 'Cancel'}</button>
           {createdId && (
             <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void openIt()}>
               Open registration

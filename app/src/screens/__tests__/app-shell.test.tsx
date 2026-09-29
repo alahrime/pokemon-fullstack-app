@@ -31,6 +31,16 @@ describe('App shell', () => {
     expect(history.length).toBe(before);
   });
 
+  it('the Tournaments rail item always lands on Browse, even from an open tournament', async () => {
+    window.location.hash = '#/play/tournaments/3f2b8a10-5c4d-4e6f-9a1b-0c2d3e4f5a6b';
+    const { container } = renderApp(<App />);
+    await waitFor(() => expect(container.textContent).toMatch(/Tournament 3f2b8a10/));
+    const rail = container.querySelector('.section-rail')!;
+    fireEvent.click([...rail.querySelectorAll('button')].find((b) => /Tournaments/.test(b.textContent ?? ''))!);
+    await waitFor(() => expect(container.textContent).toMatch(/Sign in to see and host tournaments/));
+    expect(window.location.hash).toBe('#/play/tournaments');
+  });
+
   it('starts on the landing page, where the search is the page', () => {
     const { container } = renderApp(<App />);
     expect(container.querySelector('.nav-search, #nav-species')).toBeFalsy();

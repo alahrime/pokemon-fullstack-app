@@ -29,6 +29,8 @@ describe('hash routing', () => {
     for (const h of ['#/play/tournaments', '#/play/tournaments/nope', '#/play/tournaments/' + id + '/x', 'garbage'])
       expect(tournamentIdFromHash(h), h).toBeNull();
     expect(screenFromHash('#/play/tournaments/nope')).toBe('landing');
+    expect(tournamentIdFromHash(`#/play/tournaments/${id.toUpperCase()}`)).toBe(id);
+    expect(screenFromHash(`#/play/tournaments/${id}/`)).toBe('landing');
   });
   it('sends anything unrecognised to landing', () => {
     for (const h of ['', '#', '#/', '#/nope', '#/analyze/nope', '#/play/rankings', 'garbage'])

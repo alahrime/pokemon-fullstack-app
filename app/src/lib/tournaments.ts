@@ -11,7 +11,7 @@ export interface Tournament {
   league: LeagueId; rounds: number; roundMinutes: number; maxPlayers: number;
   registrationClosesAt: string | null; state: TournamentState; currentRound: number;
   roundEndsAt: string | null; createdAt: string;
-  /** Registered players (the list reader's count embed; 0 from `getTournament`). */
+  /** Registered players (count embed, players still in). */
   entrants: number;
 }
 export interface Entrant { playerId: string; seed: number; dropped: boolean; registeredAt: string }
@@ -106,15 +106,18 @@ const toTournament = (r: TRow): Tournament => ({
 const T_COLS =
   'id, organiser_id, title, description, format_version_id, league, rounds, round_minutes, max_players, registration_closes_at, state, current_round, round_ends_at, created_at';
 
+// The embed counts only players still in (the filter applies to the embedded rows).
+const T_COUNT_COLS = `${T_COLS}, tournament_entrants(count)`;
+
 export async function listTournaments(): Promise<Tournament[]> {
   const { data, error } = await supabase
-    .from('tournaments').select(`${T_COLS}, tournament_entrants(count)`).order('created_at', { ascending: false }).limit(100);
+    .from('tournaments').select(T_COUNT_COLS).eq('tournament_entrants.dropped', false).order('created_at', { ascending: false }).limit(100);
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as TRow[]).map(toTournament);
 }
 
 export async function getTournament(id: string): Promise<Tournament | null> {
-  const { data, error } = await supabase.from('tournaments').select(T_COLS).eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('tournaments').select(T_COUNT_COLS).eq('id', id).eq('tournament_entrants.dropped', false).maybeSingle();
   if (error) throw new Error(error.message);
   return data ? toTournament(data as unknown as TRow) : null;
 }

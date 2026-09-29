@@ -227,7 +227,7 @@ function LazyScreen({ children }: { children: React.ReactNode }) {
 }
 
 function Shell() {
-  const { state, set } = useAppState();
+  const { state, patch } = useAppState();
   const badges = useBadges();
   const section = sectionOf(state.screen);
   // The landing page runs its own full-bleed layout, so the shell's reading
@@ -240,7 +240,7 @@ function Shell() {
         <Nav />
         <div className={wide ? 'relative z-[2] w-full' : `shell mx-auto w-full px-6 pt-6 pb-16${section ? ' has-rail' : ''}`}>
           {section && (
-            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => set('screen', s)} />
+            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => patch({ screen: s, activeTournamentId: null })} />
           )}
           <div
             key={state.screen}

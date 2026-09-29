@@ -16,7 +16,7 @@ export function hashFor(screen: Screen): string {
 export const hashForTournament = (id: string): string => `#/play/tournaments/${id}`;
 
 export function tournamentIdFromHash(hash: string): string | null {
-  return TOURNAMENT_HASH.exec(hash)?.[1] ?? null;
+  return TOURNAMENT_HASH.exec(hash)?.[1].toLowerCase() ?? null;
 }
 
 /** The address a screen (and, on Tournaments, an open tournament) lives at. */

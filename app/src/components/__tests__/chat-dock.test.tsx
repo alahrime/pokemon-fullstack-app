@@ -132,15 +132,18 @@ async function mount(session: Session | null) {
   const { SessionProvider } = await import('../../state/SessionContext');
   const { ChatDockRequestProvider } = await import('../../state/ChatDockContext');
   const { ChannelListProvider } = await import('../../state/ChannelListContext');
+  const { AppStateProvider } = await import('../../state/AppState');
   const { ChatDock: FreshChatDock } = await import('../ChatDock');
   let view!: RenderResult;
   await act(async () => {
     view = render(
       <SessionProvider>
         <ChannelListProvider>
-          <ChatDockRequestProvider>
-            <FreshChatDock />
-          </ChatDockRequestProvider>
+          <AppStateProvider>
+            <ChatDockRequestProvider>
+              <FreshChatDock />
+            </ChatDockRequestProvider>
+          </AppStateProvider>
         </ChannelListProvider>
       </SessionProvider>,
     );
@@ -388,6 +391,7 @@ describe('ChatDock requestChannel', () => {
     vi.resetModules();
     const { SessionProvider } = await import('../../state/SessionContext');
     const { ChatDockRequestProvider, useChatDockRequest } = await import('../../state/ChatDockContext');
+    const { AppStateProvider } = await import('../../state/AppState');
     const { ChannelListProvider } = await import('../../state/ChannelListContext');
     const { ChatDock: FreshChatDock } = await import('../ChatDock');
     let ctx!: ReturnType<typeof useChatDockRequest>;
@@ -399,10 +403,10 @@ describe('ChatDock requestChannel', () => {
       render(
         <SessionProvider>
           <ChannelListProvider>
-            <ChatDockRequestProvider>
+            <AppStateProvider><ChatDockRequestProvider>
               <Probe />
               <FreshChatDock />
-            </ChatDockRequestProvider>
+            </ChatDockRequestProvider></AppStateProvider>
           </ChannelListProvider>
         </SessionProvider>,
       );

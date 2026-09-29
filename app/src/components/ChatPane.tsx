@@ -89,6 +89,7 @@ export function ChatPane({
   onActivity,
   onRead,
   onChallenge,
+  embedded = false,
 }: {
   channel: ChannelDisplay;
   minimized: boolean;
@@ -97,8 +98,11 @@ export function ChatPane({
   onActivity: (channelId: string, at: string) => void;
   onRead: (channelId: string, at: string) => void;
   onChallenge?: (target: { id: string; name: string }) => void;
+  /** Fills its parent (the Chat screen): no minimize/close, never collapsed. */
+  embedded?: boolean;
 }) {
   const { user } = useSession();
+  if (embedded) minimized = false;
   const [messages, setMessages] = useState<Message[]>([]);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -217,7 +221,7 @@ export function ChatPane({
   const label = channel.displayTitle;
 
   return (
-    <section className={`chat-pane chamfer-9 panel${minimized ? ' is-minimized' : ''}`}>
+    <section className={`chat-pane chamfer-9 panel${minimized ? ' is-minimized' : ''}${embedded ? ' is-embedded' : ''}`}>
       <div className="chat-pane-header">
         <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
         <span className="chat-pane-title">{label}</span>
@@ -238,6 +242,8 @@ export function ChatPane({
               `railAriaLabel` makes for the rail row), and reads far better on
               a screen reader's rotor than the raw uuid the old fallback-label
               version needed to stay unique. */}
+          {!embedded && (
+            <>
           <button
             type="button"
             className="btn btn-ghost chamfer-5"
@@ -254,6 +260,8 @@ export function ChatPane({
           >
             ✕
           </button>
+            </>
+          )}
         </div>
       </div>
 

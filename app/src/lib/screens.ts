@@ -133,6 +133,15 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Send and accept friend requests, see friend codes, and block people.',
   },
   {
+    id: 'chat',
+    label: 'Chat',
+    kicker: 'Talk',
+    glyph: '✉',
+    // Fire: no other screen carries it (screens.test.ts guards distinct hues).
+    hue: 'var(--type-fire)',
+    blurb: 'Message opponents and answer their challenges.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',
@@ -186,7 +195,7 @@ export const SECTIONS: SectionDef[] = [
     glyph: '⚔',
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
-    screens: ['matchmaking', 'match', 'friends'],
+    screens: ['matchmaking', 'match', 'friends', 'chat'],
   },
 ];
 

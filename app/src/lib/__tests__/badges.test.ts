@@ -13,6 +13,12 @@ const o = (over: Partial<MyOffer>): MyOffer => ({
 });
 
 describe('computeBadges', () => {
+  it('adds chat only for a positive unread count', () => {
+    expect(computeBadges([], [], 'me', 3)).toEqual({ chat: 3 });
+    expect(computeBadges([], [], 'me')).toEqual({});
+    expect(computeBadges([], [], 'me', 0)).toEqual({});
+  });
+
   it('counts only incoming pending requests', () => {
     const b = computeBadges(
       [f({}), f({ theyAsked: false }), f({ status: 'accepted' })], [], 'me');

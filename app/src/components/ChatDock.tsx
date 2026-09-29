@@ -1,49 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../state/SessionContext';
+import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { useChannelList } from '../state/ChannelListContext';
-import {
-  humanTime,
-  isChannelUnread,
-  type ChannelDisplay,
-} from '../lib/channels';
+import { isChannelUnread } from '../lib/channels';
+import { railAriaLabel, subLine } from './chatRow';
 import { ChatPane } from './ChatPane';
 import { ChallengeSheet } from './ChallengeSheet';
-
-/** Kind → the plain word the rail's mono sub-line names it by, matching the
- * approved design canvas (`match · 19:04`, `group · 4 people`,
- * `direct · yesterday`). */
-function kindWord(kind: ChannelDisplay['kind']): string {
-  if (kind === 'match') return 'match';
-  if (kind === 'group') return 'group';
-  return 'direct';
-}
-
-/**
- * The rail row's mono sub-line: the kind, then either a human time (a `dm` or
- * `match`, which has no more useful second fact) or a member count (a
- * `group`, for which "4 people" says more than when the last message
- * landed — the approved design canvas's own call). Never the raw ISO string
- * `lastMessageAt` actually is.
- */
-function subLine(c: ChannelDisplay): string {
-  const kind = kindWord(c.kind);
-  if (c.kind === 'group') {
-    const n = c.memberCount ?? 0;
-    return `${kind} · ${n === 1 ? '1 person' : `${n} people`}`;
-  }
-  return c.lastMessageAt ? `${kind} · ${humanTime(c.lastMessageAt)}` : `${kind} · no messages yet`;
-}
-
-/**
- * The rail button's whole accessible name — short and specific, never the
- * concatenation of every text node inside it (title, sub-line and the
- * "Unread" tag all read together, which is what an unlabelled button would
- * otherwise expose to a screen reader's rotor).
- */
-function railAriaLabel(c: ChannelDisplay, unread: boolean): string {
-  return `Open chat with ${c.displayTitle}${unread ? ', 1 unread' : ''}`;
-}
 
 /**
  * The persistent Messenger-style dock: a rail of every conversation this
@@ -148,14 +111,18 @@ export function ChatDock() {
   // yet, or the poll that will carry it may not have landed) before acting,
   // and only clears the request once it has, so a request made before the
   // list loads is not silently dropped.
+  // On the Chat screen the screen itself owns requests (it consumes
+  // `requestedChannelId`), so the dock stands down entirely there.
+  const { state } = useAppState();
+  const onChat = state.screen === 'chat';
   useEffect(() => {
-    if (!requestedMatchId || !channels) return;
+    if (onChat || !requestedMatchId || !channels) return;
     const match = channels.find((c) => c.kind === 'match' && c.matchId === requestedMatchId);
     if (match) {
       openChannel(match.id);
       clearRequestedMatchChannel();
     }
-  }, [requestedMatchId, channels, openChannel, clearRequestedMatchChannel]);
+  }, [onChat, requestedMatchId, channels, openChannel, clearRequestedMatchChannel]);
 
   // The generic sibling: a caller that already holds a channel id (the
   // challenge sheet, right after `openDm`). A just-created DM is not in the
@@ -163,17 +130,17 @@ export function ChatDock() {
   // keep the request until it turns up. The refresh is keyed on the request
   // alone, so a channel that never appears cannot loop it.
   useEffect(() => {
-    if (requestedChannelId) refresh();
-  }, [requestedChannelId, refresh]);
+    if (!onChat && requestedChannelId) refresh();
+  }, [onChat, requestedChannelId, refresh]);
   useEffect(() => {
-    if (!requestedChannelId || !channels) return;
+    if (onChat || !requestedChannelId || !channels) return;
     if (channels.some((c) => c.id === requestedChannelId)) {
       openChannel(requestedChannelId);
       clearRequestedChannel();
     }
-  }, [requestedChannelId, channels, openChannel, clearRequestedChannel]);
+  }, [onChat, requestedChannelId, channels, openChannel, clearRequestedChannel]);
 
-  if (!user) return null;
+  if (!user || onChat) return null;
 
   return (
     <div className="chat-dock">

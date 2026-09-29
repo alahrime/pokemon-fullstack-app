@@ -6,6 +6,7 @@ describe('hash routing', () => {
   it('writes readable paths', () => {
     expect(hashFor('landing')).toBe('#/');
     expect(hashFor('account')).toBe('#/account');
+    expect(hashFor('chat')).toBe('#/play/chat');
     expect(hashFor('rankings')).toBe('#/analyze/rankings');
     expect(hashFor('friends')).toBe('#/play/friends');
   });

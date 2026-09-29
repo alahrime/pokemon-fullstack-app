@@ -6471,3 +6471,36 @@ th.bt-matrix-head { text-align: center; }
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* — Chat screen: inbox / conversation / opponent — */
+.chat-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .chat-screen { grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); }
+  .chat-screen.has-panel { grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) minmax(12rem, 16rem); }
+}
+.chat-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.chat-conversation { min-width: 0; }
+.chat-empty { margin: 0; text-align: center; }
+.chat-pane.is-embedded { width: auto; max-height: none; }
+.chat-pane.is-embedded .chat-transcript { max-height: 60vh; }
+.opponent-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.opponent-panel-name { margin: 0; font-size: var(--text-md); overflow-wrap: anywhere; }
+.opponent-panel-code { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+@media (max-width: 899px) {
+  .opponent-panel { display: none; }
+}

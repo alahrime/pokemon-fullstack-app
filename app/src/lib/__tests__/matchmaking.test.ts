@@ -40,6 +40,7 @@ function harness(
       // `myOffers` asks for two columns at once ("proposed by me OR accepted
       // by me"), which PostgREST spells as a single `or` filter string.
       or: vi.fn((filter: string) => { calls.push({ table: name, op: 'or', payload: filter }); return q; }),
+      is: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'is', payload: [col, val] }); return q; }),
       gt: vi.fn((col: string, val: unknown) => { calls.push({ table: name, op: 'gt', payload: [col, val] }); return q; }),
       order: vi.fn((col: string, opts?: unknown) => { calls.push({ table: name, op: 'order', payload: [col, opts] }); return q; }),
       insert: vi.fn((payload: unknown) => { calls.push({ table: name, op: 'insert', payload }); return q; }),
@@ -67,6 +68,16 @@ function harness(
 }
 
 beforeEach(() => vi.resetModules());
+
+describe('aimed offers stay off the board', () => {
+  it('listOpenOffers and myOffers both exclude target_id', async () => {
+    const { calls } = harness({ match_offers: [] });
+    const { listOpenOffers, myOffers } = await import('../matchmaking');
+    await listOpenOffers('great');
+    await myOffers();
+    expect(calls.filter((c) => c.op === 'is' && (c.payload as unknown[])[0] === 'target_id')).toHaveLength(2);
+  });
+});
 
 describe('queue', () => {
   it('never sends user_id — the database default decides who owns the entry', async () => {

@@ -18,6 +18,8 @@ export interface Message {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  kind: 'text' | 'challenge';
+  offerId: string | null;
 }
 
 interface MessageRow {
@@ -28,6 +30,8 @@ interface MessageRow {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  kind: 'text' | 'challenge';
+  offer_id: string | null;
 }
 
 function toMessage(r: MessageRow): Message {
@@ -39,6 +43,8 @@ function toMessage(r: MessageRow): Message {
     createdAt: r.created_at,
     editedAt: r.edited_at,
     deletedAt: r.deleted_at,
+    kind: r.kind ?? 'text',
+    offerId: r.offer_id ?? null,
   };
 }
 
@@ -91,7 +97,7 @@ export async function listChannels(): Promise<Channel[]> {
 export async function listMessages(channelId: string, limit = 100): Promise<Message[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at')
+    .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at, kind, offer_id')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -116,7 +122,7 @@ export async function sendMessage(channelId: string, body: string): Promise<Mess
   const { data, error } = await supabase
     .from('messages')
     .insert({ channel_id: channelId, body })
-    .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at')
+    .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at, kind, offer_id')
     .single();
   if (error) throw new Error(error.message);
   return toMessage(data as unknown as MessageRow);
@@ -235,6 +241,8 @@ export interface ChannelDisplay extends ChannelActivity {
    * instead of a timestamp (see the approved design canvas). `null` for a
    * `dm`/`match`. */
   memberCount: number | null;
+  /** The other person in a `dm`; null for a group or match channel. */
+  otherId: string | null;
 }
 
 /**
@@ -290,11 +298,11 @@ export async function withDisplayNames(channels: ChannelActivity[]): Promise<Cha
   return channels.map((c) => {
     const members = membersByChannel.get(c.id) ?? [];
     if (c.kind === 'group') {
-      return { ...c, displayTitle: c.title ?? FALLBACK_TITLE.group, memberCount: members.length };
+      return { ...c, displayTitle: c.title ?? FALLBACK_TITLE.group, memberCount: members.length, otherId: null };
     }
     const other = members.find((id) => id !== me);
     const displayTitle = (other && names.get(other)) || FALLBACK_TITLE[c.kind];
-    return { ...c, displayTitle, memberCount: null };
+    return { ...c, displayTitle, memberCount: null, otherId: c.kind === 'dm' ? (other ?? null) : null };
   });
 }
 

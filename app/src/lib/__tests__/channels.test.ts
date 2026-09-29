@@ -171,6 +171,8 @@ describe('subscribeToChannel', () => {
       createdAt: 't1',
       editedAt: null,
       deletedAt: null,
+      kind: 'text',
+      offerId: null,
     });
   });
 });
@@ -356,7 +358,7 @@ describe('sendMessage', () => {
     const sent = await sendMessage('c1', 'hi');
     expect(sent).toEqual({
       id: 'm9', channelId: 'c1', authorId: 'me', body: 'hi',
-      createdAt: 't9', editedAt: null, deletedAt: null,
+      createdAt: 't9', editedAt: null, deletedAt: null, kind: 'text', offerId: null,
     });
     expect(calls).toContainEqual({
       table: 'messages', op: 'insert', payload: { channel_id: 'c1', body: 'hi' },
@@ -593,5 +595,40 @@ describe('humanTime', () => {
     const rendered = humanTime(withMicroseconds, new Date(2026, 8, 7, 1, 0, 0));
     expect(rendered).not.toContain('94682');
     expect(rendered).not.toMatch(/T\d{2}:\d{2}:\d{2}/);
+  });
+});
+
+describe('challenge messages and dm otherId', () => {
+  it('listMessages maps kind and offer_id, defaulting kind to text', async () => {
+    rows.messages = [
+      { id: 'm2', channel_id: 'c1', author_id: 'a', body: 'x', created_at: 't2', edited_at: null, deleted_at: null, kind: 'challenge', offer_id: 'o1' },
+      { id: 'm1', channel_id: 'c1', author_id: 'a', body: 'y', created_at: 't1', edited_at: null, deleted_at: null },
+    ];
+    const [a, b] = await listMessages('c1');
+    expect(a).toMatchObject({ kind: 'text', offerId: null });
+    expect(b).toMatchObject({ kind: 'challenge', offerId: 'o1' });
+  });
+
+  it('subscribeToChannel maps kind and offer_id', () => {
+    const onMessage = vi.fn();
+    subscribeToChannel('c1', onMessage);
+    const handler = on.mock.calls[0][2] as (p: { new: Record<string, unknown> }) => void;
+    handler({ new: { id: 'm', channel_id: 'c1', author_id: 'a', body: 'b', created_at: 't', edited_at: null, deleted_at: null, kind: 'challenge', offer_id: 'o9' } });
+    expect(onMessage.mock.calls[0][0]).toMatchObject({ kind: 'challenge', offerId: 'o9' });
+  });
+
+  it('a dm carries the other member as otherId; a group does not', async () => {
+    rows.channel_members = [
+      { channel_id: 'c1', user_id: 'me' }, { channel_id: 'c1', user_id: 'them' },
+      { channel_id: 'c2', user_id: 'me' }, { channel_id: 'c2', user_id: 'a' },
+    ];
+    rows.profiles = [];
+    const base = { title: null, matchId: null, lastReadAt: null, lastMessageAt: null };
+    const [dm, group] = await withDisplayNames([
+      { id: 'c1', kind: 'dm', ...base },
+      { id: 'c2', kind: 'group', ...base },
+    ]);
+    expect(dm.otherId).toBe('them');
+    expect(group.otherId).toBeNull();
   });
 });

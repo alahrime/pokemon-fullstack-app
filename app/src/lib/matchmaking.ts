@@ -184,6 +184,8 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
     )
     .eq('league', league)
     .eq('state', 'open')
+    // Aimed offers are challenges, read through lib/challenges.ts; they must never reach the board or the Matches screen's own lists.
+    .is('target_id', null)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {
@@ -257,6 +259,8 @@ export async function myOffers(): Promise<MyOffer[]> {
       'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, match_id, team',
     )
     .or(`proposer_id.eq.${me},accepted_by.eq.${me}`)
+    // Aimed offers are challenges, read through lib/challenges.ts; they must never reach the board or the Matches screen's own lists.
+    .is('target_id', null)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {

@@ -52,11 +52,11 @@ beforeEach(() => {
 // shape, so a name showing up in the wrong file is easy to spot.
 const dm: ChannelDisplay = {
   id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null,
-  lastMessageAt: null, displayTitle: 'Ally', memberCount: null,
+  lastMessageAt: null, displayTitle: 'Ally', memberCount: null, otherId: 'ally',
 };
 const group: ChannelDisplay = {
   id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null,
-  lastMessageAt: null, displayTitle: 'Squad', memberCount: 4,
+  lastMessageAt: null, displayTitle: 'Squad', memberCount: 4, otherId: null,
 };
 
 function pane(channel: ChannelDisplay, overrides: Partial<Parameters<typeof ChatPane>[0]> = {}) {
@@ -96,7 +96,7 @@ describe("the pane header's title and kind badge", () => {
   it("labels the kind badge dm/group/match chat — match spelled out, since the header has no sub-line to say what's chatting", async () => {
     const match: ChannelDisplay = {
       id: 'c3', kind: 'match', title: null, matchId: 'm1', lastReadAt: null,
-      lastMessageAt: null, displayTitle: 'Rival', memberCount: null,
+      lastMessageAt: null, displayTitle: 'Rival', memberCount: null, otherId: null,
     };
     // Each render's own `listMessages`/`markRead` promises are awaited out
     // (via the same "hey" the mocked transcript always resolves to) before
@@ -123,7 +123,7 @@ describe('close/minimise control names', () => {
   it('names Close and Minimize after the resolved channel, not the generic word or the raw uuid — unique across two open panes', async () => {
     const other: ChannelDisplay = {
       id: 'c9', kind: 'dm', title: null, matchId: null, lastReadAt: null,
-      lastMessageAt: null, displayTitle: 'Buddy', memberCount: null,
+      lastMessageAt: null, displayTitle: 'Buddy', memberCount: null, otherId: null,
     };
     const { container } = renderApp(
       <>

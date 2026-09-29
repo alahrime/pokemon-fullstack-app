@@ -9,6 +9,7 @@ import {
   type ChannelDisplay,
 } from '../lib/channels';
 import { ChatPane } from './ChatPane';
+import { ChallengeSheet } from './ChallengeSheet';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -115,7 +116,9 @@ const POLL_MS = 15_000;
  */
 export function ChatDock() {
   const { user } = useSession();
-  const { requestedMatchId, clearRequestedMatchChannel } = useChatDockRequest();
+  const { requestedMatchId, clearRequestedMatchChannel, requestedChannelId, clearRequestedChannel } =
+    useChatDockRequest();
+  const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
   const [channels, setChannels] = useState<ChannelDisplay[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
@@ -187,6 +190,22 @@ export function ChatDock() {
     }
   }, [requestedMatchId, channels, openChannel, clearRequestedMatchChannel]);
 
+  // The generic sibling: a caller that already holds a channel id (the
+  // challenge sheet, right after `openDm`). A just-created DM is not in the
+  // last poll, so when the id is absent from a loaded list, refresh once and
+  // keep the request until it turns up. The refresh is keyed on the request
+  // alone, so a channel that never appears cannot loop it.
+  useEffect(() => {
+    if (requestedChannelId) refresh();
+  }, [requestedChannelId, refresh]);
+  useEffect(() => {
+    if (!requestedChannelId || !channels) return;
+    if (channels.some((c) => c.id === requestedChannelId)) {
+      openChannel(requestedChannelId);
+      clearRequestedChannel();
+    }
+  }, [requestedChannelId, channels, openChannel, clearRequestedChannel]);
+
   // Optimistic local bumps so a pane's own traffic (see this file's doc
   // comment above) moves the rail before the next poll, rather than only
   // ever changing what the rail shows once every `POLL_MS`.
@@ -222,6 +241,7 @@ export function ChatDock() {
               onClose={() => closeChannel(id)}
               onActivity={bumpActivity}
               onRead={bumpRead}
+              onChallenge={setChallengeTarget}
             />
           );
         })}
@@ -280,6 +300,7 @@ export function ChatDock() {
           </ul>
         )}
       </section>
+      {challengeTarget && <ChallengeSheet target={challengeTarget} onClose={() => setChallengeTarget(null)} />}
     </div>
   );
 }

@@ -3,6 +3,12 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { FriendsScreen } from '../FriendsScreen';
 
+vi.mock('../../components/ChallengeSheet', () => ({
+  ChallengeSheet: ({ target }: { target: { id: string; name: string } }) => (
+    <div role="dialog" aria-label={`Challenge ${target.name}`} data-target-id={target.id} />
+  ),
+}));
+
 const respondToFriendship = vi.fn();
 const requestFriendship = vi.fn();
 const removeFriendship = vi.fn();
@@ -146,6 +152,13 @@ describe('signed out', () => {
 });
 
 describe('friends screen', () => {
+  it('offers Challenge on accepted rows only, opening the sheet for that friend', async () => {
+    renderApp(<FriendsScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Challenge mate' }));
+    expect(screen.getByRole('dialog', { name: 'Challenge mate' }).getAttribute('data-target-id')).toBe('mate');
+    expect(screen.getAllByRole('button', { name: /^challenge /i })).toHaveLength(1);
+  });
+
   it('offers Accept only on a request somebody sent to you', async () => {
     renderApp(<FriendsScreen />);
     expect(await screen.findByRole('button', { name: /accept incoming/i })).toBeInTheDocument();

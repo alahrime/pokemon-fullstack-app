@@ -88,6 +88,7 @@ export function ChatPane({
   onClose,
   onActivity,
   onRead,
+  onChallenge,
 }: {
   channel: ChannelDisplay;
   minimized: boolean;
@@ -95,6 +96,7 @@ export function ChatPane({
   onClose: () => void;
   onActivity: (channelId: string, at: string) => void;
   onRead: (channelId: string, at: string) => void;
+  onChallenge?: (target: { id: string; name: string }) => void;
 }) {
   const { user } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -220,6 +222,16 @@ export function ChatPane({
         <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
         <span className="chat-pane-title">{label}</span>
         <div className="chat-pane-controls">
+          {onChallenge && channel.kind === 'dm' && channel.otherId && (
+            <button
+              type="button"
+              className="btn btn-ghost chamfer-5"
+              aria-label={`Challenge ${label}`}
+              onClick={() => onChallenge({ id: channel.otherId!, name: label })}
+            >
+              Challenge
+            </button>
+          )}
           {/* "chat with <name>" rather than a trailing `· ${channel.id}` — with
               two panes open side by side, a resolved `displayTitle` already
               distinguishes them (the same assumption `ChatDock`'s own

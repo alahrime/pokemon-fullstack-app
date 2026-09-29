@@ -31,19 +31,29 @@ interface ChatDockContextValue {
   /** `ChatDock` calls this once it has acted on `requestedMatchId`, so the
    *  same request does not re-fire on every later render. */
   clearRequestedMatchChannel: () => void;
+  /** The generic sibling of `requestedMatchId`: a channel id the dock should
+   *  open, for callers that already hold one (a just-opened DM, say) rather
+   *  than a match id to look one up by. */
+  requestedChannelId: string | null;
+  requestChannel: (id: string) => void;
+  clearRequestedChannel: () => void;
 }
 
 const ChatDockContext = createContext<ChatDockContextValue | null>(null);
 
 export function ChatDockRequestProvider({ children }: { children: ReactNode }) {
   const [requestedMatchId, setRequestedMatchId] = useState<string | null>(null);
+  const [requestedChannelId, setRequestedChannelId] = useState<string | null>(null);
   const value = useMemo<ChatDockContextValue>(
     () => ({
       requestedMatchId,
       requestMatchChannel: (matchId: string) => setRequestedMatchId(matchId),
       clearRequestedMatchChannel: () => setRequestedMatchId(null),
+      requestedChannelId,
+      requestChannel: (id: string) => setRequestedChannelId(id),
+      clearRequestedChannel: () => setRequestedChannelId(null),
     }),
-    [requestedMatchId],
+    [requestedMatchId, requestedChannelId],
   );
   return <ChatDockContext.Provider value={value}>{children}</ChatDockContext.Provider>;
 }

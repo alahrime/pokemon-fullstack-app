@@ -119,6 +119,26 @@ describe("the pane header's title and kind badge", () => {
   });
 });
 
+describe('Challenge button', () => {
+  it('shows in a DM with a known other member and hands over that person', async () => {
+    const onChallenge = vi.fn();
+    pane(dm, { onChallenge });
+    await screen.findByText('hey');
+    fireEvent.click(screen.getByRole('button', { name: 'Challenge Ally' }));
+    expect(onChallenge).toHaveBeenCalledWith({ id: 'ally', name: 'Ally' });
+  });
+
+  it('is absent from group and match channels', async () => {
+    pane(group, { onChallenge: vi.fn() });
+    await screen.findByText('hey');
+    expect(screen.queryByRole('button', { name: /challenge/i })).toBeNull();
+    cleanup();
+    pane({ ...dm, kind: 'match', matchId: 'm1', otherId: null }, { onChallenge: vi.fn() });
+    await screen.findByText('hey');
+    expect(screen.queryByRole('button', { name: /challenge/i })).toBeNull();
+  });
+});
+
 describe('close/minimise control names', () => {
   it('names Close and Minimize after the resolved channel, not the generic word or the raw uuid — unique across two open panes', async () => {
     const other: ChannelDisplay = {

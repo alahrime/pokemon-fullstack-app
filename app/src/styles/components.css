@@ -6445,3 +6445,29 @@ th.bt-matrix-head { text-align: center; }
 .challenge-card.tone-open { border-left-color: var(--color-accent); }
 .challenge-card.tone-dead { opacity: .7; }
 .challenge-card-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* ── Challenge sheet ─────────────────────────────────────────────────────
+   A modal over the dock (z-index 40): the backdrop is fixed and centres the
+   panel; the panel is a single-column form on the spacing scale. */
+.challenge-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+}
+.challenge-sheet {
+  display: grid;
+  gap: var(--space-3);
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+.challenge-sheet-when { width: fit-content; }
+.challenge-sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

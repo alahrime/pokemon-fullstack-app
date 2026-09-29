@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { ChallengeSheet } from '../components/ChallengeSheet';
 import { resolveDisplayNames } from '../lib/channels';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { supabase } from '../lib/supabase';
@@ -104,6 +105,7 @@ export function FriendsScreen() {
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [term, setTerm] = useState('');
@@ -331,6 +333,14 @@ export function FriendsScreen() {
               <button
                 type="button"
                 className="btn"
+                aria-label={`Challenge ${nameFor(f.otherId)}`}
+                onClick={() => setChallengeTarget({ id: f.otherId, name: nameFor(f.otherId) })}
+              >
+                Challenge
+              </button>
+              <button
+                type="button"
+                className="btn"
                 disabled={busyId === f.otherId}
                 onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
               >
@@ -374,6 +384,8 @@ export function FriendsScreen() {
           {actionError}
         </p>
       )}
+
+      {challengeTarget && <ChallengeSheet target={challengeTarget} onClose={() => setChallengeTarget(null)} />}
     </div>
   );
 }

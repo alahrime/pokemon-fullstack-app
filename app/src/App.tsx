@@ -7,6 +7,7 @@ import { ChannelListProvider } from './state/ChannelListContext';
 import { ChatDockRequestProvider } from './state/ChatDockContext';
 import { ThemeMenu } from './components/ThemeMenu';
 import { NotificationBell } from './components/NotificationBell';
+import { NotificationsProvider } from './state/NotificationsContext';
 import { Toaster } from './components/Toaster';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
@@ -267,11 +268,13 @@ export default function App() {
     <ThemeProvider>
       <SessionProvider>
         <ChannelListProvider>
-          <AppStateProvider>
-            <ChatDockRequestProvider>
-              <Shell />
-            </ChatDockRequestProvider>
-          </AppStateProvider>
+          <NotificationsProvider>
+            <AppStateProvider>
+              <ChatDockRequestProvider>
+                <Shell />
+              </ChatDockRequestProvider>
+            </AppStateProvider>
+          </NotificationsProvider>
         </ChannelListProvider>
       </SessionProvider>
     </ThemeProvider>

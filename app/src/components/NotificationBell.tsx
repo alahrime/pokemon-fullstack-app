@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useNotifications, useOpenNotice } from '../state/useNotifications';
+import { useNotificationsContext } from '../state/NotificationsContext';
+import { useOpenNotice } from '../state/useNotifications';
 
 /** The bell: a trigger plus an overlay list, mirroring `ThemeMenu`. */
 export function NotificationBell() {
-  const { notices } = useNotifications();
+  const { notices } = useNotificationsContext();
   const open = useOpenNotice();
   const [shown, setShown] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -32,7 +33,7 @@ export function NotificationBell() {
       <button
         type="button"
         className={`btn notification-bell-btn${shown ? ' is-open' : ''}`}
-        aria-label="Notifications"
+        aria-label={notices.length > 0 ? `Notifications, ${notices.length} waiting` : 'Notifications'}
         title="Notifications"
         aria-expanded={shown}
         aria-controls={panelId}
@@ -40,7 +41,7 @@ export function NotificationBell() {
       >
         <span aria-hidden="true">🔔</span>
         {notices.length > 0 && (
-          <span className="notification-count" aria-label={`${notices.length} notifications`}>
+          <span className="notification-count" aria-hidden="true">
             {notices.length}
           </span>
         )}

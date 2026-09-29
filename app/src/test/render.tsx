@@ -4,6 +4,7 @@ import { AppStateProvider } from '../state/AppState';
 import { ThemeProvider } from '../state/ThemeContext';
 import { SessionProvider } from '../state/SessionContext';
 import { ChannelListProvider } from '../state/ChannelListContext';
+import { NotificationsProvider } from '../state/NotificationsContext';
 import { ChatDockRequestProvider } from '../state/ChatDockContext';
 
 /**
@@ -29,9 +30,11 @@ export function renderApp(ui: ReactElement) {
     <ThemeProvider>
       <SessionProvider>
         <ChannelListProvider>
-          <AppStateProvider>
-            <ChatDockRequestProvider>{ui}</ChatDockRequestProvider>
-          </AppStateProvider>
+          <NotificationsProvider>
+            <AppStateProvider>
+              <ChatDockRequestProvider>{ui}</ChatDockRequestProvider>
+            </AppStateProvider>
+          </NotificationsProvider>
         </ChannelListProvider>
       </SessionProvider>
     </ThemeProvider>,

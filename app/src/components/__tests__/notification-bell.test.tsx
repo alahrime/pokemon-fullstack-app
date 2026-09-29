@@ -5,10 +5,7 @@ import type { Notice } from '../../lib/notifications';
 const patch = vi.fn();
 const requestChannel = vi.fn();
 let state: { notices: Notice[]; fresh: Notice[] } = { notices: [], fresh: [] };
-vi.mock('../../state/useNotifications', async (orig) => ({
-  ...(await orig<typeof import('../../state/useNotifications')>()),
-  useNotifications: () => state,
-}));
+vi.mock('../../state/NotificationsContext', () => ({ useNotificationsContext: () => state }));
 vi.mock('../../state/AppState', () => ({ useAppState: () => ({ patch }) }));
 vi.mock('../../state/ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel }) }));
 
@@ -24,11 +21,11 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 describe('NotificationBell', () => {
   it('shows a count badge only when there are notices', () => {
     render(<NotificationBell />);
-    expect(screen.queryByLabelText('1 notifications')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeTruthy();
     cleanup();
     state = { notices: [msg], fresh: [] };
     render(<NotificationBell />);
-    expect(screen.getByLabelText('1 notifications')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Notifications, 1 waiting' })).toBeTruthy();
   });
   it('empty list says caught up', () => {
     render(<NotificationBell />);
@@ -38,7 +35,7 @@ describe('NotificationBell', () => {
   it('item navigates, requests channel for chat, and closes', () => {
     state = { notices: [msg, fr], fresh: [] };
     render(<NotificationBell />);
-    const btn = screen.getByRole('button', { name: 'Notifications' });
+    const btn = screen.getByRole('button', { name: /^Notifications/ });
     expect(btn.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(btn);
     expect(screen.getByRole('menu')).toBeTruthy();
@@ -54,7 +51,7 @@ describe('NotificationBell', () => {
   it('Escape and outside mousedown close it', async () => {
     state = { notices: [msg], fresh: [] };
     render(<NotificationBell />);
-    const btn = screen.getByRole('button', { name: 'Notifications' });
+    const btn = screen.getByRole('button', { name: /^Notifications/ });
     fireEvent.click(btn);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
@@ -80,6 +77,25 @@ describe('Toaster', () => {
     expect(patch).toHaveBeenCalledWith({ screen: 'chat' });
     expect(requestChannel).toHaveBeenCalledWith('4');
     act(() => { vi.advanceTimersByTime(6001); });
+    expect(screen.queryAllByRole('status')).toHaveLength(0);
+  });
+  it('a clicked toast disappears', () => {
+    vi.useFakeTimers();
+    state = { notices: [], fresh: [msg] };
+    render(<Toaster />);
+    fireEvent.click(screen.getByText('Ann'));
+    expect(screen.queryAllByRole('status')).toHaveLength(0);
+  });
+  it('an id re-entering fresh gets a full 6s', () => {
+    vi.useFakeTimers();
+    state = { notices: [], fresh: [msg] };
+    const { rerender } = render(<Toaster />);
+    act(() => { vi.advanceTimersByTime(4000); });
+    state = { notices: [], fresh: [{ ...msg }] };
+    rerender(<Toaster />);
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(2001); });
     expect(screen.queryAllByRole('status')).toHaveLength(0);
   });
 });

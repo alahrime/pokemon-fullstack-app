@@ -6420,6 +6420,9 @@ th.bt-matrix-head { text-align: center; }
   background: var(--tab-hue);
 }
 
+/* The nav wraps below ~1000px, so its height is no longer the fixed --nav-h. */
+@media (max-width: 1000px) { .section-rail { position: static; } }
+
 @media (max-width: 767px) {
   .shell.has-rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .section-rail {

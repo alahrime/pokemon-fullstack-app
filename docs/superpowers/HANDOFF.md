@@ -37,7 +37,7 @@ Plan A of the shell redesign is built (`1716b3e..74d0916`).
 - **Hash routes:** the screen mirrors into the URL (`#/analyze/rankings`, `#/teams/formats`, `#/play/matchmaking`, `#/play/friends`, `#/account`); back/forward and fresh deep links work. The `match` screen shares Matches' address.
 - **Badges:** `useBadges` feeds rail badges: incoming friend requests, and offers awaiting your confirm.
 - **Deferred (from the top of the plan):** the notification bell, Chat/Tournaments rail items, and the merged account menu.
-- **Known:** the rail's `top: calc(var(--nav-h) + var(--space-4))` uses a hard-coded 76px `--nav-h`; the nav wraps to ~132px at 768 wide, so the sticky rail tucks ~40px under it there.
+- **Width and stickiness:** at a 1440 viewport the content column is 200px narrower than baseline because the rail sits inside `--shell-max` (equal only at viewports >= 1640); the rail is non-sticky under 1000px, where the nav wraps and `--nav-h` no longer matches.
 - **For plans B/C:** to add a screen, add its id to `Screen`, a `SCREEN_DEFS` entry and the section's `screens`; a badge adds a key in `computeBadges`.
 
 ## Where this session left off — 2026-09-25 (PvPoke parity: engine and rankings)

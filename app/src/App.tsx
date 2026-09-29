@@ -6,6 +6,8 @@ import { SessionProvider } from './state/SessionContext';
 import { ChannelListProvider } from './state/ChannelListContext';
 import { ChatDockRequestProvider } from './state/ChatDockContext';
 import { ThemeMenu } from './components/ThemeMenu';
+import { NotificationBell } from './components/NotificationBell';
+import { Toaster } from './components/Toaster';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { ChatDock } from './components/ChatDock';
@@ -122,6 +124,7 @@ function Nav() {
         >
           <span aria-hidden="true">◉</span> Account
         </button>
+        <NotificationBell />
         <ThemeMenu />
       </div>
     </div>
@@ -253,6 +256,7 @@ function Shell() {
             that "rides on top of whatever page you are on" rather than being
             its own page. See `ChatDock`'s own doc comment. */}
         <ChatDock />
+        <Toaster />
       </div>
     </div>
   );

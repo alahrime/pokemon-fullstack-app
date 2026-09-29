@@ -6504,3 +6504,96 @@ th.bt-matrix-head { text-align: center; }
 @media (max-width: 899px) {
   .opponent-panel { display: none; }
 }
+
+/* Notification bell + toasts. The panel overlays like `.theme-menu-panel`, so
+   opening it never grows the nav. */
+.notification-bell {
+  position: relative;
+}
+.notification-bell-btn {
+  position: relative;
+}
+.notification-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1.1rem;
+  padding: 0 4px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-bg);
+  background: var(--color-accent);
+}
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: min(260px, calc(100vw - var(--space-6)));
+  max-width: min(320px, calc(100vw - var(--space-6)));
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--surface-2);
+  border: var(--border-strong) solid var(--rule-strong);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.notification-empty {
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.notification-item,
+.toast-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2);
+  background: none;
+  border: var(--border-hairline) solid transparent;
+  text-align: left;
+  color: var(--color-text);
+}
+.notification-item:hover,
+.notification-item:focus-visible,
+.toast-body:hover {
+  border-color: var(--rule-strong);
+}
+.notification-item-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.notification-item-detail {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.toaster {
+  position: fixed;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: calc(100vw - var(--space-6));
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  min-width: min(240px, 100%);
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: var(--shadow-lg);
+  /* Enters once; never loops. */
+  animation: toast-in var(--dur-3) var(--ease-out) both;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}

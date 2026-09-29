@@ -145,3 +145,63 @@ export const SCREEN_DEFS: ScreenDef[] = [
 export const HUE_OF: Record<string, string> = Object.fromEntries(
   SCREEN_DEFS.map((s) => [s.id, s.hue]),
 );
+
+export interface SectionDef {
+  id: 'analyze' | 'teams' | 'play';
+  label: string;
+  glyph: string;
+  hue: string;
+  blurb: string;
+  screens: Screen[];
+}
+
+/**
+ * The top bar's three destinations, and the screens each one owns.
+ *
+ * `match` is listed under Play so `sectionOf('match')` resolves, but it is not
+ * a rail item — it is opened from a row, not chosen (see `railScreens`).
+ * `landing` and `account` belong to no section on purpose: the first is the
+ * map, the second is reached from the top bar's own button.
+ */
+export const SECTIONS: SectionDef[] = [
+  {
+    id: 'analyze',
+    label: 'Analyze',
+    glyph: '◈',
+    hue: 'var(--type-dragon)',
+    blurb: 'Read a Pokémon, a matchup or a whole league.',
+    screens: ['report', 'battle', 'moves', 'rankings', 'diagnostics'],
+  },
+  {
+    id: 'teams',
+    label: 'Teams',
+    glyph: '⬢',
+    hue: 'var(--type-water)',
+    blurb: 'Build teams and the rulesets they are legal under.',
+    screens: ['gbl', 'show6', 'cores', 'formats'],
+  },
+  {
+    id: 'play',
+    label: 'Play',
+    glyph: '⚔',
+    hue: 'var(--type-ghost)',
+    blurb: 'Find opponents, report matches, and stay in touch.',
+    screens: ['matchmaking', 'match', 'friends'],
+  },
+];
+
+export function sectionOf(screen: Screen): SectionDef | null {
+  return SECTIONS.find((s) => s.screens.includes(screen)) ?? null;
+}
+
+const DEF_OF = new Map(SCREEN_DEFS.map((d) => [d.id, d]));
+
+/** The section's chosen-from screens: everything but the opened-from `match`. */
+export function railScreens(section: SectionDef): ScreenDef[] {
+  return section.screens.filter((id) => id !== 'match').map((id) => DEF_OF.get(id)!);
+}
+
+/** Which rail item is lit: an open match keeps Matches lit. */
+export function railIdOf(screen: Screen): Screen {
+  return screen === 'match' ? 'matchmaking' : screen;
+}

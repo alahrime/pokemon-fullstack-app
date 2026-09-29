@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HUE_OF, SCREEN_DEFS } from '../screens';
+import { HUE_OF, SCREEN_DEFS, SECTIONS, sectionOf, railScreens, railIdOf } from '../screens';
 
 describe('screen table', () => {
   it('is the single source for nav and landing alike', () => {
@@ -26,5 +26,38 @@ describe('screen table', () => {
   });
   it('HUE_OF indexes the same table', () => {
     for (const s of SCREEN_DEFS) expect(HUE_OF[s.id]).toBe(s.hue);
+  });
+});
+
+describe('sections', () => {
+  it('puts every screen except landing and account in exactly one section', () => {
+    const all = SECTIONS.flatMap((s) => s.screens);
+    expect(new Set(all).size).toBe(all.length);
+    for (const d of SCREEN_DEFS) {
+      if (d.id === 'account') expect(all).not.toContain(d.id);
+      else expect(all, d.id).toContain(d.id);
+    }
+    expect(all).not.toContain('landing');
+  });
+  it('orders the sections and their screens as specified', () => {
+    expect(SECTIONS.map((s) => s.id)).toEqual(['analyze', 'teams', 'play']);
+    expect(SECTIONS[0].screens).toEqual(['report', 'battle', 'moves', 'rankings', 'diagnostics']);
+    expect(SECTIONS[1].screens).toEqual(['gbl', 'show6', 'cores', 'formats']);
+    expect(SECTIONS[2].screens).toEqual(['matchmaking', 'match', 'friends']);
+  });
+  it('finds a screen\'s section, and none for landing and account', () => {
+    expect(sectionOf('rankings')?.id).toBe('analyze');
+    expect(sectionOf('match')?.id).toBe('play');
+    expect(sectionOf('landing')).toBeNull();
+    expect(sectionOf('account')).toBeNull();
+  });
+  it('keeps match off the rail and lights Matches while a match is open', () => {
+    const play = SECTIONS.find((s) => s.id === 'play')!;
+    expect(railScreens(play).map((d) => d.id)).toEqual(['matchmaking', 'friends']);
+    expect(railIdOf('match')).toBe('matchmaking');
+    expect(railIdOf('friends')).toBe('friends');
+  });
+  it('gives sections type-palette hues', () => {
+    for (const s of SECTIONS) expect(s.hue).toMatch(/^var\(--type-[a-z]+\)$/);
   });
 });

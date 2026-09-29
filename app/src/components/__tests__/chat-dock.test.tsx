@@ -131,14 +131,17 @@ async function mount(session: Session | null) {
   vi.resetModules();
   const { SessionProvider } = await import('../../state/SessionContext');
   const { ChatDockRequestProvider } = await import('../../state/ChatDockContext');
+  const { ChannelListProvider } = await import('../../state/ChannelListContext');
   const { ChatDock: FreshChatDock } = await import('../ChatDock');
   let view!: RenderResult;
   await act(async () => {
     view = render(
       <SessionProvider>
-        <ChatDockRequestProvider>
-          <FreshChatDock />
-        </ChatDockRequestProvider>
+        <ChannelListProvider>
+          <ChatDockRequestProvider>
+            <FreshChatDock />
+          </ChatDockRequestProvider>
+        </ChannelListProvider>
       </SessionProvider>,
     );
   });
@@ -374,5 +377,56 @@ describe('ChatDock inside the app shell', () => {
     expect(screen.getByText('hey')).toBeInTheDocument();
     expect(listMessages).toHaveBeenCalledTimes(1);
     expect(unsubscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChatDock requestChannel', () => {
+  beforeEach(() => cleanup());
+
+  it('refreshes once for an id absent from the list, then opens it and clears the request', async () => {
+    fakeClient(fakeSession('me'));
+    vi.resetModules();
+    const { SessionProvider } = await import('../../state/SessionContext');
+    const { ChatDockRequestProvider, useChatDockRequest } = await import('../../state/ChatDockContext');
+    const { ChannelListProvider } = await import('../../state/ChannelListContext');
+    const { ChatDock: FreshChatDock } = await import('../ChatDock');
+    let ctx!: ReturnType<typeof useChatDockRequest>;
+    function Probe() {
+      ctx = useChatDockRequest();
+      return null;
+    }
+    await act(async () => {
+      render(
+        <SessionProvider>
+          <ChannelListProvider>
+            <ChatDockRequestProvider>
+              <Probe />
+              <FreshChatDock />
+            </ChatDockRequestProvider>
+          </ChannelListProvider>
+        </SessionProvider>,
+      );
+    });
+    await screen.findByRole('button', { name: /open chat with ally/i });
+    expect(listChannelsWithActivity).toHaveBeenCalledTimes(1);
+
+    // The next fetch is the one that finally carries the just-created channel.
+    listChannelsWithActivity.mockResolvedValue([
+      ...channelsFixture,
+      { id: 'c9', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+    listMessages.mockResolvedValue([
+      { id: 'm9', channelId: 'c9', authorId: 'them', body: 'fresh dm', createdAt: 't1', editedAt: null, deletedAt: null },
+    ]);
+    await act(async () => {
+      ctx.requestChannel('c9');
+    });
+
+    expect(await screen.findByText('fresh dm')).toBeInTheDocument();
+    expect(listChannelsWithActivity).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(ctx.requestedChannelId).toBeNull());
+    // Cleared: no further refresh follows.
+    await act(async () => {});
+    expect(listChannelsWithActivity).toHaveBeenCalledTimes(2);
   });
 });

@@ -25,6 +25,10 @@ const transcript = [
 ];
 
 vi.mock('../../lib/channels', () => ({
+  // Read by the ChannelListProvider `renderApp` mounts (signed out here, so never called with data).
+  isChannelUnread: () => false,
+  listChannelsWithActivity: async () => [],
+  withDisplayNames: async (cs: unknown) => cs,
   listMessages: async () => transcript,
   sendMessage: (...a: unknown[]) => sendMessage(...a),
   subscribeToChannel: (_channelId: string, cb: (m: unknown) => void) => {

@@ -15,7 +15,13 @@ vi.mock('../../lib/saves', () => ({
   listTeams: (...a: unknown[]) => listTeams(...a),
 }));
 vi.mock('../../lib/challenges', () => ({ createChallenge: (...a: unknown[]) => createChallenge(...a) }));
-vi.mock('../../lib/channels', () => ({ openDm: (...a: unknown[]) => openDm(...a) }));
+vi.mock('../../lib/channels', () => ({
+  openDm: (...a: unknown[]) => openDm(...a),
+  // Read by the ChannelListProvider `renderApp` mounts (signed out, never called with data).
+  isChannelUnread: () => false,
+  listChannelsWithActivity: async () => [],
+  withDisplayNames: async (cs: unknown) => cs,
+}));
 vi.mock('../../state/ChatDockContext', () => ({
   useChatDockRequest: () => ({ requestChannel }),
   ChatDockRequestProvider: ({ children }: { children: unknown }) => children,

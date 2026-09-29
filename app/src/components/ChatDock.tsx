@@ -1,19 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../state/SessionContext';
 import { useChatDockRequest } from '../state/ChatDockContext';
+import { useChannelList } from '../state/ChannelListContext';
 import {
   humanTime,
   isChannelUnread,
-  listChannelsWithActivity,
-  withDisplayNames,
   type ChannelDisplay,
 } from '../lib/channels';
 import { ChatPane } from './ChatPane';
 import { ChallengeSheet } from './ChallengeSheet';
-
-function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 /** Kind → the plain word the rail's mono sub-line names it by, matching the
  * approved design canvas (`match · 19:04`, `group · 4 people`,
@@ -49,13 +44,6 @@ function subLine(c: ChannelDisplay): string {
 function railAriaLabel(c: ChannelDisplay, unread: boolean): string {
   return `Open chat with ${c.displayTitle}${unread ? ', 1 unread' : ''}`;
 }
-
-/**
- * How long a closed conversation can sit before the rail notices a new
- * message in it. See this file's own doc comment on `ChatDock` for why this,
- * rather than a Realtime subscription per channel, is what drives it.
- */
-const POLL_MS = 15_000;
 
 /**
  * The persistent Messenger-style dock: a rail of every conversation this
@@ -96,7 +84,7 @@ const POLL_MS = 15_000;
  * screen, whether or not anyone is looking at any of them — a cost that
  * grows with the size of someone's friend list and match history rather than
  * with how many conversations are actually open. Instead the rail polls
- * `listChannelsWithActivity()` on a fixed interval (`POLL_MS`), which costs
+ * `listChannelsWithActivity()` on a fixed interval (`POLL_MS`, in `ChannelListContext`), which costs
  * exactly one query regardless of how many channels exist. `ChatPane`
  * narrows that gap for anything already open: it reports every message it
  * sends or receives, and every successful `markRead`, back up through
@@ -119,31 +107,10 @@ export function ChatDock() {
   const { requestedMatchId, clearRequestedMatchChannel, requestedChannelId, clearRequestedChannel } =
     useChatDockRequest();
   const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
-  const [channels, setChannels] = useState<ChannelDisplay[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { channels, loadError, refresh, bumpActivity, bumpRead, totalUnread } = useChannelList();
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [minimizedIds, setMinimizedIds] = useState<Set<string>>(new Set());
-
-  const refresh = useCallback(() => {
-    void listChannelsWithActivity()
-      .then((cs) => withDisplayNames(cs))
-      .then((cs) => {
-        setChannels(cs);
-        setLoadError(null);
-      })
-      .catch((e) => setLoadError(messageOf(e)));
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setChannels(null);
-      return;
-    }
-    refresh();
-    const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
-  }, [user, refresh]);
 
   const openChannel = useCallback((id: string) => {
     setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -205,24 +172,6 @@ export function ChatDock() {
       clearRequestedChannel();
     }
   }, [requestedChannelId, channels, openChannel, clearRequestedChannel]);
-
-  // Optimistic local bumps so a pane's own traffic (see this file's doc
-  // comment above) moves the rail before the next poll, rather than only
-  // ever changing what the rail shows once every `POLL_MS`.
-  const bumpActivity = useCallback((id: string, at: string) => {
-    setChannels((prev) =>
-      prev
-        ? prev.map((c) => (c.id === id && (!c.lastMessageAt || at > c.lastMessageAt) ? { ...c, lastMessageAt: at } : c))
-        : prev,
-    );
-  }, []);
-  const bumpRead = useCallback((id: string, at: string) => {
-    setChannels((prev) =>
-      prev ? prev.map((c) => (c.id === id && (!c.lastReadAt || at > c.lastReadAt) ? { ...c, lastReadAt: at } : c)) : prev,
-    );
-  }, []);
-
-  const totalUnread = useMemo(() => (channels ?? []).filter(isChannelUnread).length, [channels]);
 
   if (!user) return null;
 

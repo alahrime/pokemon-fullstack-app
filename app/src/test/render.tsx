@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { AppStateProvider } from '../state/AppState';
 import { ThemeProvider } from '../state/ThemeContext';
 import { SessionProvider } from '../state/SessionContext';
+import { ChannelListProvider } from '../state/ChannelListContext';
 import { ChatDockRequestProvider } from '../state/ChatDockContext';
 
 /**
@@ -14,7 +15,9 @@ import { ChatDockRequestProvider } from '../state/ChatDockContext';
  * dock replacing the `chat` destination — the one-shot bridge to `ChatDock`
  * from `ChatDockContext`; rendering any of these bare throws on the missing
  * context, which is a failure about the harness rather than the component.
- * Nesting matches App.tsx's own order.
+ * Nesting matches App.tsx's own order (Theme, Session, ChannelList, AppState,
+ * ChatDockRequest); `ChannelListProvider` is the one shared, polled channel
+ * list, and reads the session.
  *
  * `setup.ts` mocks `@supabase/supabase-js` for the whole suite, so this
  * SessionProvider talks to the stub client and settles signed-out — a screen
@@ -25,9 +28,11 @@ export function renderApp(ui: ReactElement) {
   return render(
     <ThemeProvider>
       <SessionProvider>
-        <AppStateProvider>
-          <ChatDockRequestProvider>{ui}</ChatDockRequestProvider>
-        </AppStateProvider>
+        <ChannelListProvider>
+          <AppStateProvider>
+            <ChatDockRequestProvider>{ui}</ChatDockRequestProvider>
+          </AppStateProvider>
+        </ChannelListProvider>
       </SessionProvider>
     </ThemeProvider>,
   );

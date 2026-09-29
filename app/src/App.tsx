@@ -3,6 +3,7 @@ import { AppStateProvider, useAppState } from './state/AppState';
 import { SECTIONS, sectionOf } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
 import { SessionProvider } from './state/SessionContext';
+import { ChannelListProvider } from './state/ChannelListContext';
 import { ChatDockRequestProvider } from './state/ChatDockContext';
 import { ThemeMenu } from './components/ThemeMenu';
 import { HudGround } from './components/Hud';
@@ -258,11 +259,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <SessionProvider>
-        <AppStateProvider>
-          <ChatDockRequestProvider>
-            <Shell />
-          </ChatDockRequestProvider>
-        </AppStateProvider>
+        <ChannelListProvider>
+          <AppStateProvider>
+            <ChatDockRequestProvider>
+              <Shell />
+            </ChatDockRequestProvider>
+          </AppStateProvider>
+        </ChannelListProvider>
       </SessionProvider>
     </ThemeProvider>
   );

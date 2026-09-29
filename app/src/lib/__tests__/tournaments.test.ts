@@ -32,7 +32,7 @@ const FUTURE = '2026-09-29T13:00:00Z';
 const tour = (over: Partial<Tournament>): Tournament => ({
   id: 't', organiserId: 'o', title: 'T', description: '', formatVersionId: 'fv', league: 'great', rounds: 3,
   roundMinutes: 25, maxPlayers: 8, registrationClosesAt: null, state: 'registration', currentRound: 0,
-  roundEndsAt: null, createdAt: PAST, ...over,
+  roundEndsAt: null, createdAt: PAST, entrants: 0, ...over,
 });
 const pr = (over: Partial<Pairing>): Pairing => ({
   id: 'p', round: 1, tableNo: 1, playerA: 'a', playerB: 'b', scoreA: null, scoreB: null, state: 'pending',
@@ -127,9 +127,10 @@ describe('rpc wrappers', () => {
 
 describe('readers', () => {
   it('listTournaments maps rows, newest first, limit 100', async () => {
-    h.rows.tournaments = [{ id: 't', organiser_id: 'o', title: 'T', description: '', format_version_id: 'fv', league: 'great', rounds: 3, round_minutes: 25, max_players: 8, registration_closes_at: PAST, state: 'closed', current_round: 1, round_ends_at: FUTURE, created_at: PAST }];
+    h.rows.tournaments = [{ id: 't', organiser_id: 'o', title: 'T', description: '', format_version_id: 'fv', league: 'great', rounds: 3, round_minutes: 25, max_players: 8, registration_closes_at: PAST, state: 'closed', current_round: 1, round_ends_at: FUTURE, created_at: PAST, tournament_entrants: [{ count: 5 }] }];
     const [t] = await T.listTournaments();
-    expect(t).toEqual(tour({ state: 'closed', registrationClosesAt: PAST, currentRound: 1, roundEndsAt: FUTURE }));
+    expect(t).toEqual(tour({ state: 'closed', registrationClosesAt: PAST, currentRound: 1, roundEndsAt: FUTURE, entrants: 5 }));
+    expect(h.calls).toContainEqual({ op: 'tournaments.select', payload: [expect.stringContaining('tournament_entrants(count)')] });
     expect(h.calls).toContainEqual({ op: 'tournaments.order', payload: ['created_at', { ascending: false }] });
     expect(h.calls).toContainEqual({ op: 'tournaments.limit', payload: [100] });
   });

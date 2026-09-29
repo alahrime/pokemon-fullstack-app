@@ -11,6 +11,8 @@ export interface Tournament {
   league: LeagueId; rounds: number; roundMinutes: number; maxPlayers: number;
   registrationClosesAt: string | null; state: TournamentState; currentRound: number;
   roundEndsAt: string | null; createdAt: string;
+  /** Registered players (the list reader's count embed; 0 from `getTournament`). */
+  entrants: number;
 }
 export interface Entrant { playerId: string; seed: number; dropped: boolean; registeredAt: string }
 export interface Pairing {
@@ -92,19 +94,21 @@ interface TRow {
   league: LeagueId; rounds: number; round_minutes: number; max_players: number;
   registration_closes_at: string | null; state: TournamentState; current_round: number;
   round_ends_at: string | null; created_at: string;
+  tournament_entrants?: { count: number }[] | null;
 }
 const toTournament = (r: TRow): Tournament => ({
   id: r.id, organiserId: r.organiser_id, title: r.title, description: r.description,
   formatVersionId: r.format_version_id, league: r.league, rounds: r.rounds, roundMinutes: r.round_minutes,
   maxPlayers: r.max_players, registrationClosesAt: r.registration_closes_at, state: r.state,
   currentRound: r.current_round, roundEndsAt: r.round_ends_at, createdAt: r.created_at,
+  entrants: r.tournament_entrants?.[0]?.count ?? 0,
 });
 const T_COLS =
   'id, organiser_id, title, description, format_version_id, league, rounds, round_minutes, max_players, registration_closes_at, state, current_round, round_ends_at, created_at';
 
 export async function listTournaments(): Promise<Tournament[]> {
   const { data, error } = await supabase
-    .from('tournaments').select(T_COLS).order('created_at', { ascending: false }).limit(100);
+    .from('tournaments').select(`${T_COLS}, tournament_entrants(count)`).order('created_at', { ascending: false }).limit(100);
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as TRow[]).map(toTournament);
 }

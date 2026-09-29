@@ -3,9 +3,9 @@ import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 import type { Match } from '../lib/matches';
-import { hashFor, screenFromHash } from '../lib/route';
+import { hashForView, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'account';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
@@ -78,6 +78,9 @@ export interface AppStateShape {
    * round trip to recover data the caller is about to throw away.
    */
   activeMatch: Match | null;
+  /** The tournament the Tournaments screen is open on; mirrored in the URL
+   *  (`#/play/tournaments/<id>`), unlike `activeMatch`, so it can be linked. */
+  activeTournamentId: string | null;
 }
 
 // Rolled once per page load, so the battle screen opens somewhere different
@@ -136,6 +139,7 @@ export const INITIAL_STATE: AppStateShape = {
   energyA: 0,
   energyB: 0,
   activeMatch: null,
+  activeTournamentId: null,
 };
 
 interface AppStateContextValue {
@@ -154,27 +158,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppStateShape>(() => ({
     ...INITIAL_STATE,
     screen: typeof window === 'undefined' ? 'landing' : screenFromHash(window.location.hash),
+    activeTournamentId: typeof window === 'undefined' ? null : tournamentIdFromHash(window.location.hash),
   }));
 
   // State → URL. An empty hash is the landing page, so a fresh visit writes
   // nothing and adds no history entry.
   useEffect(() => {
-    const want = hashFor(state.screen);
+    const want = hashForView(state.screen, state.activeTournamentId);
     const have = window.location.hash || '#/';
     if (have === want) return;
     // An unknown route or an auth callback (#access_token...) is not ours to
     // keep: replace it so Back does not land on it again. replaceState fires no
     // hashchange, and state already says `want`, so nothing else to sync.
-    if (hashFor(screenFromHash(have)) !== have) history.replaceState(null, '', want);
+    if (hashForView(screenFromHash(have), tournamentIdFromHash(have)) !== have) history.replaceState(null, '', want);
     else window.location.hash = want;
-  }, [state.screen]);
+  }, [state.screen, state.activeTournamentId]);
 
   // URL → state, for back/forward and hand-edited addresses.
   useEffect(() => {
     const onHash = () => {
       const next = screenFromHash(window.location.hash);
+      const nextId = tournamentIdFromHash(window.location.hash);
       // An open match keeps its screen when the address still says Matches.
-      setState((s) => (hashFor(s.screen) === hashFor(next) ? s : { ...s, screen: next }));
+      setState((s) =>
+        hashForView(s.screen, s.activeTournamentId) === hashForView(next, nextId)
+          ? s
+          : { ...s, screen: next, activeTournamentId: nextId },
+      );
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);

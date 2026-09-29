@@ -1,6 +1,9 @@
 import type { Screen } from '../state/AppState';
 import { SECTIONS, sectionOf } from './screens';
 
+const TID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const TOURNAMENT_HASH = new RegExp(`^#/play/tournaments/(${TID})$`, 'i');
+
 /** `match` shares Matches' address: an open match lives in memory (`activeMatch`)
  *  and a URL cannot recreate it. */
 export function hashFor(screen: Screen): string {
@@ -10,7 +13,19 @@ export function hashFor(screen: Screen): string {
   return `#/${sectionOf(id)!.id}/${id}`;
 }
 
+export const hashForTournament = (id: string): string => `#/play/tournaments/${id}`;
+
+export function tournamentIdFromHash(hash: string): string | null {
+  return TOURNAMENT_HASH.exec(hash)?.[1] ?? null;
+}
+
+/** The address a screen (and, on Tournaments, an open tournament) lives at. */
+export function hashForView(screen: Screen, tournamentId: string | null): string {
+  return screen === 'tournaments' && tournamentId ? hashForTournament(tournamentId) : hashFor(screen);
+}
+
 export function screenFromHash(hash: string): Screen {
+  if (tournamentIdFromHash(hash)) return 'tournaments';
   const m = /^#\/([a-z]+)\/([a-z0-9]+)$/.exec(hash);
   if (m) {
     const section = SECTIONS.find((s) => s.id === m[1]);

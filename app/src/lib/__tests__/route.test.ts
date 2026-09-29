@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashFor, screenFromHash } from '../route';
+import { hashFor, hashForTournament, screenFromHash, tournamentIdFromHash } from '../route';
 import { SCREEN_DEFS } from '../screens';
 
 describe('hash routing', () => {
@@ -19,6 +19,16 @@ describe('hash routing', () => {
       if (d.id === 'match') continue;
       expect(screenFromHash(hashFor(d.id)), d.id).toBe(d.id);
     }
+  });
+  it('round-trips a tournament deep link', () => {
+    const id = '3f2b8a10-5c4d-4e6f-9a1b-0c2d3e4f5a6b';
+    expect(hashFor('tournaments')).toBe('#/play/tournaments');
+    expect(hashForTournament(id)).toBe(`#/play/tournaments/${id}`);
+    expect(tournamentIdFromHash(hashForTournament(id))).toBe(id);
+    expect(screenFromHash(hashForTournament(id))).toBe('tournaments');
+    for (const h of ['#/play/tournaments', '#/play/tournaments/nope', '#/play/tournaments/' + id + '/x', 'garbage'])
+      expect(tournamentIdFromHash(h), h).toBeNull();
+    expect(screenFromHash('#/play/tournaments/nope')).toBe('landing');
   });
   it('sends anything unrecognised to landing', () => {
     for (const h of ['', '#', '#/', '#/nope', '#/analyze/nope', '#/play/rankings', 'garbage'])

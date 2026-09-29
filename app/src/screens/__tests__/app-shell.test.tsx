@@ -10,6 +10,17 @@ beforeEach(() => {
 });
 
 describe('App shell', () => {
+  it('mirrors the screen into the URL hash and follows the hash back', async () => {
+    const { container } = renderApp(<App />);
+    fireEvent.click(container.querySelector('.landing-route')!);
+    await waitFor(() => expect(window.location.hash).not.toBe(''));
+    act(() => {
+      window.location.hash = '#/analyze/rankings';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    await waitFor(() => expect(container.querySelector('.nav-tab.is-active')?.textContent).toMatch(/Rankings/));
+  });
+
   const go = (c: HTMLElement, label: string) =>
     [...c.querySelectorAll('.nav-tab')].find((t) => t.textContent?.includes(label))!;
 

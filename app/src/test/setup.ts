@@ -91,3 +91,8 @@ vi.mock('@supabase/supabase-js', () => ({
     }),
   }),
 }));
+
+import { beforeEach } from 'vitest';
+// The screen is mirrored into location.hash, and jsdom's window outlives a
+// test: without this the next test would start on the last one's screen.
+beforeEach(() => { window.location.hash = ''; });

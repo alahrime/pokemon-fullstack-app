@@ -1,8 +1,9 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 import type { Match } from '../lib/matches';
+import { hashFor, screenFromHash } from '../lib/route';
 
 export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
@@ -147,7 +148,32 @@ interface AppStateContextValue {
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppStateShape>(INITIAL_STATE);
+  // INITIAL_STATE stays the exported default (tests assert it); only the
+  // starting screen is taken from the address, so a shared link lands where
+  // it points.
+  const [state, setState] = useState<AppStateShape>(() => ({
+    ...INITIAL_STATE,
+    screen: typeof window === 'undefined' ? 'landing' : screenFromHash(window.location.hash),
+  }));
+
+  // State → URL. An empty hash is the landing page, so a fresh visit writes
+  // nothing and adds no history entry.
+  useEffect(() => {
+    const want = hashFor(state.screen);
+    const have = window.location.hash || '#/';
+    if (have !== want) window.location.hash = want;
+  }, [state.screen]);
+
+  // URL → state, for back/forward and hand-edited addresses.
+  useEffect(() => {
+    const onHash = () => {
+      const next = screenFromHash(window.location.hash);
+      // An open match keeps its screen when the address still says Matches.
+      setState((s) => (hashFor(s.screen) === hashFor(next) ? s : { ...s, screen: next }));
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const value = useMemo<AppStateContextValue>(() => {
     const set = <K extends keyof AppStateShape>(key: K, v: AppStateShape[K]) =>

@@ -35,6 +35,7 @@ export function ChallengeSheet({
   const [scheduled, setScheduled] = useState(false);
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstRef = useRef<HTMLSelectElement>(null);
 
@@ -46,7 +47,15 @@ export function ChallengeSheet({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useEffect(() => firstRef.current?.focus(), []);
+  // Focus moves in on mount and returns to the opener on unmount (the
+  // AddPokemonModal pattern; it has no Tab trap, so neither does this).
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    firstRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -83,6 +92,7 @@ export function ChallengeSheet({
     if (!format || !team) return;
     setBusy(true);
     setError(null);
+    let created = false;
     try {
       await createChallenge({
         targetId: target.id,
@@ -92,12 +102,16 @@ export function ChallengeSheet({
         team: team.members,
         scheduledFor: scheduled ? new Date(when) : undefined,
       });
+      created = true;
+      setSent(true);
       const dmId = await openDm(target.id);
       requestChannel(dmId);
       onClose();
     } catch (e) {
-      setError(messageOf(e));
-      setBusy(false);
+      // Once the challenge exists, a retry would create a second one: keep
+      // Send disabled and say so.
+      setError(created ? `Challenge sent — couldn't open the chat: ${messageOf(e)}` : messageOf(e));
+      setBusy(created);
     }
   }
 
@@ -205,7 +219,7 @@ export function ChallengeSheet({
 
         <div className="challenge-sheet-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {sent ? 'Close' : 'Cancel'}
           </button>
           <button type="button" className="btn btn-primary" disabled={!ready} onClick={() => void send()}>
             Send challenge

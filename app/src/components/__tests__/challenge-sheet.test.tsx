@@ -127,6 +127,33 @@ describe('ChallengeSheet', () => {
     expect(openDm).not.toHaveBeenCalled();
   });
 
+  it('after a sent challenge, a failed chat open cannot be retried into a second challenge', async () => {
+    openDm.mockRejectedValue(new Error('no dm'));
+    const onClose = open();
+    await choose();
+    const send = screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement;
+    fireEvent.click(send);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/challenge sent.*no dm/i);
+    expect(send.disabled).toBe(true);
+    fireEvent.click(send);
+    expect(createChallenge).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('returns focus to the opener when it unmounts', async () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const view = renderApp(<ChallengeSheet target={target} onClose={vi.fn()} />);
+    await screen.findByRole('dialog');
+    expect(document.activeElement).not.toBe(trigger);
+    view.unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
   it('closes on Escape and Cancel', async () => {
     const onClose = open();
     await screen.findByRole('dialog');

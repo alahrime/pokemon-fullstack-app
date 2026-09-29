@@ -26,8 +26,22 @@ design authority; the plans argue from it.
 | **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
 | M4 — ranked, records | Not started. Spec covers the design. |
 | **Shell, challenges, tournaments** (M5 pulled forward) | **Plan A (shell) built on `feat/shell` 2026-09-29 (`1716b3e..2a5e161`, plus the final review-fix commit "fix(shell): review fixes"); merged to main by the controller.** Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. Plans B (challenges/chat) and C (tournaments + 6-Pokémon roster) not written. |
+| **Challenges and chat** (plan B) | **Built on `feat/challenges` 2026-09-29** (`370708f..`, plus the m4 roundtrip/handoff commit). `npm run check` green (1387/1387); roundtrip `tools/m4-challenges-roundtrip.ts` 12/12; `check:db` 223/228 — the 5 reds are environmental, see below. Plan: `docs/superpowers/plans/2026-09-29-b-challenges-and-chat.md` |
 
 ---
+
+## Where this session left off — 2026-09-29 (challenges and chat)
+
+Plan B is built on `feat/challenges`.
+
+- **Shipped:** a challenge is a `match_offers` row aimed at one person (`target_id`), created with its DM card by `create_challenge`; `decline_challenge`; `accept_offer` admits the target. Live `ChallengeCard` in the DM; `ChallengeSheet` from a friend row, a DM header or the opponent panel; one shared `ChannelListContext` poll; Play → Chat screen (inbox, conversation, opponent panel); notification bell and toasts.
+- **Rulings:** challenge friends, or anyone you share a live match with (the DM rule), never across a block — one refusal sentence for every reason. Expiry 1h for "now", until the play time for a scheduled one. Public formats only. The card polls every 10s. Up to a minute of "Verifying the format…" is expected (the coordinator's tick). The bell counts unread channels + challenges awaiting you + friend requests + scheduled challenges awaiting your confirm; in-app only.
+- **Deferred:** realtime on offer state (the card polls), "record vs you", a user-level Report in the opponent panel, web push, typing indicators, read receipts, attachments.
+- **Deploy:** push to main makes the GitHub-app deploy apply `20260929000000_challenges.sql` to the **production** database. The coordinator needs **no redeploy** — it already verifies every unverified offer, challenges included.
+- **Verified:** m4 roundtrip 12/12 against the local stack (create → card, private to the pair, refused before verification, converted after a forced tick, decline, withdraw leaves the card with `offer_id` null, anon refused both RPCs, blocked pair refused). Browser, two accounts in two origins: card in the target's DM 1.8s after send, toast for a new challenge appears and clears after 6.0s, bell count = notice count, a challenge notice lands on Chat with the DM selected, no column overlap at 1440, no horizontal scroll at 375, dock absent only on Chat.
+- **Styles:** the new CSS uses no `--radius` / `border-radius` (chamfers only).
+- **`check:db` is not fully green on this machine, for an environmental reason:** 5 tests in `supabase/tests/social.test.ts` (requester-accepts-own, decline deletes, block tears down, either side removes, stranger refused) count every `friendships` row, and the local DB holds one real friendship of the user's. Not caused by this branch; do not delete that row to make it pass.
+- **Open (found in verification):** nothing in the UI can make a format public (`saveServerFormat` never sets `visibility`, default `private`), so a UI-only user can never send a challenge — the roundtrip and the browser pass flipped visibility with the admin client. And `listServerFormats` returns every public format readable by RLS, so once formats are public the sheet (and `useFormats` / Matchmaking, its other callers) list other people's public formats as yours — pre-existing in `saves.ts`, surfaced by challenges.
 
 ## Where this session left off — 2026-09-29 (shell)
 

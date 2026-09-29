@@ -6435,3 +6435,13 @@ th.bt-matrix-head { text-align: center; }
   }
   .section-rail .nav-tab { width: auto; flex: none; }
 }
+
+.challenge-card {
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-left: 3px solid var(--rule-strong);
+  background: var(--surface-1);
+}
+.challenge-card.tone-open { border-left-color: var(--color-accent); }
+.challenge-card.tone-dead { opacity: .7; }
+.challenge-card-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }

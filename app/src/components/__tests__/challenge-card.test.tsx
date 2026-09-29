@@ -1,0 +1,149 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
+import type { Challenge } from '../../lib/challenges';
+
+const fetchChallenges = vi.fn();
+const declineChallenge = vi.fn();
+const withdrawChallenge = vi.fn();
+const acceptOffer = vi.fn();
+const confirmOffer = vi.fn();
+const myMatches = vi.fn();
+const listTeams = vi.fn();
+const patch = vi.fn();
+
+vi.mock('../../lib/challenges', async (orig) => ({
+  ...(await orig<typeof import('../../lib/challenges')>()),
+  fetchChallenges: (...a: unknown[]) => fetchChallenges(...a),
+  declineChallenge: (...a: unknown[]) => declineChallenge(...a),
+  withdrawChallenge: (...a: unknown[]) => withdrawChallenge(...a),
+}));
+vi.mock('../../lib/matchmaking', () => ({
+  acceptOffer: (...a: unknown[]) => acceptOffer(...a),
+  confirmOffer: (...a: unknown[]) => confirmOffer(...a),
+}));
+vi.mock('../../lib/matches', () => ({ myMatches: (...a: unknown[]) => myMatches(...a) }));
+vi.mock('../../lib/saves', () => ({ listTeams: (...a: unknown[]) => listTeams(...a) }));
+vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user: { id: 'me' } }) }));
+vi.mock('../../state/AppState', () => ({ useAppState: () => ({ patch }) }));
+
+import { ChallengeCard } from '../ChallengeCard';
+
+const future = new Date(Date.now() + 3600_000).toISOString();
+const base: Challenge = {
+  id: 'o', proposerId: 'them', targetId: 'me', league: 'great', state: 'open',
+  scheduledFor: null, expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: 'Cup',
+};
+const team = { id: 't1', name: 'T', league: 'great', size: 3, members: [{ ref: 'a' }] };
+const serve = (c: Partial<Challenge>) => fetchChallenges.mockResolvedValue(new Map([['o', { ...base, ...c }]]));
+const flush = () => act(async () => { await Promise.resolve(); });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  listTeams.mockResolvedValue([team]);
+  declineChallenge.mockResolvedValue(true);
+  withdrawChallenge.mockResolvedValue(undefined);
+  confirmOffer.mockResolvedValue('m');
+  acceptOffer.mockResolvedValue(null);
+});
+afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+describe('ChallengeCard', () => {
+  it('target accepts with the chosen team', async () => {
+    serve({});
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Waiting for you')).toBeTruthy();
+    expect(await screen.findByLabelText('Team to bring')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
+    const accept = screen.getByRole('button', { name: 'Accept' });
+    await waitFor(() => expect((accept as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(accept);
+    await waitFor(() => expect(acceptOffer).toHaveBeenCalledTimes(1));
+    expect(acceptOffer).toHaveBeenCalledWith('o', team.members);
+  });
+
+  it('no saved team of that size disables Accept and names the size', async () => {
+    listTeams.mockResolvedValue([]);
+    serve({});
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText(/Save a team of 3 in Teams first/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('unverified: no Accept, Decline present', async () => {
+    serve({ verifiedHash: null });
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Verifying the format…')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
+  });
+
+  it('proposer withdraws then re-fetches', async () => {
+    serve({ proposerId: 'me', targetId: 'them' });
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Waiting for them')).toBeTruthy();
+    const before = fetchChallenges.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    await waitFor(() => expect(withdrawChallenge).toHaveBeenCalledWith('o'));
+    await waitFor(() => expect(fetchChallenges.mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it('proposer confirms an accepted scheduled challenge', async () => {
+    serve({ proposerId: 'me', targetId: 'them', state: 'accepted', scheduledFor: future });
+    render(<ChallengeCard offerId="o" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(confirmOffer).toHaveBeenCalledWith('o'));
+  });
+
+  it('converted opens the match', async () => {
+    serve({ state: 'converted', matchId: 'm' });
+    const match = { id: 'm' };
+    myMatches.mockResolvedValue([{ id: 'x' }, match]);
+    render(<ChallengeCard offerId="o" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open match' }));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith({ activeMatch: match, screen: 'match' }));
+  });
+
+  it.each(['declined', 'lapsed'] as const)('%s is terminal: no buttons, poll stops', async (state) => {
+    vi.useFakeTimers();
+    serve({ state });
+    render(<ChallengeCard offerId="o" />);
+    await flush();
+    await flush();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    const n = fetchChallenges.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(35_000); });
+    expect(fetchChallenges.mock.calls.length).toBe(n);
+  });
+
+  it('polls every 10s while live', async () => {
+    vi.useFakeTimers();
+    serve({});
+    render(<ChallengeCard offerId="o" />);
+    await flush();
+    const n = fetchChallenges.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetchChallenges.mock.calls.length).toBeGreaterThan(n);
+  });
+
+  it('decline calls declineChallenge and re-fetches', async () => {
+    serve({});
+    render(<ChallengeCard offerId="o" />);
+    const before = fetchChallenges.mock.calls.length;
+    fireEvent.click(await screen.findByRole('button', { name: 'Decline' }));
+    await waitFor(() => expect(declineChallenge).toHaveBeenCalledWith('o'));
+    await waitFor(() => expect(fetchChallenges.mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it('a rejected accept shows an alert and stays usable', async () => {
+    serve({});
+    acceptOffer.mockRejectedValue(new Error('roster mismatch'));
+    render(<ChallengeCard offerId="o" />);
+    const accept = await screen.findByRole('button', { name: 'Accept' });
+    await waitFor(() => expect((accept as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(accept);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('roster mismatch');
+    expect(alert.className).toContain('friend-notice');
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(false));
+  });
+});

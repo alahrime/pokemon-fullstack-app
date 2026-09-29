@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ChallengeCard } from './ChallengeCard';
 import { useSession } from '../state/SessionContext';
 import {
   listMessages,
@@ -261,9 +262,13 @@ export function ChatPane({
                   key={m.id}
                   className={`chat-message${m.deletedAt ? ' is-deleted' : ''}`}
                 >
-                  <p className="chat-message-body">
-                    {m.deletedAt ? 'Message deleted' : m.body}
-                  </p>
+                  {m.kind === 'challenge' && m.offerId && !m.deletedAt ? (
+                    <ChallengeCard offerId={m.offerId} />
+                  ) : (
+                    <p className="chat-message-body">
+                      {m.deletedAt ? 'Message deleted' : m.body}
+                    </p>
+                  )}
                   {canReport && reportedIds.has(m.id) && (
                     <span className="text-faint">Reported</span>
                   )}

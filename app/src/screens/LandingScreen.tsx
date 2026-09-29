@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
-import { SCREEN_DEFS } from '../lib/screens';
+import { SECTIONS, railScreens } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { PokemonCard } from '../components/PokemonCard';
 import { LEAGUE_BY_ID, ROSTER, SPECIES } from '../lib/data';
@@ -178,32 +178,32 @@ export function LandingScreen() {
         <header className="mb-6 border-b border-(--rule-hairline) pb-3">
           <h2 className="font-(family-name:--font-head) text-2xl tracking-tight">Where to go</h2>
         </header>
-        {/* Equal columns and equal rows: `1fr` rather than auto-fit means the
-            six stay a tidy 3x2 that rebalances at 2x3 and 1x6, and every card
-            is the height of the tallest so the grid reads as a grid. */}
-        <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SCREEN_DEFS.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => set('screen', r.id)}
-              className="landing-route group flex flex-col items-start gap-3"
-              // Each card's own hue, consumed by every layer in the CSS.
-              style={{ ['--route-hue' as string]: r.hue }}
-            >
-              <span className="landing-route-glyph" aria-hidden="true">
-                {r.glyph}
-              </span>
-              <span className="hud-label landing-route-kicker">{r.kicker}</span>
-              <span className="font-(family-name:--font-head) text-xl leading-none tracking-tight">
-                {r.label}
-              </span>
-              <span className="text-sm/relaxed text-(--text-muted)">{r.blurb}</span>
-              <span className="landing-route-arrow mt-auto" aria-hidden="true">
-                →
-              </span>
-            </button>
-          ))}
-        </div>
+        {SECTIONS.map((s) => (
+          <div key={s.id} className="landing-section mb-10" style={{ ['--route-hue' as string]: s.hue }}>
+            <h3 className="hud-label mb-3 flex items-center gap-2">
+              <span aria-hidden="true" style={{ color: s.hue }}>{s.glyph}</span>
+              {s.label}
+              <span className="text-(--text-faint) normal-case tracking-normal">· {s.blurb}</span>
+            </h3>
+            <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {railScreens(s).map((r) => (
+                <button
+                  key={r.id}
+                  data-screen={r.id}
+                  onClick={() => set('screen', r.id)}
+                  className="landing-route group flex flex-col items-start gap-3"
+                  style={{ ['--route-hue' as string]: r.hue }}
+                >
+                  <span className="landing-route-glyph" aria-hidden="true">{r.glyph}</span>
+                  <span className="hud-label landing-route-kicker">{r.kicker}</span>
+                  <span className="font-(family-name:--font-head) text-xl leading-none tracking-tight">{r.label}</span>
+                  <span className="text-sm/relaxed text-(--text-muted)">{r.blurb}</span>
+                  <span className="landing-route-arrow mt-auto" aria-hidden="true">→</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
     </div>
   );

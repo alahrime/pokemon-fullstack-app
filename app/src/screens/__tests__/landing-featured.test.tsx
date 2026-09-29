@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { renderApp } from '../../test/render';
 import { LandingScreen } from '../LandingScreen';
 import { LANDING_FEATURED_N } from '../../lib/summarySpec';
+import { SECTIONS, railScreens } from '../../lib/screens';
 
 /**
  * "Strongest in <league>" is a leaderboard, and has to read as one.
@@ -63,5 +64,17 @@ describe('the landing leaderboard is not a team', () => {
     // Nothing asserts a duplicate is present — that depends on the artefact —
     // only that the list is not silently de-duplicated to look like a team.
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('landing route cards', () => {
+  it('groups the route cards under their section, one card per rail screen', () => {
+    const { container } = renderApp(<LandingScreen />);
+    const groups = [...container.querySelectorAll('.landing-section')];
+    expect(groups).toHaveLength(SECTIONS.length);
+    const expected = SECTIONS.reduce((n: number, s: any) => n + railScreens(s).length, 0);
+    expect(container.querySelectorAll('.landing-route')).toHaveLength(expected);
+    expect(container.querySelector('.landing-route[data-screen="match"]')).toBeNull();
+    expect(container.querySelector('.landing-route[data-screen="account"]')).toBeNull();
   });
 });

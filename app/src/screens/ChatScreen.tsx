@@ -104,7 +104,7 @@ export function ChatScreen() {
         )}
       </div>
 
-      {showPanel && <OpponentPanel channel={selected} onChallenge={setChallengeTarget} />}
+      {showPanel && <OpponentPanel key={selected.id} channel={selected} onChallenge={setChallengeTarget} />}
       {challengeTarget && <ChallengeSheet target={challengeTarget} onClose={() => setChallengeTarget(null)} />}
     </div>
   );

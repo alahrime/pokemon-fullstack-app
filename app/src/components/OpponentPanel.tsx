@@ -18,16 +18,19 @@ export function OpponentPanel({
   const [code, setCode] = useState<string | null | undefined>(undefined);
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
   const { otherId, matchId } = channel;
   const isDm = channel.kind === 'dm' && !!otherId;
 
   useEffect(() => {
     let live = true;
     setError(null);
+    setCode(undefined);
+    setMatches(null);
     if (isDm) {
       void opponentFriendCode(otherId!)
         .then((c) => live && setCode(c))
-        .catch(() => live && setCode(null));
+        .catch((e) => live && fail(e));
     }
     void myMatches()
       .then((m) => live && setMatches(m))
@@ -36,8 +39,6 @@ export function OpponentPanel({
       live = false;
     };
   }, [isDm, otherId, channel.id]);
-
-  const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
   if (!isDm) {
     const match = matchId ? matches?.find((m) => m.id === matchId) : undefined;

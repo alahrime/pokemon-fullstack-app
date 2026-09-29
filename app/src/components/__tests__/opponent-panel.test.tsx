@@ -71,6 +71,42 @@ describe('OpponentPanel', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('nope');
   });
 
+  it('never shows the previous DM\'s code or count while the next loads, and ignores a late reply', async () => {
+    const deferred = <T,>() => {
+      let resolve!: (v: T) => void;
+      const promise = new Promise<T>((r) => (resolve = r));
+      return { promise, resolve };
+    };
+    const a = deferred<string | null>();
+    const b = deferred<string | null>();
+    opponentFriendCode.mockImplementation((id: string) => (id === 'u2' ? a.promise : b.promise));
+    const dmB = { id: 'c9', kind: 'dm', matchId: null, otherId: 'u3', displayTitle: 'Bo' } as never;
+    const { rerender } = render(<OpponentPanel channel={dm} onChallenge={() => {}} />);
+    a.resolve('AAAA');
+    expect(await screen.findByText('AAAA')).toBeTruthy();
+    expect(await screen.findByText('2 matches together')).toBeTruthy();
+    rerender(<OpponentPanel channel={dmB} onChallenge={() => {}} />);
+    expect(screen.queryByText('AAAA')).toBeNull();
+    expect(screen.queryByText('2 matches together')).toBeNull();
+    expect(screen.queryByText('No friend code shared')).toBeNull();
+    b.resolve('BBBB');
+    expect(await screen.findByText('BBBB')).toBeTruthy();
+    expect(screen.queryByText('AAAA')).toBeNull();
+  });
+
+  it('ignores a late reply for the previous DM', async () => {
+    let resolveA!: (v: string | null) => void;
+    opponentFriendCode.mockImplementation((id: string) =>
+      id === 'u2' ? new Promise((r) => (resolveA = r)) : new Promise(() => {}),
+    );
+    const dmB = { id: 'c9', kind: 'dm', matchId: null, otherId: 'u3', displayTitle: 'Bo' } as never;
+    const { rerender } = render(<OpponentPanel channel={dm} onChallenge={() => {}} />);
+    rerender(<OpponentPanel channel={dmB} onChallenge={() => {}} />);
+    resolveA('LATE');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('LATE')).toBeNull();
+  });
+
   it('a match channel offers only Open match', async () => {
     render(<OpponentPanel channel={matchCh} onChallenge={() => {}} />);
     expect(screen.queryByRole('button', { name: 'Block' })).toBeNull();

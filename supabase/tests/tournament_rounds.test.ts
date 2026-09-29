@@ -266,6 +266,12 @@ describe('tournament rounds', () => {
       expect.objectContaining({ pairing: b, was_state: 'reported', was_score_a: 2, was_score_b: 1, score_a: 0, score_b: 0 }),
       expect.objectContaining({ pairing: c, was_state: 'disputed', was_score_a: 2, was_score_b: 0, score_a: 1, score_b: 2 }),
     ]);
+    // A re-settle records the note and settler it replaces; an earlier round stays settleable while running.
+    expect(await settle(judge, a, 0, 2, `'appeal upheld'`)).toBe('settled');
+    expect((await audit(id, 'settle_pairing'))[3].detail).toMatchObject({
+      pairing: a, was_state: 'settled', was_score_a: 2, was_score_b: 0, was_note: 'no show', was_settled_by: host,
+      score_a: 0, score_b: 2, note: 'appeal upheld',
+    });
   });
 
   it('7b. an organiser or judge who also plays cannot settle their own game, only others\'', async () => {
@@ -292,6 +298,9 @@ describe('tournament rounds', () => {
     const early = await setup(undefined, { close: false });
     expect((await refusal(() => call(p1, 'drop_out', q(early)))).message).toMatch(
       /withdraw before the tournament starts/);
+    const [kept] = await sql<{ dropped: boolean }>(
+      `select dropped from public.tournament_entrants where tournament_id = '${early}' and player_id = '${p1}'`);
+    expect(kept).toEqual({ dropped: false }); // the entrant row is intact
 
     const id = await setup();
     await start(host, id, round1);
@@ -301,7 +310,9 @@ describe('tournament rounds', () => {
       `select dropped from public.tournament_entrants where tournament_id = '${id}' and player_id = '${p1}'`);
     expect(e.dropped).toBe(true);
     expect(await call(p1, 'drop_out', q(id))).toBe(false);
-    expect(await audit(id, 'drop_out')).toEqual([{ actor_id: p1, detail: { player: p1 } }]);
+    const a = (await pairingOf(id, p1)).id;
+    expect(await audit(id, 'drop_out')).toEqual([{ actor_id: p1, detail: { player: p1, forfeited: [
+      { pairing: a, was_state: 'pending', was_score_a: null, was_score_b: null }] } }]);
     expect(await call(stranger, 'drop_out', q(id))).toBe(false);
 
     await settleAll(id);
@@ -330,6 +341,11 @@ describe('tournament rounds', () => {
     await call(p3, 'dispute_score', q(c));
     await call(p3, 'drop_out', q(id)); // disputed, as player_b
     expect(await pairingOf(id, p1, 2)).toMatchObject({ state: 'settled', score_a: 2, score_b: 0, note: 'dropped out' });
+    // The audit keeps what the forfeit overwrote.
+    const drop3 = (await audit(id, 'drop_out')).find((r) => r.actor_id === p3);
+    expect(drop3?.detail).toEqual({ player: p3, forfeited: [{ pairing: c, was_state: 'disputed', was_score_a: 1, was_score_b: 2 }] });
+    const drop4 = (await audit(id, 'drop_out')).find((r) => r.actor_id === p4);
+    expect(drop4?.detail).toEqual({ player: p4, forfeited: [] }); // the reported game was left alone
   });
 
   it('9. remove_player: organiser or judge; deletes before the start, drops and forfeits after', async () => {
@@ -346,7 +362,7 @@ describe('tournament rounds', () => {
     expect(left).toEqual({ e: 0, r: 0 });
     expect(await call(host, 'remove_player', q(id), q(p4), `'again'`)).toBe(false);
     expect(await call(host, 'remove_player', q(id), q(stranger), `'never entered'`)).toBe(false);
-    expect((await audit(id, 'remove_player')).map((r) => r.detail)).toEqual([{ player: p4, reason: 'no show' }]);
+    expect((await audit(id, 'remove_player')).map((r) => r.detail)).toEqual([{ player: p4, reason: 'no show', forfeited: [] }]);
 
     const run = await setup();
     await start(host, run, round1);
@@ -358,7 +374,8 @@ describe('tournament rounds', () => {
     // A no-op removal (already dropped, or never an entrant) returns false and writes no audit row.
     expect(await call(host, 'remove_player', q(run), q(p1), `'again'`)).toBe(false);
     expect(await call(host, 'remove_player', q(run), q(stranger), `'never entered'`)).toBe(false);
-    expect(await audit(run, 'remove_player')).toEqual([{ actor_id: judge, detail: { player: p1, reason: 'cheating' } }]);
+    const forfeited = [{ pairing: (await pairingOf(run, p1)).id, was_state: 'pending', was_score_a: null, was_score_b: null }];
+    expect(await audit(run, 'remove_player')).toEqual([{ actor_id: judge, detail: { player: p1, reason: 'cheating', forfeited } }]);
   });
 
   it('10. finish_tournament: organiser only, after the last round, once every pairing counts', async () => {
@@ -439,6 +456,93 @@ describe('tournament rounds', () => {
     expect(await auditSeen(p1)).toBe(0);
     expect(await auditSeen(stranger)).toBe(0);
     expect(await auditSeen(judge)).toBeGreaterThan(0);
+  });
+
+  describe('hardening (20260930000110)', () => {
+    const final = (pid: string) =>
+      sql(`update public.tournament_pairings set final_at = now() - interval '1 second' where id = '${pid}'`);
+
+    it('a final report is closed to correction, confirmation and dispute; an open one can still be disputed', async () => {
+      const id = await setup(undefined, { rounds: 1 });
+      await start(host, id, round1);
+      const a = (await pairingOf(id, p1)).id;
+      const b = (await pairingOf(id, p3)).id;
+      await report(p1, a, 2, 0);
+      await final(a);
+      expect((await refusal(() => call(p2, 'dispute_score', q(a)))).message).toMatch(/that result is final/);
+      expect((await refusal(() => call(p2, 'confirm_score', q(a)))).message).toMatch(/that result is final/);
+      expect((await refusal(() => report(p1, a, 2, 1))).message).toMatch(/that result is final/);
+      expect((await refusal(() => report(p2, a, 0, 2))).message).toMatch(/that result is final/);
+      expect(await pairingOf(id, p1)).toMatchObject({ state: 'reported', score_a: 2, score_b: 0 });
+      await report(p3, b, 2, 1);
+      expect(await call(p4, 'dispute_score', q(b))).toBe('disputed');
+    });
+
+    it('nothing is reported, confirmed, disputed, settled, removed or dropped once the tournament is over', async () => {
+      const id = await setup(undefined, { rounds: 1 });
+      await start(host, id, round1);
+      const a = (await pairingOf(id, p1)).id;
+      const b = (await pairingOf(id, p3)).id;
+      await report(p1, a, 2, 0);
+      await final(a);
+      await report(p3, b, 2, 1);
+      await call(p4, 'confirm_score', q(b));
+      expect(await call(host, 'finish_tournament', q(id))).toBe(true);
+      // current_round is still the last round; the state is what closes it.
+      const over = /this tournament is over/;
+      expect((await refusal(() => report(p1, a, 2, 1))).message).toMatch(over);
+      expect((await refusal(() => call(p2, 'confirm_score', q(a)))).message).toMatch(over);
+      expect((await refusal(() => call(p2, 'dispute_score', q(a)))).message).toMatch(over);
+      expect((await refusal(() => settle(judge, a, 0, 2))).message).toMatch(over);
+      expect((await refusal(() => call(host, 'remove_player', q(id), q(p2), `'x'`))).message).toMatch(over);
+      expect(await call(p2, 'drop_out', q(id))).toBe(false);
+      expect(await pairingOf(id, p1)).toMatchObject({ state: 'reported', score_a: 2, score_b: 0, settled_by: null });
+
+      const gone = await setup();
+      await start(host, gone, round1);
+      await call(host, 'cancel_tournament', q(gone));
+      const g = (await pairingOf(gone, p1)).id;
+      expect((await refusal(() => settle(judge, g, 2, 0))).message).toMatch(over);
+      expect((await refusal(() => report(p1, g, 2, 0))).message).toMatch(over);
+      expect((await refusal(() => call(judge, 'remove_player', q(gone), q(p2), `'x'`))).message).toMatch(over);
+      expect(await call(p2, 'drop_out', q(gone))).toBe(false);
+      const [e] = await sql<{ n: number }>(
+        `select count(*)::int as n from public.tournament_entrants where tournament_id in ('${id}', '${gone}') and dropped`);
+      expect(e.n).toBe(0);
+      expect(await pairingOf(gone, p1)).toMatchObject({ state: 'pending' });
+    });
+
+    it('a report on a round that has moved on is refused', async () => {
+      const id = await setup();
+      await start(host, id, round1);
+      const a = (await pairingOf(id, p1)).id;
+      await start(host, id, [{ a: p1, b: p3 }, { a: p2, b: p4 }], true);
+      expect((await refusal(() => report(p1, a, 2, 0))).message).toMatch(/that round is over/);
+    });
+
+    it('drop_out answers a draft like a missing tournament', async () => {
+      const [{ id }] = await as(host)<{ id: string }>(
+        `select public.create_tournament('Rounds', '', '${six}', ${s(3)}, ${s(25)}, ${s(64)}) as id`);
+      expect(await call(p1, 'drop_out', q(id))).toBe(false);
+      expect(await call(p1, 'drop_out', q(randomUUID()))).toBe(false);
+    });
+
+    it('refuses a round when nobody is left to pair', async () => {
+      const id = await setup([p1, p2]);
+      await start(host, id, [{ a: p1, b: p2 }]);
+      await call(p1, 'drop_out', q(id));
+      await call(p2, 'drop_out', q(id));
+      expect((await refusal(() => start(host, id, []))).message).toMatch(/nobody is left to pair/);
+      expect((await refusal(() => start(host, id, [{ a: p1, b: p2 }]))).message).toMatch(/nobody is left to pair/);
+      const [t] = await sql<{ current_round: number }>(`select current_round from public.tournaments where id = '${id}'`);
+      expect(t.current_round).toBe(1);
+    });
+
+    it('the friend-code policy has its full, short name', async () => {
+      const rows = await sql<{ polname: string }>(
+        `select polname from pg_policy where polrelid = 'public.friend_codes'::regclass and polname like 'a tournament%'`);
+      expect(rows).toEqual([{ polname: 'a tournament opponent may read your friend code' }]);
+    });
   });
 
   it('13. refuses anonymous callers every new RPC, and clients every internal helper', async () => {

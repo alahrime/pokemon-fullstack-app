@@ -7,11 +7,12 @@
  * PASS/FAIL harness are m3b-roundtrip.ts's; the coordinator tick is
  * m2a-roundtrip.ts's.
  *
- * VISIBILITY: a challenge needs a PUBLIC format, and `saveServerFormat` cannot
- * set `formats.visibility` (no shipping client function or UI does). So after
- * bot1 saves its format through `saveServerFormat`, the ADMIN client flips
- * that one row to `visibility = 'public'`. That is the only admin write that
- * stands in for something a client would do.
+ * FORMATS: a challenge is played on the proposer's OWN format, private, saved
+ * through `saveServerFormat` — no admin write stands in for a client here.
+ * `20260929000100_challenge_formats.sql` lets the target read that one format
+ * while the owner's offer on it exists; check 2b proves the target reads it
+ * and nothing else of the proposer's, and check 2c that someone else's
+ * private format is refused.
  *
  * THE COORDINATOR: the pg_cron job `coordinator-tick` runs every minute, but
  * locally `coordinator_tick()` is a no-op unless the vault secrets
@@ -41,8 +42,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY="$KEY" node node_modules/.cache/m4.mjs
  *
  * The service-role key comes from the environment and is never written into
- * this file. It is used for: flipping the format public (above), the
- * coordinator tick and its pre-tick scan, confirming a withdrawn offer's row
+ * this file. It is used for: the coordinator tick and its pre-tick scan, confirming a withdrawn offer's row
  * is really gone, and cleanup (matches — no client DELETE policy — and the
  * three accounts).
  */
@@ -147,6 +147,12 @@ const bots = [bot1, bot2, bot3];
 
 let formatId = '';
 let versionId = '';
+/** bot1's second private format, never challenged on: the target must not see it. */
+let secretFormatId = '';
+let secretVersionId = '';
+/** bot3's private format: bot1 must not be able to challenge on it. */
+let bot3FormatId = '';
+let bot3VersionId = '';
 let dmId = '';
 
 // --- signup through Mailpit (m3b's) ------------------------------------------
@@ -254,6 +260,8 @@ const challenge = (targetId: string) =>
 // ---------------------------------------------------------------------------
 async function main(): Promise<void> {
   console.log(`M4 challenges round trip — run ${stamp}\ncoordinator ${COORDINATOR_URL}\n`);
+  census0 = await census();
+  console.log(`census before: ${show(census0)}\n`);
 
   for (const b of bots) {
     await check(`0. ${b.label} registers, confirms through Mailpit, and gets a profile`, async () => {
@@ -263,19 +271,27 @@ async function main(): Promise<void> {
   }
   if (failures > 0) throw new Error('registration gate failed');
 
-  await check('0b. bot1 and bot2 befriend; bot1 saves a format (admin flips it public)', async () => {
+  await check('0b. bot1 and bot2 befriend; bot1 saves two PRIVATE formats, bot3 one', async () => {
     assert((await as(bot1, () => requestFriendship(bot2.id))) === 'pending', 'request not pending');
     assert((await as(bot2, () => respondToFriendship(bot1.id, true))) === 'accepted', 'respond not accepted');
     await as(bot1, async () => {
       formatId = await saveServerFormat({ name: `m4 ${stamp}`, format: RULES });
-      const saved = (await listServerFormats()).find((f) => f.id === formatId);
-      if (!saved) throw new Error('saved a format it cannot list');
+      secretFormatId = await saveServerFormat({ name: `m4 ${stamp} secret`, format: RULES });
+      const mine = await listServerFormats();
+      const saved = mine.find((f) => f.id === formatId);
+      const secret = mine.find((f) => f.id === secretFormatId);
+      if (!saved || !secret) throw new Error('saved a format it cannot list');
       versionId = saved.versionId;
+      secretVersionId = secret.versionId;
     });
-    const flip = await admin.from('formats').update({ visibility: 'public' }).eq('id', formatId).select('id');
-    if (flip.error || (flip.data ?? []).length !== 1) throw new Error(`admin could not flip visibility: ${flip.error?.message}`);
+    await as(bot3, async () => {
+      bot3FormatId = await saveServerFormat({ name: `m4 ${stamp} bot3`, format: RULES });
+      bot3VersionId = (await listServerFormats()).find((f) => f.id === bot3FormatId)!.versionId;
+    });
+    const vis = await admin.from('formats').select('visibility').in('id', [formatId, secretFormatId, bot3FormatId]);
+    assert((vis.data ?? []).length === 3 && vis.data!.every((r) => r.visibility === 'private'), `visibility ${show(vis.data)}`);
     dmId = await as(bot2, () => openDm(bot1.id));
-    return `friends; format ${formatId} version ${versionId} public; DM ${dmId}`;
+    return `friends; bot1 formats ${formatId} + ${secretFormatId}, bot3 ${bot3FormatId}, all private (read back by admin); DM ${dmId}`;
   });
   if (failures > 0) throw new Error('setup failed');
 
@@ -303,6 +319,35 @@ async function main(): Promise<void> {
       assert(!board.some((o) => o.id === c1), `${b.label}'s listOpenOffers shows the challenge`);
     }
     return `bot2: open (formatName ${show(seen.get(c1)?.formatName)}); bot3: 0 rows; absent from all three boards`;
+  });
+
+  await check("2b. the target reads the challenge's private format name, and nothing else of the proposer's", async () => {
+    const seen = (await as(bot2, () => fetchChallenges([c1]))).get(c1);
+    assert(seen?.formatName === `m4 ${stamp}`, `bot2's formatName is ${show(seen?.formatName)}`);
+    const bot2List = await as(bot2, listServerFormats);
+    const leaked = bot2List.filter((f) => [formatId, secretFormatId].includes(f.id));
+    assert(leaked.length === 0, `bot2's listServerFormats lists bot1's formats: ${show(leaked)}`);
+    const direct = await as(bot2, async () =>
+      supabase.from('format_versions').select('id').eq('id', secretVersionId),
+    );
+    if (direct.error) throw new Error(`direct select errored rather than returning nothing: ${direct.error.message}`);
+    assert((direct.data ?? []).length === 0, `bot2 reads bot1's unchallenged private version: ${show(direct.data)}`);
+    const played = await as(bot2, async () => supabase.from('format_versions').select('id').eq('id', versionId));
+    assert((played.data ?? []).length === 1, `bot2 cannot read the challenged version by id: ${show(played)}`);
+    const third = (await as(bot3, () => fetchChallenges([c1]))).size;
+    const thirdRead = await as(bot3, async () => supabase.from('format_versions').select('id').eq('id', versionId));
+    assert(third === 0 && (thirdRead.data ?? []).length === 0, `bot3 reads ${show(thirdRead.data)}`);
+    return `bot2 formatName "${seen!.formatName}"; bot2's listServerFormats has ${bot2List.length} row(s), none bot1's; secret version by id: 0 rows; challenged version by id: 1 row; bot3 reads 0`;
+  });
+
+  await check("2c. someone else's PRIVATE format is refused with the one sentence", async () => {
+    const r = await refusal(() =>
+      as(bot1, () =>
+        createChallenge({ targetId: bot2.id, league: 'great', formatVersionId: bot3VersionId, format: RULES, team: TEAM_A }),
+      ),
+    );
+    assert(r === 'a challenge needs a format you own or a public one', `refused with ${show(r)}`);
+    return `bot1 on bot3's private version: "${r}"`;
   });
 
   // 3 ------------------------------------------------------------------------
@@ -395,11 +440,13 @@ async function cleanup(): Promise<void> {
   const list = `(${ids.join(',')})`;
   const m = await admin.from('matches').delete().or(`player_a.in.${list},player_b.in.${list}`);
   if (m.error) console.log(`      [cleanup] matches: ${m.error.message}`);
-  if (formatId) {
-    try {
-      await as(bot1, () => deleteServerFormat(formatId));
-    } catch (e) {
-      console.log(`      [cleanup] format: ${e instanceof Error ? e.message : String(e)}`);
+  for (const [b, ids] of [[bot1, [formatId, secretFormatId]], [bot3, [bot3FormatId]]] as const) {
+    for (const id of ids.filter(Boolean)) {
+      try {
+        await as(b, () => deleteServerFormat(id));
+      } catch (e) {
+        console.log(`      [cleanup] format ${id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
   }
   await supabase.auth.signOut();
@@ -408,6 +455,15 @@ async function cleanup(): Promise<void> {
     const { error } = await admin.auth.admin.deleteUser(b.id);
     if (error) console.log(`      [cleanup] account ${b.label}: ${error.message}`);
   }
+}
+
+let census0: Record<string, number | null> | null = null;
+async function census(): Promise<Record<string, number | null>> {
+  const out: Record<string, number | null> = {};
+  for (const t of ['profiles', 'formats', 'format_versions', 'friendships', 'match_offers', 'matches', 'channels', 'messages']) {
+    out[t] = (await admin.from(t).select('*', { count: 'exact', head: true })).count ?? null;
+  }
+  return out;
 }
 
 async function verifyCleanup(): Promise<void> {
@@ -423,7 +479,9 @@ async function verifyCleanup(): Promise<void> {
     ]);
     const counts = { profiles: p.count, offers: o.count, matches: m.count, channels: c.count };
     assert(Object.values(counts).every((n) => n === 0), `left behind: ${show(counts)}`);
-    return show(counts);
+    const after = await census();
+    assert(show(after) === show(census0), `table sizes moved: before ${show(census0)}, after ${show(after)}`);
+    return `${show(counts)}; census unchanged ${show(after)}`;
   });
 }
 

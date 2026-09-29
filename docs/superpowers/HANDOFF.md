@@ -25,13 +25,13 @@ design authority; the plans argue from it.
 | **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
 | M4 — ranked, records | Not started. Spec covers the design. |
-| **Shell, challenges, tournaments** (M5 pulled forward) | **Plan A (shell) built on `feat/shell`, `1716b3e..74d0916` (6 commits), not yet on main at time of writing.** Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. Plans B (challenges/chat) and C (tournaments + 6-Pokémon roster) not written. |
+| **Shell, challenges, tournaments** (M5 pulled forward) | **Plan A (shell) built on `feat/shell` 2026-09-29 (`1716b3e..2a5e161`, plus the final review-fix commit "fix(shell): review fixes"); merged to main by the controller.** Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. Plans B (challenges/chat) and C (tournaments + 6-Pokémon roster) not written. |
 
 ---
 
 ## Where this session left off — 2026-09-29 (shell)
 
-Plan A of the shell redesign is built (`1716b3e..74d0916`).
+Plan A of the shell redesign is built (`1716b3e..2a5e161`, plus the "fix(shell): review fixes" commit).
 
 - **Sections and rail:** the flat nav is three section buttons (Analyze, Teams, Play) plus Account; each section shows a per-section rail (vertical from md up, a scrolling strip on phones). Grouping lives in `SCREEN_DEFS` / the sections table.
 - **Hash routes:** the screen mirrors into the URL (`#/analyze/rankings`, `#/teams/formats`, `#/play/matchmaking`, `#/play/friends`, `#/account`); back/forward and fresh deep links work. The `match` screen shares Matches' address.

@@ -16,11 +16,6 @@ describe('SectionRail', () => {
     expect(tabs).toHaveLength(5);
     expect(container.querySelector('[aria-current="page"]')?.textContent).toMatch(/Rankings/);
   });
-  it('gives every item its own hue', () => {
-    const { container } = render(<SectionRail section={analyze} screen="report" badges={{}} onGo={() => {}} />);
-    const hues = [...container.querySelectorAll('.nav-tab')].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
-    expect(new Set(hues).size).toBe(hues.length);
-  });
   it('gives every section\'s rail distinct hues', () => {
     for (const s of SECTIONS) {
       const { container, unmount } = render(<SectionRail section={s} screen={s.screens[0]} badges={{}} onGo={() => {}} />);

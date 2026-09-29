@@ -72,7 +72,7 @@ describe('landing route cards', () => {
     const { container } = renderApp(<LandingScreen />);
     const groups = [...container.querySelectorAll('.landing-section')];
     expect(groups).toHaveLength(SECTIONS.length);
-    const expected = SECTIONS.reduce((n: number, s: any) => n + railScreens(s).length, 0);
+    const expected = SECTIONS.reduce((n: number, s) => n + railScreens(s).length, 0);
     expect(container.querySelectorAll('.landing-route')).toHaveLength(expected);
     expect(container.querySelector('.landing-route[data-screen="match"]')).toBeNull();
     expect(container.querySelector('.landing-route[data-screen="account"]')).toBeNull();

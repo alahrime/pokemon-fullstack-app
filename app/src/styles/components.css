@@ -6389,8 +6389,9 @@ th.bt-matrix-head { text-align: center; }
 }
 .nav-section .nav-tab-glyph { color: var(--tab-hue); }
 
-/* The content column keeps its old width; the rail is added to it, not taken
-   out of it. */
+/* The rail is added to the content column's max width, so the column keeps its
+   old width only at viewports >= 1640px; at 1440 the rail takes 200px
+   (rail-w + gap) out of it. */
 .shell { max-width: var(--shell-max); }
 .shell.has-rail {
   max-width: calc(var(--shell-max) + var(--rail-w) + var(--space-6));

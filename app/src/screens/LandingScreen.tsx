@@ -179,7 +179,7 @@ export function LandingScreen() {
           <h2 className="font-(family-name:--font-head) text-2xl tracking-tight">Where to go</h2>
         </header>
         {SECTIONS.map((s) => (
-          <div key={s.id} className="landing-section mb-10" style={{ ['--route-hue' as string]: s.hue }}>
+          <div key={s.id} className="landing-section mb-10">
             <h3 className="hud-label mb-3 flex items-center gap-2">
               <span aria-hidden="true" style={{ color: s.hue }}>{s.glyph}</span>
               {s.label}

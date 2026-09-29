@@ -161,7 +161,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const want = hashFor(state.screen);
     const have = window.location.hash || '#/';
-    if (have !== want) window.location.hash = want;
+    if (have === want) return;
+    // An unknown route or an auth callback (#access_token...) is not ours to
+    // keep: replace it so Back does not land on it again. replaceState fires no
+    // hashchange, and state already says `want`, so nothing else to sync.
+    if (hashFor(screenFromHash(have)) !== have) history.replaceState(null, '', want);
+    else window.location.hash = want;
   }, [state.screen]);
 
   // URL → state, for back/forward and hand-edited addresses.

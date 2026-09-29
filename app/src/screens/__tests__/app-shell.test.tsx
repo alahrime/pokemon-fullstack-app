@@ -14,12 +14,21 @@ describe('App shell', () => {
   it('mirrors the screen into the URL hash and follows the hash back', async () => {
     const { container } = renderApp(<App />);
     fireEvent.click(container.querySelector('.landing-route')!);
-    await waitFor(() => expect(window.location.hash).not.toBe(''));
+    await waitFor(() => expect(window.location.hash).toBe('#/analyze/report'));
     act(() => {
       window.location.hash = '#/analyze/rankings';
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
     await waitFor(() => expect(container.querySelector('.nav-tab.is-active')?.textContent).toMatch(/Rankings/));
+  });
+
+  it('replaces an unknown hash instead of stacking a history entry', async () => {
+    window.location.hash = '#/nope';
+    const before = history.length;
+    const { container } = renderApp(<App />);
+    expect(container.querySelector('.landing-route')).toBeTruthy();
+    await waitFor(() => expect(window.location.hash).toBe('#/'));
+    expect(history.length).toBe(before);
   });
 
   it('starts on the landing page, where the search is the page', () => {

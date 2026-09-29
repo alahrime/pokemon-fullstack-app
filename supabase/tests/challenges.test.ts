@@ -27,18 +27,31 @@ describe('challenges', () => {
       `select public.create_challenge('${target}', '${version}', 'bb', 'great', '[]'::jsonb, 'rev1', ${scheduled})`,
     );
 
+  // Format ids alongside version ids, for the read-visibility tests.
+  let privateFormat = '';
+  let otherPrivateFormat = '';
+  let otherPrivateVersion = '';
+  let calPrivateVersion = '';
+  let calPublicVersion = '';
+
+  async function makeVersion(owner: string, vis: 'public' | 'private', name: string) {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name, visibility) values ('${owner}', '${name}', '${vis}') returning id`);
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bb') returning id`);
+    return { format: f.id, version: v.id };
+  }
+
   beforeAll(async () => {
     await makeUser(ann, `PA_${ann.slice(0, 8)}`);
     await makeUser(bob, `PB_${bob.slice(0, 8)}`);
     await makeUser(cal, `PC_${cal.slice(0, 8)}`);
-    for (const [vis, set] of [['public', (id: string) => (publicVersion = id)], ['private', (id: string) => (privateVersion = id)]] as const) {
-      const [f] = await sql<{ id: string }>(
-        `insert into public.formats (owner_id, name, visibility) values ('${ann}', 'Chal ${vis}', '${vis}') returning id`);
-      const [v] = await sql<{ id: string }>(
-        `insert into public.format_versions (format_id, version, rules, rules_hash)
-         values ('${f.id}', 1, '{"schema":1}'::jsonb, 'bb') returning id`);
-      set(v.id);
-    }
+    publicVersion = (await makeVersion(ann, 'public', 'Chal public')).version;
+    ({ format: privateFormat, version: privateVersion } = await makeVersion(ann, 'private', 'Chal private'));
+    ({ format: otherPrivateFormat, version: otherPrivateVersion } = await makeVersion(ann, 'private', 'Chal private 2'));
+    calPrivateVersion = (await makeVersion(cal, 'private', 'Cal private')).version;
+    calPublicVersion = (await makeVersion(cal, 'public', 'Cal public')).version;
   });
 
   afterEach(async () => {
@@ -90,9 +103,12 @@ describe('challenges', () => {
     await expect(challenge(ann, bob)).resolves.toHaveLength(1);
   });
 
-  it('refuses a private format and a past schedule', async () => {
+  it("refuses someone else's private format and a past schedule", async () => {
     await befriend(ann, bob);
-    expect((await refusal(() => challenge(ann, bob, privateVersion))).message).toMatch(/public format/);
+    expect((await refusal(() => challenge(ann, bob, calPrivateVersion))).message).toMatch(
+      /a challenge needs a format you own or a public one/);
+    expect((await refusal(() => challenge(ann, bob, randomUUID()))).message).toMatch(
+      /a challenge needs a format you own or a public one/);
     expect((await refusal(() => challenge(ann, bob, publicVersion, `now() - interval '1 hour'`))).message).toMatch(/past/);
   });
 
@@ -175,5 +191,71 @@ describe('challenges', () => {
     expect(create.message).toMatch(/permission denied for function create_challenge/);
     const decline = await refusal(() => asAnon()(`select public.decline_challenge('${randomUUID()}')`));
     expect(decline.message).toMatch(/permission denied for function decline_challenge/);
+  });
+
+  describe('the format a challenge is played on', () => {
+    const canRead = async (who: string) => ({
+      version: (await asUser({ sub: who })(`select id from public.format_versions where id = '${privateVersion}'`)).length,
+      format: (await asUser({ sub: who })(`select id from public.formats where id = '${privateFormat}'`)).length,
+      other: (await asUser({ sub: who })(
+        `select id from public.format_versions where id = '${otherPrivateVersion}'
+         union all select id from public.formats where id = '${otherPrivateFormat}'`)).length,
+    });
+
+    it("accepts the proposer's own private format, and someone else's public one", async () => {
+      await befriend(ann, bob);
+      await expect(challenge(ann, bob, privateVersion)).resolves.toHaveLength(1);
+      await expect(challenge(ann, bob, calPublicVersion)).resolves.toHaveLength(1);
+    });
+
+    it('lets the target read exactly that version and its format; a stranger reads nothing', async () => {
+      await befriend(ann, bob);
+      expect(await canRead(bob)).toEqual({ version: 0, format: 0, other: 0 });
+      await challenge(ann, bob, privateVersion);
+      expect(await canRead(bob)).toEqual({ version: 1, format: 1, other: 0 });
+      expect(await canRead(cal)).toEqual({ version: 0, format: 0, other: 0 });
+      // The card's own read path: offer -> version -> format name.
+      const [row] = await asUser({ sub: bob })<{ name: string }>(
+        `select f.name from public.match_offers o
+           join public.format_versions v on v.id = o.format_version_id
+           join public.formats f on f.id = v.format_id
+          where o.target_id = '${bob}'`);
+      expect(row.name).toBe('Chal private');
+    });
+
+    it('keeps the format readable to the pair after a decline', async () => {
+      await befriend(ann, bob);
+      const [{ create_challenge: offer }] = await challenge(ann, bob, privateVersion);
+      await asUser({ sub: bob })(`select public.decline_challenge('${offer}')`);
+      expect(await canRead(bob)).toEqual({ version: 1, format: 1, other: 0 });
+      expect(await canRead(ann)).toMatchObject({ version: 1, format: 1 });
+    });
+
+    it('shows a user outside the offer no new format rows at all', async () => {
+      const count = async () => {
+        const [c] = await asUser({ sub: cal })<{ f: number; v: number }>(
+          `select (select count(*)::int from public.formats) as f, (select count(*)::int from public.format_versions) as v`);
+        return c;
+      };
+      const before = await count();
+      await befriend(ann, bob);
+      await challenge(ann, bob, privateVersion);
+      expect(await count()).toEqual(before);
+    });
+
+    it('exposes nothing through an offer posted on a format its proposer does not own', async () => {
+      // A direct offer insert does not check format ownership; the read path must.
+      await sql(
+        `insert into public.match_offers (proposer_id, format_version_id, claimed_hash, league, team, data_rev, accepted_by, accepted_team, state)
+         values ('${bob}', '${privateVersion}', 'bb', 'great', '[]', 'rev1', '${cal}', '[]', 'converted')`);
+      expect(await canRead(cal)).toEqual({ version: 0, format: 0, other: 0 });
+    });
+
+    it('refuses anonymous callers the two read helpers', async () => {
+      for (const fn of ['plays_format_version', 'plays_format']) {
+        const r = await refusal(() => asAnon()(`select public.${fn}('${randomUUID()}')`));
+        expect(r.message).toMatch(new RegExp(`permission denied for function ${fn}`));
+      }
+    });
   });
 });

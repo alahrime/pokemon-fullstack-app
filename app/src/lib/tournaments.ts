@@ -143,7 +143,7 @@ export async function listPairings(id: string): Promise<Pairing[]> {
   }));
 }
 
-/** RLS decides who sees what: empty before registration closes. */
+/** Your own roster is always readable; others' rosters only after registration closes, and only if you are a member. */
 export async function listRosters(id: string): Promise<Map<string, RosterMember[]>> {
   const { data, error } = await supabase.from('tournament_rosters').select('player_id, roster').eq('tournament_id', id);
   if (error) throw new Error(error.message);

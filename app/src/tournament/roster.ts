@@ -2,7 +2,7 @@ import type { Build, Format, Violation } from '../rules';
 import { validateTeam } from '../rules';
 import type { LeagueId } from '../lib/types';
 import type { AddPokemonChoice } from '../components/AddPokemonModal';
-import { speciesOf } from '../lib/data';
+import { CHARGE_MOVES, FAST_MOVES, displayName, speciesOf } from '../lib/data';
 import { CPM, MAX_LEVEL_IDX, BB_MAX_LEVEL_IDX } from '../lib/cpm';
 
 export const ROSTER_SIZE = 6;
@@ -39,17 +39,21 @@ export function memberFromChoice(choice: AddPokemonChoice, cp: number, bestBuddy
   };
 }
 
+const MOVE_NAMES = new Map<string, string>([...FAST_MOVES, ...CHARGE_MOVES].map((m) => [m.id, m.name]));
+/** A move id as a person reads it; an unknown id is shown as given. */
+const moveName = (id: string) => MOVE_NAMES.get(id) ?? id;
+
 export function describeViolation(v: Violation): string {
   switch (v.kind) {
     case 'size': return `the team has ${v.actual} Pokémon but the format wants ${v.expected}.`;
-    case 'illegal-ref': return `${v.ref} is not allowed in this format.`;
-    case 'duplicate-species': return `${v.refs[0]} and ${v.refs[1]} are the same species, and the format allows one of each.`;
-    case 'duplicate-family': return `${v.refs[0]} and ${v.refs[1]} are from the same evolution family, and the format allows one per family.`;
+    case 'illegal-ref': return `${displayName(v.ref)} is not allowed in this format.`;
+    case 'duplicate-species': return `${displayName(v.refs[0])} and ${displayName(v.refs[1])} are the same species, and the format allows one of each.`;
+    case 'duplicate-family': return `${displayName(v.refs[0])} and ${displayName(v.refs[1])} are from the same evolution family, and the format allows one per family.`;
     case 'quota': {
       const need = v.min !== undefined && v.actual < v.min ? `at least ${v.min}` : `at most ${v.max}`;
       return `the format wants ${need} matching "${v.select}" but the team has ${v.actual}.`;
     }
-    case 'unknown-move': return `${v.ref} does not learn ${v.move}.`;
+    case 'unknown-move': return `${displayName(v.ref)} does not learn ${moveName(v.move)}.`;
   }
 }
 
@@ -63,15 +67,15 @@ export function checkRoster(
     const at = `Slot ${i + 1}`;
     const s = speciesOf(m.ref);
     if (!s) { problems.push(`${at}: unknown Pokémon.`); return; }
-    if (!s.fastMoves.some((f) => f.id === m.fast)) problems.push(`${at}: ${s.name} does not learn that fast move.`);
+    if (!s.fastMoves.some((f) => f.id === m.fast)) problems.push(`${at}: ${displayName(m.ref)} does not learn ${moveName(m.fast)}.`);
     if (m.charges.length < 1 || m.charges.length > 2) problems.push(`${at}: pick one or two charged moves.`);
     for (const c of m.charges) {
-      if (!s.chargeMoves.some((x) => x.id === c)) problems.push(`${at}: ${s.name} does not learn ${c}.`);
+      if (!s.chargeMoves.some((x) => x.id === c)) problems.push(`${at}: ${displayName(m.ref)} does not learn ${moveName(c)}.`);
     }
     if (!Number.isInteger(m.cp)) { problems.push(`${at}: CP must be a whole number.`); return; }
     const { min, max } = cpBounds(m.ref, m.bestBuddy);
     if (m.cp < min) problems.push(`${at}: CP is below ${min}.`);
-    else if (m.cp > max) problems.push(`${at}: ${s.name} cannot reach CP ${m.cp}.`);
+    else if (m.cp > max) problems.push(`${at}: ${displayName(m.ref)} cannot reach CP ${m.cp}.`);
     if (cap !== null && m.cp > cap) problems.push(`${at}: CP ${m.cp} is over the ${cap} cap.`);
   });
   if (roster.length === ROSTER_SIZE) {

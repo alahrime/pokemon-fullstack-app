@@ -73,7 +73,8 @@ describe('checkRoster', () => {
   it('flags each member fault at its slot', () => {
     const cases: [number, Partial<RosterMember>, RegExp][] = [
       [2, { ref: 'nope' }, /^Slot 3: unknown/],
-      [0, { fast: 'NOT_A_MOVE' }, /^Slot 1: .*fast move/],
+      [0, { fast: 'NOT_A_MOVE' }, /^Slot 1: Azumarill does not learn NOT_A_MOVE\./],
+      [0, { charges: ['AERIAL_ACE'] }, /^Slot 1: Azumarill does not learn Aerial Ace\./],
       [0, { charges: ['NOT_A_MOVE'] }, /^Slot 1: .*NOT_A_MOVE/],
       [0, { charges: [] }, /^Slot 1: pick one or two/],
       [0, { charges: ['a', 'b', 'c'] }, /^Slot 1: pick one or two/],
@@ -90,13 +91,13 @@ describe('checkRoster', () => {
     expect(check(with_(0, { bestBuddy: true, cp: 1490 })).ok).toBe(true);
   });
   it('reports a ref outside the format pool', () => {
-    const r = check(with_(0, { ref: 'mewtwo', ...{} }));
+    const r = check(with_(0, { ref: 'mewtwo' }));
     expect(r.ok).toBe(false);
-    expect(r.problems.some((p) => p.startsWith('Format:'))).toBe(true);
+    expect(r.problems).toContain('Format: Mewtwo is not allowed in this format.');
   });
   it('a duplicate species violates uniqueSpecies', () => {
     const r = check(with_(1, member('azumarill')));
-    expect(r.problems.some((p) => p.startsWith('Format:') && /azumarill/.test(p))).toBe(true);
+    expect(r.problems.some((p) => p === 'Format: Azumarill and Azumarill are the same species, and the format allows one of each.')).toBe(true);
   });
 });
 
@@ -110,6 +111,12 @@ describe('describeViolation', () => {
     { kind: 'quota', select: 'type:fire', max: 1, actual: 2 },
     { kind: 'unknown-move', ref: 'x', move: 'm' },
   ];
+  it('uses display names, never raw ids', () => {
+    expect(describeViolation({ kind: 'duplicate-species', refs: ['azumarill', 'azumarill_shadow'] }))
+      .toBe('Azumarill and Azumarill (Shadow) are the same species, and the format allows one of each.');
+    expect(describeViolation({ kind: 'unknown-move', ref: 'azumarill', move: 'AERIAL_ACE' }))
+      .toBe('Azumarill does not learn Aerial Ace.');
+  });
   it('says more than the kind name for every kind', () => {
     for (const v of all) {
       const s = describeViolation(v);

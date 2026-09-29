@@ -61,6 +61,23 @@ describe('ChallengeCard', () => {
     expect(acceptOffer).toHaveBeenCalledWith('o', team.members);
   });
 
+  it('polls do not refetch teams, and the chosen team survives one', async () => {
+    vi.useFakeTimers();
+    const t2 = { ...team, id: 't2', name: 'U' };
+    listTeams.mockResolvedValue([team, t2]);
+    // A new object every poll, as the real fetch returns.
+    fetchChallenges.mockImplementation(async () => new Map([['o', { ...base }]]));
+    render(<ChallengeCard offerId="o" />);
+    await flush(); await flush(); await flush();
+    const sel = screen.getByLabelText('Team to bring') as HTMLSelectElement;
+    fireEvent.change(sel, { target: { value: 't2' } });
+    expect(listTeams).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(listTeams).toHaveBeenCalledTimes(1);
+    expect((screen.getByLabelText('Team to bring') as HTMLSelectElement).value).toBe('t2');
+  });
+
   it('no saved team of that size disables Accept and names the size', async () => {
     listTeams.mockResolvedValue([]);
     serve({});

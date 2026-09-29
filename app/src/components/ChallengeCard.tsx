@@ -29,6 +29,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
   const load = useCallback(async () => {
     try {
       setChallenge((await fetchChallenges([offerId])).get(offerId) ?? null);
+      setError(null);
     } catch (e) {
       setError(messageOf(e));
     }
@@ -46,16 +47,17 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
 
   // Teams the accepter can bring: same size as the proposer's, same league.
   const wantsTeam = !!challenge && !!user && challenge.targetId === user.id && challenge.state === 'open';
+  const size = challenge?.rosterSize;
+  const lg = challenge?.league;
   useEffect(() => {
-    if (!wantsTeam || !challenge) return;
-    const size = challenge.rosterSize;
+    if (!wantsTeam) return;
     if (size !== 3 && size !== 6) return; // only sizes the app can save
     void listTeams(size).then((ts) => {
-      const ok = ts.filter((t) => t.league === challenge.league);
+      const ok = ts.filter((t) => t.league === lg);
       setTeams(ok);
       setTeamId((cur) => (ok.some((t) => t.id === cur) ? cur : ok[0]?.id ?? ''));
     }).catch((e) => setError(messageOf(e)));
-  }, [wantsTeam, challenge]);
+  }, [wantsTeam, size, lg]);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);

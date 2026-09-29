@@ -164,6 +164,10 @@ export function ChatPane({
         // single OS-level focus target across several panes sitting side by
         // side, so an open, un-minimised pane is treated as being looked at.
         if (!minimizedRef.current) {
+          // Synchronously, beside `onActivity`: waiting for `markRead` to
+          // resolve leaves the channel "unread" for a network round trip, and
+          // the notification toaster would announce a message being read.
+          onRead(channel.id, m.createdAt);
           void markRead(channel.id).then(() => onRead(channel.id, new Date().toISOString()));
         }
         return [...prev, m];
@@ -188,6 +192,7 @@ export function ChatPane({
       // first must stick.
       setMessages((prev) => (prev.some((x) => x.id === sent.id) ? prev : [...prev, sent]));
       onActivity(channel.id, sent.createdAt);
+      onRead(channel.id, sent.createdAt);
       // Your own message cannot leave your own conversation "unread" —
       // without this, sending bumps `lastMessageAt` past whatever
       // `lastReadAt` this pane last recorded, and the rail would light up a

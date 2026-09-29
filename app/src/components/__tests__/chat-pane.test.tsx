@@ -204,6 +204,36 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     await waitFor(() => expect(onRead).toHaveBeenCalledWith('c2', expect.any(String)));
   });
 
+  it('marks its own sent message read at its createdAt without waiting for markRead', async () => {
+    markRead.mockReturnValue(new Promise(() => {})); // never settles: only a synchronous onRead can pass
+    const { onRead } = pane(group);
+    fireEvent.change(screen.getByRole('textbox', { name: /message/i }), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(onRead).toHaveBeenCalledWith('c2', 't9'));
+  });
+
+  it('marks an incoming message read at its createdAt, synchronously, while expanded', async () => {
+    markRead.mockReturnValue(new Promise(() => {}));
+    const { onRead, onActivity } = pane(dm);
+    await screen.findByText('hey');
+    act(() => {
+      onMessage?.({ id: 'm6', channelId: 'c1', authorId: 'them', body: 'yo', createdAt: 't6', editedAt: null, deletedAt: null });
+    });
+    expect(onActivity).toHaveBeenCalledWith('c1', 't6');
+    expect(onRead).toHaveBeenCalledWith('c1', 't6');
+  });
+
+  it('does not mark an incoming message read while minimised', async () => {
+    markRead.mockClear();
+    const { onRead, onActivity } = pane(dm, { minimized: true });
+    await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
+    act(() => {
+      onMessage?.({ id: 'm7', channelId: 'c1', authorId: 'them', body: 'yo', createdAt: 't7', editedAt: null, deletedAt: null });
+    });
+    expect(onActivity).toHaveBeenCalledWith('c1', 't7');
+    expect(onRead).not.toHaveBeenCalledWith('c1', 't7');
+  });
+
   it('tears its subscription down exactly once on unmount', async () => {
     const { unmount } = pane(dm);
     await screen.findByText('hey');

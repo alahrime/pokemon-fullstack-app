@@ -50,9 +50,11 @@ export interface Offer {
    * is played under.
    *
    * Derived from `team` rather than from `format_versions.rules`, and that is
-   * a real constraint rather than laziness: versions are readable only for a
+   * a real constraint rather than laziness: versions are readable for a
    * format whose `visibility = 'public'` ("versions of a public format are
-   * readable by anyone signed in"), and a saved format defaults to `private`.
+   * readable by anyone signed in") and, for a PRIVATE format, only by its
+   * owner and by the target/taker of a challenge or offer on that one
+   * version — and a saved format defaults to `private`.
    * Embedding the rules would hand back null for most offers on the board —
    * precisely for the strangers whose offers this number exists to size. The
    * team is readable under the same row policy that shows the offer at all.

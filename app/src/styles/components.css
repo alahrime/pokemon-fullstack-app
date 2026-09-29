@@ -6391,8 +6391,9 @@ th.bt-matrix-head { text-align: center; }
 
 /* The content column keeps its old width; the rail is added to it, not taken
    out of it. */
-.shell { max-width: calc(var(--shell-max) + var(--rail-w) + var(--space-6)); }
+.shell { max-width: var(--shell-max); }
 .shell.has-rail {
+  max-width: calc(var(--shell-max) + var(--rail-w) + var(--space-6));
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
   gap: var(--space-6);
@@ -6400,7 +6401,9 @@ th.bt-matrix-head { text-align: center; }
 }
 .section-rail {
   position: sticky;
-  top: var(--space-6);
+  /* Clear the sticky nav, and sit above the fixed scanline layer (z 1). */
+  top: calc(var(--nav-h) + var(--space-4));
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

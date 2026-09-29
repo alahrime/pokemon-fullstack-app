@@ -21,6 +21,14 @@ describe('SectionRail', () => {
     const hues = [...container.querySelectorAll('.nav-tab')].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
     expect(new Set(hues).size).toBe(hues.length);
   });
+  it('gives every section\'s rail distinct hues', () => {
+    for (const s of SECTIONS) {
+      const { container, unmount } = render(<SectionRail section={s} screen={s.screens[0]} badges={{}} onGo={() => {}} />);
+      const hues = [...container.querySelectorAll('.nav-tab')].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
+      expect(new Set(hues).size, s.id).toBe(hues.length);
+      unmount();
+    }
+  });
   it('keeps Matches lit while a match is open, and never lists Match', () => {
     const { container } = render(<SectionRail section={play} screen="match" badges={{}} onGo={() => {}} />);
     expect(container.querySelector('[aria-current="page"]')?.textContent).toMatch(/Matches/);

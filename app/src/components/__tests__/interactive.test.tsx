@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { goTo } from '../../test/nav';
+import { SECTIONS, SCREEN_DEFS } from '../../lib/screens';
 import App from '../../App';
 import { AddPokemonModal } from '../AddPokemonModal';
 import { LeagueTabs } from '../LeagueTabs';
@@ -22,7 +23,9 @@ describe('App shell', () => {
   it('navigates between screens', async () => {
     const { container } = renderApp(<App />);
     goTo(container, 'Rankings');
-    expect(container.querySelector('.nav-tab.is-active')!.getAttribute('aria-current')).toBe('page');
+    const active = container.querySelector('.nav-tab.is-active')!;
+    expect(active.textContent).toMatch(/Rankings/);
+    expect(active.getAttribute('aria-current')).toBe('page');
   });
   it('the brand returns to the landing page', () => {
     const { container } = renderApp(<App />);
@@ -46,12 +49,18 @@ describe('App shell', () => {
   });
   it('gives every nav tab its own hue', () => {
     const { container } = renderApp(<App />);
-    goTo(container, 'Report');
     // A section deliberately wears the hue of its lead screen, so distinctness
-    // holds within the sections and within the rail, not across the two.
-    for (const sel of ['.nav-section', '.nav-tab']) {
-      const hues = [...container.querySelectorAll(sel)].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
-      expect(new Set(hues).size, sel).toBe(hues.length);
+    // holds within the sections and within each rail, not across the two. Every
+    // screen having its own hue is covered in lib/__tests__/screens.test.ts.
+    const huesOf = (sel: string) =>
+      [...container.querySelectorAll(sel)].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
+    const sections = huesOf('.nav-section');
+    expect(new Set(sections).size).toBe(sections.length);
+    for (const s of SECTIONS) {
+      goTo(container, SCREEN_DEFS.find((d) => d.id === s.screens[0])!.label);
+      const rail = huesOf('.nav-tab');
+      expect(rail.length, s.id).toBeGreaterThan(0);
+      expect(new Set(rail).size, s.id).toBe(rail.length);
     }
   });
 });

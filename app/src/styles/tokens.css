@@ -82,6 +82,8 @@
   /* — layout — */
   --shell-max: 1440px;
   --rail-w: 11rem;
+  /* Measured: the sticky .nav is 76px tall at 1440 wide. */
+  --nav-h: 76px;
 }
 
 /* Reduced motion: collapse every duration to zero at the source rather than

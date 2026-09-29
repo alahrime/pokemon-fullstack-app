@@ -186,4 +186,26 @@ describe('pairSwiss', () => {
     expect(new Set(r.pairs.flatMap((p) => [p.a, p.b])).size).toBe(100);
     expect(r.rematches).toBe(50);
   });
+
+  it('spends one shared budget across every bye candidate in a 255-player field and still returns a valid pairing', () => {
+    // Everyone has had a bye, so every candidate is tried. Only the first 101 players have any fresh partner,
+    // so the DFS burns its budget deep in the tree. Per-candidate budgets would multiply that work by ~255.
+    const N = 255;
+    const players = Array.from({ length: N }, (_, i) => `q${String(i).padStart(3, '0')}`);
+    const games: Game[] = players.map((p) => g(1, p, null, 2, 0));
+    for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) if (!(i < 101 && j < 101)) games.push(g(2, players[i], players[j], 1, 1));
+    const t0 = performance.now();
+    const r = pairSwiss(players, games, 's');
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(3000);
+    const byes = r.pairs.filter((p) => p.b === null);
+    expect(byes).toHaveLength(1);
+    expect(r.repeatBye).toBe(true);
+    expect(r.pairs).toHaveLength(128);
+    expect(r.pairs.flatMap((p) => [p.a, p.b]).filter((x) => x !== null).sort()).toEqual(players);
+    const played = new Set(games.filter((x) => x.b !== null).map((x) => key(x.a, x.b as string)));
+    const actual = r.pairs.filter((p) => p.b !== null && played.has(key(p.a, p.b as string))).length;
+    expect(r.rematches).toBe(actual);
+    expect(r.rematches).toBeGreaterThan(0);
+  });
 });

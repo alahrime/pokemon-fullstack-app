@@ -1,0 +1,158 @@
+import { supabase } from './supabase';
+import type { LeagueId } from './types';
+import type { Game, Pairing as SwissPairing } from '../tournament/swiss';
+import type { RosterMember } from '../tournament/roster';
+
+export type TournamentState = 'draft' | 'registration' | 'closed' | 'running' | 'complete' | 'cancelled';
+export type PairingState = 'pending' | 'reported' | 'disputed' | 'settled';
+
+export interface Tournament {
+  id: string; organiserId: string; title: string; description: string; formatVersionId: string;
+  league: LeagueId; rounds: number; roundMinutes: number; maxPlayers: number;
+  registrationClosesAt: string | null; state: TournamentState; currentRound: number;
+  roundEndsAt: string | null; createdAt: string;
+}
+export interface Entrant { playerId: string; seed: number; dropped: boolean; registeredAt: string }
+export interface Pairing {
+  id: string; round: number; tableNo: number; playerA: string; playerB: string | null;
+  scoreA: number | null; scoreB: number | null; state: PairingState; reportedBy: string | null;
+  reportedAt: string | null; finalAt: string | null; note: string | null;
+}
+export interface AuditRow { id: string; actorId: string | null; action: string; detail: unknown; createdAt: string }
+
+/** Mirrors the server: a lapsed registration deadline reads as closed. */
+export function effectiveState(t: Tournament, now: Date): TournamentState {
+  return t.state === 'registration' && t.registrationClosesAt && new Date(t.registrationClosesAt) <= now
+    ? 'closed' : t.state;
+}
+/** Mirrors `_pairing_counts`: settled, or reported and past its dispute window. */
+export function isCounted(p: Pairing, now: Date): boolean {
+  return p.state === 'settled' || (p.state === 'reported' && !!p.finalAt && new Date(p.finalAt) <= now);
+}
+/** Scores stay as stored: oriented to playerA/playerB. */
+export function toGames(pairings: readonly Pairing[], now: Date): Game[] {
+  return pairings.filter((p) => isCounted(p, now)).map((p) => ({
+    round: p.round, a: p.playerA, b: p.playerB, scoreA: p.scoreA ?? 0, scoreB: p.scoreB ?? 0,
+  }));
+}
+
+// ── RPC wrappers ──
+async function call<T>(fn: string, params: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.rpc(fn, params);
+  if (error) throw new Error(error.message);
+  return data as T;
+}
+
+export interface TournamentInput {
+  title: string; description: string; formatVersionId: string; rounds: number;
+  roundMinutes: number; maxPlayers: number; closesAt: string | null;
+}
+export const createTournament = (i: TournamentInput) =>
+  call<string>('create_tournament', {
+    p_title: i.title, p_description: i.description, p_format_version: i.formatVersionId, p_rounds: i.rounds,
+    p_round_minutes: i.roundMinutes, p_max_players: i.maxPlayers, p_closes_at: i.closesAt,
+  });
+export const updateTournament = (
+  id: string, i: Pick<TournamentInput, 'title' | 'description' | 'roundMinutes' | 'maxPlayers' | 'closesAt'>,
+) =>
+  call<boolean>('update_tournament', {
+    p_id: id, p_title: i.title, p_description: i.description, p_round_minutes: i.roundMinutes,
+    p_max_players: i.maxPlayers, p_closes_at: i.closesAt,
+  });
+export const openRegistration = (id: string) => call<boolean>('open_registration', { p_id: id });
+export const closeRegistration = (id: string) => call<boolean>('close_registration', { p_id: id });
+export const cancelTournament = (id: string) => call<boolean>('cancel_tournament', { p_id: id });
+/** Built key by key: the server refuses extra keys, and IVs must never leave the device. */
+export const registerRoster = (id: string, roster: readonly RosterMember[]) =>
+  call<number>('register_roster', {
+    p_id: id,
+    p_roster: roster.map((m) => ({ ref: m.ref, fast: m.fast, charges: [...m.charges], cp: m.cp, bestBuddy: m.bestBuddy })),
+  });
+export const withdrawFromTournament = (id: string) => call<boolean>('withdraw_from_tournament', { p_id: id });
+export const grantJudge = (id: string, user: string) => call<boolean>('grant_judge', { p_id: id, p_user: user });
+export const revokeJudge = (id: string, user: string) => call<boolean>('revoke_judge', { p_id: id, p_user: user });
+/** Resolves to the round number started. */
+export const startRound = (id: string, pairings: readonly SwissPairing[], force = false, override = false) =>
+  call<number>('start_round', { p_tournament: id, p_pairings: pairings, p_force: force, p_override: override });
+/** Scores are oriented to the pairing's player_a/player_b, whoever reports. Each resolves to the new pairing state. */
+export const reportScore = (pairing: string, scoreA: number, scoreB: number) =>
+  call<string>('report_score', { p_pairing: pairing, p_score_a: scoreA, p_score_b: scoreB });
+export const confirmScore = (pairing: string) => call<string>('confirm_score', { p_pairing: pairing });
+export const disputeScore = (pairing: string) => call<string>('dispute_score', { p_pairing: pairing });
+export const settlePairing = (pairing: string, scoreA: number, scoreB: number, note: string | null = null) =>
+  call<string>('settle_pairing', { p_pairing: pairing, p_score_a: scoreA, p_score_b: scoreB, p_note: note });
+export const dropOut = (id: string) => call<boolean>('drop_out', { p_id: id });
+export const removePlayer = (id: string, player: string, reason: string) =>
+  call<boolean>('remove_player', { p_id: id, p_player: player, p_reason: reason });
+export const finishTournament = (id: string) => call<boolean>('finish_tournament', { p_id: id });
+
+// ── Readers ──
+interface TRow {
+  id: string; organiser_id: string; title: string; description: string; format_version_id: string;
+  league: LeagueId; rounds: number; round_minutes: number; max_players: number;
+  registration_closes_at: string | null; state: TournamentState; current_round: number;
+  round_ends_at: string | null; created_at: string;
+}
+const toTournament = (r: TRow): Tournament => ({
+  id: r.id, organiserId: r.organiser_id, title: r.title, description: r.description,
+  formatVersionId: r.format_version_id, league: r.league, rounds: r.rounds, roundMinutes: r.round_minutes,
+  maxPlayers: r.max_players, registrationClosesAt: r.registration_closes_at, state: r.state,
+  currentRound: r.current_round, roundEndsAt: r.round_ends_at, createdAt: r.created_at,
+});
+const T_COLS =
+  'id, organiser_id, title, description, format_version_id, league, rounds, round_minutes, max_players, registration_closes_at, state, current_round, round_ends_at, created_at';
+
+export async function listTournaments(): Promise<Tournament[]> {
+  const { data, error } = await supabase
+    .from('tournaments').select(T_COLS).order('created_at', { ascending: false }).limit(100);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as TRow[]).map(toTournament);
+}
+
+export async function getTournament(id: string): Promise<Tournament | null> {
+  const { data, error } = await supabase.from('tournaments').select(T_COLS).eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toTournament(data as unknown as TRow) : null;
+}
+
+export async function listEntrants(id: string): Promise<Entrant[]> {
+  const { data, error } = await supabase
+    .from('tournament_entrants').select('player_id, seed, dropped, registered_at')
+    .eq('tournament_id', id).order('seed', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ playerId: r.player_id, seed: r.seed, dropped: r.dropped, registeredAt: r.registered_at }));
+}
+
+export async function listPairings(id: string): Promise<Pairing[]> {
+  const { data, error } = await supabase
+    .from('tournament_pairings')
+    .select('id, round, table_no, player_a, player_b, score_a, score_b, state, reported_by, reported_at, final_at, note')
+    .eq('tournament_id', id).order('round', { ascending: true }).order('table_no', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id, round: r.round, tableNo: r.table_no, playerA: r.player_a, playerB: r.player_b,
+    scoreA: r.score_a, scoreB: r.score_b, state: r.state as PairingState, reportedBy: r.reported_by,
+    reportedAt: r.reported_at, finalAt: r.final_at, note: r.note,
+  }));
+}
+
+/** RLS decides who sees what: empty before registration closes. */
+export async function listRosters(id: string): Promise<Map<string, RosterMember[]>> {
+  const { data, error } = await supabase.from('tournament_rosters').select('player_id, roster').eq('tournament_id', id);
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((r) => [r.player_id as string, r.roster as RosterMember[]]));
+}
+
+export async function listJudges(id: string): Promise<string[]> {
+  const { data, error } = await supabase.from('tournament_roles').select('user_id').eq('tournament_id', id);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.user_id as string);
+}
+
+export async function listAudit(id: string): Promise<AuditRow[]> {
+  const { data, error } = await supabase
+    .from('tournament_audit').select('id, actor_id, action, detail, created_at')
+    .eq('tournament_id', id).order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ id: r.id, actorId: r.actor_id, action: r.action, detail: r.detail, createdAt: r.created_at }));
+}

@@ -13,6 +13,17 @@ vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import
 const S = vi.hoisted(() => ({ listServerFormats: vi.fn() }));
 vi.mock('../../lib/saves', () => S);
 
+vi.mock('../TournamentScreen', () => ({
+  TournamentScreen: ({ id }: { id: string }) => {
+    const { patch } = useAppState();
+    return (
+      <div>
+        <button type="button" onClick={() => patch({ activeTournamentId: null })}>← All tournaments</button>
+        <p>Tournament {id}</p>
+      </div>
+    );
+  },
+}));
 import { TournamentsScreen } from '../TournamentsScreen';
 import { AppStateProvider, useAppState } from '../../state/AppState';
 
@@ -119,6 +130,15 @@ describe('browse', () => {
     expect(T.listTournaments).toHaveBeenCalledTimes(1);
   });
 
+  it('an open tournament does not keep the list polling', async () => {
+    window.location.hash = `#/play/tournaments/${ID}`;
+    await mount();
+    expect(T.listTournaments).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /All tournaments/ }));
+    expect(await screen.findByText('Cup')).toBeTruthy();
+    expect(T.listTournaments).toHaveBeenCalledTimes(1);
+  });
+
   it('the open-tournament view has a way back to Browse', async () => {
     window.location.hash = `#/play/tournaments/${ID}`;
     await mount();
@@ -148,7 +168,7 @@ describe('hash sync', () => {
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
     expect(screen.getByTestId('active').textContent).toBe(other);
-    act(() => {
+    await act(async () => {
       window.location.hash = '#/play/tournaments';
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });

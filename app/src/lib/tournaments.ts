@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import type { LeagueId } from './types';
 import type { Game, Pairing as SwissPairing } from '../tournament/swiss';
 import type { RosterMember } from '../tournament/roster';
+import type { Format } from '../rules';
 
 export type TournamentState = 'draft' | 'registration' | 'closed' | 'running' | 'complete' | 'cancelled';
 export type PairingState = 'pending' | 'reported' | 'disputed' | 'settled';
@@ -120,6 +121,15 @@ export async function getTournament(id: string): Promise<Tournament | null> {
   const { data, error } = await supabase.from('tournaments').select(T_COUNT_COLS).eq('id', id).eq('tournament_entrants.dropped', false).maybeSingle();
   if (error) throw new Error(error.message);
   return data ? toTournament(data as unknown as TRow) : null;
+}
+
+/** The tournament's own pinned format version (readable once it is not a draft, or by its organiser); null when unreadable. */
+export async function getTournamentFormat(tournamentId: string): Promise<{ name: string; format: Format } | null> {
+  const { data, error } = await supabase
+    .from('tournaments').select('format_versions(rules, formats(name))').eq('id', tournamentId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const v = (data as unknown as { format_versions: { rules: Format; formats: { name: string } | null } | null } | null)?.format_versions;
+  return v ? { name: v.formats?.name ?? 'Format', format: v.rules } : null;
 }
 
 export async function listEntrants(id: string): Promise<Entrant[]> {

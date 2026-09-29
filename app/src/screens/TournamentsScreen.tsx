@@ -5,6 +5,7 @@ import { useTournaments } from '../state/useTournaments';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
 import { createTournament, effectiveState, openRegistration, type Tournament, type TournamentState } from '../lib/tournaments';
+import { TournamentScreen } from './TournamentScreen';
 import { defaultRounds } from '../tournament/swiss';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -45,25 +46,17 @@ function chipText(t: Tournament, s: TournamentState): string {
 }
 
 export function TournamentsScreen() {
-  const { state, patch } = useAppState();
+  const { state } = useAppState();
+  // The page has its own gate and reads; the list below stays unmounted (and unpolled) meanwhile.
+  return state.activeTournamentId ? <TournamentScreen id={state.activeTournamentId} /> : <TournamentList />;
+}
+
+function TournamentList() {
+  const { patch } = useAppState();
   const { user } = useSession();
   const { tournaments, failed } = useTournaments();
   const [filter, setFilter] = useState<Filter>('all');
   const [hosting, setHosting] = useState(false);
-
-  if (state.activeTournamentId) {
-    // ponytail: placeholder until the tournament screen (Task 6) lands; it keeps the back control.
-    return (
-      <div className="tournaments-screen">
-        <div>
-          <button type="button" className="btn" onClick={() => patch({ activeTournamentId: null })}>
-            ← All tournaments
-          </button>
-        </div>
-        <div className="panel chamfer-9">Tournament {state.activeTournamentId}</div>
-      </div>
-    );
-  }
 
   const now = new Date();
   const shown = (tournaments ?? []).filter((t) => MATCHES[filter](effectiveState(t, now)));

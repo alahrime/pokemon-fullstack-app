@@ -6622,3 +6622,60 @@ th.bt-matrix-head { text-align: center; }
   background: color-mix(in srgb, var(--tab-hue, var(--rule-strong)) 14%, transparent);
 }
 .tournament-check { display: flex; align-items: center; gap: var(--space-2); }
+
+/* — Tournament page — */
+.tournament-page { display: grid; gap: var(--space-3); min-width: 0; }
+.tournament-head { display: grid; gap: var(--space-2); min-width: 0; }
+.tournament-title { margin: 0; overflow-wrap: anywhere; }
+.tournament-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tournament-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.tournament-link { overflow-wrap: anywhere; min-width: 0; }
+/* The banner's words carry the state; the left rule's hue only sorts it at a glance. */
+.tournament-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-left: 4px solid var(--rule-strong);
+  background: var(--surface-1);
+}
+.tournament-banner.tone-open { border-left-color: var(--color-accent); }
+.tournament-banner.tone-live { border-left-color: var(--type-electric); }
+.tournament-banner.tone-dead { opacity: .7; }
+.round-clock { display: inline-flex; align-items: baseline; gap: var(--space-2); margin-left: auto; }
+.round-clock-time { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.tournament-mine, .tournament-teams { display: grid; gap: var(--space-2); min-width: 0; }
+.player-roster { display: grid; gap: var(--space-2); min-width: 0; }
+.player-roster-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin: 0; overflow-wrap: anywhere; }
+.roster-grid { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+.roster-card {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: var(--surface-1);
+}
+.roster-card-hidden { align-items: center; justify-content: center; min-height: 72px; }
+.roster-card-body { display: grid; gap: var(--space-1); min-width: 0; }
+.roster-card-name { font-weight: 600; overflow-wrap: anywhere; }
+.roster-card-badges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.roster-badge { padding: 0 var(--space-2); border: var(--border-hairline) solid var(--rule-strong); }
+.roster-card-moves { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; min-width: 0; }
+.roster-card-moves li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.roster-form {
+  display: grid;
+  gap: var(--space-3);
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  min-width: 0;
+}
+.roster-slots { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.roster-slot { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
+.roster-slot-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.roster-cp-step { display: grid; gap: var(--space-2); min-width: 0; border: var(--border-hairline) solid var(--rule-strong); padding: var(--space-3); }
+.roster-problems { display: grid; gap: var(--space-1); margin: 0; padding-left: var(--space-4); }
+.roster-problem { color: var(--color-accent-2-700); }

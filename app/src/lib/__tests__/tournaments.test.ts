@@ -143,6 +143,17 @@ describe('readers', () => {
     expect((await T.getTournament('t'))?.entrants).toBe(3);
     expect(h.calls).toContainEqual({ op: 'tournaments.eq', payload: ['tournament_entrants.dropped', false] });
   });
+  it('getTournamentFormat reads the pinned version and its name, null when unreadable', async () => {
+    expect(await T.getTournamentFormat('t')).toBeNull();
+    const rules = { base: 'great' };
+    h.rows.tournaments = [{ format_versions: { rules, formats: { name: 'Cup rules' } } }];
+    expect(await T.getTournamentFormat('t')).toEqual({ name: 'Cup rules', format: rules });
+    expect(h.calls).toContainEqual({ op: 'tournaments.select', payload: ['format_versions(rules, formats(name))'] });
+    h.rows.tournaments = [{ format_versions: null }];
+    expect(await T.getTournamentFormat('t')).toBeNull();
+    h.err = { message: 'denied' };
+    await expect(T.getTournamentFormat('t')).rejects.toThrow('denied');
+  });
   it('listEntrants and listPairings map snake_case', async () => {
     h.rows.tournament_entrants = [{ player_id: 'p1', seed: 1, dropped: false, registered_at: PAST }];
     h.rows.tournament_pairings = [{ id: 'p', round: 1, table_no: 2, player_a: 'a', player_b: null, score_a: 2, score_b: 0, state: 'settled', reported_by: 'a', reported_at: PAST, final_at: FUTURE, note: null }];

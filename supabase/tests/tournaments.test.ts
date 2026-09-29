@@ -325,6 +325,95 @@ describe('tournaments', () => {
     expect(c).toBe(false);
   });
 
+  describe('hardening (20260930000010)', () => {
+    const readsFormat = async (who: string, f: { format: string; version: string }) => ({
+      version: (await as(who)(`select id from public.format_versions where id = '${f.version}'`)).length,
+      format: (await as(who)(`select id from public.formats where id = '${f.format}'`)).length,
+    });
+
+    it("a tournament on someone else's format stops exposing it once its owner makes it private", async () => {
+      const f = await makeVersion(ann, 'public', `Tour ann flip ${randomUUID().slice(0, 8)}`);
+      const id = await create(stranger, f.version);
+      await call(stranger, 'open_registration', id);
+      expect(await readsFormat(bob, f)).toEqual({ version: 1, format: 1 });
+      await sql(`update public.formats set visibility = 'private' where id = '${f.format}'`);
+      expect(await readsFormat(bob, f)).toEqual({ version: 0, format: 0 });
+      // The organiser's OWN private format stays readable while their tournament is open.
+      await opened();
+      expect(await readsFormat(bob, { format: sixFormat, version: six })).toEqual({ version: 1, format: 1 });
+    });
+
+    it('a roster member is exactly five bounded keys', async () => {
+      const id = await opened();
+      const shape = /a roster is exactly six/;
+      const withIvs = roster().map((m) => ({ ...m, ivs: [15, 15, 15] }));
+      expect((await refusal(() => register(ann, id, withIvs))).message).toMatch(shape);
+      const longRef = roster().map((m, i) => (i === 0 ? { ...m, ref: 'a'.repeat(65) } : m));
+      expect((await refusal(() => register(ann, id, longRef))).message).toMatch(shape);
+      const longCharge = roster().map((m, i) => (i === 0 ? { ...m, charges: ['C'.repeat(65)] } : m));
+      expect((await refusal(() => register(ann, id, longCharge))).message).toMatch(shape);
+      const emptyCharge = roster().map((m, i) => (i === 0 ? { ...m, charges: [''] } : m));
+      expect((await refusal(() => register(ann, id, emptyCharge))).message).toMatch(shape);
+      const edge = roster().map((m, i) => (i === 0 ? { ...m, ref: 'a'.repeat(64) } : m));
+      expect(await register(ann, id, edge)).toBe(1);
+    });
+
+    it('no judges on a draft, and a draft never leaks its audit or child rows', async () => {
+      const id = await create(host);
+      expect((await refusal(() => call(host, 'grant_judge', id, `'${cal}'`))).message).toMatch(
+        /open registration before appointing judges/);
+      // Rows only a superuser could put on a draft: the policies must still hide them.
+      await sql(`insert into public.tournament_roles (tournament_id, user_id, granted_by) values ('${id}', '${cal}', '${host}')`);
+      await sql(`insert into public.tournament_entrants (tournament_id, player_id, seed) values ('${id}', '${ann}', 1)`);
+      const [{ c }] = await as(cal)<{ c: boolean }>(`select public.tournament_can_run('${id}') as c`);
+      expect(c).toBe(true);
+      const audit = (who: string) => as(who)(`select id from public.tournament_audit where tournament_id = '${id}'`);
+      expect(await audit(cal)).toHaveLength(0);
+      expect(await audit(host)).toHaveLength(1); // the create row
+      for (const table of ['tournament_entrants', 'tournament_roles']) {
+        expect(await as(stranger)(`select 1 from public.${table} where tournament_id = '${id}'`)).toHaveLength(0);
+        expect(await as(host)(`select 1 from public.${table} where tournament_id = '${id}'`)).toHaveLength(1);
+      }
+      await call(host, 'open_registration', id);
+      expect(await audit(cal)).toHaveLength(2);
+    });
+
+    it('withdraw answers a draft like a missing tournament', async () => {
+      const id = await create(host);
+      expect(await call(ann, 'withdraw_from_tournament', id)).toBe(false);
+      expect(await call(ann, 'withdraw_from_tournament', randomUUID())).toBe(false);
+    });
+
+    it('seeds are unique per tournament; a repeat grant is audited once', async () => {
+      const id = await opened();
+      await register(ann, id);
+      const dup = await refusal(() =>
+        sql(`insert into public.tournament_entrants (tournament_id, player_id, seed) values ('${id}', '${bob}', 1)`));
+      expect(dup.code).toBe('23505');
+      await call(host, 'grant_judge', id, `'${cal}'`);
+      expect(await call(host, 'grant_judge', id, `'${cal}'`)).toBe(true);
+      const [{ n }] = await sql<{ n: number }>(
+        `select count(*)::int as n from public.tournament_audit where tournament_id = '${id}' and action = 'grant_judge'`);
+      expect(n).toBe(1);
+    });
+
+    it('a revoked judge reads no rosters after close; a judge-entrant reads only their own before', async () => {
+      const id = await opened();
+      await call(host, 'grant_judge', id, `'${cal}'`);
+      await call(host, 'grant_judge', id, `'${bob}'`);
+      await register(ann, id);
+      await register(bob, id); // bob is judge AND entrant
+      const [own] = await as(bob)<{ player_id: string }>(
+        `select player_id from public.tournament_rosters where tournament_id = '${id}'`);
+      expect(await rostersSeen(bob, id)).toBe(1);
+      expect(own.player_id).toBe(bob);
+      await call(host, 'close_registration', id);
+      expect(await rostersSeen(cal, id)).toBe(2);
+      await call(host, 'revoke_judge', id, `'${cal}'`);
+      expect(await rostersSeen(cal, id)).toBe(0);
+    });
+  });
+
   it('refuses anonymous callers every RPC and helper', async () => {
     const id = randomUUID();
     const calls: [string, string][] = [

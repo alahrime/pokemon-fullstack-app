@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import postgres from 'postgres';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { sql, asUser, asAnon, refusal } from './helpers';
 
@@ -512,12 +513,67 @@ describe('tournament rounds', () => {
       expect(await pairingOf(gone, p1)).toMatchObject({ state: 'pending' });
     });
 
-    it('a report on a round that has moved on is refused', async () => {
+    it('a round that has moved on is closed to report, confirm and dispute', async () => {
       const id = await setup();
       await start(host, id, round1);
       const a = (await pairingOf(id, p1)).id;
-      await start(host, id, [{ a: p1, b: p3 }, { a: p2, b: p4 }], true);
-      expect((await refusal(() => report(p1, a, 2, 0))).message).toMatch(/that round is over/);
+      const b = (await pairingOf(id, p3)).id;
+      await report(p1, a, 2, 0);
+      await final(a); // counted, so round 2 starts without force
+      await settle(judge, b, 2, 0);
+      await start(host, id, [{ a: p1, b: p3 }, { a: p2, b: p4 }]);
+      // 20260930000100 checked the round in report_score only: the other player
+      // could still dispute (or confirm) a counted round-1 result here.
+      const over = /that round is over/;
+      expect((await refusal(() => call(p2, 'dispute_score', q(a)))).message).toMatch(over);
+      expect((await refusal(() => call(p2, 'confirm_score', q(a)))).message).toMatch(over);
+      expect((await refusal(() => report(p1, a, 2, 1))).message).toMatch(over);
+      expect(await pairingOf(id, p1, 1)).toMatchObject({ state: 'reported', score_a: 2, score_b: 0 });
+    });
+
+    it('settle_pairing takes the tournament before the pairing, and waits out a finish', async () => {
+      // Deterministic half: in the function text, the tournaments FOR SHARE precedes the pairing FOR UPDATE.
+      const [{ def }] = await sql<{ def: string }>(
+        `select pg_get_functiondef('public.settle_pairing(uuid,smallint,smallint,text)'::regprocedure) as def`);
+      const share = def.search(/from public\.tournaments[\s\S]*?for share/);
+      const update = def.search(/from public\.tournament_pairings where id = p_pairing for update/);
+      expect(share).toBeGreaterThan(-1);
+      expect(update).toBeGreaterThan(share);
+
+      // Concurrent half: the organiser's finish holds the tournament row, uncommitted, on its own socket.
+      const id = await setup(undefined, { rounds: 1 });
+      await start(host, id, round1);
+      await settleAll(id);
+      const x = (await pairingOf(id, p1)).id;
+      const other = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 1 });
+      let finished!: () => void;
+      let commit!: () => void;
+      const finishing = new Promise<void>((r) => (finished = r));
+      const gate = new Promise<void>((r) => (commit = r));
+      const held = other.begin(async (tx) => {
+        await tx.unsafe('set local role authenticated');
+        await tx.unsafe(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: host })]);
+        await tx.unsafe(`select public.finish_tournament('${id}')`);
+        finished();
+        await gate;
+      });
+      try {
+        await finishing;
+        const outcome = settle(judge, x, 0, 2).then(
+          (r) => ({ ok: r as unknown }), (e: Error) => ({ err: e.message }));
+        const early = await Promise.race([outcome, new Promise((r) => setTimeout(() => r('blocked'), 500))]);
+        expect(early).toBe('blocked');
+        commit();
+        await held;
+        expect(await outcome).toEqual({ err: expect.stringMatching(/this tournament is over/) });
+      } finally {
+        commit();
+        await held.catch(() => undefined);
+        await other.end();
+      }
+      expect(await pairingOf(id, p1)).toMatchObject({ state: 'settled', score_a: 2, score_b: 0 });
+      const [t] = await sql<{ state: string }>(`select state from public.tournaments where id = '${id}'`);
+      expect(t.state).toBe('complete');
     });
 
     it('drop_out answers a draft like a missing tournament', async () => {

@@ -147,9 +147,16 @@ export interface SavedFormat {
 }
 
 export async function listServerFormats(): Promise<SavedFormat[]> {
+  // Scoped to the owner: RLS also shows public formats and the private format
+  // of a challenge aimed at me, and neither is one of MY saved formats.
+  const { data: s, error: se } = await supabase.auth.getSession();
+  if (se) throw new Error(se.message);
+  const me = s.session?.user.id;
+  if (!me) return [];
   const { data, error } = await supabase
     .from('formats')
     .select('id, name, format_versions(id, version, rules, rules_hash)')
+    .eq('owner_id', me)
     .order('updated_at', { ascending: false })
     // Every save appends a version, so a format with a long edit history has
     // a `format_versions` row per edit — and this list re-runs after every

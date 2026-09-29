@@ -5,6 +5,8 @@ import type { Notice } from '../../lib/notifications';
 const patch = vi.fn();
 const requestChannel = vi.fn();
 let state: { notices: Notice[]; fresh: Notice[] } = { notices: [], fresh: [] };
+let user: { id: string } | null = { id: 'me' };
+vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 vi.mock('../../state/NotificationsContext', () => ({ useNotificationsContext: () => state }));
 vi.mock('../../state/AppState', () => ({ useAppState: () => ({ patch }) }));
 vi.mock('../../state/ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel }) }));
@@ -15,10 +17,20 @@ import { Toaster } from '../Toaster';
 const msg: Notice = { id: 'ch:1', kind: 'message', title: 'Ann', detail: 'New message', target: { screen: 'chat', channelId: '1' } };
 const fr: Notice = { id: 'fr:2', kind: 'friend', title: 'Bob', detail: 'Friend request', target: { screen: 'friends' } };
 
-beforeEach(() => { state = { notices: [], fresh: [] }; patch.mockClear(); requestChannel.mockClear(); });
+beforeEach(() => { user = { id: 'me' }; state = { notices: [], fresh: [] }; patch.mockClear(); requestChannel.mockClear(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('NotificationBell', () => {
+  it('renders nothing signed out, and the bell signed in', () => {
+    user = null;
+    const { container } = render(<NotificationBell />);
+    expect(container.innerHTML).toBe('');
+    expect(screen.queryByRole('button', { name: /^Notifications/ })).toBeNull();
+    cleanup();
+    user = { id: 'me' };
+    render(<NotificationBell />);
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeTruthy();
+  });
   it('shows a count badge only when there are notices', () => {
     render(<NotificationBell />);
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeTruthy();

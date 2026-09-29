@@ -1,9 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useNotificationsContext } from '../state/NotificationsContext';
 import { useOpenNotice } from '../state/useNotifications';
+import { useSession } from '../state/SessionContext';
 
-/** The bell: a trigger plus an overlay list, mirroring `ThemeMenu`. */
+/** The bell: a trigger plus an overlay list, mirroring `ThemeMenu`. Absent
+ *  when signed out — there is nothing it could ever count. */
 export function NotificationBell() {
+  const { user } = useSession();
   const { notices } = useNotificationsContext();
   const open = useOpenNotice();
   const [shown, setShown] = useState(false);
@@ -27,6 +30,8 @@ export function NotificationBell() {
       window.clearTimeout(t);
     };
   }, [shown]);
+
+  if (!user) return null;
 
   return (
     <div className="notification-bell" ref={box}>

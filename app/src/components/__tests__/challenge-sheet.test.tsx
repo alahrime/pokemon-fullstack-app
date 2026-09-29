@@ -124,11 +124,11 @@ describe('ChallengeSheet', () => {
   });
 
   it('shows a refusal in an alert and stays open', async () => {
-    createChallenge.mockRejectedValue(new Error('a challenge needs a public format'));
+    createChallenge.mockRejectedValue(new Error('a challenge needs a format you own or a public one'));
     const onClose = open();
     await choose();
     fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('a challenge needs a public format');
+    expect((await screen.findByRole('alert')).textContent).toContain('a challenge needs a format you own or a public one');
     expect(onClose).not.toHaveBeenCalled();
     expect(openDm).not.toHaveBeenCalled();
   });

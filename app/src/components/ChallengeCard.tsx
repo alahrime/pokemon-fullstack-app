@@ -88,7 +88,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
       <span className="hud-label">Challenge</span>
       {challenge && (
         <p>
-          {challenge.formatName ?? 'a public format'} · {LEAGUE_BY_ID.get(challenge.league)?.name ?? challenge.league} ·{' '}
+          {challenge.formatName ?? 'an unnamed format'} · {LEAGUE_BY_ID.get(challenge.league)?.name ?? challenge.league} ·{' '}
           {challenge.scheduledFor ? new Date(challenge.scheduledFor).toLocaleString() : 'now'}
           {live && ` · expires ${new Date(challenge.expiresAt).toLocaleString()}`}
         </p>

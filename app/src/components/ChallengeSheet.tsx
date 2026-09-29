@@ -15,8 +15,9 @@ function messageOf(e: unknown): string {
  * Propose a match to one person: a league, one of YOUR saved server formats
  * for it, one of your saved teams that fits that format, and when. Sending
  * creates the challenge, opens (or finds) the DM with the target and asks the
- * dock to open it, where the challenge card lives. A refusal — a private
- * format, a past time — is shown here and leaves the sheet open to fix.
+ * dock to open it, where the challenge card lives. Any of your own formats will do,
+ * private or not — the target can read the one you challenge on. A refusal
+ * (a past time, someone no longer challengeable) is shown here and leaves the sheet open to fix.
  */
 export function ChallengeSheet({
   target,

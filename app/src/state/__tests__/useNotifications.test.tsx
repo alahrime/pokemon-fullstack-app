@@ -37,6 +37,17 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('useNotifications', () => {
+  it('signed out: reads nothing and offers nothing to toast', async () => {
+    user = null;
+    const { result } = renderHook(() => useNotifications());
+    await settle();
+    await poll();
+    expect(myChallenges).not.toHaveBeenCalled();
+    expect(listFriends).not.toHaveBeenCalled();
+    expect(result.current.notices).toEqual([]);
+    expect(result.current.fresh).toEqual([]);
+  });
+
   it('first load is not fresh; a new id on the next poll is', async () => {
     const { result } = renderHook(() => useNotifications());
     await settle();

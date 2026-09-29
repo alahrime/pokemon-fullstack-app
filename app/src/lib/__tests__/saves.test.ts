@@ -19,7 +19,11 @@ const FORMAT: Format = {
  * text it puts in `message`. Without it every query in this harness succeeds,
  * so nothing here could ever exercise a failure branch.
  */
-function harness(rows: Record<string, unknown[]>, errors: Record<string, { code: string; message: string }> = {}) {
+function harness(
+  rows: Record<string, unknown[]>,
+  errors: Record<string, { code: string; message: string }> = {},
+  userId: string | null = 'me',
+) {
   const calls: { table: string; op: string; payload?: unknown }[] = [];
   function table(name: string) {
     const q: Record<string, unknown> = {
@@ -42,7 +46,12 @@ function harness(rows: Record<string, unknown[]>, errors: Record<string, { code:
     };
     return q;
   }
-  pkg.client = { from: vi.fn((n: string) => table(n)) };
+  pkg.client = {
+    from: vi.fn((n: string) => table(n)),
+    auth: {
+      getSession: vi.fn(async () => ({ data: { session: userId ? { user: { id: userId } } : null }, error: null })),
+    },
+  };
   return { calls };
 }
 
@@ -366,5 +375,26 @@ describe('listServerFormats', () => {
     await listServerFormats();
     const select = calls.find((c) => c.table === 'formats' && c.op === 'select');
     expect(select?.payload).toMatch(/format_versions\(\s*id\b/);
+  });
+
+  /**
+   * RLS lets a signed-in reader see public formats and, since
+   * 20260929000100, the proposer's private format of a challenge aimed at
+   * them. Neither is "my saved format", so the list is scoped to the owner
+   * here rather than trusting the policies to return only mine.
+   */
+  it('scopes the list to the signed-in owner', async () => {
+    const { calls } = harness({ formats: [] }, {}, 'user-1');
+    const { listServerFormats } = await import('../saves');
+    await listServerFormats();
+    const eq = calls.find((c) => c.table === 'formats' && c.op === 'eq');
+    expect(eq?.payload).toEqual(['owner_id', 'user-1']);
+  });
+
+  it('returns nothing, without a query, when signed out', async () => {
+    const { calls } = harness({ formats: [{ id: 'f1', name: 'x', format_versions: [] }] }, {}, null);
+    const { listServerFormats } = await import('../saves');
+    expect(await listServerFormats()).toEqual([]);
+    expect(calls).toHaveLength(0);
   });
 });

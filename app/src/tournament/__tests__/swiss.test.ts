@@ -40,11 +40,35 @@ describe('standings', () => {
     const s = standings(['a', 'b'], [g(1, 'a', 'b', 0, 0)]);
     expect(s.every((x) => x.matchWins === 0 && x.matches === 1)).toBe(true);
   });
-  it('breaks a full tie by head-to-head, then by id, deterministically', () => {
-    const games = [g(1, 'a', 'b', 2, 1), g(1, 'c', 'd', 2, 1), g(2, 'a', 'c', 1, 2), g(2, 'b', 'd', 2, 1)];
-    const first = standings(['a', 'b', 'c', 'd'], games).map((x) => x.id);
-    const again = standings(['d', 'c', 'b', 'a'], games).map((x) => x.id);
-    expect(first).toEqual(again);
+  it('a 3-cycle of full ties ranks the same for every input order (h2h is not applied to groups of 3)', () => {
+    const games = [
+      g(1, 'a', 'b', 2, 1), g(1, 'c', null, 2, 0),
+      g(2, 'b', 'c', 2, 1), g(2, 'a', null, 2, 0),
+      g(3, 'c', 'a', 2, 1), g(3, 'b', null, 2, 0),
+    ];
+    const s = standings(['a', 'b', 'c'], games);
+    expect(s.every((x) => x.matchWins === 2 && x.matches === 3)).toBe(true);
+    const perms = [['a', 'b', 'c'], ['a', 'c', 'b'], ['b', 'a', 'c'], ['b', 'c', 'a'], ['c', 'a', 'b'], ['c', 'b', 'a']];
+    const orders = perms.map((p) => standings(p, games).map((x) => x.id).join(''));
+    expect(new Set(orders).size).toBe(1);
+    expect(orders[0]).toBe('abc');
+  });
+  it('head-to-head decides a two-player tie', () => {
+    // a and b tie on wins, OMW (.5) and GWP (.5); b beat a head to head, so b ranks above a despite id order
+    const games = [g(1, 'b', 'a', 2, 1), g(2, 'a', 'c', 2, 1), g(2, 'd', 'b', 2, 1), g(3, 'c', 'd', 2, 0)];
+    const s = standings(['a', 'b', 'c', 'd'], games);
+    expect(s.map((x) => x.id)).toEqual(['c', 'b', 'a', 'd']);
+  });
+  it('does not rank on floating-point noise in OMW', () => {
+    // a and b face the same opponents (rates 1/3, 3/4, 1) listed in different game order, so their OMW
+    // differs by ~2e-16 in float; they are mathematically tied and must fall through to id.
+    const games = [
+      g(1, 'q', 'b', 2, 0), g(1, 'r', 'b', 2, 0), g(1, 'b', 'p', 2, 0),
+      g(1, 'a', 'p', 2, 0), g(1, 'q', 'a', 2, 0), g(1, 'r', 'a', 2, 0),
+      g(1, 'r', 'p', 2, 0), g(1, 'r', 'q', 2, 0), g(1, 'q', 'p', 2, 0),
+    ];
+    const s = standings(['b', 'a', 'p', 'q', 'r'], games);
+    expect(s.map((x) => x.id)).toEqual(['r', 'q', 'a', 'b', 'p']);
   });
   it('ignores games naming players it was not given', () => {
     expect(() => standings(['a'], [g(1, 'a', 'zz', 2, 0)])).not.toThrow();
@@ -110,7 +134,56 @@ describe('pairSwiss', () => {
   });
 
   it('handles the empty and one-player fields', () => {
-    expect(pairSwiss([], [], 's')).toEqual({ pairs: [], rematches: 0 });
+    expect(pairSwiss([], [], 's')).toEqual({ pairs: [], rematches: 0, repeatBye: false });
     expect(pairSwiss(['a'], [], 's').pairs).toEqual([{ a: 'a', b: null }]);
+  });
+
+  it('reports repeatBye only when the bye player has had one before', () => {
+    const allHad = [g(1, 'a', null, 2, 0), g(2, 'b', null, 2, 0), g(3, 'c', null, 2, 0)];
+    expect(pairSwiss(['a', 'b', 'c'], allHad, 's').repeatBye).toBe(true);
+    const fresh = pairSwiss(['a', 'b', 'c'], [g(1, 'a', null, 2, 0), g(1, 'b', 'c', 2, 0)], 's');
+    expect(fresh.repeatBye).toBe(false);
+    expect(fresh.pairs.find((p) => p.b === null)!.a).not.toBe('a');
+    expect(pairSwiss(ids(4), [], 's').repeatBye).toBe(false);
+  });
+
+  it('a dropped opponent\'s game still counts for the survivor when ranking', () => {
+    // d beat x, who is no longer active. d must rank first, so d is paired with the next by id (a), not with c.
+    const games = [g(1, 'd', 'x', 2, 0)];
+    const { pairs } = pairSwiss(['a', 'b', 'c', 'd'], games, 's');
+    const top = pairs.find((p) => [p.a, p.b].includes('d'))!;
+    expect([top.a, top.b].sort()).toEqual(['a', 'd']);
+  });
+
+  it('dedupes the active list', () => {
+    const { pairs } = pairSwiss(['a', 'a', 'b', 'c'], [], 's');
+    const seen = pairs.flatMap((p) => [p.a, p.b]).filter((x) => x !== null);
+    expect(seen.sort()).toEqual(['a', 'b', 'c']);
+    expect(pairSwiss(['a', 'a'], [], 's').pairs).toEqual([{ a: 'a', b: null }]);
+  });
+
+  it('greedy fallback avoids rematches when a fresh partner exists, and counts the real ones', () => {
+    // draws give nobody a win, so rank is by id: a b c d. Budget 0 forces the fallback.
+    const played = [g(1, 'a', 'b', 1, 1), g(1, 'c', 'd', 1, 1)];
+    const r = pairSwiss(['a', 'b', 'c', 'd'], played, 's', 0);
+    expect(r.rematches).toBe(0);
+    expect(r.pairs).toHaveLength(2);
+    // a has played everyone: one rematch is unavoidable, and only one is reported
+    const forced = [g(1, 'a', 'b', 1, 1), g(1, 'a', 'c', 1, 1), g(1, 'a', 'd', 1, 1)];
+    expect(pairSwiss(['a', 'b', 'c', 'd'], forced, 's', 0).rematches).toBe(1);
+    expect(pairSwiss(['a', 'b', 'c', 'd'], forced, 's').rematches).toBe(1);
+  });
+
+  it('stays fast when no fresh pairing exists in a 100-player field', () => {
+    const players = Array.from({ length: 100 }, (_, i) => `q${String(i).padStart(3, '0')}`);
+    const games: Game[] = [];
+    for (let i = 0; i < 100; i++) for (let j = i + 1; j < 100; j++) games.push(g(1, players[i], players[j], 1, 1));
+    const t0 = performance.now();
+    const r = pairSwiss(players, games, 's');
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(1500);
+    expect(r.pairs).toHaveLength(50);
+    expect(new Set(r.pairs.flatMap((p) => [p.a, p.b])).size).toBe(100);
+    expect(r.rematches).toBe(50);
   });
 });

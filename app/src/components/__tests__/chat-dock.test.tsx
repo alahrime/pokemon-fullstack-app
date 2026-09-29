@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, fireEvent, cleanup, screen, waitFor, type RenderResult } from '@testing-library/react';
+import { goTo } from '../../test/nav';
 import type { Session } from '@supabase/supabase-js';
 
 /**
@@ -366,10 +367,7 @@ describe('ChatDock inside the app shell', () => {
     await screen.findByText('hey');
     expect(listMessages).toHaveBeenCalledTimes(1);
 
-    const rankingsTab = [...container.querySelectorAll('.nav-tab')].find((t) =>
-      t.textContent?.includes('Rankings'),
-    ) as HTMLElement;
-    fireEvent.click(rankingsTab);
+    goTo(container, 'Rankings');
     await waitFor(() => expect(container.textContent).toMatch(/Rankings/));
 
     // Still there, and never re-fetched or re-subscribed.

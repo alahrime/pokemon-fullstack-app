@@ -81,6 +81,7 @@
 
   /* — layout — */
   --shell-max: 1440px;
+  --rail-w: 11rem;
 }
 
 /* Reduced motion: collapse every duration to zero at the source rather than

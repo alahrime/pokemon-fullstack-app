@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
+import { goTo } from '../../test/nav';
 import { ReportScreen } from '../ReportScreen';
 import App from '../../App';
 import { IVAdjuster } from '../../components/IVAdjuster';
@@ -309,7 +310,7 @@ describe('opponent list ordering and the fight jump', () => {
 
   it('opens the fight with the report species and the clicked opponent', async () => {
     const { container } = renderApp(<App />);
-    fireEvent.click([...container.querySelectorAll('.nav-tab')].find((t) => t.textContent?.includes('Report'))!);
+    goTo(container, 'Report');
     await waitFor(() => expect(container.querySelector('.opp-fight')).toBeTruthy());
     const wrap = container.querySelector('.opp-cell-wrap')!;
     const opponent = wrap.querySelector('.opp-name')!.textContent!;

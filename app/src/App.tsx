@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { AppStateProvider, useAppState } from './state/AppState';
-import { SCREEN_DEFS } from './lib/screens';
+import { SECTIONS, sectionOf } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
 import { SessionProvider } from './state/SessionContext';
 import { ChatDockRequestProvider } from './state/ChatDockContext';
@@ -9,6 +9,8 @@ import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { ChatDock } from './components/ChatDock';
 import { LeagueTabs } from './components/LeagueTabs';
+import { SectionRail } from './components/SectionRail';
+import { useBadges } from './state/useBadges';
 import { opponentsFor, randomMatchup } from './lib/data';
 import { defaultSpreadFor } from './lib/engine';
 import { LandingScreen } from './screens/LandingScreen';
@@ -61,24 +63,24 @@ function Nav() {
       >
         PARAGON<span className="text-(--color-accent)">/</span>IV
       </button>
-      {/* Not SegGroup any more: these are the app's primary destinations, and
-          rendering them as the same control used for a sort order made them
-          read as a minor setting. Each carries its own hue and glyph, matching
-          the landing page's card for the same screen. */}
       <nav className="flex items-stretch gap-1 flex-wrap" aria-label="Sections">
-        {SCREEN_DEFS.map((d) => (
-          <button
-            key={d.id}
-            className={`nav-tab${state.screen === d.id ? ' is-active' : ''}`}
-            style={{ ['--tab-hue' as string]: d.hue }}
-            aria-current={state.screen === d.id ? 'page' : undefined}
-            onClick={() => set('screen', d.id)}
-            title={d.blurb}
-          >
-            <span className="nav-tab-glyph" aria-hidden="true">{d.glyph}</span>
-            <span className="nav-tab-label">{d.label}</span>
-          </button>
-        ))}
+        {SECTIONS.map((s) => {
+          const active = sectionOf(state.screen)?.id === s.id;
+          return (
+            <button
+              key={s.id}
+              className={`nav-section${active ? ' is-active' : ''}`}
+              data-section={s.id}
+              style={{ ['--tab-hue' as string]: s.hue }}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => set('screen', s.screens[0])}
+              title={s.blurb}
+            >
+              <span className="nav-tab-glyph" aria-hidden="true">{s.glyph}</span>
+              <span className="nav-tab-label">{s.label}</span>
+            </button>
+          );
+        })}
       </nav>
       {/* League and theme travel together on the right. Left loose in the
           wrapping nav, the theme trigger was small enough to be the only item
@@ -110,6 +112,14 @@ function Nav() {
             });
           }}
         />
+        <button
+          className={`nav-account${state.screen === 'account' ? ' is-active' : ''}`}
+          aria-current={state.screen === 'account' ? 'page' : undefined}
+          onClick={() => set('screen', 'account')}
+          title="Sign in, and choose the name Paragon knows you by"
+        >
+          <span aria-hidden="true">◉</span> Account
+        </button>
         <ThemeMenu />
       </div>
     </div>
@@ -153,21 +163,25 @@ function Screens() {
       // already fetched. Reached any other way (typing the tab directly on
       // a fresh session) there is nothing to report on yet.
       return state.activeMatch ? (
-        <MatchScreen
-          key="match"
-          match={state.activeMatch}
-          onChanged={() => {
-            // `submitReport` only returns the new `MatchState`; the rest of
-            // `Match` (rounds, side, etc.) does not change from reporting, so
-            // re-reading the one row by id rather than re-running `myMatches`
-            // would be the cheaper call — but `myMatches` is Task 4's
-            // shipping surface and the only one it exposes, so this refetches
-            // the list and picks the same id back out of it.
-            void myMatches().then((list) => {
-              patch({ activeMatch: list.find((m) => m.id === state.activeMatch?.id) ?? null });
-            });
-          }}
-        />
+        <div key="match">
+          <button className="btn btn-ghost chamfer-5 mb-4" onClick={() => patch({ screen: 'matchmaking' })}>
+            ← Matches
+          </button>
+          <MatchScreen
+            match={state.activeMatch}
+            onChanged={() => {
+              // `submitReport` only returns the new `MatchState`; the rest of
+              // `Match` (rounds, side, etc.) does not change from reporting, so
+              // re-reading the one row by id rather than re-running `myMatches`
+              // would be the cheaper call — but `myMatches` is Task 4's
+              // shipping surface and the only one it exposes, so this refetches
+              // the list and picks the same id back out of it.
+              void myMatches().then((list) => {
+                patch({ activeMatch: list.find((m) => m.id === state.activeMatch?.id) ?? null });
+              });
+            }}
+          />
+        </div>
       ) : (
         <div key="match" className="panel text-muted">
           No match selected — open one from the Matches screen.
@@ -202,7 +216,9 @@ function LazyScreen({ children }: { children: React.ReactNode }) {
 }
 
 function Shell() {
-  const { state } = useAppState();
+  const { state, set } = useAppState();
+  const badges = useBadges();
+  const section = sectionOf(state.screen);
   // The landing page runs its own full-bleed layout, so the shell's reading
   // measure and padding would fight it.
   const wide = state.screen === 'landing';
@@ -211,11 +227,16 @@ function Shell() {
       <HudGround />
       <div className="hud-content contents">
         <Nav />
-        <div
-          key={state.screen}
-          className={`screen-enter relative z-[2] mx-auto w-full ${wide ? 'max-w-none p-0' : 'max-w-(--shell-max) px-6 pt-6 pb-16'}`}
-        >
-          <Screens />
+        <div className={wide ? 'relative z-[2] w-full' : `shell mx-auto w-full px-6 pt-6 pb-16${section ? ' has-rail' : ''}`}>
+          {section && (
+            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => set('screen', s)} />
+          )}
+          <div
+            key={state.screen}
+            className={`screen-enter relative z-[2] min-w-0 ${wide ? 'max-w-none p-0' : ''}`}
+          >
+            <Screens />
+          </div>
         </div>
         <SiteFooter />
         {/* A SIBLING of the `key={state.screen}` div above, not a child of

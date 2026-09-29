@@ -6352,3 +6352,79 @@ th.bt-matrix-head { text-align: center; }
   flex: 1 1 12rem;
   min-width: 8rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHELL — top-bar sections, and the rail of the section you are in.
+   Sections reuse `.nav-tab`'s look through the same --tab-hue contract but are
+   their own class: the tests, and the eye, tell a destination from a screen.
+   ═══════════════════════════════════════════════════════════════════════ */
+.nav-section,
+.nav-account {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 12px;
+  background: none;
+  border: var(--border-hairline) solid transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out);
+}
+.nav-section:hover,
+.nav-account:hover {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--tab-hue, var(--color-accent)) 10%, transparent);
+}
+.nav-section.is-active,
+.nav-account.is-active {
+  color: var(--color-text);
+  background: color-mix(in oklab, var(--tab-hue, var(--color-accent)) 16%, transparent);
+  border-color: color-mix(in oklab, var(--tab-hue, var(--color-accent)) 40%, transparent);
+}
+.nav-section .nav-tab-glyph { color: var(--tab-hue); }
+
+/* The content column keeps its old width; the rail is added to it, not taken
+   out of it. */
+.shell { max-width: calc(var(--shell-max) + var(--rail-w) + var(--space-6)); }
+.shell.has-rail {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.section-rail {
+  position: sticky;
+  top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.section-rail .nav-tab { justify-content: flex-start; width: 100%; }
+.nav-badge {
+  margin-left: auto;
+  min-width: 1.25rem;
+  padding: 0 6px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-bg);
+  background: var(--tab-hue);
+}
+
+@media (max-width: 767px) {
+  .shell.has-rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .section-rail {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    /* Scroll inside the strip; the page itself must not gain a horizontal bar. */
+    max-width: 100%;
+  }
+  .section-rail .nav-tab { width: auto; flex: none; }
+}

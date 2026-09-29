@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
+import { goTo } from '../../test/nav';
 import App from '../../App';
 import { Board } from '../../components/Board';
 
@@ -21,9 +22,6 @@ describe('App shell', () => {
     await waitFor(() => expect(container.querySelector('.nav-tab.is-active')?.textContent).toMatch(/Rankings/));
   });
 
-  const go = (c: HTMLElement, label: string) =>
-    [...c.querySelectorAll('.nav-tab')].find((t) => t.textContent?.includes(label))!;
-
   it('starts on the landing page, where the search is the page', () => {
     const { container } = renderApp(<App />);
     expect(container.querySelector('.nav-search, #nav-species')).toBeFalsy();
@@ -32,9 +30,9 @@ describe('App shell', () => {
 
   it('moves between screens from the nav', async () => {
     const { container } = renderApp(<App />);
-    fireEvent.click(go(container, 'Rankings'));
+    goTo(container, 'Rankings');
     await waitFor(() => expect(container.textContent).toMatch(/Rankings/));
-    fireEvent.click(go(container, 'Battle'));
+    goTo(container, 'Battle');
     await waitFor(() => expect(container.querySelectorAll('.bt-side').length).toBe(2));
   });
 
@@ -43,7 +41,7 @@ describe('App shell', () => {
     // is why it navigated. Now it is on the screen that reads the selection,
     // so picking simply updates the report under it.
     const { container } = renderApp(<App />);
-    fireEvent.click(go(container, 'Report'));
+    goTo(container, 'Report');
     await waitFor(() => expect(container.querySelector('.species-search input')).toBeTruthy());
     const input = container.querySelector('.species-search input') as HTMLInputElement;
     fireEvent.focus(input);
@@ -54,7 +52,7 @@ describe('App shell', () => {
       return r;
     });
     fireEvent.mouseDown(row);
-    await waitFor(() => expect(go(container, 'Report').className).toMatch(/is-active/));
+    await waitFor(() => expect(container.querySelector('.nav-tab.is-active')?.textContent).toMatch(/Report/));
     await waitFor(() => expect(container.textContent).toMatch(/Skarmory/i));
     // And the nav no longer carries a picker of its own.
     expect(container.querySelector('.nav .report-search')).toBeNull();
@@ -62,7 +60,7 @@ describe('App shell', () => {
 
   it('changing league re-points the opponent, which is league-specific', async () => {
     const { container } = renderApp(<App />);
-    fireEvent.click(go(container, 'Rankings'));
+    goTo(container, 'Rankings');
     await waitFor(() => expect(container.querySelector('.league-tab, .league-tabs button')).toBeTruthy());
     const leagues = [...container.querySelectorAll('.league-tabs button, .league-tab')];
     const other = leagues.find((b) => !b.className.includes('is-active'));
@@ -74,7 +72,7 @@ describe('App shell', () => {
 
   it('the brand returns to the landing page and clears the search', async () => {
     const { container } = renderApp(<App />);
-    fireEvent.click(go(container, 'Battle'));
+    goTo(container, 'Battle');
     await waitFor(() => expect(container.querySelectorAll('.bt-side').length).toBe(2));
     fireEvent.click(container.querySelector('.nav-brand')!);
     await waitFor(() => expect(container.querySelector('.landing-route')).toBeTruthy());

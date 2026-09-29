@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { renderApp } from '../../test/render';
+import { goTo } from '../../test/nav';
 import App from '../../App';
 import { AddPokemonModal } from '../AddPokemonModal';
 import { LeagueTabs } from '../LeagueTabs';
@@ -16,17 +17,16 @@ beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
 describe('App shell', () => {
   it('mounts and shows the nav', () => {
     const { container } = renderApp(<App />);
-    expect(container.querySelectorAll('.nav-tab').length).toBeGreaterThanOrEqual(6);
+    expect(container.querySelectorAll('.nav-section').length).toBe(3);
   });
   it('navigates between screens', async () => {
     const { container } = renderApp(<App />);
-    const rankings = [...container.querySelectorAll('.nav-tab')].find((b) => b.textContent!.includes('Rankings'))!;
-    fireEvent.click(rankings);
-    expect(rankings.getAttribute('aria-current')).toBe('page');
+    goTo(container, 'Rankings');
+    expect(container.querySelector('.nav-tab.is-active')!.getAttribute('aria-current')).toBe('page');
   });
   it('the brand returns to the landing page', () => {
     const { container } = renderApp(<App />);
-    fireEvent.click(container.querySelector('.nav-tab')!);
+    goTo(container, 'Report');
     fireEvent.click(container.querySelector('.nav-brand')!);
     // Identify the screen by the screen, not by the absent nav search: that
     // search has moved to the Report, so its absence no longer distinguishes
@@ -39,15 +39,20 @@ describe('App shell', () => {
     // row, beside the readouts it changes.
     const { container } = renderApp(<App />);
     expect(container.querySelector('.nav .report-search')).toBeNull();
-    fireEvent.click([...container.querySelectorAll('.nav-tab')].find((b) => b.textContent!.includes('Report'))!);
+    goTo(container, 'Report');
     const search = container.querySelector('.report-search');
     expect(search, 'the Report must carry the picker').toBeTruthy();
     expect(container.querySelector('.nav')!.contains(search!)).toBe(false);
   });
   it('gives every nav tab its own hue', () => {
     const { container } = renderApp(<App />);
-    const hues = [...container.querySelectorAll('.nav-tab')].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
-    expect(new Set(hues).size).toBe(hues.length);
+    goTo(container, 'Report');
+    // A section deliberately wears the hue of its lead screen, so distinctness
+    // holds within the sections and within the rail, not across the two.
+    for (const sel of ['.nav-section', '.nav-tab']) {
+      const hues = [...container.querySelectorAll(sel)].map((t) => (t as HTMLElement).style.getPropertyValue('--tab-hue'));
+      expect(new Set(hues).size, sel).toBe(hues.length);
+    }
   });
 });
 

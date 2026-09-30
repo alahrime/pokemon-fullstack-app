@@ -12,11 +12,20 @@ const h = vi.hoisted(() => ({
 vi.mock('../supabase', () => {
   const table = (name: string) => {
     const q: Record<string, unknown> = {};
-    for (const op of ['select', 'eq', 'order', 'limit', 'in']) {
+    const ins: [string, unknown[]][] = [];
+    let win: [number, number] | null = null;
+    for (const op of ['select', 'eq', 'order', 'limit']) {
       q[op] = vi.fn((...a: unknown[]) => { h.calls.push({ op: `${name}.${op}`, payload: a }); return q; });
     }
+    q.in = vi.fn((...a: unknown[]) => { h.calls.push({ op: `${name}.in`, payload: a }); ins.push([a[0] as string, a[1] as unknown[]]); return q; });
+    q.range = vi.fn((from: number, to: number) => { h.calls.push({ op: `${name}.range`, payload: [from, to] }); win = [from, to]; return q; });
     q.maybeSingle = vi.fn(async () => ({ data: h.rows[name]?.[0] ?? null, error: h.err }));
-    q.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: h.rows[name] ?? [], error: h.err }).then(res);
+    q.then = (res: (v: unknown) => unknown) => {
+      // Like PostgREST: `in` filters narrow the rows, `range` pages them.
+      let rows = (h.rows[name] ?? []).filter((r) => ins.every(([c, v]) => v.includes((r as Record<string, unknown>)[c])));
+      if (win) rows = rows.slice(win[0], win[1] + 1);
+      return Promise.resolve({ data: rows, error: h.err }).then(res);
+    };
     return q;
   };
   return { supabase: { rpc: h.rpc, auth: { getSession: async () => ({ data: { session: h.me ? { user: { id: h.me } } : null }, error: null }) }, from: (n: string) => table(n) } };
@@ -229,20 +238,56 @@ describe('myTournamentActivity', () => {
   it('mine in the current round only; everything current where I judge; a fixed number of queries', async () => {
     h.rows.tournament_entrants = [{ tournament_id: 't1' }];
     h.rows.tournament_roles = [{ tournament_id: 't2' }];
-    h.rows.tournaments = [trow('t1', 'running'), trow('t2', 'running'), trow('t3', 'registration')];
+    h.rows.tournaments = [trow('t1', 'running'), trow('t2', 'running'), trow('t3', 'registration'), trow('t4', 'running', { current_round: 3 })];
+    h.rows.tournament_roles = [{ tournament_id: 't2' }, { tournament_id: 't4' }];
     h.rows.tournament_pairings = [
       prow('a', 't1', 2, 'me', 'x'), prow('b', 't1', 2, 'y', 'z'), prow('c', 't1', 1, 'me', 'x'),
-      prow('d', 't2', 2, 'y', 'z'), prow('e', 't2', 1, 'y', 'z'),
+      prow('d', 't2', 2, 'y', 'z'), prow('e', 't2', 1, 'y', 'z'), prow('f', 't4', 3, 'y', 'z'),
+      ...Array.from({ length: 1500 }, (_, i) => prow('old' + i, 't1', 1, 'y', 'z')),
     ];
     const r = await T.myTournamentActivity();
-    expect(r.judgeOf).toEqual(['t2']);
-    expect(r.tournaments.map((t) => t.id)).toEqual(['t1', 't2', 't3']);
-    expect(r.pairings.map((p) => [p.id, p.tournamentId])).toEqual([['a', 't1'], ['d', 't2']]);
+    expect(r.judgeOf).toEqual(['t2', 't4']);
+    expect(r.tournaments.map((t) => t.id)).toEqual(['t1', 't2', 't3', 't4']);
+    expect(r.pairings.map((p) => [p.id, p.tournamentId])).toEqual([['a', 't1'], ['d', 't2'], ['f', 't4']]);
+    // Only the running tournaments' distinct current rounds are asked of the server, in a stable order.
+    expect(h.calls.find((c) => c.op === 'tournament_pairings.in' && (c.payload as unknown[])[0] === 'round')?.payload).toEqual(['round', [2, 3]]);
+    expect(h.calls.filter((c) => c.op === 'tournament_pairings.order').map((c) => (c.payload as unknown[])[0])).toEqual(['tournament_id', 'table_no']);
     expect(h.calls.filter((c) => c.op.endsWith('.select'))).toHaveLength(5);
     expect(h.calls.find((c) => c.op === 'tournaments.in')?.payload).toEqual(['id', expect.arrayContaining(['t1', 't2'])]);
   });
   it('throws on a failed read', async () => {
     h.err = { message: 'down' };
     await expect(T.myTournamentActivity()).rejects.toThrow('down');
+  });
+});
+
+
+describe('listPairings paging', () => {
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({
+    id: 'p' + i, round: 1 + Math.floor(i / 128), table_no: 1 + (i % 128), player_a: 'a', player_b: 'b', score_a: null, score_b: null,
+    state: 'pending', reported_by: null, reported_at: null, final_at: null, note: null,
+  }));
+  const ranges = () => h.calls.filter((c) => c.op === 'tournament_pairings.range').map((c) => c.payload);
+  it('returns a full 1,536-row event past the 1,000-row cap, in order, in 500-row pages', async () => {
+    h.rows.tournament_pairings = rows(1536);
+    const r = await T.listPairings('t');
+    expect(r).toHaveLength(1536);
+    expect(r.map((p) => p.id)).toEqual(rows(1536).map((x) => x.id));
+    expect(ranges()).toEqual([[0, 499], [500, 999], [1000, 1499], [1500, 1999]]);
+  });
+  it('stops on a short page', async () => {
+    h.rows.tournament_pairings = rows(120);
+    expect(await T.listPairings('t')).toHaveLength(120);
+    expect(ranges()).toEqual([[0, 499]]);
+  });
+  it('an exact multiple costs one empty page, no more', async () => {
+    h.rows.tournament_pairings = rows(1000);
+    expect(await T.listPairings('t')).toHaveLength(1000);
+    expect(ranges()).toEqual([[0, 499], [500, 999], [1000, 1499]]);
+  });
+  it('is bounded at 20 pages', async () => {
+    h.rows.tournament_pairings = rows(11000);
+    expect(await T.listPairings('t')).toHaveLength(10000);
+    expect(ranges()).toHaveLength(20);
   });
 });

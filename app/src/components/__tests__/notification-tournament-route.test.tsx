@@ -37,4 +37,14 @@ describe('tournament notices open the tournament', () => {
     fireEvent.click(screen.getByText('Cup'));
     expect(window.location.hash).toBe(`#/play/tournaments/${TID}`);
   });
+  it('while another tournament is open, switches to the clicked one', () => {
+    const OTHER = '0b8f3c1e-9999-4222-8333-444455556666';
+    window.location.hash = `#/play/tournaments/${OTHER}`;
+    state = { notices: [n], fresh: [] };
+    render(ui);
+    expect(window.location.hash).toBe(`#/play/tournaments/${OTHER}`);
+    fireEvent.click(screen.getByRole('button', { name: /^Notifications/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cup/ }));
+    expect(window.location.hash).toBe(`#/play/tournaments/${TID}`);
+  });
 });

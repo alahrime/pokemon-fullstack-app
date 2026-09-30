@@ -147,13 +147,28 @@ export async function listEntrants(id: string): Promise<Entrant[]> {
   return (data ?? []).map((r) => ({ playerId: r.player_id, seed: r.seed, dropped: r.dropped, registeredAt: r.registered_at }));
 }
 
+/** PostgREST caps a response (max_rows = 1000): page through with `.range` until a short page. */
+const PAGE = 500;
+const MAX_PAGES = 20;
+async function pageAll<R>(page: (from: number, to: number) => PromiseLike<{ data: R[] | null; error: { message: string } | null }>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const { data, error } = await page(i * PAGE, i * PAGE + PAGE - 1);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if ((data ?? []).length < PAGE) break;
+  }
+  return out;
+}
+
+// A big event is 12 rounds x 128 tables = 1,536 rows, so this is the one reader that pages.
+// Entrants and rosters are <= 512 rows per tournament and audit is limited to 50: all under the cap.
 export async function listPairings(id: string): Promise<Pairing[]> {
-  const { data, error } = await supabase
+  const rows = await pageAll((from, to) => supabase
     .from('tournament_pairings')
     .select('id, round, table_no, player_a, player_b, score_a, score_b, state, reported_by, reported_at, final_at, note')
-    .eq('tournament_id', id).order('round', { ascending: true }).order('table_no', { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => ({
+    .eq('tournament_id', id).order('round', { ascending: true }).order('table_no', { ascending: true }).range(from, to));
+  return rows.map((r) => ({
     id: r.id, round: r.round, tableNo: r.table_no, playerA: r.player_a, playerB: r.player_b,
     scoreA: r.score_a, scoreB: r.score_b, state: r.state as PairingState, reportedBy: r.reported_by,
     reportedAt: r.reported_at, finalAt: r.final_at, note: r.note,
@@ -212,7 +227,10 @@ export async function myTournamentActivity(): Promise<{ tournaments: Tournament[
   const running = tournaments.filter((t) => t.state === 'running');
   if (!running.length) return { tournaments, pairings: [], judgeOf };
   const { data: prs, error: pe } = await supabase
-    .from('tournament_pairings').select(P_COLS).in('tournament_id', running.map((t) => t.id));
+    .from('tournament_pairings').select(P_COLS).in('tournament_id', running.map((t) => t.id))
+    // Current rounds only: every round would be ~1,500 rows per big event, past PostgREST's 1,000-row cap.
+    .in('round', [...new Set(running.map((t) => t.currentRound))])
+    .order('tournament_id').order('table_no');
   if (pe) throw new Error(pe.message);
   const by = new Map(running.map((t) => [t.id, t]));
   const pairings = (prs ?? []).flatMap((r) => {

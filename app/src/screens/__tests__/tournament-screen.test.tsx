@@ -11,6 +11,12 @@ vi.mock('../../components/tournament/RosterForm', () => ({
   RosterForm: ({ initial }: { initial?: unknown[] }) => <div role="dialog" aria-label="Your roster">form {initial ? 'edit' : 'new'}</div>,
 }));
 
+vi.mock('../../components/tournament/MatchupPanel', () => ({
+  MatchupPanel: ({ pairing, me, onChanged }: { pairing: { id: string }; me: string; onChanged: () => void }) => (
+    <button type="button" onClick={onChanged}>panel {pairing.id} for {me}</button>
+  ),
+}));
+
 import { TournamentScreen } from '../TournamentScreen';
 import { AppStateProvider, useAppState } from '../../state/AppState';
 import { LEAGUE_BY_ID, movesFor, SPECIES_BY_ID } from '../../lib/data';
@@ -103,6 +109,25 @@ describe('banner', () => {
     V.view.mockReturnValue(view({ tournament: t, state: eff }));
     mount();
     for (const x of texts) expect(screen.getByText(new RegExp(x))).toBeTruthy();
+  });
+});
+
+describe('your matchup', () => {
+  const running = (over = {}) => view({
+    tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing()], ...over,
+  });
+  it('is closed until asked for, then opens with the pairing and refreshes on change', () => {
+    const refresh = vi.fn();
+    V.view.mockReturnValue(running({ refresh }));
+    mount();
+    expect(screen.queryByRole('button', { name: /^panel/ })).toBeNull();
+    const open = screen.getByRole('button', { name: 'View your matchup' });
+    fireEvent.click(open);
+    expect(open.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'panel p for me' }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    fireEvent.click(open);
+    expect(screen.queryByRole('button', { name: /^panel/ })).toBeNull();
   });
 });
 

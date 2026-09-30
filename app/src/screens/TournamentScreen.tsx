@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
@@ -11,6 +11,7 @@ import { Standings } from '../components/tournament/Standings';
 import { PlayersTab } from '../components/tournament/PlayersTab';
 import { RosterForm } from '../components/tournament/RosterForm';
 import { RoundClock } from '../components/tournament/RoundClock';
+import { MatchupPanel } from '../components/tournament/MatchupPanel';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const TABS = [['bracket', 'Bracket'], ['standings', 'Standings'], ['players', 'Players']] as const;
@@ -47,6 +48,9 @@ export function TournamentScreen({ id }: { id: string }) {
   const [hideMine, setHideMine] = useState(false);
   const [share, setShare] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [notice, setNotice] = useState<string | null>(null);
+  const [showMatch, setShowMatch] = useState(false);
+  const matchRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (showMatch) matchRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [showMatch]);
   useEffect(() => {
     if (share !== 'copied') return;
     const t = setTimeout(() => setShare('idle'), 3000);
@@ -85,6 +89,8 @@ export function TournamentScreen({ id }: { id: string }) {
   const open = s === 'registration';
   const full = t.entrants >= t.maxPlayers;
   const matchup = s === 'running' && v.pairings.some((p) => isLivePairing(p, t, me));
+  // The viewer's pairing this round, a bye included: the panel stays for the whole round.
+  const myPairing = s === 'running' ? v.pairings.find((p) => p.round === t.currentRound && (p.playerA === me || p.playerB === me)) : undefined;
   const isHost = t.organiserId === me;
   const b = banner(t, s);
   const name = (uid: string) => v.names.get(uid) ?? 'Player';
@@ -150,7 +156,7 @@ export function TournamentScreen({ id }: { id: string }) {
             <button type="button" className="btn" onClick={() => void withdraw()}>Withdraw</button>
           </>
         )}
-        {matchup && <button type="button" className="btn btn-primary" onClick={() => setTab('bracket')}>View your matchup</button>}
+        {matchup && <button type="button" className="btn btn-primary" aria-expanded={showMatch} onClick={() => setShowMatch((x) => !x)}>View your matchup</button>}
         <button type="button" className="btn" onClick={() => void copyLink()}>Share tournament page</button>
         {share === 'copied' && <span role="status" className="text-muted">Copied</span>}
         {share === 'manual' && (
@@ -158,6 +164,12 @@ export function TournamentScreen({ id }: { id: string }) {
         )}
       </div>
       {notice && <p className="friend-notice" role="alert">{notice}</p>}
+
+      {showMatch && myPairing && me && (
+        <div ref={matchRef}>
+          <MatchupPanel pairing={myPairing} me={me} tournament={t} rosters={v.rosters} names={v.names} now={now} onChanged={v.refresh} />
+        </div>
+      )}
 
       {isHost && <section className="panel chamfer-9 host-panel" aria-label="Host controls"><div className="hud-label">Host controls</div></section>}
 

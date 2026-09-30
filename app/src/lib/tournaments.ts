@@ -28,6 +28,10 @@ export function effectiveState(t: Tournament, now: Date): TournamentState {
   return t.state === 'registration' && t.registrationClosesAt && new Date(t.registrationClosesAt) <= now
     ? 'closed' : t.state;
 }
+/** A matchup the viewer can still play or answer for: this round's, not a bye, not yet settled. Used for both the page action and the poll rate. */
+export function isLivePairing(p: Pairing, t: Pick<Tournament, 'currentRound'>, me: string | null): boolean {
+  return !!me && p.round === t.currentRound && p.playerB !== null && p.state !== 'settled' && (p.playerA === me || p.playerB === me);
+}
 /** Mirrors `_pairing_counts`: settled, or reported and past its dispute window. */
 export function isCounted(p: Pairing, now: Date): boolean {
   return p.state === 'settled' || (p.state === 'reported' && !!p.finalAt && new Date(p.finalAt) <= now);

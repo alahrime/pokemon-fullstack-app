@@ -38,11 +38,14 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
   const [picking, setPicking] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [queue, setQueue] = useState<Queued[]>([]);
+  // An import fills this, not the slots: the old roster stays until every member has its CP.
+  const [staged, setStaged] = useState<(RosterMember | null)[] | null>(null);
   const [teams, setTeams] = useState<SavedTeam[] | null>(null);
   const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstRef = useRef<HTMLButtonElement>(null);
+  const cpRef = useRef<HTMLInputElement>(null);
   const restrictTo = useMemo(() => new Set(resolvePool(format).legal), [format]);
 
   // Escape closes the form only when nothing inside it is open (the modal
@@ -65,10 +68,16 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
     };
   }, []);
 
+  const pendingKey = pending ? `${pending.slot}:${pending.base.ref}` : null;
+  useEffect(() => {
+    if (pendingKey) cpRef.current?.focus({ preventScroll: true });
+  }, [pendingKey]);
+
   const filled = slots.filter((m): m is RosterMember => m !== null);
   const check = checkRoster(filled, format, league);
   // "exactly six" is the counter's job while slots are still empty.
   const problems = filled.length < ROSTER_SIZE ? check.problems.filter((p) => !p.startsWith('A roster is exactly')) : check.problems;
+  const firstIdx = Math.max(0, slots.findIndex((x) => !x));
   const canSave = filled.length === ROSTER_SIZE && check.ok && !busy;
 
   function startPending(slot: number, base: Base, existing?: RosterMember | null) {
@@ -80,16 +89,25 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
   function confirmPending() {
     if (!pending) return;
     const member: RosterMember = { ...pending.base, cp: Number(pending.cp), bestBuddy: pending.bestBuddy };
-    setSlots((s) => s.map((m, i) => (i === pending.slot ? member : m)));
+    const result = (staged ?? slots).map((m, i) => (i === pending.slot ? member : m));
     const [next, ...rest] = queue;
-    setQueue(rest);
-    if (next) startPending(next.slot, next.base);
-    else setPending(null);
+    if (next) {
+      if (staged) setStaged(result);
+      else setSlots(result);
+      setQueue(rest);
+      startPending(next.slot, next.base);
+    } else {
+      setSlots(result);
+      setStaged(null);
+      setQueue([]);
+      setPending(null);
+    }
   }
 
   function cancelPending() {
     setPending(null);
     setQueue([]);
+    setStaged(null);
   }
 
   async function openImport() {
@@ -107,7 +125,7 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
     const team = teams?.find((t) => t.id === id);
     if (!team) return;
     const items = team.members.map((m, slot) => ({ slot, base: { ref: m.ref, fast: m.fast_move, charges: [...m.charge_moves] } }));
-    setSlots(padded());
+    setStaged(padded());
     setImporting(false);
     const [first, ...rest] = items;
     setQueue(rest);
@@ -131,6 +149,12 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
   const cpNum = pending ? Number(pending.cp) : NaN;
   const cpOk = !!range && pending!.cp.trim() !== '' && Number.isInteger(cpNum) && cpNum >= range.min && cpNum <= range.max;
 
+  const cap = leagueCap(league);
+  const cpHint = !range ? '' : cpOk ? `CP must be between ${range.min} and ${range.max}`
+    : !Number.isInteger(cpNum) || pending!.cp.trim() === '' ? `CP must be a whole number from ${range.min} to ${range.max}`
+    : cpNum < range.min ? `CP ${cpNum} is below ${range.min}`
+    : `CP ${cpNum} is over the ${range.max} ${cap === range.max ? 'cap' : 'maximum'}`;
+
   return (
     <div
       className="challenge-sheet-backdrop"
@@ -138,7 +162,7 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
         if (e.target === e.currentTarget && !busy && picking === null && !pending) onCancel();
       }}
     >
-      <div className="roster-form panel chamfer-9" role="dialog" aria-modal="true" aria-label="Your roster">
+      <div className="roster-form panel chamfer-9" role="dialog" aria-modal="true" aria-label={initial?.length ? 'Edit your six' : 'Register your six'}>
         <div className="hud-label">Your roster · {filled.length} / {ROSTER_SIZE}</div>
 
         <ol className="roster-slots">
@@ -149,13 +173,14 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
                 <>
                   <RosterCard member={m} />
                   <div className="roster-slot-actions">
-                    <button type="button" className="btn" disabled={busy} onClick={() => setPicking(i)}>Edit</button>
-                    <button type="button" className="btn" disabled={busy}
+                    <button type="button" ref={i === firstIdx ? firstRef : undefined} className="btn" disabled={busy || pending !== null}
+                      aria-label={`Replace slot ${i + 1}: ${displayName(m.ref)}`} onClick={() => setPicking(i)}>Replace</button>
+                    <button type="button" className="btn" disabled={busy || pending !== null}
                       onClick={() => setSlots((s) => s.map((x, j) => (j === i ? null : x)))}>Clear</button>
                   </div>
                 </>
               ) : (
-                <button type="button" ref={i === slots.findIndex((x) => !x) ? firstRef : undefined} className="btn"
+                <button type="button" ref={i === firstIdx ? firstRef : undefined} className="btn"
                   disabled={busy || pending !== null} onClick={() => setPicking(i)}>Add Pokémon</button>
               )}
             </li>
@@ -167,9 +192,10 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
             <legend>Slot {pending.slot + 1}: {displayName(pending.base.ref)}</legend>
             <div className="field">
               <label htmlFor="roster-cp">CP</label>
-              <input id="roster-cp" className="input" type="number" min={range.min} max={range.max}
-                value={pending.cp} onChange={(e) => setPending({ ...pending, cp: e.target.value })} />
-              <span className={cpOk ? 'text-muted' : 'roster-problem'}>CP must be between {range.min} and {range.max}</span>
+              <input id="roster-cp" ref={cpRef} className="input" type="number" min={range.min} max={range.max}
+                value={pending.cp} aria-invalid={!cpOk} aria-describedby="roster-cp-hint"
+                onChange={(e) => setPending({ ...pending, cp: e.target.value })} />
+              <span id="roster-cp-hint" className={cpOk ? 'text-muted' : 'roster-problem'}>{cpHint}</span>
             </div>
             <label className="tournament-check">
               <input type="checkbox" checked={pending.bestBuddy} onChange={(e) => setPending({ ...pending, bestBuddy: e.target.checked })} />

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
-import { withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
+import { isLivePairing, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
 import { RosterForm } from '../components/tournament/RosterForm';
 import { RoundClock } from '../components/tournament/RoundClock';
@@ -46,6 +46,11 @@ export function TournamentScreen({ id }: { id: string }) {
   const [hideMine, setHideMine] = useState(false);
   const [share, setShare] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (share !== 'copied') return;
+    const t = setTimeout(() => setShare('idle'), 3000);
+    return () => clearTimeout(t);
+  }, [share]);
   const back = <Back onBack={() => patch({ activeTournamentId: null })} />;
 
   if (!user) {
@@ -78,9 +83,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const myRoster = me ? v.rosters.get(me) : undefined;
   const open = s === 'registration';
   const full = t.entrants >= t.maxPlayers;
-  const matchup = s === 'running' && v.pairings.some(
-    (p) => p.round === t.currentRound && p.playerB !== null && (p.playerA === me || p.playerB === me),
-  );
+  const matchup = s === 'running' && v.pairings.some((p) => isLivePairing(p, t, me));
   const isHost = t.organiserId === me;
   const b = banner(t, s);
   const name = (uid: string) => v.names.get(uid) ?? 'Player';
@@ -137,6 +140,9 @@ export function TournamentScreen({ id }: { id: string }) {
         {open && !mine && !full && (
           <button type="button" className="btn btn-primary" disabled={!v.format} onClick={() => setForming(true)}>Register</button>
         )}
+        {open && !v.format && (mine || !full) && (
+          <span className="text-muted" role="status">The tournament's rules could not be loaded — retrying…</span>
+        )}
         {open && !mine && full && <span className="text-muted">This tournament is full.</span>}
         {open && mine && (
           <>
@@ -174,8 +180,8 @@ export function TournamentScreen({ id }: { id: string }) {
         ))}
       </div>
       <div role="tabpanel" className="panel chamfer-9 text-muted">
-        {tab === 'bracket' && 'Pairings appear here once a round starts.'}
-        {tab === 'standings' && 'Standings appear here once games are played.'}
+        {tab === 'bracket' && 'Bracket view is not available yet.'}
+        {tab === 'standings' && 'Standings view is not available yet.'}
         {tab === 'players' && `${t.entrants} registered.`}
       </div>
 

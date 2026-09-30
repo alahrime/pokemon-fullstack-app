@@ -130,4 +130,64 @@ describe('useTournament', () => {
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('retries the format on the next poll when its first read fails', async () => {
+    T.getTournamentFormat.mockRejectedValueOnce(new Error('offline'));
+    const { result } = await mount();
+    expect(result.current.format).toBeNull();
+    expect(result.current.tournament?.title).toBe('Cup');
+    await tick(15_000);
+    expect(result.current.format?.name).toBe('Cup rules');
+    await tick(15_000);
+    expect(T.getTournamentFormat).toHaveBeenCalledTimes(2); // not re-read once it landed
+  });
+
+  it('refresh retries a missing format too', async () => {
+    T.getTournamentFormat.mockResolvedValueOnce(null);
+    const { result } = await mount();
+    expect(result.current.format).toBeNull();
+    await act(async () => { result.current.refresh(); await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.format?.name).toBe('Cup rules');
+  });
+
+  it('ignores an older load that resolves after a newer one', async () => {
+    let releaseOld!: (t: unknown) => void;
+    const { result } = await mount();
+    T.getTournament.mockReturnValueOnce(new Promise((r) => { releaseOld = r; }));
+    await tick(15_000); // the old poll starts and hangs
+    T.getTournament.mockResolvedValueOnce(tour({ title: 'Fresh' }));
+    await act(async () => { result.current.refresh(); await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.tournament?.title).toBe('Fresh');
+    releaseOld(tour({ title: 'Stale' }));
+    await settle();
+    expect(result.current.tournament?.title).toBe('Fresh');
+  });
+
+  it('is loading, not empty, on the very first render after the id changes', async () => {
+    const seen: [string, boolean][] = [];
+    const { rerender } = renderHook(({ id }) => { const v = useTournament(id); seen.push([id, v.loading]); return v; }, { initialProps: { id: 't1' } });
+    await settle();
+    T.getTournament.mockReturnValue(new Promise(() => {}));
+    rerender({ id: 't2' });
+    await settle();
+    expect(seen.filter(([id]) => id === 't2').every(([, l]) => l)).toBe(true);
+  });
+
+  it('a reported (unsettled) pairing of mine keeps the 10 s poll', async () => {
+    T.getTournament.mockResolvedValue(tour({ state: 'running', currentRound: 1 }));
+    T.listPairings.mockResolvedValue([{ id: 'p', round: 1, tableNo: 1, playerA: 'me', playerB: 'x', state: 'reported' }]);
+    await mount();
+    await tick(10_000);
+    expect(T.getTournament).toHaveBeenCalledTimes(2);
+  });
+
+  it('a settled pairing of mine does not count as live (10 s poll needs a live one)', async () => {
+    T.getTournament.mockResolvedValue(tour({ state: 'running', currentRound: 1 }));
+    T.listPairings.mockResolvedValue([{ id: 'p', round: 1, tableNo: 1, playerA: 'me', playerB: 'x', state: 'settled' }]);
+    await mount();
+    await tick(10_000);
+    expect(T.getTournament).toHaveBeenCalledTimes(1);
+    await tick(5_000);
+    expect(T.getTournament).toHaveBeenCalledTimes(2);
+  });
 });

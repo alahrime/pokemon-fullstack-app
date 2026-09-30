@@ -117,6 +117,12 @@ describe('describeViolation', () => {
     expect(describeViolation({ kind: 'unknown-move', ref: 'azumarill', move: 'AERIAL_ACE' }))
       .toBe('Azumarill does not learn Aerial Ace.');
   });
+  it('turns a quota selector into words', () => {
+    expect(describeViolation({ kind: 'quota', select: 'type:fire', max: 1, actual: 2 }))
+      .toBe('the format wants at most 1 Pokémon matching Fire-type but the team has 2.');
+    expect(describeViolation({ kind: 'quota', select: 'water & !flying', min: 2, actual: 0 }))
+      .toBe('the format wants at least 2 Pokémon matching Water-type and not Flying-type but the team has 0.');
+  });
   it('says more than the kind name for every kind', () => {
     for (const v of all) {
       const s = describeViolation(v);

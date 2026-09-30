@@ -125,6 +125,22 @@ describe('rpc wrappers', () => {
   });
 });
 
+describe('isLivePairing', () => {
+  const t = { currentRound: 2 };
+  it.each([
+    ['pending', { round: 2, state: 'pending' }, true],
+    ['reported', { round: 2, state: 'reported' }, true],
+    ['disputed', { round: 2, state: 'disputed' }, true],
+    ['settled', { round: 2, state: 'settled' }, false],
+    ['an old round', { round: 1, state: 'pending' }, false],
+    ['a bye', { round: 2, playerB: null }, false],
+    ['someone else\u2019s', { round: 2, playerA: 'x', playerB: 'y' }, false],
+  ] as const)('%s', (_n, over, want) => {
+    expect(T.isLivePairing(pr({ playerA: 'me', playerB: 'b', ...over } as Partial<Pairing>), t, 'me')).toBe(want);
+  });
+  it('is false signed out', () => { expect(T.isLivePairing(pr({ round: 2, playerA: 'me' }), t, null)).toBe(false); });
+});
+
 describe('readers', () => {
   it('listTournaments maps rows, newest first, limit 100', async () => {
     h.rows.tournaments = [{ id: 't', organiser_id: 'o', title: 'T', description: '', format_version_id: 'fv', league: 'great', rounds: 3, round_minutes: 25, max_players: 8, registration_closes_at: PAST, state: 'closed', current_round: 1, round_ends_at: FUTURE, created_at: PAST, tournament_entrants: [{ count: 5 }] }];

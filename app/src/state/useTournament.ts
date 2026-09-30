@@ -3,7 +3,7 @@ import type { Format } from '../rules';
 import type { RosterMember } from '../tournament/roster';
 import { resolveDisplayNames } from '../lib/channels';
 import {
-  effectiveState, getTournament, getTournamentFormat, listEntrants, listJudges, listPairings, listRosters,
+  effectiveState, getTournament, isLivePairing, getTournamentFormat, listEntrants, listJudges, listPairings, listRosters,
   type Entrant, type Pairing, type Tournament, type TournamentState,
 } from '../lib/tournaments';
 import { useSession } from './SessionContext';
@@ -45,7 +45,7 @@ export function useTournament(id: string): TournamentView {
   const uid = user?.id ?? null;
   const [data, setData] = useState<Data>(EMPTY);
   const [format, setFormat] = useState<TournamentView['format']>(null);
-  const [loading, setLoading] = useState(true);
+  const [settledId, setSettledId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const loadRef = useRef<() => void>(() => {});
@@ -54,27 +54,33 @@ export function useTournament(id: string): TournamentView {
     setData(EMPTY);
     setFormat(null);
     setError(null);
-    setLoading(!!uid);
+    setSettledId(null);
     if (!uid) return;
     let live = true;
-    getTournamentFormat(id).then((f) => live && setFormat(f)).catch(() => {});
+    let seq = 0;
+    let haveFormat = false;
     const load = () => {
+      const mine = ++seq;
       void (async () => {
         try {
-          const [tournament, entrants, pairings, rosters, judges] = await Promise.all([
+          // The rules are read again on every load until one read lands.
+          const [tournament, entrants, pairings, rosters, judges, fmt] = await Promise.all([
             getTournament(id), listEntrants(id), listPairings(id), listRosters(id), listJudges(id),
+            haveFormat ? Promise.resolve(null) : getTournamentFormat(id).catch(() => null),
           ]);
-          if (!live) return;
+          // Only the latest started load may write: an older one landing late is stale.
+          if (!live || mine !== seq) return;
+          if (fmt) { haveFormat = true; setFormat(fmt); }
           // Names are cosmetic: a failed lookup must not discard the tournament.
           const who = [...(tournament ? [tournament.organiserId] : []), ...judges, ...entrants.map((e) => e.playerId)];
           const names = await resolveDisplayNames(who).catch(() => null);
-          if (!live) return;
+          if (!live || mine !== seq) return;
           setData((d) => ({ tournament, entrants, pairings, rosters, judges, names: names ?? d.names }));
           setError(null);
         } catch (e) {
-          if (live) setError(e instanceof Error ? e.message : String(e));
+          if (live && mine === seq) setError(e instanceof Error ? e.message : String(e));
         } finally {
-          if (live) setLoading(false);
+          if (live && mine === seq) setSettledId(id);
         }
       })();
     };
@@ -87,9 +93,7 @@ export function useTournament(id: string): TournamentView {
   }, [id, uid]);
 
   const { tournament, pairings } = data;
-  const hasPending = !!uid && !!tournament && tournament.state === 'running' && pairings.some(
-    (p) => p.round === tournament.currentRound && p.state === 'pending' && (p.playerA === uid || p.playerB === uid),
-  );
+  const hasPending = !!tournament && tournament.state === 'running' && pairings.some((p) => isLivePairing(p, tournament, uid));
   const pollMs = hasPending ? LIVE_POLL_MS : POLL_MS;
   useEffect(() => {
     if (!uid) return;
@@ -109,7 +113,7 @@ export function useTournament(id: string): TournamentView {
 
   const refresh = useCallback(() => loadRef.current(), []);
   return {
-    ...data, format, me: uid, loading, error, refresh,
+    ...data, format, me: uid, loading: !!uid && settledId !== id, error, refresh,
     state: tournament ? effectiveState(tournament, new Date()) : null,
   };
 }

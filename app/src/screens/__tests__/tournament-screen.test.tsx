@@ -49,7 +49,7 @@ const ACTIONS = ['Register', 'Edit roster', 'Withdraw', 'View your matchup'];
 const shown = () => ACTIONS.filter((a) => screen.queryByRole('button', { name: a }));
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
   vi.setSystemTime(NOW);
   user = { id: 'me' };
   window.location.hash = `#/play/tournaments/${ID}`;
@@ -118,6 +118,7 @@ describe('the primary action', () => {
     ['entered, running, a bye', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ playerB: null })] }, []],
     ['not entered, running', { tournament: tour({ state: 'running', currentRound: 2 }), pairings: [pairing({ playerA: 'x', playerB: 'y' })] }, []],
     ['host, not entered, open', { tournament: inR({ organiserId: 'me' }) }, ['Register']],
+    ['entered, running, pairing already settled', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ state: 'settled' })] }, []],
     ['finished', { tournament: tour({ state: 'complete' }), entrants: [entrant('me')] }, []],
   ];
   it.each(table)('%s', (_n, over, expected) => {
@@ -134,6 +135,31 @@ describe('the primary action', () => {
     V.view.mockReturnValue(view());
     mount();
     expect(screen.queryByLabelText('Host controls')).toBeNull();
+  });
+});
+
+describe('rules unavailable', () => {
+  it('explains the disabled action instead of leaving it silent', () => {
+    V.view.mockReturnValue(view({ format: null }));
+    mount();
+    expect(screen.getByText("The tournament's rules could not be loaded — retrying…")).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Register' }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    V.view.mockReturnValue(view());
+    mount();
+    expect(screen.queryByText(/rules could not be loaded/)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Register' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it('a loading id switch shows loading, not "isn\u2019t available"', () => {
+    V.view.mockReturnValue(view({ tournament: tour({ id: 'other' }), loading: true }));
+    mount();
+    expect(screen.getByText('Loading tournament…')).toBeTruthy();
+    expect(screen.queryByText("This tournament isn't available.")).toBeNull();
+  });
+  it('the bracket placeholder does not claim rounds have not started', () => {
+    V.view.mockReturnValue(view({ tournament: tour({ state: 'running', currentRound: 1 }), state: 'running' }));
+    mount();
+    expect(screen.getByText('Bracket view is not available yet.')).toBeTruthy();
   });
 });
 
@@ -179,6 +205,8 @@ describe('share', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Share tournament page' })); });
     expect(writeText).toHaveBeenCalledWith(link());
     expect(screen.getByText('Copied')).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(3100); });
+    expect(screen.queryByText('Copied')).toBeNull();
   });
   it('falls back to showing the link when there is no clipboard', async () => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });

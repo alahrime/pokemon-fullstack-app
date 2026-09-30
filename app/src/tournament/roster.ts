@@ -3,6 +3,7 @@ import { validateTeam } from '../rules';
 import type { LeagueId } from '../lib/types';
 import type { AddPokemonChoice } from '../components/AddPokemonModal';
 import { CHARGE_MOVES, FAST_MOVES, displayName, speciesOf } from '../lib/data';
+import { isPokemonType } from '../lib/pokemonTypes';
 import { CPM, MAX_LEVEL_IDX, BB_MAX_LEVEL_IDX } from '../lib/cpm';
 
 export const ROSTER_SIZE = 6;
@@ -43,6 +44,22 @@ const MOVE_NAMES = new Map<string, string>([...FAST_MOVES, ...CHARGE_MOVES].map(
 /** A move id as a person reads it; an unknown id is shown as given. */
 const moveName = (id: string) => MOVE_NAMES.get(id) ?? id;
 
+/** A rules selector ("fire", "type:fire & !flying", "@surf") as words. */
+function describeSelect(select: string): string {
+  const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+  const atom = (raw: string): string => {
+    let a = raw.trim().toLowerCase();
+    let not = false;
+    while (a.startsWith('!')) { not = !not; a = a.slice(1).trim(); }
+    let text: string;
+    if (a.startsWith('@')) text = `able to learn ${moveName(a.slice(1).toUpperCase().replace(/ /g, '_'))}`;
+    else if (isPokemonType(a.replace(/^type:/, ''))) text = `${cap(a.replace(/^type:/, ''))}-type`;
+    else text = cap(a.replace(/^[a-z]+:/, ''));
+    return not ? `not ${text}` : text;
+  };
+  return select.split(',').map((or) => or.split('&').map(atom).join(' and ')).join(' or ');
+}
+
 export function describeViolation(v: Violation): string {
   switch (v.kind) {
     case 'size': return `the team has ${v.actual} Pokémon but the format wants ${v.expected}.`;
@@ -51,7 +68,7 @@ export function describeViolation(v: Violation): string {
     case 'duplicate-family': return `${displayName(v.refs[0])} and ${displayName(v.refs[1])} are from the same evolution family, and the format allows one per family.`;
     case 'quota': {
       const need = v.min !== undefined && v.actual < v.min ? `at least ${v.min}` : `at most ${v.max}`;
-      return `the format wants ${need} matching "${v.select}" but the team has ${v.actual}.`;
+      return `the format wants ${need} Pokémon matching ${describeSelect(v.select)} but the team has ${v.actual}.`;
     }
     case 'unknown-move': return `${displayName(v.ref)} does not learn ${moveName(v.move)}.`;
   }

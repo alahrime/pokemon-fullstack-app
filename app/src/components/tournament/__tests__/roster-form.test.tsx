@@ -71,11 +71,15 @@ describe('RosterForm', () => {
     const add = screen.getByRole('button', { name: 'Add to slot' }) as HTMLButtonElement;
     expect(add.disabled).toBe(false);
     expect(cpInput().value).toBe('1500');
+    expect(screen.getByText('CP must be between 10 and 1500')).toBeTruthy();
+    expect(cpInput().getAttribute('aria-invalid')).toBe('false');
     setCp('5');
     expect(add.disabled).toBe(true);
-    expect(screen.getByText('CP must be between 10 and 1500')).toBeTruthy();
+    expect(cpInput().getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText('CP 5 is below 10')).toBeTruthy();
     setCp('1501');
     expect(add.disabled).toBe(true);
+    expect(screen.getByText('CP 1501 is over the 1500 cap')).toBeTruthy();
     setCp('1490');
     expect(add.disabled).toBe(false);
   });
@@ -147,8 +151,11 @@ describe('RosterForm', () => {
 
   it('editing starts from the initial roster', () => {
     mount({ initial: SIX.map((r) => asMember(r, 1400)) });
-    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(6);
+    expect(screen.getAllByRole('button', { name: /^Replace slot \d: / })).toHaveLength(6);
+    expect(screen.getByRole('button', { name: 'Replace slot 1: Azumarill' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add Pokémon' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Replace slot 1: Azumarill' }));
+    expect(screen.getByRole('dialog', { name: 'Edit your six' })).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Save roster' }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear' })[0]);
     expect(screen.getAllByRole('button', { name: 'Add Pokémon' })).toHaveLength(1);
@@ -156,8 +163,47 @@ describe('RosterForm', () => {
 
   it('is a labelled modal dialog that Escape closes', () => {
     mount();
-    expect(screen.getByRole('dialog', { name: 'Your roster' }).getAttribute('aria-modal')).toBe('true');
+    expect(screen.getByRole('dialog', { name: 'Register your six' }).getAttribute('aria-modal')).toBe('true');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('Replace keeps the old CP and Best Buddy as the default for the new pick', () => {
+    mount({ initial: SIX.map((r, i) => ({ ...asMember(r, 1400), bestBuddy: i === 1 })) });
+    H.choices.push(choice('medicham'));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace slot 2: Registeel' }));
+    fireEvent.click(screen.getByText('stub-commit'));
+    expect(cpInput().value).toBe('1400');
+    expect((screen.getByLabelText('Best Buddy') as HTMLInputElement).checked).toBe(true);
+    expect(document.activeElement).toBe(cpInput());
+  });
+
+  it('locks Replace, Clear, Add and Import while the CP step is open', () => {
+    mount({ initial: SIX.slice(0, 5).map((r) => asMember(r)) });
+    H.choices.push(choice('stunfisk_galarian'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Pokémon' }));
+    fireEvent.click(screen.getByText('stub-commit'));
+    for (const b of [...screen.getAllByRole('button', { name: /^Replace slot/ }), ...screen.getAllByRole('button', { name: 'Clear' }),
+      screen.getByRole('button', { name: 'Import a saved team' })]) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('cancelling part-way through an import leaves the previous roster intact', async () => {
+    const stored = (ref: string) => {
+      const m = asMember(ref);
+      return { ref, fast_move: m.fast, charge_moves: m.charges, iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: null };
+    };
+    const other = ['medicham', 'skarmory', 'altaria', 'registeel', 'azumarill', 'stunfisk_galarian'];
+    H.listTeams.mockResolvedValue([{ id: 'a', name: 'Other six', league: 'great', size: 6, members: other.map(stored) }]);
+    mount({ initial: SIX.map((r) => asMember(r, 1400)) });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Import a saved team' })); });
+    fireEvent.change(screen.getByLabelText('Saved team'), { target: { value: 'a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to slot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to slot' }));
+    fireEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('CP')).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save roster' })); });
+    expect(H.registerRoster.mock.calls[0][1]).toEqual(SIX.map((r) => asMember(r, 1400)));
   });
 });

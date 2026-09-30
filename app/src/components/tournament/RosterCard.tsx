@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { displayName, parseRef, speciesOf } from '../../lib/data';
 import type { RosterMember } from '../../tournament/roster';
 import { Sprite } from '../Sprite';
@@ -39,15 +40,17 @@ export function RosterCard({ member, hidden = false, onRemove }: { member: Roste
 }
 
 /** A player's six, under their name and record. */
-export function PlayerRoster({ name, record, roster, hidden = false }: {
-  name: string; record?: string; roster: readonly RosterMember[]; hidden?: boolean;
+export function PlayerRoster({ name, record, roster, hidden = false, dropped = false, action }: {
+  name: string; record?: string; roster: readonly RosterMember[]; hidden?: boolean; dropped?: boolean; action?: ReactNode;
 }) {
   return (
     <section className="panel chamfer-9 player-roster">
       <h3 className="player-roster-head">
-        <span>{name}</span>
+        <span className={dropped ? 'is-dropped' : undefined}>{name}</span>
+        {dropped && <span className="text-muted">dropped</span>}
         {record && <span className="numeric text-muted">{record}</span>}
       </h3>
+      {action}
       <div className="roster-grid">
         {roster.map((m, i) => <RosterCard key={i} member={m} hidden={hidden} />)}
       </div>

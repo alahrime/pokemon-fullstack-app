@@ -23,6 +23,9 @@ export interface Pairing {
 }
 export interface AuditRow { id: string; actorId: string | null; action: string; detail: unknown; createdAt: string }
 
+/** Server truth (RLS): other players' rosters exist for us only once registration has closed. */
+export const ROSTERS_VISIBLE: readonly TournamentState[] = ['closed', 'running', 'complete'];
+
 /** Mirrors the server: a lapsed registration deadline reads as closed. */
 export function effectiveState(t: Tournament, now: Date): TournamentState {
   return t.state === 'registration' && t.registrationClosesAt && new Date(t.registrationClosesAt) <= now

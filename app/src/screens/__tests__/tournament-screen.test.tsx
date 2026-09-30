@@ -156,10 +156,14 @@ describe('rules unavailable', () => {
     expect(screen.getByText('Loading tournament…')).toBeTruthy();
     expect(screen.queryByText("This tournament isn't available.")).toBeNull();
   });
-  it('the bracket placeholder does not claim rounds have not started', () => {
+  it('the bracket tab shows the empty state and the other tabs mount their views', () => {
     V.view.mockReturnValue(view({ tournament: tour({ state: 'running', currentRound: 1 }), state: 'running' }));
     mount();
-    expect(screen.getByText('Bracket view is not available yet.')).toBeTruthy();
+    expect(screen.getByText('No pairings yet')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Standings' }));
+    expect(screen.getByText('No players yet')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Players' }));
+    expect(screen.getByText('No teams yet')).toBeTruthy();
   });
 });
 
@@ -234,18 +238,23 @@ describe('rosters', () => {
   it.each(['registration', 'draft'])('never renders other players’ rosters while %s, even if a stale map has them', (st) => {
     V.view.mockReturnValue(view({ tournament: tour({ state: st }), state: st, rosters: rosters(), entrants: entrants() }));
     mount();
+    fireEvent.click(screen.getByRole('tab', { name: 'Players' }));
+    expect(screen.getByText('Teams are hidden until registration closes')).toBeTruthy();
     expect(screen.queryByText('Registeel')).toBeNull();
-    expect(screen.getAllByText('Azumarill')).toHaveLength(6);
+    expect(screen.getAllByText('Azumarill')).toHaveLength(12); // my card, twice: the roster section and the Players tab
   });
   it.each(['closed', 'running', 'complete'])('renders other players’ rosters once %s', (st) => {
     V.view.mockReturnValue(view({ tournament: tour({ state: st, currentRound: 1 }), state: st, rosters: rosters(), entrants: entrants() }));
     mount();
+    expect(screen.queryByText('Registeel')).toBeNull(); // rosters live in the Players tab only
+    fireEvent.click(screen.getByRole('tab', { name: 'Players' }));
     expect(screen.getAllByText('Registeel')).toHaveLength(6);
     expect(screen.getByRole('heading', { name: /Gary/ })).toBeTruthy();
   });
   it('a lapsed deadline reveals them (the state is the effective one)', () => {
     V.view.mockReturnValue(view({ tournament: tour({ registrationClosesAt: '2026-09-01T00:00:00Z' }), state: 'closed', rosters: rosters(), entrants: entrants() }));
     mount();
+    fireEvent.click(screen.getByRole('tab', { name: 'Players' }));
     expect(screen.getAllByText('Registeel')).toHaveLength(6);
   });
 });

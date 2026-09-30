@@ -6679,3 +6679,24 @@ th.bt-matrix-head { text-align: center; }
 .roster-cp-step { display: grid; gap: var(--space-2); min-width: 0; border: var(--border-hairline) solid var(--rule-strong); padding: var(--space-3); }
 .roster-problems { display: grid; gap: var(--space-1); margin: 0; padding-left: var(--space-4); }
 .roster-problem { color: var(--color-accent-2-700); }
+
+/* Tournament bracket, standings, players. Result is carried by the ✓/✗ mark and words; the tint is only reinforcement. */
+.bracket, .players-tab { display: grid; gap: var(--space-2); min-width: 0; }
+.bracket-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.bracket-search { display: grid; gap: var(--space-1); min-width: 0; }
+.bracket-scroll { overflow-x: auto; min-width: 0; }
+.bracket-rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(min(240px, 100%), 1fr); gap: var(--space-3); }
+.bracket-col { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
+.bracket-col-head { margin: 0; }
+.bracket-table { display: grid; gap: var(--space-1); min-width: 0; padding: var(--space-2); border: var(--border-hairline) solid var(--rule-hairline); background: var(--surface-2); }
+.bracket-table-head { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.bracket-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; gap: var(--space-2); align-items: baseline; }
+.bracket-name { overflow-wrap: anywhere; }
+.bracket-name.is-loser, .is-dropped { text-decoration: line-through; }
+.bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: var(--type-grass); }
+.bracket-row:has(.is-loser) .bracket-mark { color: var(--type-fire); }
+.bracket-you, .bracket-tag { border: var(--border-hairline) solid var(--rule-strong); padding: 0 var(--space-1); }
+.bracket mark { background: var(--color-accent-2-300); color: inherit; }
+.standings-scroll { overflow-x: auto; min-width: 0; }
+.standings { width: 100%; border-collapse: collapse; }
+.standings th, .standings td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: var(--border-hairline) solid var(--rule-hairline); }

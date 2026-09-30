@@ -6,14 +6,15 @@ import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
 import { isLivePairing, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
+import { Bracket } from '../components/tournament/Bracket';
+import { Standings } from '../components/tournament/Standings';
+import { PlayersTab } from '../components/tournament/PlayersTab';
 import { RosterForm } from '../components/tournament/RosterForm';
 import { RoundClock } from '../components/tournament/RoundClock';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const TABS = [['bracket', 'Bracket'], ['standings', 'Standings'], ['players', 'Players']] as const;
 type Tab = (typeof TABS)[number][0];
-/** Server truth (RLS): other players' rosters exist for us only once registration has closed. */
-const ROSTERS_VISIBLE: readonly TournamentState[] = ['closed', 'running', 'complete'];
 
 function banner(t: Tournament, s: TournamentState): { tone: string; text: string; sub?: string } {
   switch (s) {
@@ -88,8 +89,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const b = banner(t, s);
   const name = (uid: string) => v.names.get(uid) ?? 'Player';
   const hosts = [t.organiserId, ...v.judges.filter((j) => j !== t.organiserId)].map(name).join(', ');
-  const others = ROSTERS_VISIBLE.includes(s)
-    ? v.entrants.filter((e) => !e.dropped && e.playerId !== me && v.rosters.has(e.playerId)) : [];
+  const now = new Date();
 
   async function withdraw() {
     if (!window.confirm('Withdraw from this tournament?')) return;
@@ -179,18 +179,17 @@ export function TournamentScreen({ id }: { id: string }) {
             className={`btn seg-btn${tab === key ? ' is-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
-      <div role="tabpanel" className="panel chamfer-9 text-muted">
-        {tab === 'bracket' && 'Bracket view is not available yet.'}
-        {tab === 'standings' && 'Standings view is not available yet.'}
-        {tab === 'players' && `${t.entrants} registered.`}
+      <div role="tabpanel">
+        {tab === 'bracket' && (
+          <Bracket pairings={v.pairings} names={v.names} players={t.entrants} rounds={t.rounds}
+            currentRound={t.currentRound} me={me} now={now} />
+        )}
+        {tab === 'standings' && <Standings entrants={v.entrants} names={v.names} pairings={v.pairings} now={now} />}
+        {tab === 'players' && (
+          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={isHost} me={me}
+            organiserId={t.organiserId} pairings={v.pairings} now={now} />
+        )}
       </div>
-
-      {others.length > 0 && (
-        <section className="tournament-teams" aria-label="Teams">
-          <div className="hud-label">Teams</div>
-          {others.map((e) => <PlayerRoster key={e.playerId} name={name(e.playerId)} roster={v.rosters.get(e.playerId)!} />)}
-        </section>
-      )}
 
       {forming && v.format && (
         <RosterForm

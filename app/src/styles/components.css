@@ -6448,7 +6448,7 @@ th.bt-matrix-head { text-align: center; }
 .challenge-card-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
 /* ── Challenge sheet ─────────────────────────────────────────────────────
-   A modal over the dock (z-index 40): the backdrop is fixed and centres the
+   A modal over the dock (z-index 40) and toasts (70), portalled to body: the backdrop is fixed and centres the
    panel; the panel is a single-column form on the spacing scale. */
 .challenge-sheet-backdrop {
   position: fixed;

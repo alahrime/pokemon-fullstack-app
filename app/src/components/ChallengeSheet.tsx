@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { createChallenge } from '../lib/challenges';
@@ -116,7 +117,8 @@ export function ChallengeSheet({
     }
   }
 
-  return (
+  // Portalled like the other sheets: a screen wrapper's transform would otherwise box the fixed backdrop and the chat dock would sit over it.
+  return createPortal(
     <div
       className="challenge-sheet-backdrop"
       onMouseDown={(e) => {
@@ -227,6 +229,7 @@ export function ChallengeSheet({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

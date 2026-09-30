@@ -62,6 +62,15 @@ describe('ChallengeSheet', () => {
     expect(d.contains(document.activeElement)).toBe(true);
   });
 
+  it('is portalled to document.body, outside the screen wrapper that would transform its backdrop', async () => {
+    const onClose = vi.fn();
+    renderApp(<div data-testid="screen" className="screen-enter"><ChallengeSheet target={target} onClose={onClose} /></div>);
+    const d = await screen.findByRole('dialog', { name: 'Challenge Ally' });
+    expect(screen.getByTestId('screen').contains(d)).toBe(false);
+    expect(d.parentElement?.parentElement).toBe(document.body);
+    fireEvent.mouseDown(d.parentElement!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   it('defaults league to state.league and re-filters formats on change', async () => {
     open();
     const league = (await screen.findByLabelText('League')) as HTMLSelectElement;

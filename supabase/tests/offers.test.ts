@@ -57,6 +57,24 @@ describe('match offer policies', () => {
        values ('${versionId}', 'bb', 'great', '[]'::jsonb, 'rev1', '${visibility}', ${scheduled}) returning id`,
     );
 
+  it("refuses an offer that names someone else's private format version", async () => {
+    const [f] = await sql<{ id: string }>(
+      `insert into public.formats (owner_id, name, visibility) values ('${taker}', 'Offer Secret', 'private') returning id`);
+    const [v] = await sql<{ id: string }>(
+      `insert into public.format_versions (format_id, version, rules, rules_hash)
+       values ('${f.id}', 1, '{"schema":1}'::jsonb, 'cc') returning id`);
+    const denied = await refusal(() =>
+      asUser({ sub: proposer })(
+        `insert into public.match_offers (format_version_id, claimed_hash, league, team, data_rev, visibility)
+         values ('${v.id}', 'cc', 'great', '[]'::jsonb, 'rev1', 'public')`));
+    expect(denied.message).toMatch(POLICY_DENIED);
+    // The owner may post on their own private version.
+    const own = await asUser({ sub: taker })(
+      `insert into public.match_offers (format_version_id, claimed_hash, league, team, data_rev, visibility)
+       values ('${v.id}', 'cc', 'great', '[]'::jsonb, 'rev1', 'public') returning id`);
+    expect(own).toHaveLength(1);
+  });
+
   it('shows a public offer to any signed-in stranger', async () => {
     const [o] = await offer('public');
     expect(await asUser({ sub: taker })(`select id from public.match_offers where id = '${o.id}'`)).toHaveLength(1);

@@ -217,7 +217,7 @@ describe('needs attention', () => {
     pr({ id: 'disp', tableNo: 2, playerA: 'org', playerB: 'c', state: 'disputed', reportedBy: 'c', scoreA: 0, scoreB: 2 }),
   ];
   it('appears only when running, after the deadline, with un-counted pairings', () => {
-    asOrg({ pairings: live, t: { roundEndsAt: FUTURE } });
+    asOrg({ pairings: [live[0]], t: { roundEndsAt: FUTURE } });
     expect(screen.queryByText('Needs attention')).toBeNull();
     cleanup();
     asOrg({ pairings: [settled('s', 2, 'a', 'b', 2, 0), settled('s2', 2, 'org', 'c', 2, 0)] });
@@ -563,7 +563,7 @@ describe('I2 the clock is read when the host acts', () => {
     expect(screen.getByRole('button', { name: 'Progress anyway (1 unsettled)' })).toBeTruthy(); // render-time clock
     vi.setSystemTime(new Date('2026-09-29T12:01:00Z'));
     await click('Progress anyway (1 unsettled)');
-    expect(screen.queryByText(/unsettled from the previous round/)).toBeNull();
+    expect(screen.queryByText(/still open/)).toBeNull();
     await click('Confirm round 3');
     expect(window.confirm).not.toHaveBeenCalled();
     expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
@@ -577,5 +577,62 @@ describe('m3 the note belongs to its own game', () => {
     fireEvent.change(screen.getByLabelText('Note for table 1'), { target: { value: 'late' } });
     await click('Award Cy the win');
     expect(T.settlePairing).toHaveBeenCalledWith('q', 2, 0, null);
+  });
+});
+
+describe('A1 games left open by a forced progress can still be settled', () => {
+  const future = { roundEndsAt: FUTURE };
+  const old = pr({ id: 'old', round: 2, tableNo: 4, playerA: 'a', playerB: 'b' });
+  const fresh = [pr({ id: 'n1', round: 3, tableNo: 1, playerA: 'org', playerB: 'c' })];
+  it('the old round game is listed with its round, before the new round deadline', async () => {
+    asOrg({ now: new Date('2026-09-29T10:00:00Z'), t: { currentRound: 3, ...future }, pairings: [...round1, old, ...fresh] });
+    expect(screen.getByText('Needs attention')).toBeTruthy();
+    expect(screen.getByText(/Round 2 · Table 4: Ash vs Bea/)).toBeTruthy();
+    await click('Award Ash the win');
+    expect(T.settlePairing).toHaveBeenCalledWith('old', 2, 0, null);
+  });
+  it('a dispute raised before the deadline is listed', () => {
+    asOrg({ now: new Date('2026-09-29T10:00:00Z'), t: future, pairings: [pr({ state: 'disputed', reportedBy: 'a', scoreA: 2, scoreB: 0 })] });
+    expect(screen.getByText('Needs attention')).toBeTruthy();
+    expect(screen.getByText(/Round 2 · Table 1/)).toBeTruthy();
+  });
+  it('a plain pending game of the current round still waits for the deadline', () => {
+    asOrg({ now: new Date('2026-09-29T10:00:00Z'), t: future, pairings: [...round1, pr()] });
+    expect(screen.queryByText('Needs attention')).toBeNull();
+  });
+  it('a settled or counted old game is not listed; own games stay unactionable', () => {
+    asJudge({ now: new Date('2026-09-29T10:00:00Z'), t: { currentRound: 3, ...future }, pairings: [...round1, pr({ id: 'mine', round: 2, playerA: 'j', playerB: 'a' })] });
+    expect(screen.getByText(/You are playing this game/)).toBeTruthy();
+    expect(screen.queryByText(/Round 1 ·/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Double loss/ })).toBeNull();
+  });
+  it('no list once the tournament is over', () => {
+    asOrg({ state: 'complete', t: { state: 'complete', currentRound: 3 }, pairings: [old] });
+    expect(screen.queryByText('Needs attention')).toBeNull();
+  });
+  it('the preview says the games stay open, never "forfeited"', async () => {
+    asOrg({ pairings: [...round1, pr()] });
+    await click('Progress anyway (1 unsettled)');
+    const dlg = screen.getByRole('dialog');
+    expect(dlg.textContent).toContain("1 game from round 2 is still open. It doesn't count until a host or judge settles it under Needs attention.");
+    expect(dlg.textContent).not.toMatch(/forfeit/i);
+  });
+});
+
+describe('A2 the override tick does not survive a changed proposal', () => {
+  it('is cleared and Confirm is disabled again', async () => {
+    const all = [
+      settled('r1a', 1, 'org', 'a', 2, 0), settled('r1b', 1, 'b', 'c', 2, 1),
+      settled('r2a', 2, 'org', 'b', 2, 0), settled('r2b', 2, 'a', 'c', 2, 0),
+    ];
+    const r3 = [pr({ id: 'r3a', round: 3, tableNo: 1, playerA: 'org', playerB: 'c' }), pr({ id: 'r3b', round: 3, tableNo: 2, playerA: 'a', playerB: 'b' })];
+    const { rerender } = asOrg({ t: { currentRound: 3 }, pairings: [...all, ...r3] });
+    await click('Progress anyway (2 unsettled)');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Allow rematches / repeat bye' }));
+    rerender(panel({ me: 'org', isOrganiser: true, t: { currentRound: 3 }, pairings: [...all, settled('r3a', 3, 'org', 'c', 2, 0), r3[1]] }));
+    await click('Confirm round 4');
+    expect(T.startRound).not.toHaveBeenCalled();
+    expect((screen.getByRole('checkbox', { name: 'Allow rematches / repeat bye' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('button', { name: 'Confirm round 4' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

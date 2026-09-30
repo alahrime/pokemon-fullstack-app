@@ -20,7 +20,7 @@ export function NeedsAttention({ pairings, names, me, now, busy, run }: Props) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [pick, setPick] = useState<Record<string, string>>({});
   const list = pairings.filter((p) => p.playerB !== null && !isCounted(p, now))
-    .sort((a, b) => Number(b.state === 'disputed') - Number(a.state === 'disputed') || a.tableNo - b.tableNo);
+    .sort((a, b) => Number(b.state === 'disputed') - Number(a.state === 'disputed') || a.round - b.round || a.tableNo - b.tableNo);
   const who = (id: string) => playerName(names, id);
   const settle = async (p: Pairing, a: number, b: number) => {
     if (a === 0 && b === 0 && !window.confirm(`Record a double loss at table ${p.tableNo}? Neither player gets the win.`)) return;
@@ -35,7 +35,7 @@ export function NeedsAttention({ pairings, names, me, now, busy, run }: Props) {
           const value = pick[p.id] ?? '2,1';
           return (
             <li key={p.id}>
-              <strong>Table {p.tableNo}: {A} vs {B}</strong>
+              <strong>Round {p.round} · Table {p.tableNo}: {A} vs {B}</strong>
               <span className="text-muted">{status(p, who)}</span>
               {p.playerA === me || p.playerB === me ? (
                 <span className="text-muted">You are playing this game, so another host has to settle it.</span>

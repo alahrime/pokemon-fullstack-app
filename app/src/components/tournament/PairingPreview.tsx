@@ -56,7 +56,12 @@ export function PairingPreview({ preview, changed, names, busy, error, onConfirm
             </label>
           </>
         )}
-        {unsettled > 0 && <p className="text-muted">{unsettled} unsettled from the previous round will be forfeited from the count.</p>}
+        {unsettled > 0 && (
+          <p className="text-muted">
+            {unsettled} {unsettled === 1 ? 'game' : 'games'} from round {round - 1} {unsettled === 1 ? 'is' : 'are'} still open.{' '}
+            {unsettled === 1 ? 'It doesn' : 'They don'}&apos;t count until a host or judge settles {unsettled === 1 ? 'it' : 'them'} under Needs attention.
+          </p>
+        )}
         {error && <p className="friend-notice" role="alert">{error}</p>}
         <div className="challenge-sheet-actions">
           <button ref={cancelRef} type="button" className="btn" disabled={busy} onClick={dismiss}>Cancel</button>

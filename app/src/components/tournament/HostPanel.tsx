@@ -45,9 +45,11 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
   };
 
   const running = state === 'running';
-  const current = running ? pairings.filter((p) => p.round === t.currentRound && p.playerB !== null) : [];
-  const unsettled = current.filter((p) => !isCounted(p, now)).length;
+  // Every game up to this round that still does not count: settle_pairing is only reachable from here.
+  const open = running ? pairings.filter((p) => p.round <= t.currentRound && p.playerB !== null && !isCounted(p, now)) : [];
+  const unsettled = open.filter((p) => p.round === t.currentRound).length;
   const overdue = running && !!t.roundEndsAt && now >= new Date(t.roundEndsAt);
+  const attention = open.length > 0 && (overdue || open.some((p) => p.round < t.currentRound || p.state === 'disputed'));
 
   // Built from the current props and a fresh clock, both when opened and again on Confirm.
   function propose(): Preview {
@@ -81,7 +83,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
       <HostLifecycle tournament={t} state={state} entrants={entrants} unsettled={unsettled} isOrganiser={isOrganiser}
         busy={busy} run={run} onPreview={openPreview} />
       {error && !preview && <p className="friend-notice" role="alert">{error}</p>}
-      {overdue && unsettled > 0 && <NeedsAttention pairings={current} names={names} me={me} now={now} busy={busy} run={run} />}
+      {attention && <NeedsAttention pairings={open} names={names} me={me} now={now} busy={busy} run={run} />}
       {isOrganiser && !over && (
         <JudgePanel tournamentId={t.id} organiserId={t.organiserId} state={state} entrants={entrants} judges={judges}
           names={names} busy={busy} run={run} />
@@ -97,7 +99,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
         </section>
       )}
       {preview && (
-        <PairingPreview preview={preview} changed={changed} names={names} busy={busy} error={error} onConfirm={(o) => void confirmStart(o)} onClose={() => setPreview(null)} />
+        <PairingPreview key={JSON.stringify(preview)} preview={preview} changed={changed} names={names} busy={busy} error={error} onConfirm={(o) => void confirmStart(o)} onClose={() => setPreview(null)} />
       )}
     </section>
   );

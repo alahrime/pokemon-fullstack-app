@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { sql, asUser, asAnon, refusal } from './helpers';
 
 describe('glicko2_update', () => {
@@ -74,6 +74,9 @@ describe('sweep_ratings and leaderboard', () => {
     );
     versionId = v.id;
   });
+
+  // The 2031 seasons below are this suite's own; leave the shared table as found.
+  afterAll(() => sql(`delete from public.seasons where starts_at >= '2031-01-01' and starts_at < '2032-01-01'`));
 
   afterEach(async () => {
     await sql(`delete from public.ratings where user_id in (${list})`);
@@ -156,6 +159,23 @@ describe('sweep_ratings and leaderboard', () => {
     const seen = (await asB<{ user_id: string }>(`select user_id from public.ratings where season_id = '${sid}'`)).map((r) => r.user_id);
     expect(seen.sort()).toEqual([a, b].sort()); // own provisional row + the listed player, not c
     expect((await refusal(() => asAnon()(`select * from public.leaderboard('${sid}', 'great')`))).code).toBe('42501');
+  });
+
+  it('rates a match that was adjudicated through the real submit_report path', async () => {
+    const [m] = await sql<{ id: string }>(
+      `insert into public.matches (player_a, player_b, format_version_id, rules_hash, team_a, team_b, data_rev, seed, rounds, source, league)
+       values ('${c}', '${d}', '${versionId}', 'aa', '[]', '[]', 'r', 's', 3, 'queue', 'master') returning id`,
+    );
+    for (const who of [c, d]) {
+      await asUser({ sub: who, role: 'authenticated' })(`select public.submit_report('${m.id}', '{b,b}'::text[])`);
+    }
+    const [row] = await sql<{ state: string; settled_at: string | null }>(`select state, settled_at from public.matches where id = '${m.id}'`);
+    expect(row.state).toBe('confirmed');
+    expect(row.settled_at).not.toBeNull();
+    await sweep();
+    const rows = await mine();
+    expect(rows.find((r) => r.user_id === d)!.wins).toBe(1);
+    expect(rows.find((r) => r.user_id === c)!.wins).toBe(0);
   });
 
   it('pair_queue_entries stamps the entry league on the match', async () => {

@@ -50,15 +50,14 @@ Revoked from everyone but the owner/cron.
 
 `lib/ranked.ts` (RPC + own-row reads), `screens/RankedScreen.tsx` under Play: league
 tabs, season select (default current), board rows `rank · name · rating ± RD · W–L`,
-a provisional card for the viewer below the gate. Match screen shows "counts toward
-rating" only when the match is pass-eligible.
+a provisional card for the viewer below the gate. (Deferred: a Match-screen "counts toward rating" chip.)
 
 ## Testing
 
 DB tests: Glickman's worked example through the same math (1500/200/0.06 vs three
 opponents -> 1464.06 / 151.52 / 0.05999), hand-computed one-game update, idempotence,
 ineligible matches ignored, season boundary, leaderboard gate, client writes refused.
-Roundtrip `tools/m6-ranked-roundtrip.ts`. App: unit tests for `lib/ranked.ts` and the
+The real `submit_report` → `sweep_ratings` path is one DB test (no separate roundtrip tool). App: unit tests for `lib/ranked.ts` and the
 screen; layout checks at 1440 and 375.
 
 ## Out of scope

@@ -6482,6 +6482,10 @@ th.bt-matrix-head { text-align: center; }
 }
 
 /* — Chat screen: inbox / conversation / opponent — */
+/* Five filters do not fit the 14-18rem inbox column, and the last one ("Tournaments")
+   sat past the scroll edge with no hint. Wrap here instead of scrolling. */
+.chat-inbox > .seg-group { flex-wrap: wrap; overflow-x: visible; }
+.chat-inbox > .seg-group > * { flex: 1 1 auto; }
 .chat-screen {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

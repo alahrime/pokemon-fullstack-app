@@ -11,6 +11,8 @@ const reportMessage = vi.fn();
 const markRead = vi.fn();
 const canAnnounce = vi.fn();
 let extra: unknown[] = [];
+const isOrganiser = vi.fn();
+const setAnnounceOnly = vi.fn();
 const listPins = vi.fn();
 const pinMessage = vi.fn();
 const unpinMessage = vi.fn();
@@ -36,6 +38,8 @@ vi.mock('../../lib/channels', () => ({
   withDisplayNames: async (cs: unknown) => cs,
   listMessages: async () => [...transcript, ...extra],
   canAnnounce: (...a: unknown[]) => canAnnounce(...a),
+  isTournamentOrganiser: (...a: unknown[]) => isOrganiser(...a),
+  setAnnounceOnly: (...a: unknown[]) => setAnnounceOnly(...a),
   listPins: (...a: unknown[]) => listPins(...a),
   pinMessage: (...a: unknown[]) => pinMessage(...a),
   unpinMessage: (...a: unknown[]) => unpinMessage(...a),
@@ -57,6 +61,8 @@ beforeEach(() => {
   reportMessage.mockReset().mockResolvedValue('report-1');
   markRead.mockReset().mockResolvedValue(undefined);
   canAnnounce.mockReset().mockResolvedValue(false);
+  isOrganiser.mockReset().mockResolvedValue(false);
+  setAnnounceOnly.mockReset().mockImplementation(async (_c: string, on: boolean) => on);
   listPins.mockReset().mockResolvedValue([]);
   pinMessage.mockReset().mockResolvedValue(undefined);
   unpinMessage.mockReset().mockResolvedValue(undefined);
@@ -520,6 +526,40 @@ describe('announcements', () => {
       pane(dm);
       await screen.findByText('hey');
       expect(listPins).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('announce-only', () => {
+    it('lets the organiser flip it and swaps nothing for them; other members lose the box while it is on', async () => {
+      isOrganiser.mockResolvedValue(true);
+      canAnnounce.mockResolvedValue(true);
+      pane(tournament);
+      fireEvent.click(await screen.findByLabelText(/Announce-only/));
+      await waitFor(() => expect(setAnnounceOnly).toHaveBeenCalledWith('c1', true));
+      await waitFor(() => expect((screen.getByLabelText(/Announce-only/) as HTMLInputElement).checked).toBe(true));
+      // the organiser can still write
+      expect(screen.getByLabelText('Message to Autumn Cup')).toBeTruthy();
+      fireEvent.click(screen.getByLabelText(/Announce-only/));
+      await waitFor(() => expect(setAnnounceOnly).toHaveBeenLastCalledWith('c1', false));
+    });
+
+    it('replaces the compose box with a notice for everyone else, and offers them no switch', async () => {
+      pane({ ...tournament, announceOnly: true });
+      expect(await screen.findByText('Only the hosts can post here.')).toBeTruthy();
+      expect(screen.queryByLabelText('Message to Autumn Cup')).toBeNull();
+      expect(screen.queryByLabelText(/Announce-only/)).toBeNull();
+    });
+
+    it('keeps the box for a judge while it is on, and shows a refusal', async () => {
+      canAnnounce.mockResolvedValue(true);
+      pane({ ...tournament, announceOnly: true });
+      await screen.findByLabelText('Message to Autumn Cup');
+      cleanup();
+      isOrganiser.mockResolvedValue(true);
+      setAnnounceOnly.mockRejectedValue(new Error('only the organiser can change this'));
+      pane(tournament);
+      fireEvent.click(await screen.findByLabelText(/Announce-only/));
+      expect((await screen.findByRole('alert')).textContent).toMatch(/only the organiser/);
     });
   });
 });

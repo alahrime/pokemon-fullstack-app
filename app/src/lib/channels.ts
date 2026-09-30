@@ -8,6 +8,8 @@ export interface Channel {
   title: string | null;
   matchId: string | null;
   lastReadAt: string | null;
+  /** Tournament channels only: while true, just the organiser and judges may post. */
+  announceOnly?: boolean;
 }
 
 export interface Message {
@@ -73,7 +75,7 @@ export async function listChannels(): Promise<Channel[]> {
   if (!me) return [];
   const { data, error } = await supabase
     .from('channels')
-    .select('id, kind, title, match_id, channel_members(user_id, last_read_at)')
+    .select('id, kind, title, match_id, announce_only, channel_members(user_id, last_read_at)')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {
@@ -82,6 +84,7 @@ export async function listChannels(): Promise<Channel[]> {
       kind: ChannelKind;
       title: string | null;
       match_id: string | null;
+      announce_only?: boolean;
       channel_members: { user_id: string; last_read_at: string | null }[];
     };
     return {
@@ -89,6 +92,7 @@ export async function listChannels(): Promise<Channel[]> {
       kind: r.kind,
       title: r.title,
       matchId: r.match_id,
+      announceOnly: r.announce_only === true,
       lastReadAt: r.channel_members.find((m) => m.user_id === me)?.last_read_at ?? null,
     };
   });
@@ -131,6 +135,19 @@ export async function sendMessage(channelId: string, body: string, kind?: 'annou
 /** Whether the caller may post announcements here: the organiser or a judge of this tournament's channel. */
 export async function canAnnounce(channelId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('can_announce', { p_channel: channelId });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+/** Whether the caller is the organiser of this tournament channel (only they may flip announce-only). */
+export async function isTournamentOrganiser(channelId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_tournament_organiser', { p_channel: channelId });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+export async function setAnnounceOnly(channelId: string, on: boolean): Promise<boolean> {
+  const { data, error } = await supabase.rpc('set_announce_only', { p_channel: channelId, p_on: on });
   if (error) throw new Error(error.message);
   return data === true;
 }

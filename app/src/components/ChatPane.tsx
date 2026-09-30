@@ -3,6 +3,8 @@ import { ChallengeCard } from './ChallengeCard';
 import { useSession } from '../state/SessionContext';
 import {
   canAnnounce,
+  isTournamentOrganiser,
+  setAnnounceOnly,
   listMessages,
   listPins,
   pinMessage,
@@ -114,15 +116,26 @@ export function ChatPane({
   // Organisers and judges of a tournament's channel may flag a message as an announcement.
   const [mayAnnounce, setMayAnnounce] = useState(false);
   const [announce, setAnnounce] = useState(false);
+  const [organiser, setOrganiser] = useState(false);
+  const [announceOnly, setAnnounceOnlyFlag] = useState(channel.announceOnly === true);
   // Pins are read by every member; only the people who run the tournament may change them.
   const [pins, setPins] = useState<Message[]>([]);
   useEffect(() => {
     if (channel.kind !== 'tournament') return;
     let live = true;
     canAnnounce(channel.id).then((ok) => live && setMayAnnounce(ok)).catch(() => {});
+    isTournamentOrganiser(channel.id).then((ok) => live && setOrganiser(ok)).catch(() => {});
     listPins(channel.id).then((p) => live && setPins(p)).catch(() => {});
     return () => { live = false; };
   }, [channel.id, channel.kind]);
+  async function flipAnnounceOnly() {
+    setSendError(null);
+    try {
+      setAnnounceOnlyFlag(await setAnnounceOnly(channel.id, !announceOnly));
+    } catch (e) {
+      setSendError(messageOf(e));
+    }
+  }
   async function togglePin(m: Message) {
     setSendError(null);
     try {
@@ -396,6 +409,15 @@ export function ChatPane({
             })}
           </ul>
 
+          {organiser && (
+            <label className="chat-announce">
+              <input type="checkbox" checked={announceOnly} onChange={() => void flipAnnounceOnly()} /> Announce-only (only hosts can post)
+            </label>
+          )}
+
+          {announceOnly && !mayAnnounce ? (
+            <p className="text-muted chat-readonly">Only the hosts can post here.</p>
+          ) : (
           <form
             className="chat-compose"
             onSubmit={(e) => {
@@ -428,6 +450,7 @@ export function ChatPane({
               </p>
             )}
           </form>
+          )}
         </>
       )}
     </section>

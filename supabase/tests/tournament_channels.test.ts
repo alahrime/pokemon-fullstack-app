@@ -147,6 +147,32 @@ describe('tournament channels', () => {
     await sql(`delete from public.channels where id = '${g.id}'`);
   });
 
+  it('announce-only: entrants cannot post while it is on; hosts can; only the organiser flips it', async () => {
+    const say = (u: string, body: string) =>
+      as(u)(`insert into public.messages (channel_id, author_id, body) values ('${ch}', '${u}', '${body}')`);
+    await sql(`insert into public.tournament_roles (tournament_id, user_id, granted_by) values ('${tid}', '${judge}', '${org}')`);
+    expect(await as(org)<{ o: boolean }>(`select public.is_tournament_organiser('${ch}') as o`)).toEqual([{ o: true }]);
+    expect(await as(judge)<{ o: boolean }>(`select public.is_tournament_organiser('${ch}') as o`)).toEqual([{ o: false }]);
+
+    await say(p1, 'before'); // off by default
+    expect((await refusal(() => as(judge)(`select public.set_announce_only('${ch}', true)`))).message).toMatch(/only the organiser/);
+    expect((await refusal(() => as(outsider)(`select public.set_announce_only('${ch}', true)`))).message).toMatch(/only the organiser/);
+    await refusal(() => as(org)(`update public.channels set announce_only = true where id = '${ch}'`));
+    expect(await as(org)(`select public.set_announce_only('${ch}', true) as on`)).toEqual([{ on: true }]);
+
+    await refusal(() => say(p1, 'muted'));
+    await say(org, 'host talks');
+    await say(judge, 'judge talks');
+    await sql(`delete from public.tournament_roles where tournament_id = '${tid}' and user_id = '${judge}'`);
+    await refusal(() => say(judge, 'revoked'));
+
+    await as(org)(`select public.set_announce_only('${ch}', false)`);
+    await say(p1, 'after');
+    expect((await refusal(() => asAnon()(`select public.set_announce_only('${ch}', true)`))).code).toBe('42501');
+    // a group has no such switch
+    await refusal(() => sql(`insert into public.channels (kind, created_by, title, announce_only) values ('group', '${org}', 'G3', true)`));
+  });
+
   it('survives a cancelled tournament with its members and messages', async () => {
     await sql(`update public.tournaments set state = 'cancelled' where id = '${tid}'`);
     expect((await as(p1)(`select id from public.messages where channel_id = '${ch}'`)).length).toBeGreaterThanOrEqual(1);

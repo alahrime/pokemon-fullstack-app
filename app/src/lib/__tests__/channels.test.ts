@@ -99,6 +99,8 @@ const {
   canAnnounce,
   latestAnnouncement,
   listPins,
+  isTournamentOrganiser,
+  setAnnounceOnly,
   pinMessage,
   unpinMessage,
   humanTime,
@@ -212,8 +214,8 @@ describe('listChannels', () => {
       },
     ];
     expect(await listChannels()).toEqual([
-      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: '2026-01-01T00:00:00Z' },
-      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: null },
+      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z' },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: null },
     ]);
   });
 
@@ -290,8 +292,8 @@ describe('listChannelsWithActivity', () => {
       { channel_id: 'c1', created_at: '2026-01-01T00:00:00Z' },
     ];
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'dm', title: null, matchId: null, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z' },
-      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' },
+      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z' },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' },
     ]);
     // Exactly one `messages` query for both channels together — an N+1 here
     // would show up as one `in` call per channel instead of one call
@@ -306,7 +308,7 @@ describe('listChannelsWithActivity', () => {
     ];
     rows.messages = [];
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'group', title: 'New', matchId: null, lastReadAt: null, lastMessageAt: null },
+      { id: 'c1', kind: 'group', title: 'New', matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: null },
     ]);
   });
 
@@ -461,6 +463,27 @@ describe('announcements', () => {
     await sendMessage('c1', 'b');
     const inserts = calls.filter((c) => c.op === 'insert').map((c) => c.payload);
     expect(inserts).toEqual([{ channel_id: 'c1', body: 'b', kind: 'announcement' }, { channel_id: 'c1', body: 'b' }]);
+  });
+});
+
+describe('announce-only', () => {
+  it('asks who the organiser is, and flips the flag through the function', async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    expect(await isTournamentOrganiser('c1')).toBe(true);
+    expect(rpc).toHaveBeenCalledWith('is_tournament_organiser', { p_channel: 'c1' });
+    expect(await setAnnounceOnly('c1', true)).toBe(true);
+    expect(rpc).toHaveBeenCalledWith('set_announce_only', { p_channel: 'c1', p_on: true });
+    rpc.mockResolvedValue({ data: null, error: { message: 'nope' } });
+    await expect(isTournamentOrganiser('c1')).rejects.toThrow('nope');
+    await expect(setAnnounceOnly('c1', false)).rejects.toThrow('nope');
+  });
+
+  it('carries the flag on listed channels', async () => {
+    rows.channels = [
+      { id: 'a', kind: 'tournament', title: 'T', match_id: null, announce_only: true, channel_members: [] },
+      { id: 'b', kind: 'group', title: 'G', match_id: null, channel_members: [] },
+    ];
+    expect((await listChannels()).map((c) => c.announceOnly)).toEqual([true, false]);
   });
 });
 

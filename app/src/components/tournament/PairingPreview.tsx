@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import type { Pairing as SwissPairing } from '../../tournament/swiss';
 import { playerName } from './playerName';
@@ -31,7 +32,9 @@ export function PairingPreview({ preview, changed, names, busy, error, onConfirm
   }, []);
 
   const who = (id: string) => playerName(names, id);
-  return (
+  // Portalled to <body>: the screen wrapper keeps a transform, which would make it this
+  // fixed backdrop's containing block (see AddPokemonModal).
+  return createPortal(
     <div className="challenge-sheet-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
       <div className="challenge-sheet panel chamfer-9" role="dialog" aria-modal="true" aria-label={`Round ${round} pairings`}>
         <div className="hud-label">Round {round} pairings</div>
@@ -62,6 +65,7 @@ export function PairingPreview({ preview, changed, names, busy, error, onConfirm
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

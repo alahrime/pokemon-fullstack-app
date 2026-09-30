@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
@@ -222,7 +223,9 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
     }
   }
 
-  return (
+  // Portalled to <body>: the screen wrapper keeps a transform, which would make it this
+  // fixed backdrop's containing block (see AddPokemonModal).
+  return createPortal(
     <div
       className="challenge-sheet-backdrop"
       onMouseDown={(e) => {
@@ -286,6 +289,7 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

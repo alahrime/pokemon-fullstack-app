@@ -4036,7 +4036,8 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .modal-scrim {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* Above the sheets (110): the roster form opens this picker from inside one. */
+  z-index: 120;
   display: grid;
   place-items: center;
   padding: var(--space-4);

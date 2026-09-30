@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { displayName, movesFor, speciesOf } from '../../lib/data';
 import { listTeams, type SavedTeam } from '../../lib/saves';
@@ -155,7 +156,9 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
     : cpNum < range.min ? `CP ${cpNum} is below ${range.min}`
     : `CP ${cpNum} is over the ${range.max} ${cap === range.max ? 'cap' : 'maximum'}`;
 
-  return (
+  // Portalled to <body>: the screen wrapper keeps a transform, which would make it this
+  // fixed backdrop's containing block (see AddPokemonModal).
+  return createPortal(
     <div
       className="challenge-sheet-backdrop"
       onMouseDown={(e) => {
@@ -251,6 +254,7 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
           }}
         />
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

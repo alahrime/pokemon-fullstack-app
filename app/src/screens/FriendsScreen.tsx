@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ChallengeSheet } from '../components/ChallengeSheet';
-import { resolveDisplayNames } from '../lib/channels';
+import { resolveDisplayNames, searchProfilesByName } from '../lib/channels';
 import { opponentFriendCode } from '../lib/matchmaking';
-import { supabase } from '../lib/supabase';
 import { useSession } from '../state/SessionContext';
 import {
   blockUser,
@@ -28,28 +27,6 @@ function messageOf(e: unknown): string {
 interface ProfileHit {
   id: string;
   displayName: string;
-}
-
-/**
- * `profiles` by `display_name`, read directly rather than through
- * `lib/social.ts` — Task 4's module is the friendship graph itself, and
- * finding a stranger to send a request to is a different read than anything
- * on it. "readable by anyone signed in" (see
- * `supabase/migrations/20260901155633_profiles_policies.sql`) is what lets
- * this succeed for a name that is not yet a friend, a pending request, or a
- * block.
- */
-async function searchProfilesByName(term: string): Promise<ProfileHit[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, display_name')
-    .ilike('display_name', `%${term}%`)
-    .limit(8);
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as { id: string; display_name: string }[]).map((row) => ({
-    id: row.id,
-    displayName: row.display_name,
-  }));
 }
 
 /**

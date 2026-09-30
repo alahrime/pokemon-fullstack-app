@@ -4,8 +4,9 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 const T = vi.hoisted(() => ({
   updateTournament: vi.fn(), openRegistration: vi.fn(), closeRegistration: vi.fn(), cancelTournament: vi.fn(),
   startRound: vi.fn(), settlePairing: vi.fn(), finishTournament: vi.fn(), grantJudge: vi.fn(), revokeJudge: vi.fn(),
-  listAudit: vi.fn(),
+  listAudit: vi.fn(), searchProfilesByName: vi.fn(),
 }));
+vi.mock('../../../lib/channels', () => ({ searchProfilesByName: T.searchProfilesByName }));
 vi.mock('../../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../../lib/tournaments')>()), ...T }));
 
 import { HostPanel } from '../HostPanel';
@@ -292,6 +293,19 @@ describe('judges', () => {
     await click('Appoint');
     expect(T.grantJudge).toHaveBeenCalledWith('t1', 'b');
     expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it('finds a non-entrant by name and appoints them, hiding the organiser and current judges', async () => {
+    T.searchProfilesByName.mockResolvedValue([
+      { id: 'z', displayName: 'Zed' }, { id: 'org', displayName: 'Olive' }, { id: 'a', displayName: 'Ash' }]);
+    asOrg({ state: 'registration', t: { state: 'registration' }, judges: ['a'] });
+    fireEvent.change(screen.getByLabelText('Find anyone by name'), { target: { value: 'e' } });
+    await click('Search');
+    expect(T.searchProfilesByName).toHaveBeenCalledWith('e');
+    expect(screen.queryByRole('button', { name: 'Appoint Olive' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Appoint Ash' })).toBeNull();
+    await click('Appoint Zed');
+    expect(T.grantJudge).toHaveBeenCalledWith('t1', 'z');
   });
 
   it('revokes', async () => {

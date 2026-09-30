@@ -224,6 +224,17 @@ export async function resolveDisplayNames(ids: string[]): Promise<Map<string, st
   );
 }
 
+/** Profiles whose display name contains `term` (at most 8). `profiles` is readable by any signed-in user. */
+export async function searchProfilesByName(term: string): Promise<{ id: string; displayName: string }[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .ilike('display_name', `%${term.replace(/[\\%_]/g, '\\$&')}%`)
+    .limit(8);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { id: string; display_name: string }[]).map((r) => ({ id: r.id, displayName: r.display_name }));
+}
+
 /** Honest, human fallback for a channel whose name cannot be resolved — never
  * the raw channel uuid the rail used to fall back to before this existed. */
 const FALLBACK_TITLE: Record<ChannelKind, string> = {

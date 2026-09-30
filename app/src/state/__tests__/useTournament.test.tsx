@@ -97,6 +97,17 @@ describe('useTournament', () => {
     expect(T.getTournament).toHaveBeenCalledTimes(1);
   });
 
+  it('re-renders when a running round ends, with no refetch', async () => {
+    T.getTournament.mockResolvedValue(tour({ state: 'running', currentRound: 1, roundEndsAt: new Date(NOW.getTime() + 5_000).toISOString() }));
+    let renders = 0;
+    renderHook(() => { renders++; return useTournament('t1'); });
+    await settle();
+    const before = renders;
+    await tick(6_000);
+    expect(renders).toBeGreaterThan(before);
+    expect(T.getTournament).toHaveBeenCalledTimes(1);
+  });
+
   it('reads nothing while signed out', async () => {
     user = null;
     const { result } = await mount();

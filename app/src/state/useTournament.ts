@@ -101,15 +101,21 @@ export function useTournament(id: string): TournamentView {
     return () => clearInterval(t);
   }, [id, uid, pollMs]);
 
-  // Re-render when the registration deadline passes, poll or no poll.
-  const closesAt = tournament?.state === 'registration' ? tournament.registrationClosesAt : null;
+  // Re-render when the next deadline passes (registration close, round end, a
+  // report's finality), poll or no poll. `tick` makes the effect re-arm for the
+  // one after.
+  const nowMs = Date.now();
+  const deadlines = [
+    tournament?.state === 'registration' ? tournament.registrationClosesAt : null,
+    tournament?.state === 'running' ? tournament.roundEndsAt : null,
+    ...(tournament?.state === 'running' ? pairings.map((p) => (p.state === 'reported' ? p.finalAt : null)) : []),
+  ].map((d) => (d ? Date.parse(d) : NaN)).filter((t) => t > nowMs);
+  const next = deadlines.length ? Math.min(...deadlines) : null;
   useEffect(() => {
-    if (!closesAt) return;
-    const ms = Date.parse(closesAt) - Date.now();
-    if (ms <= 0) return;
-    const t = setTimeout(() => setTick((n) => n + 1), Math.min(ms + 50, MAX_TIMEOUT));
+    if (next === null) return;
+    const t = setTimeout(() => setTick((n) => n + 1), Math.min(Math.max(next - Date.now(), 0) + 50, MAX_TIMEOUT));
     return () => clearTimeout(t);
-  }, [closesAt]);
+  }, [next]);
 
   const refresh = useCallback(() => loadRef.current(), []);
   return {

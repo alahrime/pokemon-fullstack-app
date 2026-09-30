@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { Standings } from '../Standings';
 import { PlayersTab } from '../PlayersTab';
 import { movesFor, SPECIES_BY_ID } from '../../../lib/data';
 import type { Entrant, Pairing, TournamentState } from '../../../lib/tournaments';
@@ -46,6 +47,20 @@ describe('PlayersTab', () => {
     expect(screen.getByText('Wins: 1 - Losses: 1')).toBeTruthy();
     expect(screen.getAllByText('Wins: 0 - Losses: 0')).toHaveLength(2);
   });
+  it('a double loss adds a loss to both chips and matches Standings', () => {
+    const games = [P({ scoreA: 0, scoreB: 0 })];
+    const { unmount } = show({ pairings: games, entrants: [ent('me'), ent('r')] });
+    expect(screen.getAllByText('Wins: 0 - Losses: 1')).toHaveLength(2);
+    unmount();
+    render(<Standings entrants={[ent('me'), ent('r')]} names={names} pairings={games} now={NOW} />);
+    expect(screen.getAllByText('0–1')).toHaveLength(2);
+  });
+  it('hideMine covers my card only', () => {
+    show({ hideMine: true });
+    expect(screen.getAllByText('Hidden')).toHaveLength(6);
+    expect(screen.getAllByText('Azumarill')).toHaveLength(12);
+    expect(screen.getAllByText('Registeel')).toHaveLength(6);
+  });
   it('Remove is host only, hidden for the organiser, confirmed, and calls onRemove', () => {
     const onRemove = vi.fn();
     const { unmount } = show({ onRemove });
@@ -54,7 +69,7 @@ describe('PlayersTab', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     show({ isHost: true, me: 'org', onRemove });
     const btns = screen.getAllByRole('button', { name: 'Remove player' });
-    expect(btns).toHaveLength(3); // me, r, x — not the organiser
+    expect(btns).toHaveLength(2); // me and r — not the organiser, not the dropped
     fireEvent.click(btns[0]);
     expect(onRemove).not.toHaveBeenCalled();
     fireEvent.click(btns[0]);
@@ -63,7 +78,7 @@ describe('PlayersTab', () => {
   });
   it('strikes a dropped player and says so', () => {
     show();
-    expect(screen.getByText('Xena').className).toContain('is-dropped');
+    expect(screen.getByText('Xena').className).toContain('player-dropped');
     expect(screen.getByText('dropped')).toBeTruthy();
   });
 });

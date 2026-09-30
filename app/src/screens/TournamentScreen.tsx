@@ -179,14 +179,14 @@ export function TournamentScreen({ id }: { id: string }) {
             className={`btn seg-btn${tab === key ? ' is-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
-      <div role="tabpanel">
+      <div role="tabpanel" className="tournament-panel">
         {tab === 'bracket' && (
           <Bracket pairings={v.pairings} names={v.names} players={t.entrants} rounds={t.rounds}
             currentRound={t.currentRound} me={me} now={now} />
         )}
         {tab === 'standings' && <Standings entrants={v.entrants} names={v.names} pairings={v.pairings} now={now} />}
         {tab === 'players' && (
-          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={isHost} me={me}
+          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={isHost} me={me} hideMine={hideMine}
             organiserId={t.organiserId} pairings={v.pairings} now={now} />
         )}
       </div>

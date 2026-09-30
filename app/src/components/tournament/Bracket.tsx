@@ -30,10 +30,12 @@ function Table({ p, names, me, now, q }: { p: Pairing; names: ReadonlyMap<string
   const shown = p.scoreA !== null && p.scoreB !== null && p.state !== 'pending';
   const counted = isCounted(p, now);
   const decided = counted && shown && p.scoreA !== p.scoreB;
+  const dbl = counted && shown && p.scoreA === p.scoreB && p.playerB !== null;
   const aWon = decided && p.scoreA! > p.scoreB!;
-  const tag = p.state === 'disputed' ? 'disputed' : shown && !counted ? 'reported' : null;
+  const tag = p.state === 'disputed' ? 'disputed' : dbl ? 'double loss' : shown && !counted ? 'reported' : null;
   let label: string;
   if (b === null) label = `${a} has a bye`;
+  else if (dbl) label = `${a} and ${b}: double loss`;
   else if (decided) label = `${aWon ? a : b} won ${aWon ? p.scoreA : p.scoreB}–${aWon ? p.scoreB : p.scoreA} against ${aWon ? b : a}`;
   else label = `${a} versus ${b}, ${tag ?? 'not played'}`;
   const mine = !!me && (p.playerA === me || p.playerB === me);
@@ -44,10 +46,10 @@ function Table({ p, names, me, now, q }: { p: Pairing; names: ReadonlyMap<string
         {mine && <span className="bracket-you">You</span>}
         {tag && <span className="bracket-tag">{tag}</span>}
       </div>
-      <Row name={a} score={shown ? p.scoreA : null} mark={decided ? (aWon ? '✓' : '✗') : ''} lost={decided && !aWon} q={q} />
+      <Row name={a} score={shown ? p.scoreA : null} mark={dbl ? '✗' : decided ? (aWon ? '✓' : '✗') : ''} lost={dbl || (decided && !aWon)} q={q} />
       {b === null
         ? <div className="bracket-row"><span className="bracket-mark" aria-hidden="true" /><span className="bracket-name">Bye</span></div>
-        : <Row name={b} score={shown ? p.scoreB : null} mark={decided ? (aWon ? '✗' : '✓') : ''} lost={decided && aWon} q={q} />}
+        : <Row name={b} score={shown ? p.scoreB : null} mark={dbl ? '✗' : decided ? (aWon ? '✗' : '✓') : ''} lost={dbl || (decided && aWon)} q={q} />}
     </div>
   );
 }
@@ -72,7 +74,7 @@ export function Bracket({ pairings, names, players, rounds, currentRound, me, qu
         {q && <button type="button" className="btn" onClick={() => setQ('')}>Clear</button>}
       </div>
       {cols.length === 0 && <p className="text-muted">No matching players</p>}
-      <div className="bracket-scroll">
+      <div className="bracket-scroll" role="region" aria-label="Bracket, scrollable" tabIndex={0}>
         <div className="bracket-rounds">
           {cols.map(([r, ps]) => (
             <section key={r} className="bracket-col" aria-label={`Round ${r}`}>

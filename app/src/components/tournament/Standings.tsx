@@ -2,7 +2,7 @@ import { standings } from '../../tournament/swiss';
 import { toGames, type Entrant, type Pairing } from '../../lib/tournaments';
 import { playerName } from './playerName';
 
-const pct = (x: number) => `${Math.round(x * 100)}%`;
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 /** Counted games only; dropped players are ranked among themselves after everyone still in. */
 export function Standings({ entrants, names, pairings, now }: {
@@ -22,7 +22,7 @@ export function Standings({ entrants, names, pairings, now }: {
           {rows.map((s, i) => (
             <tr key={s.id}>
               <td className="numeric">{i + 1}</td>
-              <td className={dropped.has(s.id) ? 'is-dropped' : ''}>
+              <td className={dropped.has(s.id) ? 'player-dropped' : ''}>
                 {playerName(names, s.id)}{dropped.has(s.id) && <span className="text-muted"> dropped</span>}
               </td>
               <td className="numeric">{s.matchWins}–{s.matches - s.matchWins}</td>

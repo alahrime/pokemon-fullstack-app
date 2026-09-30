@@ -24,11 +24,11 @@ describe('Standings', () => {
   it('ranks with record, OMW and GWP, dropped last, counted games only', () => {
     render(<Standings entrants={[ent('a'), ent('b'), ent('c'), ent('d'), ent('e', true)]} names={names} pairings={games} now={NOW} />);
     expect(rowsText()).toEqual([
-      ['1', 'Alice', '2–0', '50%', '100%'],
-      ['2', 'Bob', '1–1', '67%', '50%'],
-      ['3', 'Cara', '1–1', '67%', '40%'],
-      ['4', 'Dan', '0–2', '50%', '33%'],
-      ['5', 'Eve dropped', '0–0', '33%', '33%'],
+      ['1', 'Alice', '2–0', '50.0%', '100.0%'],
+      ['2', 'Bob', '1–1', '66.7%', '50.0%'],
+      ['3', 'Cara', '1–1', '66.7%', '40.0%'],
+      ['4', 'Dan', '0–2', '50.0%', '33.3%'],
+      ['5', 'Eve dropped', '0–0', '33.3%', '33.3%'],
     ]);
   });
   it('a dropped player who has games ranks after the active ones', () => {

@@ -46,7 +46,7 @@ export function PlayerRoster({ name, record, roster, hidden = false, dropped = f
   return (
     <section className="panel chamfer-9 player-roster">
       <h3 className="player-roster-head">
-        <span className={dropped ? 'is-dropped' : undefined}>{name}</span>
+        <span className={dropped ? 'player-dropped' : undefined}>{name}</span>
         {dropped && <span className="text-muted">dropped</span>}
         {record && <span className="numeric text-muted">{record}</span>}
       </h3>

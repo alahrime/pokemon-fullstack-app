@@ -242,6 +242,9 @@ describe('rosters', () => {
     expect(screen.getByText('Teams are hidden until registration closes')).toBeTruthy();
     expect(screen.queryByText('Registeel')).toBeNull();
     expect(screen.getAllByText('Azumarill')).toHaveLength(12); // my card, twice: the roster section and the Players tab
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Pokémon' }));
+    expect(screen.queryByText('Azumarill')).toBeNull(); // the toggle governs the tab's copy too
+    expect(screen.getAllByText('Hidden')).toHaveLength(12);
   });
   it.each(['closed', 'running', 'complete'])('renders other players’ rosters once %s', (st) => {
     V.view.mockReturnValue(view({ tournament: tour({ state: st, currentRound: 1 }), state: st, rosters: rosters(), entrants: entrants() }));

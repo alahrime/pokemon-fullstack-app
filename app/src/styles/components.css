@@ -6624,7 +6624,7 @@ th.bt-matrix-head { text-align: center; }
 .tournament-check { display: flex; align-items: center; gap: var(--space-2); }
 
 /* — Tournament page — */
-.tournament-page { display: grid; gap: var(--space-3); min-width: 0; }
+.tournament-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
 .tournament-head { display: grid; gap: var(--space-2); min-width: 0; }
 .tournament-title { margin: 0; overflow-wrap: anywhere; }
 .tournament-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -6684,6 +6684,7 @@ th.bt-matrix-head { text-align: center; }
 .bracket, .players-tab { display: grid; gap: var(--space-2); min-width: 0; }
 .bracket-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
 .bracket-search { display: grid; gap: var(--space-1); min-width: 0; }
+.tournament-panel { min-width: 0; }
 .bracket-scroll { overflow-x: auto; min-width: 0; }
 .bracket-rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(min(240px, 100%), 1fr); gap: var(--space-3); }
 .bracket-col { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
@@ -6692,7 +6693,7 @@ th.bt-matrix-head { text-align: center; }
 .bracket-table-head { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .bracket-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; gap: var(--space-2); align-items: baseline; }
 .bracket-name { overflow-wrap: anywhere; }
-.bracket-name.is-loser, .is-dropped { text-decoration: line-through; }
+.bracket-name.is-loser, .player-dropped { text-decoration: line-through; }
 .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: var(--type-grass); }
 .bracket-row:has(.is-loser) .bracket-mark { color: var(--type-fire); }
 .bracket-you, .bracket-tag { border: var(--border-hairline) solid var(--rule-strong); padding: 0 var(--space-1); }

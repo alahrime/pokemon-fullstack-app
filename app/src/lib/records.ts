@@ -8,7 +8,6 @@ export interface RecordRow {
 export interface Summary {
   games: number; wins: number; winRate: number | null; uniqueOpponents: number; roundsWon: number; roundsLost: number;
 }
-export interface Grit { postLossGames: number; postLossWins: number; tournaments: number; gate: number }
 export interface DayTally { wins: number; losses: number }
 
 const PAGE = 500;
@@ -83,24 +82,3 @@ export const toCsvRows = (rows: readonly RecordRow[], tz: string): Record<string
   }));
 
 export const exportRecords = (rows: readonly RecordRow[], tz: string) => downloadCsv('paragon-matches', toCsvRows(rows, tz));
-
-/** Your own grit: how you do in the game right after a loss, across tournament rounds. */
-export async function myGrit(): Promise<Grit> {
-  const { data, error } = await supabase.rpc('my_grit');
-  const r = Array.isArray(data) ? data[0] : data;
-  if (error || !r) throw new Error(error?.message ?? 'no grit row');
-  return { postLossGames: r.post_loss_games, postLossWins: r.post_loss_wins, tournaments: r.tournaments, gate: r.gate };
-}
-
-export const GRIT_MIN_TOURNAMENTS = 2;
-
-/** Shown only with enough games and events; otherwise say how far off it is. */
-export function gritStatus(g: Grit): { ready: true; rate: number; interval: [number, number] } | { ready: false; note: string } {
-  if (g.postLossGames >= g.gate && g.tournaments >= GRIT_MIN_TOURNAMENTS) {
-    return { ready: true, rate: g.postLossWins / g.postLossGames, interval: wilson(g.postLossWins, g.postLossGames) };
-  }
-  return {
-    ready: false,
-    note: `Not enough tournament play yet (${g.postLossGames} of ${g.gate} games, ${g.tournaments} of ${GRIT_MIN_TOURNAMENTS} tournaments)`,
-  };
-}

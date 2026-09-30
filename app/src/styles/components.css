@@ -6734,7 +6734,6 @@ th.bt-matrix-head { text-align: center; }
 .records-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr)); gap: var(--space-3); margin: 0; }
 .records-tiles dt { color: var(--text-muted); font-size: var(--text-sm, 0.85rem); }
 .records-tiles dd { margin: 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.records-grit-note { font-size: var(--text-sm, 0.85rem); font-weight: 400; }
 .records-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
 .records-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .records-day { min-height: 3rem; padding: 2px 4px; display: flex; flex-direction: column; border: 1px solid var(--border, transparent); border-radius: 4px; }

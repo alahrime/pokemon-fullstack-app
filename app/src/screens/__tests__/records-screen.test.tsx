@@ -3,7 +3,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
-const R = vi.hoisted(() => ({ listMyRecords: vi.fn(), myGrit: vi.fn(), exportRecords: vi.fn() }));
+const R = vi.hoisted(() => ({ listMyRecords: vi.fn(), exportRecords: vi.fn() }));
 vi.mock('../../lib/records', async (orig) => ({ ...(await orig<typeof import('../../lib/records')>()), ...R }));
 
 import { RecordsScreen } from '../RecordsScreen';
@@ -18,7 +18,6 @@ const show = () => render(<AppStateProvider><RecordsScreen /></AppStateProvider>
 
 beforeEach(() => {
   user = { id: 'me' };
-  R.myGrit.mockResolvedValue({ postLossGames: 3, postLossWins: 1, tournaments: 1, gate: 10 });
   R.listMyRecords.mockResolvedValue([row(), row({ won: false, myRounds: 0, oppRounds: 2, opponentId: 'o2', opponentName: 'Misty', ranked: false, source: 'offer', league: 'ubl' })]);
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
@@ -51,26 +50,5 @@ describe('RecordsScreen', () => {
     await screen.findByText('Ash');
     fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
     expect(R.exportRecords).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows the grit tile as a rate when ready and as a reason when not, whatever the ranked switch says', async () => {
-    show();
-    await screen.findByText('Misty');
-    expect(screen.getByTestId('grit').textContent).toBe('Not enough tournament play yet (3 of 10 games, 1 of 2 tournaments)');
-    cleanup();
-    R.myGrit.mockResolvedValue({ postLossGames: 20, postLossWins: 12, tournaments: 3, gate: 10 });
-    show();
-    await screen.findByText('Misty');
-    const before = (await screen.findByTestId('grit')).textContent;
-    expect(before).toMatch(/^60% \(39%–78%\) after a loss, 20 games/);
-    fireEvent.click(screen.getByRole('button', { name: 'Ranked' }));
-    expect(screen.getByTestId('grit').textContent).toBe(before);
-  });
-
-  it('leaves the grit tile out when it cannot be read', async () => {
-    R.myGrit.mockRejectedValue(new Error('no'));
-    show();
-    await screen.findByText('Misty');
-    expect(screen.queryByTestId('grit')).toBeNull();
   });
 });

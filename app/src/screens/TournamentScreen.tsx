@@ -4,6 +4,8 @@ import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
+import { tournamentChannelId } from '../lib/channels';
+import { useChatDockRequest } from '../state/ChatDockContext';
 import { dropOut, removePlayer, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
 import { Bracket } from '../components/tournament/Bracket';
@@ -52,6 +54,16 @@ export function TournamentScreen({ id }: { id: string }) {
   const [dropping, setDropping] = useState(false);
   const [showMatch, setShowMatch] = useState(false);
   const matchRef = useRef<HTMLDivElement>(null);
+  const { requestChannel } = useChatDockRequest();
+  // Visible only to members: the channel's RLS hides it from everyone else.
+  const [chatId, setChatId] = useState<string | null>(null);
+  const uid = user?.id ?? null;
+  useEffect(() => {
+    if (!uid) return;
+    let live = true;
+    tournamentChannelId(id).then((c) => live && setChatId(c)).catch(() => live && setChatId(null));
+    return () => { live = false; };
+  }, [id, uid, v.entrants, v.judges]);
   useEffect(() => { if (showMatch) matchRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [showMatch]);
   useEffect(() => {
     if (share !== 'copied') return;
@@ -187,6 +199,7 @@ export function TournamentScreen({ id }: { id: string }) {
         )}
         {s === 'running' && !mine && v.entrants.some((e) => e.playerId === me && e.dropped) && <span className="text-muted">You dropped out.</span>}
         {myPairing && <button type="button" className="btn btn-primary" aria-expanded={showMatch} onClick={() => setShowMatch((x) => !x)}>{showMatch ? 'Hide your matchup' : 'View your matchup'}</button>}
+        {chatId && <button type="button" className="btn" onClick={() => { requestChannel(chatId); patch({ screen: 'chat' }); }}>Open chat</button>}
         <button type="button" className="btn" onClick={() => void copyLink()}>Share tournament page</button>
         {share === 'copied' && <span role="status" className="text-muted">Copied</span>}
         {share === 'manual' && (

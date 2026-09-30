@@ -87,6 +87,7 @@ const {
   subscribeToChannel,
   resolveDisplayNames,
   withDisplayNames,
+  tournamentChannelId,
   humanTime,
 } = await import('../channels');
 
@@ -394,6 +395,28 @@ describe('RPC wrappers', () => {
   it('surfaces the RPC error message rather than swallowing it', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'blocked' } });
     await expect(openDm('them')).rejects.toThrow('blocked');
+  });
+});
+
+describe('tournament channels', () => {
+  it('finds the channel of a tournament you belong to, and null when RLS hides it', async () => {
+    rows.channels = [{ id: 'tc1' }];
+    expect(await tournamentChannelId('t1')).toBe('tc1');
+    expect(calls).toContainEqual({ table: 'channels', op: 'eq', payload: ['tournament_id', 't1'] });
+    rows.channels = [];
+    expect(await tournamentChannelId('t1')).toBeNull();
+    updateError = { message: 'nope' };
+    await expect(tournamentChannelId('t1')).rejects.toThrow('nope');
+  });
+
+  it("shows a tournament's own title and member count, like a group", async () => {
+    rows.channel_members = [{ channel_id: 'c5', user_id: 'me' }, { channel_id: 'c5', user_id: 'a' }];
+    const [titled, bare] = await withDisplayNames([
+      { id: 'c5', kind: 'tournament', title: 'Autumn Cup', matchId: null, lastReadAt: null, lastMessageAt: null },
+      { id: 'c6', kind: 'tournament', title: null, matchId: null, lastReadAt: null, lastMessageAt: null },
+    ]);
+    expect([titled.displayTitle, titled.memberCount, titled.otherId]).toEqual(['Autumn Cup', 2, null]);
+    expect([bare.displayTitle, bare.memberCount]).toEqual(['Tournament', 0]);
   });
 });
 

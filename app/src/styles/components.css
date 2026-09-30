@@ -6248,7 +6248,7 @@ th.bt-matrix-head { text-align: center; }
   cursor: pointer;
 }
 .chat-rail-row[data-kind='match'] { border-left-color: var(--color-accent); }
-.chat-rail-row[data-kind='group'] { border-left-color: var(--color-accent-2); }
+.chat-rail-row[data-kind='group'], .chat-rail-row[data-kind='tournament'] { border-left-color: var(--color-accent-2); }
 .chat-rail-row:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
 .chat-rail-row.is-open {
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);

@@ -41,6 +41,7 @@ beforeEach(() => {
       ch('c1', 'dm', { otherId: 'u2', lastMessageAt: '2026-01-02T00:00:00Z' }),
       ch('c2', 'group', { memberCount: 4 }),
       ch('c3', 'match', { matchId: 'm1' }),
+      ch('c4', 'tournament', { memberCount: 1 }),
     ],
   };
 });
@@ -55,6 +56,16 @@ describe('ChatScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
     expect(screen.queryByText('T-c1')).toBeNull();
     expect(screen.getByText('T-c2')).toBeTruthy();
+  });
+
+  it('lists a tournament channel under its own filter, with no opponent panel', () => {
+    render(<ChatScreen />);
+    expect(screen.getByText('tournament · 1 person')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tournaments' }));
+    expect(screen.queryByText('T-c2')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Open chat with T-c4/ }));
+    expect(screen.getByTestId('pane').textContent).toBe('c4');
+    expect(screen.queryByLabelText('Opponent')).toBeNull();
   });
 
   it('prompts, then shows an embedded pane for the selected row', () => {

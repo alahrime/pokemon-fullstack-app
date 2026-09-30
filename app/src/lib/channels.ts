@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type ChannelKind = 'dm' | 'group' | 'match';
+export type ChannelKind = 'dm' | 'group' | 'match' | 'tournament';
 
 export interface Channel {
   id: string;
@@ -134,6 +134,13 @@ export async function openDm(otherId: string): Promise<string> {
   return data as string;
 }
 
+/** The chat of a tournament you belong to (entrant, judge, organiser); null for anyone else. */
+export async function tournamentChannelId(tournamentId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('channels').select('id').eq('tournament_id', tournamentId).limit(1);
+  if (error) throw new Error(error.message);
+  return ((data ?? [])[0]?.id as string | undefined) ?? null;
+}
+
 export async function createGroup(title: string, memberIds: string[]): Promise<string> {
   const { data, error } = await supabase.rpc('create_group', {
     p_title: title,
@@ -241,6 +248,7 @@ const FALLBACK_TITLE: Record<ChannelKind, string> = {
   dm: 'Direct message',
   group: 'Group',
   match: 'Match chat',
+  tournament: 'Tournament',
 };
 
 export interface ChannelDisplay extends ChannelActivity {
@@ -299,7 +307,7 @@ export async function withDisplayNames(channels: ChannelActivity[]): Promise<Cha
 
   const otherIds: string[] = [];
   for (const c of channels) {
-    if (c.kind === 'group') continue;
+    if (c.kind === 'group' || c.kind === 'tournament') continue;
     for (const id of membersByChannel.get(c.id) ?? []) {
       if (id !== me) otherIds.push(id);
     }
@@ -308,8 +316,8 @@ export async function withDisplayNames(channels: ChannelActivity[]): Promise<Cha
 
   return channels.map((c) => {
     const members = membersByChannel.get(c.id) ?? [];
-    if (c.kind === 'group') {
-      return { ...c, displayTitle: c.title ?? FALLBACK_TITLE.group, memberCount: members.length, otherId: null };
+    if (c.kind === 'group' || c.kind === 'tournament') {
+      return { ...c, displayTitle: c.title ?? FALLBACK_TITLE[c.kind], memberCount: members.length, otherId: null };
     }
     const other = members.find((id) => id !== me);
     const displayTitle = (other && names.get(other)) || FALLBACK_TITLE[c.kind];

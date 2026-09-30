@@ -17,6 +17,10 @@ vi.mock('../../components/tournament/MatchupPanel', () => ({
   ),
 }));
 
+const C = vi.hoisted(() => ({ tournamentChannelId: vi.fn(), requestChannel: vi.fn() }));
+vi.mock('../../lib/channels', () => ({ tournamentChannelId: C.tournamentChannelId }));
+vi.mock('../../state/ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: C.requestChannel }) }));
+
 import { TournamentScreen } from '../TournamentScreen';
 import { AppStateProvider, useAppState } from '../../state/AppState';
 import { LEAGUE_BY_ID, movesFor, SPECIES_BY_ID } from '../../lib/data';
@@ -61,6 +65,8 @@ beforeEach(() => {
   window.location.hash = `#/play/tournaments/${ID}`;
   V.view.mockReset().mockReturnValue(view());
   V.reads.mockReset();
+  C.tournamentChannelId.mockReset().mockResolvedValue(null);
+  C.requestChannel.mockReset();
   T.withdrawFromTournament.mockReset().mockResolvedValue(true);
   T.removePlayer.mockReset().mockResolvedValue(true);
   T.dropOut.mockReset().mockResolvedValue(true);
@@ -78,6 +84,28 @@ describe('header', () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: '← All tournaments' }));
     expect(screen.getByTestId('active').textContent).toBe('none');
+  });
+});
+
+describe('chat', () => {
+  it('offers Open chat to a member, which requests the channel and goes to Chat', async () => {
+    C.tournamentChannelId.mockResolvedValue('tc1');
+    mount();
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
+    expect(C.tournamentChannelId).toHaveBeenCalledWith(ID);
+    expect(C.requestChannel).toHaveBeenCalledWith('tc1');
+  });
+
+  it('shows nothing to someone who cannot see the channel, or when the read fails', async () => {
+    mount();
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: 'Open chat' })).toBeNull();
+    cleanup();
+    C.tournamentChannelId.mockRejectedValue(new Error('x'));
+    mount();
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: 'Open chat' })).toBeNull();
   });
 });
 

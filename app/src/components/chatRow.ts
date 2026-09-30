@@ -6,6 +6,7 @@ import { humanTime, type ChannelDisplay } from '../lib/channels';
 export function kindWord(kind: ChannelDisplay['kind']): string {
   if (kind === 'match') return 'match';
   if (kind === 'group') return 'group';
+  if (kind === 'tournament') return 'tournament';
   return 'direct';
 }
 
@@ -18,7 +19,7 @@ export function kindWord(kind: ChannelDisplay['kind']): string {
  */
 export function subLine(c: ChannelDisplay): string {
   const kind = kindWord(c.kind);
-  if (c.kind === 'group') {
+  if (c.kind === 'group' || c.kind === 'tournament') {
     const n = c.memberCount ?? 0;
     return `${kind} · ${n === 1 ? '1 person' : `${n} people`}`;
   }

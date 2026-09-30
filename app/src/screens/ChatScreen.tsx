@@ -11,6 +11,7 @@ const FILTERS = [
   ['all', 'All'],
   ['dm', 'Direct'],
   ['group', 'Groups'],
+  ['tournament', 'Tournaments'],
   ['match', 'Matches'],
 ] as const;
 type Filter = (typeof FILTERS)[number][0];
@@ -40,7 +41,7 @@ export function ChatScreen() {
   }, [selectedId, channels, selected]);
 
   const shown = (channels ?? []).filter((c) => filter === 'all' || c.kind === filter);
-  const showPanel = selected && selected.kind !== 'group';
+  const showPanel = selected && (selected.kind === 'dm' || selected.kind === 'match');
 
   return (
     <div className={`chat-screen${showPanel ? ' has-panel' : ''}`}>

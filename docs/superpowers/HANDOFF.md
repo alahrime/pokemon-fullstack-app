@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-09-30 (end of session). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-09-30 (end of session; M4 and M5 done, see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -39,7 +39,15 @@ design authority; the plans argue from it.
 
 ## Start here — next session
 
-**State (2026-09-30):** `main` is pushed and equals `origin/main`; `npm run check` 1747/1747; `check:db` 271/276 (the 5 reds are the environmental `social.test.ts` ones — one real friendship row of the user's, never delete it). Every migration through `20260930000210` is applied to production.
+**State (2026-09-30, end of session):** `main` is pushed and equals `origin/main`; `npm run check` 1785/1785; `check:db` 296 tests with the 5 known reds (the environmental `social.test.ts` ones — one real friendship row of the user's, never delete it). Every migration through `20260930000900` is applied to production (each push applies them; verify with `cd app && npx supabase migration list --linked --workdir ..`, then an anonymous `curl` of a new function should answer `42501 permission denied`, not `PGRST202`).
+
+**This session (all pushed and verified in production):** M4c grit was built, then removed at the user's direction (`20260930000510_drop_grit.sql`; the work is in `f96d750`); **M5 is done except communities**: tournament channels (`…0600`), announcements (`…0700`), pins (`…0800`), announce-only (`…0900`). Each has a spec and plan under `docs/superpowers/`. Nothing from M4/M5 was looked at in the browser (no signed-in session available), so **the new UI has never been seen rendered**: Records screen, the Chat "Tournaments" filter, the tournament page's Open chat button and announcement panel, and the ChatPane's Announce / Pin / Announce-only controls. First thing worth doing with a signed-in session is measure them at 1440 and 375.
+
+**The platform spec has no milestone after M5.** Open candidates, none started: persistent communities (the "Slack-shaped" layer, deferred by the user), grit (deferred to the end of major development, recoverable from `f96d750`), and the leftovers listed below. Ask the user which is next; do not assume.
+
+**Working style that held this session:** brainstorm briefly, present the design in chat, get a "yes", then spec + plan + build inline in one commit, run `npm run check`, push `main`, verify the migration in production. The user has authorised shipping finished, gate-green work without asking again.
+
+**Known flake:** `src/screens/__tests__/screen-leaves.test.tsx` (CoresScreen, "switches between a varied list…") takes about 5s alone against the 5s default timeout, so it fails under load and passes on rerun. Raise its timeout when convenient.
 
 **Done this session (all pushed):** tournaments deploy verified in production (all five migrations applied, RLS on for the six tables, `anon`/`authenticated` privilege checks correct, friend-code policy present, deployed site serves Play → Tournaments); forged-offer hole closed (`20260930000200`: the owner INSERT policy requires `offer_format_allowed(format_version_id)`, plus indexes on `match_offers(format_version_id)` / `(accepted_by)`); dropped entrants cannot report, confirm or dispute (`20260930000210`); light-theme bracket ✓/✗ darkened to ~5:1; `useTournament` re-renders at the next registration close / round end / report finality; the open audit log refetches when a pairing changes; judges can be appointed from any profile (`JudgePanel` "Find anyone by name", `searchProfilesByName` in `lib/channels.ts`). Skipped on purpose: Chat/Challenge buttons on the Players tab (DMs/challenges are server-refused unless friends or a live match, i.e. only your current opponent, already covered by the matchup panel) and manual pairing edits (override tick plus server validation covers the organiser; build only if an organiser asks).
 

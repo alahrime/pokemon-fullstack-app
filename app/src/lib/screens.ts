@@ -151,6 +151,15 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Host a Swiss event or join one, six Pokémon a side.',
   },
   {
+    id: 'ranked',
+    label: 'Ranked',
+    kicker: 'Ladder',
+    glyph: '▲',
+    // Ice: no other screen carries it (screens.test.ts guards distinct hues).
+    hue: 'var(--type-ice)',
+    blurb: 'Season ratings for the open queue on Great, Ultra and Master.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',
@@ -204,7 +213,7 @@ export const SECTIONS: SectionDef[] = [
     glyph: '⚔',
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
-    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments'],
+    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'ranked'],
   },
 ];
 

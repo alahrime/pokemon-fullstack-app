@@ -6719,3 +6719,12 @@ th.bt-matrix-head { text-align: center; }
 .matchup-head { margin: 0; overflow-wrap: anywhere; }
 .matchup-rosters { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); min-width: 0; }
 .matchup-contact, .matchup-scores { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+
+/* Ranked ladder */
+.ranked-screen { display: grid; gap: var(--space-3); }
+.ranked-board { overflow-x: auto; }
+.ranked-board table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ranked-board th, .ranked-board td { padding: var(--space-2) var(--space-3); text-align: left; white-space: nowrap; }
+.ranked-board th { font-weight: 600; color: var(--text-muted); }
+.ranked-board tr.is-me td { font-weight: 700; }
+.ranked-provisional { margin: 0; }

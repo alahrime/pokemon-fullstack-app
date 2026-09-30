@@ -53,6 +53,7 @@ const MatchmakingScreen = lazy(() =>
 // Lazy for the same reason as SignInScreen just above: a secondary screen
 // most visits never open, not a source of the megabyte data files the split
 // at the top of this file is actually drawn around.
+const RankedScreen = lazy(() => import('./screens/RankedScreen').then((m) => ({ default: m.RankedScreen })));
 const TournamentsScreen = lazy(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
 const ChatScreen = lazy(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
 const FriendsScreen = lazy(() =>
@@ -200,6 +201,8 @@ function Screens() {
       return <LazyScreen key="chat"><ChatScreen /></LazyScreen>;
     case 'tournaments':
       return <LazyScreen key="tournaments"><TournamentsScreen /></LazyScreen>;
+    case 'ranked':
+      return <LazyScreen key="ranked"><RankedScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

@@ -37,3 +37,11 @@ describe('computeBadges', () => {
     expect(computeBadges([], [], 'me')).toEqual({});
   });
 });
+
+describe('computeBadges: tournaments', () => {
+  it('adds tournaments only for a positive liveRounds', () => {
+    expect(computeBadges([], [], 'me', 0, 2)).toEqual({ tournaments: 2 });
+    expect(computeBadges([], [], 'me', 0, 0)).toEqual({});
+    expect(computeBadges([], [], 'me')).toEqual({});
+  });
+});

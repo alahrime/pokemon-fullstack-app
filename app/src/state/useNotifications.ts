@@ -4,6 +4,8 @@ import { useChannelList } from './ChannelListContext';
 import { useChatDockRequest } from './ChatDockContext';
 import { useSession } from './SessionContext';
 import { myChallenges, type Challenge } from '../lib/challenges';
+import { resolveDisplayNames } from '../lib/channels';
+import { myTournamentActivity, type Pairing, type Tournament } from '../lib/tournaments';
 import { listFriends, type Friend } from '../lib/social';
 import { buildNotices, type Notice } from '../lib/notifications';
 
@@ -16,7 +18,7 @@ const NONE: Notice[] = [];
 export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
   const { user } = useSession();
   const { channels } = useChannelList();
-  const [data, setData] = useState<{ c: Challenge[]; f: Friend[] } | null>(null);
+  const [data, setData] = useState<{ c: Challenge[]; f: Friend[]; t: Tournament[]; p: Pairing[]; j: string[]; names: Map<string, string> } | null>(null);
   const [fresh, setFresh] = useState<Notice[]>(NONE);
   const seen = useRef<Set<string> | null>(null);
 
@@ -25,10 +27,16 @@ export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
       setData(null);
       return;
     }
+    const me = user.id;
     let live = true;
     const load = () =>
-      void Promise.all([myChallenges(), listFriends()])
-        .then(([c, f]) => live && setData({ c, f }))
+      void Promise.all([myChallenges(), listFriends(), myTournamentActivity()])
+        .then(async ([c, f, a]) => {
+          // Only opponents in games of mine are named; a failed lookup falls back to "Someone".
+          const opp = a.pairings.flatMap((p) => (p.playerA === me ? [p.playerB] : p.playerB === me ? [p.playerA] : [])).filter((x): x is string => !!x);
+          const names = await resolveDisplayNames(opp).catch(() => new Map<string, string>());
+          if (live) setData({ c, f, t: a.tournaments, p: a.pairings, j: a.judgeOf, names });
+        })
         .catch(() => {});
     load();
     const id = setInterval(load, POLL_MS);
@@ -39,7 +47,7 @@ export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
   }, [user]);
 
   const notices = useMemo(
-    () => (user ? buildNotices({ channels: channels ?? [], challenges: data?.c ?? [], friends: data?.f ?? [], me: user.id, now: new Date() }) : NONE),
+    () => (user ? buildNotices({ channels: channels ?? [], challenges: data?.c ?? [], friends: data?.f ?? [], me: user.id, now: new Date(), tournaments: data?.t, pairings: data?.p, judgeOf: data?.j, names: data?.names }) : NONE),
     [user, channels, data],
   );
 
@@ -64,7 +72,7 @@ export function useOpenNotice(): (n: Notice) => void {
   const { requestChannel } = useChatDockRequest();
   return useCallback(
     (n: Notice) => {
-      patch({ screen: n.target.screen });
+      patch(n.target.tournamentId ? { screen: n.target.screen, activeTournamentId: n.target.tournamentId } : { screen: n.target.screen });
       if (n.target.screen === 'chat' && n.target.channelId) requestChannel(n.target.channelId);
     },
     [patch, requestChannel],

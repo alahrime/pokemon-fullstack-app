@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useChannelList } from './ChannelListContext';
+import { useNotificationsContext } from './NotificationsContext';
 import { useSession } from './SessionContext';
 import { listFriends, type Friend } from '../lib/social';
 import { myOffers, type MyOffer } from '../lib/matchmaking';
@@ -12,6 +13,8 @@ const POLL_MS = 30_000;
 export function useBadges(): Badges {
   const { user } = useSession();
   const { totalUnread } = useChannelList();
+  const { notices } = useNotificationsContext();
+  const liveRounds = notices.filter((n) => n.kind === 'round' || n.kind === 'report' || n.kind === 'attention').length;
   const [data, setData] = useState<{ f: Friend[]; o: MyOffer[] }>({ f: [], o: [] });
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function useBadges(): Badges {
   }, [user]);
 
   return useMemo(
-    () => (user ? computeBadges(data.f, data.o, user.id, totalUnread) : {}),
-    [user, data, totalUnread],
+    () => (user ? computeBadges(data.f, data.o, user.id, totalUnread, liveRounds) : {}),
+    [user, data, totalUnread, liveRounds],
   );
 }

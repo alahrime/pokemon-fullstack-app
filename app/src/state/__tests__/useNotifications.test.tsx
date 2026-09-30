@@ -5,16 +5,27 @@ import type { Friend } from '../../lib/social';
 
 const myChallenges = vi.fn();
 const listFriends = vi.fn();
+const myTournamentActivity = vi.fn();
+const resolveDisplayNames = vi.fn();
+const patch = vi.fn();
 let user: { id: string } | null = { id: 'me' };
 let channels: unknown[] | null = [];
 vi.mock('../../lib/challenges', () => ({ myChallenges: () => myChallenges() }));
+vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<object>()), myTournamentActivity: () => myTournamentActivity() }));
+vi.mock('../../lib/channels', async (orig) => ({ ...(await orig<object>()), resolveDisplayNames: (x: string[]) => resolveDisplayNames(x) }));
+vi.mock('../../lib/matchmaking', () => ({ myOffers: () => Promise.resolve([]) }));
 vi.mock('../../lib/social', () => ({ listFriends: () => listFriends() }));
 vi.mock('../SessionContext', () => ({ useSession: () => ({ user }) }));
 vi.mock('../ChannelListContext', () => ({ useChannelList: () => ({ channels }) }));
-vi.mock('../AppState', () => ({ useAppState: () => ({ patch: vi.fn() }) }));
+vi.mock('../AppState', () => ({ useAppState: () => ({ patch }) }));
 vi.mock('../ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: vi.fn() }) }));
 
-import { useNotifications } from '../useNotifications';
+import { useNotifications, useOpenNotice } from '../useNotifications';
+import { useBadges } from '../useBadges';
+import { NotificationsProvider } from '../NotificationsContext';
+import { NotificationBell } from '../../components/NotificationBell';
+import { Toaster } from '../../components/Toaster';
+import type { Pairing, Tournament } from '../../lib/tournaments';
 
 const future = new Date(Date.now() + 3600_000).toISOString();
 const chal = (id: string): Challenge => ({
@@ -33,6 +44,9 @@ beforeEach(() => {
   channels = [];
   myChallenges.mockReset().mockResolvedValue([chal('a')]);
   listFriends.mockReset().mockResolvedValue([]);
+  myTournamentActivity.mockReset().mockResolvedValue({ tournaments: [], pairings: [], judgeOf: [] });
+  resolveDisplayNames.mockReset().mockResolvedValue(new Map([['ann', 'Ann']]));
+  patch.mockReset();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -44,6 +58,7 @@ describe('useNotifications', () => {
     await poll();
     expect(myChallenges).not.toHaveBeenCalled();
     expect(listFriends).not.toHaveBeenCalled();
+    expect(myTournamentActivity).not.toHaveBeenCalled();
     expect(result.current.notices).toEqual([]);
     expect(result.current.fresh).toEqual([]);
   });
@@ -88,5 +103,64 @@ describe('useNotifications', () => {
     rerender();
     expect(result.current.notices).toEqual([]);
     expect(result.current.fresh).toEqual([]);
+  });
+});
+
+const tour: Tournament = {
+  id: 't1', organiserId: 'org', title: 'Cup', description: '', formatVersionId: 'fv', league: 'great', rounds: 3,
+  roundMinutes: 25, maxPlayers: 8, registrationClosesAt: null, state: 'running', currentRound: 1,
+  roundEndsAt: future, createdAt: '', entrants: 4,
+};
+const game = (id: string): Pairing => ({
+  id, tournamentId: 't1', round: 1, tableNo: 1, playerA: 'me', playerB: 'ann', scoreA: null, scoreB: null,
+  state: 'pending', reportedBy: null, reportedAt: null, finalAt: null, note: null,
+});
+const activity = (ids: string[]) => ({ tournaments: [tour], pairings: ids.map(game), judgeOf: [] });
+
+describe('useNotifications: tournaments', () => {
+  it('a round notice names the opponent; the first load is not fresh, a new game is', async () => {
+    myTournamentActivity.mockResolvedValue(activity(['g1']));
+    const { result } = renderHook(() => useNotifications());
+    await settle();
+    expect(result.current.notices.find((n) => n.id === 'tr:g1')).toMatchObject({ detail: 'Round 1: you play Ann' });
+    expect(result.current.fresh).toEqual([]);
+    myTournamentActivity.mockResolvedValue(activity(['g1', 'g2']));
+    await poll();
+    expect(ids(result.current.fresh)).toEqual(['tr:g2']);
+  });
+
+  it('a failed tournament read keeps the last answer', async () => {
+    myTournamentActivity.mockResolvedValue(activity(['g1']));
+    const { result } = renderHook(() => useNotifications());
+    await settle();
+    myTournamentActivity.mockRejectedValue(new Error('down'));
+    await poll();
+    expect(ids(result.current.notices)).toContain('tr:g1');
+  });
+
+  it('one myTournamentActivity call per interval with bell, toaster and badges mounted', async () => {
+    myTournamentActivity.mockResolvedValue(activity(['g1']));
+    const Consumers = () => { useBadges(); return <><NotificationBell /><Toaster /></>; };
+    const { unmount } = renderHook(() => null, { wrapper: ({ children }) => <NotificationsProvider>{children}<Consumers /></NotificationsProvider> });
+    await settle();
+    expect(myTournamentActivity).toHaveBeenCalledTimes(1);
+    await poll();
+    expect(myTournamentActivity).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it('badges: the tournaments count comes from the shared notices', async () => {
+    myTournamentActivity.mockResolvedValue(activity(['g1', 'g2']));
+    const { result } = renderHook(() => useBadges(), { wrapper: NotificationsProvider });
+    await settle();
+    expect(result.current.tournaments).toBe(2);
+  });
+
+  it('opening a tournament notice sets the screen and the tournament', async () => {
+    myTournamentActivity.mockResolvedValue(activity(['g1']));
+    const { result } = renderHook(() => ({ n: useNotifications(), open: useOpenNotice() }));
+    await settle();
+    result.current.open(result.current.n.notices.find((n) => n.id === 'tr:g1')!);
+    expect(patch).toHaveBeenCalledWith({ screen: 'tournaments', activeTournamentId: 't1' });
   });
 });

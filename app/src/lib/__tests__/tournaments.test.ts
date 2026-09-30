@@ -5,6 +5,7 @@ import type { Tournament, Pairing } from '../tournaments';
 const h = vi.hoisted(() => ({
   rpc: vi.fn(),
   rows: {} as Record<string, unknown[]>,
+  me: 'me' as string | null,
   err: null as { message: string } | null,
   calls: [] as { op: string; payload?: unknown }[],
 }));
@@ -18,12 +19,12 @@ vi.mock('../supabase', () => {
     q.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: h.rows[name] ?? [], error: h.err }).then(res);
     return q;
   };
-  return { supabase: { rpc: h.rpc, from: (n: string) => table(n) } };
+  return { supabase: { rpc: h.rpc, auth: { getSession: async () => ({ data: { session: h.me ? { user: { id: h.me } } : null }, error: null }) }, from: (n: string) => table(n) } };
 });
 
 beforeEach(() => {
   h.rpc.mockReset().mockResolvedValue({ data: null, error: null });
-  h.rows = {}; h.err = null; h.calls = [];
+  h.rows = {}; h.err = null; h.me = 'me'; h.calls = [];
 });
 
 const NOW = new Date('2026-09-29T12:00:00Z');
@@ -202,5 +203,46 @@ describe('readers', () => {
     h.err = { message: 'denied' };
     await expect(T.listTournaments()).rejects.toThrow('denied');
     await expect(T.listRosters('t')).rejects.toThrow('denied');
+  });
+});
+
+
+describe('myTournamentActivity', () => {
+  const trow = (id: string, state: string, over: Record<string, unknown> = {}) => ({
+    id, organiser_id: 'o', title: id, description: '', format_version_id: 'fv', league: 'great', rounds: 3,
+    round_minutes: 25, max_players: 8, registration_closes_at: null, state, current_round: 2, round_ends_at: null,
+    created_at: PAST, ...over,
+  });
+  const prow = (id: string, tid: string, round: number, a: string, b: string | null) => ({
+    id, tournament_id: tid, round, table_no: 1, player_a: a, player_b: b, score_a: null, score_b: null,
+    state: 'pending', reported_by: null, reported_at: null, final_at: null, note: null,
+  });
+  it('signed out: nothing, and no queries', async () => {
+    h.me = null;
+    expect(await T.myTournamentActivity()).toEqual({ tournaments: [], pairings: [], judgeOf: [] });
+    expect(h.calls).toEqual([]);
+  });
+  it('no involvement: stops after the id lookups', async () => {
+    await expect(T.myTournamentActivity()).resolves.toEqual({ tournaments: [], pairings: [], judgeOf: [] });
+    expect(h.calls.some((c) => c.op === 'tournament_pairings.select')).toBe(false);
+  });
+  it('mine in the current round only; everything current where I judge; a fixed number of queries', async () => {
+    h.rows.tournament_entrants = [{ tournament_id: 't1' }];
+    h.rows.tournament_roles = [{ tournament_id: 't2' }];
+    h.rows.tournaments = [trow('t1', 'running'), trow('t2', 'running'), trow('t3', 'registration')];
+    h.rows.tournament_pairings = [
+      prow('a', 't1', 2, 'me', 'x'), prow('b', 't1', 2, 'y', 'z'), prow('c', 't1', 1, 'me', 'x'),
+      prow('d', 't2', 2, 'y', 'z'), prow('e', 't2', 1, 'y', 'z'),
+    ];
+    const r = await T.myTournamentActivity();
+    expect(r.judgeOf).toEqual(['t2']);
+    expect(r.tournaments.map((t) => t.id)).toEqual(['t1', 't2', 't3']);
+    expect(r.pairings.map((p) => [p.id, p.tournamentId])).toEqual([['a', 't1'], ['d', 't2']]);
+    expect(h.calls.filter((c) => c.op.endsWith('.select'))).toHaveLength(5);
+    expect(h.calls.find((c) => c.op === 'tournaments.in')?.payload).toEqual(['id', expect.arrayContaining(['t1', 't2'])]);
+  });
+  it('throws on a failed read', async () => {
+    h.err = { message: 'down' };
+    await expect(T.myTournamentActivity()).rejects.toThrow('down');
   });
 });

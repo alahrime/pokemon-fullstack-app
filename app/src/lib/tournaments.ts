@@ -17,7 +17,7 @@ export interface Tournament {
 }
 export interface Entrant { playerId: string; seed: number; dropped: boolean; registeredAt: string }
 export interface Pairing {
-  id: string; round: number; tableNo: number; playerA: string; playerB: string | null;
+  id: string; /** Set by `myTournamentActivity`, which spans tournaments. */ tournamentId?: string; round: number; tableNo: number; playerA: string; playerB: string | null;
   scoreA: number | null; scoreB: number | null; state: PairingState; reportedBy: string | null;
   reportedAt: string | null; finalAt: string | null; note: string | null;
 }
@@ -180,4 +180,50 @@ export async function listAudit(id: string, limit = 50): Promise<AuditRow[]> {
     .eq('tournament_id', id).order('created_at', { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({ id: r.id, actorId: r.actor_id, action: r.action, detail: r.detail, createdAt: r.created_at }));
+}
+
+const P_COLS = 'id, tournament_id, round, table_no, player_a, player_b, score_a, score_b, state, reported_by, reported_at, final_at, note';
+
+/** What the notification poll needs, in a fixed five queries however many tournaments: the open
+ *  tournaments (registration|closed|running) the viewer organises, judges or plays in; the
+ *  current-round pairings of the running ones (the viewer's own, plus every pairing where the
+ *  viewer runs the event, so "needs attention" can be counted); and where the viewer judges. */
+export async function myTournamentActivity(): Promise<{ tournaments: Tournament[]; pairings: Pairing[]; judgeOf: string[] }> {
+  const none = { tournaments: [], pairings: [], judgeOf: [] };
+  const { data: s, error: se } = await supabase.auth.getSession();
+  if (se) throw new Error(se.message);
+  const me = s.session?.user.id;
+  if (!me) return none;
+  const [ent, roles, org] = await Promise.all([
+    supabase.from('tournament_entrants').select('tournament_id').eq('player_id', me).eq('dropped', false),
+    supabase.from('tournament_roles').select('tournament_id').eq('user_id', me),
+    supabase.from('tournaments').select('id').eq('organiser_id', me),
+  ]);
+  for (const r of [ent, roles, org]) if (r.error) throw new Error(r.error.message);
+  const judgeOf = (roles.data ?? []).map((r) => r.tournament_id as string);
+  const ids = [...new Set([
+    ...(ent.data ?? []).map((r) => r.tournament_id as string), ...judgeOf, ...(org.data ?? []).map((r) => r.id as string),
+  ])];
+  if (!ids.length) return none;
+  const { data: trs, error: te } = await supabase
+    .from('tournaments').select(T_COLS).in('id', ids).in('state', ['registration', 'closed', 'running']);
+  if (te) throw new Error(te.message);
+  const tournaments = ((trs ?? []) as unknown as TRow[]).map(toTournament);
+  const running = tournaments.filter((t) => t.state === 'running');
+  if (!running.length) return { tournaments, pairings: [], judgeOf };
+  const { data: prs, error: pe } = await supabase
+    .from('tournament_pairings').select(P_COLS).in('tournament_id', running.map((t) => t.id));
+  if (pe) throw new Error(pe.message);
+  const by = new Map(running.map((t) => [t.id, t]));
+  const pairings = (prs ?? []).flatMap((r) => {
+    const t = by.get(r.tournament_id as string)!;
+    const runs = t.organiserId === me || judgeOf.includes(t.id);
+    if (r.round !== t.currentRound || !(runs || r.player_a === me || r.player_b === me)) return [];
+    return [{
+      id: r.id, tournamentId: t.id, round: r.round, tableNo: r.table_no, playerA: r.player_a, playerB: r.player_b,
+      scoreA: r.score_a, scoreB: r.score_b, state: r.state as PairingState, reportedBy: r.reported_by,
+      reportedAt: r.reported_at, finalAt: r.final_at, note: r.note,
+    }];
+  });
+  return { tournaments, pairings, judgeOf };
 }

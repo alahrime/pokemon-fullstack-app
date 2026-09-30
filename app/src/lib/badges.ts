@@ -5,7 +5,7 @@ import type { MyOffer } from './matchmaking';
 export type Badges = Partial<Record<Screen, number>>;
 
 /** What is waiting on ME, per rail item. Zeros are left out. */
-export function computeBadges(friends: Friend[], offers: MyOffer[], me: string, unreadChannels = 0): Badges {
+export function computeBadges(friends: Friend[], offers: MyOffer[], me: string, unreadChannels = 0, liveRounds = 0): Badges {
   const requests = friends.filter((x) => x.status === 'pending' && x.theyAsked).length;
   const toConfirm = offers.filter(
     (x) => x.proposerId === me && x.state === 'accepted' && x.matchId === null,
@@ -14,5 +14,6 @@ export function computeBadges(friends: Friend[], offers: MyOffer[], me: string, 
   if (requests) out.friends = requests;
   if (toConfirm) out.matchmaking = toConfirm;
   if (unreadChannels) out.chat = unreadChannels;
+  if (liveRounds > 0) out.tournaments = liveRounds;
   return out;
 }

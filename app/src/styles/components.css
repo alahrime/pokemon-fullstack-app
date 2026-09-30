@@ -6622,6 +6622,14 @@ th.bt-matrix-head { text-align: center; }
   background: color-mix(in srgb, var(--tab-hue, var(--rule-strong)) 14%, transparent);
 }
 .tournament-check { display: flex; align-items: center; gap: var(--space-2); }
+.host-panel { display: grid; gap: var(--space-3); min-width: 0; }
+.host-section, .host-lifecycle { display: grid; gap: var(--space-2); min-width: 0; }
+.host-lifecycle { grid-auto-flow: row; justify-items: start; }
+.host-list, .host-pairs { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.host-pairs { list-style: decimal inside; }
+.host-list > li { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.host-actions { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); min-width: 0; }
+.host-actions .input { width: auto; max-width: 100%; }
 
 /* — Tournament page — */
 .tournament-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }

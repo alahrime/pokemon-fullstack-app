@@ -4,7 +4,7 @@ import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
-import { withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
+import { removePlayer, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
 import { Bracket } from '../components/tournament/Bracket';
 import { Standings } from '../components/tournament/Standings';
@@ -12,6 +12,7 @@ import { PlayersTab } from '../components/tournament/PlayersTab';
 import { RosterForm } from '../components/tournament/RosterForm';
 import { RoundClock } from '../components/tournament/RoundClock';
 import { MatchupPanel } from '../components/tournament/MatchupPanel';
+import { HostPanel } from '../components/tournament/HostPanel';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const TABS = [['bracket', 'Bracket'], ['standings', 'Standings'], ['players', 'Players']] as const;
@@ -91,6 +92,7 @@ export function TournamentScreen({ id }: { id: string }) {
   // The viewer's pairing this round, a bye included: the panel stays for the whole round.
   const myPairing = s === 'running' ? v.pairings.find((p) => p.round === t.currentRound && (p.playerA === me || p.playerB === me)) : undefined;
   const isHost = t.organiserId === me;
+  const canHost = isHost || (!!me && v.judges.includes(me));
   const b = banner(t, s);
   const name = (uid: string) => v.names.get(uid) ?? 'Player';
   const hosts = [t.organiserId, ...v.judges.filter((j) => j !== t.organiserId)].map(name).join(', ');
@@ -101,6 +103,16 @@ export function TournamentScreen({ id }: { id: string }) {
     setNotice(null);
     try {
       await withdrawFromTournament(id);
+      v.refresh();
+    } catch (e) {
+      setNotice(messageOf(e));
+    }
+  }
+
+  async function remove(playerId: string) {
+    setNotice(null);
+    try {
+      await removePlayer(id, playerId, 'Removed by a host');
       v.refresh();
     } catch (e) {
       setNotice(messageOf(e));
@@ -170,7 +182,8 @@ export function TournamentScreen({ id }: { id: string }) {
         </div>
       )}
 
-      {isHost && <section className="panel chamfer-9 host-panel" aria-label="Host controls"><div className="hud-label">Host controls</div></section>}
+      <HostPanel tournament={t} state={s} entrants={v.entrants} pairings={v.pairings} names={v.names} judges={v.judges}
+        me={me} isOrganiser={isHost} now={now} onChanged={v.refresh} />
 
       {myRoster && (
         <section className="tournament-mine" aria-label="Your roster">
@@ -197,7 +210,7 @@ export function TournamentScreen({ id }: { id: string }) {
         )}
         {tab === 'standings' && <Standings entrants={v.entrants} names={v.names} pairings={v.pairings} now={now} />}
         {tab === 'players' && (
-          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={isHost} me={me} hideMine={hideMine}
+          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={canHost} me={me} hideMine={hideMine} onRemove={(pid) => void remove(pid)}
             organiserId={t.organiserId} pairings={v.pairings} now={now} />
         )}
       </div>

@@ -5,7 +5,7 @@ let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const V = vi.hoisted(() => ({ view: vi.fn(), reads: vi.fn() }));
 vi.mock('../../state/useTournament', () => ({ useTournament: (id: string) => { V.reads(id); return V.view(); } }));
-const T = vi.hoisted(() => ({ withdrawFromTournament: vi.fn() }));
+const T = vi.hoisted(() => ({ withdrawFromTournament: vi.fn(), removePlayer: vi.fn() }));
 vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../lib/tournaments')>()), ...T }));
 vi.mock('../../components/tournament/RosterForm', () => ({
   RosterForm: ({ initial }: { initial?: unknown[] }) => <div role="dialog" aria-label="Your roster">form {initial ? 'edit' : 'new'}</div>,
@@ -62,6 +62,7 @@ beforeEach(() => {
   V.view.mockReset().mockReturnValue(view());
   V.reads.mockReset();
   T.withdrawFromTournament.mockReset().mockResolvedValue(true);
+  T.removePlayer.mockReset().mockResolvedValue(true);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
@@ -171,6 +172,21 @@ describe('the primary action', () => {
     V.view.mockReturnValue(view());
     mount();
     expect(screen.queryByLabelText('Host controls')).toBeNull();
+  });
+  it('a judge sees the host panel too', () => {
+    V.view.mockReturnValue(view({ judges: ['me'] }));
+    mount();
+    expect(screen.getByLabelText('Host controls')).toBeTruthy();
+  });
+  it('Remove player in the Players tab calls removePlayer and refreshes', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const v = view({ tournament: tour({ organiserId: 'me', state: 'closed' }), state: 'closed', rosters: new Map([['me', roster('azumarill')], ['rival', roster('registeel')]]), entrants: [entrant('me'), entrant('rival')] });
+    V.view.mockReturnValue(v);
+    mount();
+    fireEvent.click(screen.getByRole('tab', { name: 'Players' }));
+    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Remove player' })[0]); await Promise.resolve(); });
+    expect(T.removePlayer).toHaveBeenCalledWith(ID, expect.any(String), expect.any(String));
+    expect(v.refresh).toHaveBeenCalled();
   });
 });
 

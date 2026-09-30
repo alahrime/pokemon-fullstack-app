@@ -9,6 +9,8 @@ import { myTournamentActivity, type Pairing, type Tournament } from '../lib/tour
 import { listFriends, type Friend } from '../lib/social';
 import { buildNotices, type Notice } from '../lib/notifications';
 
+// A failing tournaments read (e.g. migrations not applied yet) must not blank challenges and friends.
+const NO_ACTIVITY = { tournaments: [] as Tournament[], pairings: [] as Pairing[], judgeOf: [] as string[] };
 const POLL_MS = 15_000;
 const NONE: Notice[] = [];
 
@@ -21,16 +23,19 @@ export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
   const [data, setData] = useState<{ c: Challenge[]; f: Friend[]; t: Tournament[]; p: Pairing[]; j: string[]; names: Map<string, string> } | null>(null);
   const [fresh, setFresh] = useState<Notice[]>(NONE);
   const seen = useRef<Set<string> | null>(null);
+  // The last good tournaments read: a failing one keeps it instead of blanking (or failing) the rest.
+  const lastActivity = useRef(NO_ACTIVITY);
 
   useEffect(() => {
     if (!user) {
+      lastActivity.current = NO_ACTIVITY;
       setData(null);
       return;
     }
     const me = user.id;
     let live = true;
     const load = () =>
-      void Promise.all([myChallenges(), listFriends(), myTournamentActivity()])
+      void Promise.all([myChallenges(), listFriends(), myTournamentActivity().then((a) => (lastActivity.current = a), () => lastActivity.current)])
         .then(async ([c, f, a]) => {
           // Only opponents in games of mine are named; a failed lookup falls back to "Someone".
           const opp = a.pairings.flatMap((p) => (p.playerA === me ? [p.playerB] : p.playerB === me ? [p.playerA] : [])).filter((x): x is string => !!x);

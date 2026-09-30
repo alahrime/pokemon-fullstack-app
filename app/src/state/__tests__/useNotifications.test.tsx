@@ -129,6 +129,15 @@ describe('useNotifications: tournaments', () => {
     expect(ids(result.current.fresh)).toEqual(['tr:g2']);
   });
 
+  it('a failing tournaments read does not blank the challenge and friend notices', async () => {
+    myTournamentActivity.mockRejectedValue(new Error('relation does not exist'));
+    listFriends.mockResolvedValue([fr('bob')]);
+    const { result } = renderHook(() => useNotifications());
+    await settle();
+    expect(ids(result.current.notices)).toEqual(expect.arrayContaining(['co:a']));
+    expect(result.current.notices.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('a failed tournament read keeps the last answer', async () => {
     myTournamentActivity.mockResolvedValue(activity(['g1']));
     const { result } = renderHook(() => useNotifications());

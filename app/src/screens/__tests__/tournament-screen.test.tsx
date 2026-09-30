@@ -5,7 +5,7 @@ let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const V = vi.hoisted(() => ({ view: vi.fn(), reads: vi.fn() }));
 vi.mock('../../state/useTournament', () => ({ useTournament: (id: string) => { V.reads(id); return V.view(); } }));
-const T = vi.hoisted(() => ({ withdrawFromTournament: vi.fn(), removePlayer: vi.fn() }));
+const T = vi.hoisted(() => ({ withdrawFromTournament: vi.fn(), removePlayer: vi.fn(), dropOut: vi.fn() }));
 vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../lib/tournaments')>()), ...T }));
 vi.mock('../../components/tournament/RosterForm', () => ({
   RosterForm: ({ initial }: { initial?: unknown[] }) => <div role="dialog" aria-label="Your roster">form {initial ? 'edit' : 'new'}</div>,
@@ -51,7 +51,7 @@ function Probe() {
   return <output data-testid="active">{state.activeTournamentId ?? 'none'}</output>;
 }
 const mount = () => render(<AppStateProvider><TournamentScreen id={ID} /><Probe /></AppStateProvider>);
-const ACTIONS = ['Register', 'Edit roster', 'Withdraw', 'View your matchup'];
+const ACTIONS = ['Register', 'Edit roster', 'Withdraw', 'Drop out', 'View your matchup'];
 const shown = () => ACTIONS.filter((a) => screen.queryByRole('button', { name: a }));
 
 beforeEach(() => {
@@ -63,6 +63,7 @@ beforeEach(() => {
   V.reads.mockReset();
   T.withdrawFromTournament.mockReset().mockResolvedValue(true);
   T.removePlayer.mockReset().mockResolvedValue(true);
+  T.dropOut.mockReset().mockResolvedValue(true);
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
@@ -96,7 +97,7 @@ describe('signed out', () => {
 describe('banner', () => {
   const cases: [string, Record<string, unknown>, string[]][] = [
     ['registration', { state: 'registration', registrationClosesAt: '2027-01-01T00:00:00Z' }, ['Registration open', 'Closes']],
-    ['closed', { state: 'closed' }, ['Registration closed', 'Teams of Pokémon Visible']],
+    ['closed', { state: 'closed' }, ['Registration closed', 'Teams visible']],
     ['a lapsed deadline', { state: 'registration', registrationClosesAt: '2026-09-01T00:00:00Z' }, ['Registration closed']],
     ['running', { state: 'running', currentRound: 2, roundEndsAt: '2026-09-29T12:10:00Z' }, ['Round 2 of 4', 'Time until round end', '00:10:00']],
     ['complete', { state: 'complete' }, ['Finished']],
@@ -150,12 +151,12 @@ describe('the primary action', () => {
     ['not entered, open, full', { tournament: inR({ entrants: 8 }) }, []],
     ['entered, open', { tournament: inR(), entrants: [entrant('me')] }, ['Edit roster', 'Withdraw']],
     ['entered, closed', { tournament: tour({ state: 'closed' }), entrants: [entrant('me')] }, []],
-    ['entered, running, live pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing()] }, ['View your matchup']],
-    ['entered, running, only an old pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ round: 1 })] }, []],
-    ['entered, running, a bye', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ playerB: null })] }, ['View your matchup']],
+    ['entered, running, live pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing()] }, ['Drop out', 'View your matchup']],
+    ['entered, running, only an old pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ round: 1 })] }, ['Drop out']],
+    ['entered, running, a bye', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ playerB: null })] }, ['Drop out', 'View your matchup']],
     ['not entered, running', { tournament: tour({ state: 'running', currentRound: 2 }), pairings: [pairing({ playerA: 'x', playerB: 'y' })] }, []],
     ['host, not entered, open', { tournament: inR({ organiserId: 'me' }) }, ['Register']],
-    ['entered, running, pairing already settled', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ state: 'settled' })] }, ['View your matchup']],
+    ['entered, running, pairing already settled', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ state: 'settled' })] }, ['Drop out', 'View your matchup']],
     ['finished', { tournament: tour({ state: 'complete' }), entrants: [entrant('me')] }, []],
   ];
   it.each(table)('%s', (_n, over, expected) => {
@@ -172,6 +173,54 @@ describe('the primary action', () => {
     V.view.mockReturnValue(view());
     mount();
     expect(screen.queryByLabelText('Host controls')).toBeNull();
+  });
+  describe('drop out', () => {
+    const running = (over: Record<string, unknown> = {}) => view({ tournament: tour({ state: 'running', currentRound: 2 }), state: 'running', entrants: [entrant('me')], ...over });
+    it('asks first: declined calls nothing', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      V.view.mockReturnValue(running());
+      mount();
+      fireEvent.click(screen.getByRole('button', { name: 'Drop out' }));
+      expect(window.confirm).toHaveBeenCalledWith('Drop out of Autumn Cup? Your unfinished game this round is lost 0–2 and you will not be paired again.');
+      expect(T.dropOut).not.toHaveBeenCalled();
+    });
+    it('success calls dropOut once (busy guard) and refreshes', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      let done!: () => void;
+      T.dropOut.mockReturnValue(new Promise<boolean>((r) => { done = () => r(true); }));
+      const v = running();
+      V.view.mockReturnValue(v);
+      mount();
+      const btn = screen.getByRole('button', { name: 'Drop out' }) as HTMLButtonElement;
+      fireEvent.click(btn);
+      expect(btn.disabled).toBe(true);
+      fireEvent.click(btn);
+      await act(async () => { done(); await Promise.resolve(); });
+      expect(T.dropOut).toHaveBeenCalledTimes(1);
+      expect(T.dropOut).toHaveBeenCalledWith(ID);
+      expect(v.refresh).toHaveBeenCalledTimes(1);
+    });
+    it('a refusal shows in an alert and no refresh', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      T.dropOut.mockRejectedValue(new Error('not running'));
+      const v = running();
+      V.view.mockReturnValue(v);
+      mount();
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Drop out' })); await Promise.resolve(); });
+      expect(screen.getByRole('alert').textContent).toContain('not running');
+      expect(v.refresh).not.toHaveBeenCalled();
+    });
+    it('a dropped entrant sees text, not the button; nothing once finished', () => {
+      V.view.mockReturnValue(running({ entrants: [{ ...entrant('me'), dropped: true }] }));
+      mount();
+      expect(screen.queryByRole('button', { name: 'Drop out' })).toBeNull();
+      expect(screen.getByText('You dropped out.')).toBeTruthy();
+      cleanup();
+      V.view.mockReturnValue(view({ tournament: tour({ state: 'complete' }), state: 'complete', entrants: [entrant('me')] }));
+      mount();
+      expect(screen.queryByRole('button', { name: 'Drop out' })).toBeNull();
+      expect(screen.queryByText('You dropped out.')).toBeNull();
+    });
   });
   it('a judge sees the host panel too', () => {
     V.view.mockReturnValue(view({ judges: ['me'] }));

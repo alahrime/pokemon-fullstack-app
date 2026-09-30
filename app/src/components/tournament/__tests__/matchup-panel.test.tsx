@@ -114,13 +114,18 @@ describe('reported', () => {
     expect(T.disputeScore).toHaveBeenCalledWith('p');
     expect(changed).toHaveBeenCalledTimes(2);
   });
+  it('the /^Confirm/ query used below does find the button before it is final', async () => {
+    mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: 'rival', finalAt: fin }));
+    await flush();
+    expect(screen.getByRole('button', { name: /^Confirm/ })).toBeTruthy();
+  });
   it('hides every action once final, in both roles', async () => {
     const past = new Date('2026-09-29T12:31:00Z');
     for (const by of ['me', 'rival']) {
       mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: by, finalAt: fin }), { now: past });
       await flush();
       expect(screen.getByText('Final: you won 2–0')).toBeTruthy();
-      for (const n of ['Confirm', 'Dispute', 'Correct result', 'I won 2–0']) expect(screen.queryByRole('button', { name: n })).toBeNull();
+      for (const n of [/^Confirm/, 'Dispute', 'Correct result', 'I won 2–0']) expect(screen.queryByRole('button', { name: n })).toBeNull();
       cleanup();
     }
   });

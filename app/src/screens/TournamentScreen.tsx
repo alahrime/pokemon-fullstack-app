@@ -4,7 +4,7 @@ import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
-import { removePlayer, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
+import { dropOut, removePlayer, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
 import { Bracket } from '../components/tournament/Bracket';
 import { Standings } from '../components/tournament/Standings';
@@ -25,7 +25,7 @@ function banner(t: Tournament, s: TournamentState): { tone: string; text: string
       tone: 'open', text: 'Registration open',
       sub: t.registrationClosesAt ? `Closes ${new Date(t.registrationClosesAt).toLocaleString()}` : 'Closes when the host closes it',
     };
-    case 'closed': return { tone: 'closed', text: 'Registration closed', sub: 'Teams of Pokémon Visible' };
+    case 'closed': return { tone: 'closed', text: 'Registration closed', sub: 'Teams visible' };
     case 'running': return { tone: 'live', text: `Round ${t.currentRound} of ${t.rounds}` };
     case 'complete': return { tone: 'done', text: 'Finished' };
     case 'cancelled': return { tone: 'dead', text: 'Cancelled' };
@@ -49,6 +49,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const [hideMine, setHideMine] = useState(false);
   const [share, setShare] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [notice, setNotice] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
   const [showMatch, setShowMatch] = useState(false);
   const matchRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (showMatch) matchRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [showMatch]);
@@ -106,6 +107,20 @@ export function TournamentScreen({ id }: { id: string }) {
       v.refresh();
     } catch (e) {
       setNotice(messageOf(e));
+    }
+  }
+
+  async function drop() {
+    if (dropping || !window.confirm(`Drop out of ${t!.title}? Your unfinished game this round is lost 0–2 and you will not be paired again.`)) return;
+    setDropping(true);
+    setNotice(null);
+    try {
+      await dropOut(id);
+      v.refresh();
+    } catch (e) {
+      setNotice(messageOf(e));
+    } finally {
+      setDropping(false);
     }
   }
 
@@ -167,6 +182,10 @@ export function TournamentScreen({ id }: { id: string }) {
             <button type="button" className="btn" onClick={() => void withdraw()}>Withdraw</button>
           </>
         )}
+        {s === 'running' && mine && (
+          <button type="button" className="btn" disabled={dropping} onClick={() => void drop()}>Drop out</button>
+        )}
+        {s === 'running' && !mine && v.entrants.some((e) => e.playerId === me && e.dropped) && <span className="text-muted">You dropped out.</span>}
         {myPairing && <button type="button" className="btn btn-primary" aria-expanded={showMatch} onClick={() => setShowMatch((x) => !x)}>{showMatch ? 'Hide your matchup' : 'View your matchup'}</button>}
         <button type="button" className="btn" onClick={() => void copyLink()}>Share tournament page</button>
         {share === 'copied' && <span role="status" className="text-muted">Copied</span>}

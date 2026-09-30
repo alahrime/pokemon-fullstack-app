@@ -6321,6 +6321,12 @@ th.bt-matrix-head { text-align: center; }
 .chat-message.is-deleted {
   border-left-color: var(--text-faint);
 }
+.chat-message.is-announcement {
+  border-left-color: var(--color-accent);
+  background: var(--surface-2);
+}
+.chat-announcement-tag { color: var(--color-accent); }
+.chat-announce { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .chat-message-body {
   margin: 0;
   flex: 1 1 16rem;
@@ -6640,6 +6646,8 @@ th.bt-matrix-head { text-align: center; }
 .tournament-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .tournament-link { overflow-wrap: anywhere; min-width: 0; }
 /* The banner's words carry the state; the left rule's hue only sorts it at a glance. */
+.tournament-announcement { border-left: 3px solid var(--color-accent); }
+.tournament-announcement p { margin: var(--space-1) 0 0; white-space: pre-wrap; }
 .tournament-banner {
   display: flex;
   flex-wrap: wrap;

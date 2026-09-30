@@ -9,6 +9,8 @@ const sendMessage = vi.fn();
 const unsubscribe = vi.fn();
 const reportMessage = vi.fn();
 const markRead = vi.fn();
+const canAnnounce = vi.fn();
+let extra: unknown[] = [];
 let onMessage: ((m: unknown) => void) | null = null;
 
 // UUID-shaped on purpose: these ids are what used to leak into every Report
@@ -29,7 +31,8 @@ vi.mock('../../lib/channels', () => ({
   isChannelUnread: () => false,
   listChannelsWithActivity: async () => [],
   withDisplayNames: async (cs: unknown) => cs,
-  listMessages: async () => transcript,
+  listMessages: async () => [...transcript, ...extra],
+  canAnnounce: (...a: unknown[]) => canAnnounce(...a),
   sendMessage: (...a: unknown[]) => sendMessage(...a),
   subscribeToChannel: (_channelId: string, cb: (m: unknown) => void) => {
     onMessage = cb;
@@ -47,6 +50,8 @@ beforeEach(() => {
   unsubscribe.mockReset();
   reportMessage.mockReset().mockResolvedValue('report-1');
   markRead.mockReset().mockResolvedValue(undefined);
+  canAnnounce.mockReset().mockResolvedValue(false);
+  extra = [];
   onMessage = null;
 });
 
@@ -425,5 +430,53 @@ describe('the pane never shows anyone a uuid', () => {
       }
     });
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('announcements', () => {
+  const tournament: ChannelDisplay = {
+    id: 'c1', kind: 'tournament', title: 'Autumn Cup', matchId: null, lastReadAt: null,
+    lastMessageAt: null, displayTitle: 'Autumn Cup', memberCount: 8, otherId: null,
+  };
+
+  it('lets an organiser or judge send as an announcement, once, then resets the box', async () => {
+    canAnnounce.mockResolvedValue(true);
+    pane(tournament);
+    const box = await screen.findByLabelText('Send as announcement');
+    fireEvent.change(screen.getByLabelText('Message to Autumn Cup'), { target: { value: 'Round 1 at 7' } });
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole('button', { name: 'Send message to Autumn Cup' }));
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledWith('c1', 'Round 1 at 7', 'announcement'));
+    await waitFor(() => expect((screen.getByLabelText('Send as announcement') as HTMLInputElement).checked).toBe(false));
+    fireEvent.change(screen.getByLabelText('Message to Autumn Cup'), { target: { value: 'plain' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message to Autumn Cup' }));
+    await waitFor(() => expect(sendMessage).toHaveBeenLastCalledWith('c1', 'plain'));
+  });
+
+  it('offers nothing to an ordinary entrant, nor to a read that fails, nor asks at all in a DM', async () => {
+    pane(tournament);
+    await screen.findByText('hey');
+    expect(screen.queryByLabelText('Send as announcement')).toBeNull();
+    cleanup();
+    canAnnounce.mockRejectedValue(new Error('x'));
+    pane(tournament);
+    await screen.findByText('hey');
+    expect(screen.queryByLabelText('Send as announcement')).toBeNull();
+    cleanup();
+    canAnnounce.mockClear();
+    pane(dm);
+    await screen.findByText('hey');
+    expect(canAnnounce).not.toHaveBeenCalled();
+  });
+
+  it('marks an announcement in the transcript, and not once it is deleted', async () => {
+    extra = [
+      { id: 'a1', channelId: 'c1', authorId: 'org', body: 'Doors at 6', createdAt: 't5', editedAt: null, deletedAt: null, kind: 'announcement' },
+      { id: 'a2', channelId: 'c1', authorId: 'org', body: 'old news', createdAt: 't6', editedAt: null, deletedAt: 't7', kind: 'announcement' },
+    ];
+    const { container } = pane(tournament);
+    await screen.findByText(/Doors at 6/);
+    expect(container.querySelectorAll('.is-announcement')).toHaveLength(1);
+    expect(screen.getAllByText('Announcement')).toHaveLength(1);
   });
 });

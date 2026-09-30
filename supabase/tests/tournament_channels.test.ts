@@ -74,7 +74,7 @@ describe('tournament channels', () => {
     const [m] = await as(p1)<{ id: string }>(
       `insert into public.messages (channel_id, author_id, body) values ('${ch}', '${p1}', 'gl hf') returning id`);
     expect(m.id).toBeTruthy();
-    expect(await as(org)(`select id from public.messages where channel_id = '${ch}'`)).toHaveLength(1);
+    expect(await as(org)(`select id from public.messages where channel_id = '${ch}'`)).toHaveLength(1); // checked before any announcement is posted
     expect(await as(outsider)(`select id from public.channels where id = '${ch}'`)).toHaveLength(0);
     expect(await as(outsider)(`select id from public.messages where channel_id = '${ch}'`)).toHaveLength(0);
     await refusal(() => as(outsider)(`insert into public.messages (channel_id, author_id, body) values ('${ch}', '${outsider}', 'hi')`));
@@ -88,8 +88,36 @@ describe('tournament channels', () => {
     expect((await refusal(() => as(org)(`select public._sync_tournament_member('${tid}', '${org}')`))).code).toBe('42501');
   });
 
+  it('lets only the organiser and judges announce, and only in a tournament channel', async () => {
+    const announce = (u: string, body: string) =>
+      as(u)<{ id: string }>(`insert into public.messages (channel_id, author_id, body, kind) values ('${ch}', '${u}', '${body}', 'announcement') returning id`);
+    expect((await announce(org, 'Round 1 at 7')).length).toBe(1);
+    expect(await as(p1)<{ can: boolean }>(`select public.can_announce('${ch}') as can`)).toEqual([{ can: false }]);
+    expect(await as(org)<{ can: boolean }>(`select public.can_announce('${ch}') as can`)).toEqual([{ can: true }]);
+
+    // an entrant may not, even though they are a member
+    await refusal(() => announce(p1, 'fake'));
+    // a judge may, until the role is revoked
+    await sql(`insert into public.tournament_roles (tournament_id, user_id, granted_by) values ('${tid}', '${judge}', '${org}')`);
+    expect((await announce(judge, 'Judge says hi')).length).toBe(1);
+    await sql(`delete from public.tournament_roles where tournament_id = '${tid}' and user_id = '${judge}'`);
+    await refusal(() => announce(judge, 'still?'));
+
+    // not in a non-tournament channel: the organiser's DM-like group has no tournament
+    const [g] = await sql<{ id: string }>(`insert into public.channels (kind, created_by, title) values ('group', '${org}', 'G') returning id`);
+    await sql(`insert into public.channel_members (channel_id, user_id) values ('${g.id}', '${org}')`);
+    await refusal(() => as(org)(`insert into public.messages (channel_id, author_id, body, kind) values ('${g.id}', '${org}', 'x', 'announcement')`));
+    expect(await as(org)<{ can: boolean }>(`select public.can_announce('${g.id}') as can`)).toEqual([{ can: false }]);
+    await sql(`delete from public.channels where id = '${g.id}'`);
+
+    // the kind cannot be rewritten afterwards, and anon cannot ask
+    const [a] = await as(org)<{ id: string }>(`select id from public.messages where channel_id = '${ch}' and kind = 'announcement' and author_id = '${org}' limit 1`);
+    await refusal(() => as(org)(`update public.messages set kind = 'text' where id = '${a.id}'`));
+    expect((await refusal(() => asAnon()(`select public.can_announce('${ch}')`))).code).toBe('42501');
+  });
+
   it('survives a cancelled tournament with its members and messages', async () => {
     await sql(`update public.tournaments set state = 'cancelled' where id = '${tid}'`);
-    expect(await as(p1)(`select id from public.messages where channel_id = '${ch}'`)).toHaveLength(1);
+    expect((await as(p1)(`select id from public.messages where channel_id = '${ch}'`)).length).toBeGreaterThanOrEqual(1);
   });
 });

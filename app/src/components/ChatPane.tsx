@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChallengeCard } from './ChallengeCard';
 import { useSession } from '../state/SessionContext';
 import {
+  canAnnounce,
   listMessages,
   markRead,
   reportMessage,
@@ -107,6 +108,15 @@ export function ChatPane({
   const [threadError, setThreadError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  // Organisers and judges of a tournament's channel may flag a message as an announcement.
+  const [mayAnnounce, setMayAnnounce] = useState(false);
+  const [announce, setAnnounce] = useState(false);
+  useEffect(() => {
+    if (channel.kind !== 'tournament') return;
+    let live = true;
+    canAnnounce(channel.id).then((ok) => live && setMayAnnounce(ok)).catch(() => {});
+    return () => { live = false; };
+  }, [channel.id, channel.kind]);
   const [sendError, setSendError] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportingId, setReportingId] = useState<string | null>(null);
@@ -186,7 +196,7 @@ export function ChatPane({
     setSending(true);
     setSendError(null);
     try {
-      const sent = await sendMessage(channel.id, body);
+      const sent = announce ? await sendMessage(channel.id, body, 'announcement') : await sendMessage(channel.id, body);
       // Same de-duplication `ChatScreen` used: this call's own return and the
       // realtime delivery of the same insert both land here, and only the
       // first must stick.
@@ -199,6 +209,7 @@ export function ChatPane({
       // badge for a message you just wrote yourself.
       void markRead(channel.id).then(() => onRead(channel.id, new Date().toISOString()));
       setDraft('');
+      setAnnounce(false);
     } catch (e) {
       setSendError(messageOf(e));
     } finally {
@@ -285,12 +296,13 @@ export function ChatPane({
               return (
                 <li
                   key={m.id}
-                  className={`chat-message${m.deletedAt ? ' is-deleted' : ''}`}
+                  className={`chat-message${m.deletedAt ? ' is-deleted' : ''}${m.kind === 'announcement' && !m.deletedAt ? ' is-announcement' : ''}`}
                 >
                   {m.kind === 'challenge' && m.offerId && !m.deletedAt ? (
                     <ChallengeCard offerId={m.offerId} />
                   ) : (
                     <p className="chat-message-body">
+                      {m.kind === 'announcement' && !m.deletedAt && <strong className="hud-label chat-announcement-tag">Announcement </strong>}
                       {m.deletedAt ? 'Message deleted' : m.body}
                     </p>
                   )}
@@ -365,6 +377,11 @@ export function ChatPane({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
+            {mayAnnounce && (
+              <label className="chat-announce">
+                <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} /> Send as announcement
+              </label>
+            )}
             <button
               type="submit"
               className="btn btn-primary"

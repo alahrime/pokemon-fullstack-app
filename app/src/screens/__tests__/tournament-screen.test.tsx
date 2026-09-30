@@ -17,8 +17,8 @@ vi.mock('../../components/tournament/MatchupPanel', () => ({
   ),
 }));
 
-const C = vi.hoisted(() => ({ tournamentChannelId: vi.fn(), requestChannel: vi.fn() }));
-vi.mock('../../lib/channels', () => ({ tournamentChannelId: C.tournamentChannelId }));
+const C = vi.hoisted(() => ({ tournamentChannelId: vi.fn(), latestAnnouncement: vi.fn(), requestChannel: vi.fn() }));
+vi.mock('../../lib/channels', () => ({ tournamentChannelId: C.tournamentChannelId, latestAnnouncement: C.latestAnnouncement }));
 vi.mock('../../state/ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: C.requestChannel }) }));
 
 import { TournamentScreen } from '../TournamentScreen';
@@ -67,6 +67,7 @@ beforeEach(() => {
   V.reads.mockReset();
   C.tournamentChannelId.mockReset().mockResolvedValue(null);
   C.requestChannel.mockReset();
+  C.latestAnnouncement.mockReset().mockResolvedValue(null);
   T.withdrawFromTournament.mockReset().mockResolvedValue(true);
   T.removePlayer.mockReset().mockResolvedValue(true);
   T.dropOut.mockReset().mockResolvedValue(true);
@@ -95,6 +96,27 @@ describe('chat', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
     expect(C.tournamentChannelId).toHaveBeenCalledWith(ID);
     expect(C.requestChannel).toHaveBeenCalledWith('tc1');
+  });
+
+  it("shows the host's latest announcement to members, and none when there is none", async () => {
+    C.tournamentChannelId.mockResolvedValue('tc1');
+    C.latestAnnouncement.mockResolvedValue({ id: 'a', authorId: 'org', body: 'Doors at 6', createdAt: 'x' });
+    mount();
+    await act(async () => {});
+    const box = screen.getByLabelText('Latest announcement');
+    expect(box.textContent).toContain('Ash');
+    expect(box.textContent).toContain('Doors at 6');
+    expect(C.latestAnnouncement).toHaveBeenCalledWith('tc1');
+    cleanup();
+    C.latestAnnouncement.mockResolvedValue(null);
+    mount();
+    await act(async () => {});
+    expect(screen.queryByLabelText('Latest announcement')).toBeNull();
+    cleanup();
+    C.latestAnnouncement.mockRejectedValue(new Error('x'));
+    mount();
+    await act(async () => {});
+    expect(screen.queryByLabelText('Latest announcement')).toBeNull();
   });
 
   it('shows nothing to someone who cannot see the channel, or when the read fails', async () => {

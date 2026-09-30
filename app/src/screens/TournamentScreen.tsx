@@ -4,7 +4,7 @@ import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
-import { tournamentChannelId } from '../lib/channels';
+import { latestAnnouncement, tournamentChannelId, type Message } from '../lib/channels';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { dropOut, removePlayer, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
@@ -57,6 +57,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const { requestChannel } = useChatDockRequest();
   // Visible only to members: the channel's RLS hides it from everyone else.
   const [chatId, setChatId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<Message | null>(null);
   const uid = user?.id ?? null;
   useEffect(() => {
     if (!uid) return;
@@ -64,6 +65,12 @@ export function TournamentScreen({ id }: { id: string }) {
     tournamentChannelId(id).then((c) => live && setChatId(c)).catch(() => live && setChatId(null));
     return () => { live = false; };
   }, [id, uid, v.entrants, v.judges]);
+  useEffect(() => {
+    if (!chatId) { setAnnouncement(null); return; }
+    let live = true;
+    latestAnnouncement(chatId).then((m) => live && setAnnouncement(m)).catch(() => {});
+    return () => { live = false; };
+  }, [chatId]);
   useEffect(() => { if (showMatch) matchRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [showMatch]);
   useEffect(() => {
     if (share !== 'copied') return;
@@ -179,6 +186,13 @@ export function TournamentScreen({ id }: { id: string }) {
         {b.sub && <span className="text-muted">{b.sub}</span>}
         {s === 'running' && <RoundClock endsAt={t.roundEndsAt} />}
       </div>
+
+      {announcement && (
+        <aside className="panel chamfer-9 tournament-announcement" aria-label="Latest announcement">
+          <span className="hud-label">Announcement · {v.names.get(announcement.authorId) ?? 'Host'}</span>
+          <p>{announcement.body}</p>
+        </aside>
+      )}
 
       <div className="tournament-actions">
         {open && !mine && !full && (

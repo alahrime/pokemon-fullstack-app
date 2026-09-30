@@ -18,7 +18,7 @@ export interface Message {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
-  kind: 'text' | 'challenge';
+  kind: 'text' | 'challenge' | 'announcement';
   offerId: string | null;
 }
 
@@ -30,7 +30,7 @@ interface MessageRow {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
-  kind: 'text' | 'challenge';
+  kind: 'text' | 'challenge' | 'announcement';
   offer_id: string | null;
 }
 
@@ -118,14 +118,36 @@ export async function listMessages(channelId: string, limit = 100): Promise<Mess
  * optimistically and then, in `onMessage`, skip any payload whose `id` is
  * already present rather than trusting one source over the other.
  */
-export async function sendMessage(channelId: string, body: string): Promise<Message> {
+export async function sendMessage(channelId: string, body: string, kind?: 'announcement'): Promise<Message> {
   const { data, error } = await supabase
     .from('messages')
-    .insert({ channel_id: channelId, body })
+    .insert(kind ? { channel_id: channelId, body, kind } : { channel_id: channelId, body })
     .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at, kind, offer_id')
     .single();
   if (error) throw new Error(error.message);
   return toMessage(data as unknown as MessageRow);
+}
+
+/** Whether the caller may post announcements here: the organiser or a judge of this tournament's channel. */
+export async function canAnnounce(channelId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('can_announce', { p_channel: channelId });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+/** The newest announcement in a channel that has not been deleted, or null. */
+export async function latestAnnouncement(channelId: string): Promise<Message | null> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id, channel_id, author_id, body, created_at, edited_at, deleted_at, kind, offer_id')
+    .eq('channel_id', channelId)
+    .eq('kind', 'announcement')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const r = (data ?? [])[0];
+  return r ? toMessage(r as unknown as MessageRow) : null;
 }
 
 export async function openDm(otherId: string): Promise<string> {

@@ -34,6 +34,10 @@ function table(name: string) {
       calls.push({ table: name, op: 'eq', payload: [col, val] });
       return q;
     }),
+    is: vi.fn((col: string, val: unknown) => {
+      calls.push({ table: name, op: 'is', payload: [col, val] });
+      return q;
+    }),
     in: vi.fn((col: string, vals: unknown) => {
       calls.push({ table: name, op: 'in', payload: [col, vals] });
       return q;
@@ -88,6 +92,8 @@ const {
   resolveDisplayNames,
   withDisplayNames,
   tournamentChannelId,
+  canAnnounce,
+  latestAnnouncement,
   humanTime,
 } = await import('../channels');
 
@@ -417,6 +423,37 @@ describe('tournament channels', () => {
     ]);
     expect([titled.displayTitle, titled.memberCount, titled.otherId]).toEqual(['Autumn Cup', 2, null]);
     expect([bare.displayTitle, bare.memberCount]).toEqual(['Tournament', 0]);
+  });
+});
+
+describe('announcements', () => {
+  it('asks the server whether you may announce, and reports only a true', async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    expect(await canAnnounce('c1')).toBe(true);
+    expect(rpc).toHaveBeenCalledWith('can_announce', { p_channel: 'c1' });
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect(await canAnnounce('c1')).toBe(false);
+    rpc.mockResolvedValue({ data: null, error: { message: 'nope' } });
+    await expect(canAnnounce('c1')).rejects.toThrow('nope');
+  });
+
+  it('reads the newest live announcement, or null', async () => {
+    rows.messages = [{ id: 'm1', channel_id: 'c1', author_id: 'o', body: 'hi', created_at: 't', edited_at: null, deleted_at: null, kind: 'announcement', offer_id: null }];
+    expect((await latestAnnouncement('c1'))?.body).toBe('hi');
+    expect(calls).toContainEqual({ table: 'messages', op: 'eq', payload: ['kind', 'announcement'] });
+    expect(calls).toContainEqual({ table: 'messages', op: 'is', payload: ['deleted_at', null] });
+    rows.messages = [];
+    expect(await latestAnnouncement('c1')).toBeNull();
+    updateError = { message: 'nope' };
+    await expect(latestAnnouncement('c1')).rejects.toThrow('nope');
+  });
+
+  it('sendMessage adds the kind only when announcing', async () => {
+    insertResult = { data: { id: 'm', channel_id: 'c1', author_id: 'me', body: 'b', created_at: 't', edited_at: null, deleted_at: null, kind: 'announcement', offer_id: null }, error: null };
+    await sendMessage('c1', 'b', 'announcement');
+    await sendMessage('c1', 'b');
+    const inserts = calls.filter((c) => c.op === 'insert').map((c) => c.payload);
+    expect(inserts).toEqual([{ channel_id: 'c1', body: 'b', kind: 'announcement' }, { channel_id: 'c1', body: 'b' }]);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { Standings } from '../Standings';
 import { PlayersTab } from '../PlayersTab';
 import { movesFor, SPECIES_BY_ID } from '../../../lib/data';
@@ -75,6 +75,28 @@ describe('PlayersTab', () => {
     fireEvent.click(btns[0]);
     expect(confirm).toHaveBeenCalledTimes(2);
     expect(onRemove).toHaveBeenCalledWith('me');
+  });
+  it.each(['complete', 'cancelled'] as const)('no Remove once %s', (state) => {
+    show({ state, isHost: true, me: 'org', onRemove: vi.fn() });
+    expect(screen.queryByRole('button', { name: 'Remove player' })).toBeNull();
+  });
+  it('the confirm names the consequence and a slow removal blocks a second click', async () => {
+    let done!: () => void;
+    const onRemove = vi.fn(() => new Promise<void>((r) => { done = r; }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    show({ isHost: true, me: 'org', onRemove });
+    const btns = screen.getAllByRole('button', { name: 'Remove player' });
+    fireEvent.click(btns[0]);
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining('Any unfinished game this round is forfeited.'));
+    expect(btns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    fireEvent.click(btns[1]);
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    await act(async () => { done(); await Promise.resolve(); });
+    expect(btns.every((b) => !(b as HTMLButtonElement).disabled)).toBe(true);
+    cleanup();
+    show({ isHost: true, me: 'org', onRemove, state: 'closed' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove player' })[0]);
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining('They will be removed from the tournament.'));
   });
   it('strikes a dropped player and says so', () => {
     show();

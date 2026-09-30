@@ -173,10 +173,11 @@ export async function listJudges(id: string): Promise<string[]> {
   return (data ?? []).map((r) => r.user_id as string);
 }
 
-export async function listAudit(id: string): Promise<AuditRow[]> {
+/** The newest `limit` rows, newest first. */
+export async function listAudit(id: string, limit = 50): Promise<AuditRow[]> {
   const { data, error } = await supabase
     .from('tournament_audit').select('id, actor_id, action, detail, created_at')
-    .eq('tournament_id', id).order('created_at', { ascending: true });
+    .eq('tournament_id', id).order('created_at', { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({ id: r.id, actorId: r.actor_id, action: r.action, detail: r.detail, createdAt: r.created_at }));
 }

@@ -209,3 +209,23 @@ describe('pairSwiss', () => {
     expect(r.rematches).toBeGreaterThan(0);
   });
 });
+
+describe('pairSwiss alsoPlayed (unfinished games still block a rematch)', () => {
+  const r1 = [g(1, 'a', 'b', 2, 0), g(1, 'c', 'd', 2, 0)];
+  const pair = (r: ReturnType<typeof pairSwiss>) => r.pairs.map((p) => key(p.a, p.b as string)).sort();
+  it('avoids a pair that is only in alsoPlayed', () => {
+    expect(pair(pairSwiss(['a', 'b', 'c', 'd'], r1, 's'))).toContain('a|c'); // without it the winners meet
+    const r = pairSwiss(['a', 'b', 'c', 'd'], r1, 's', undefined, [{ a: 'a', b: 'c' }, { a: 'b', b: 'd' }]);
+    expect(pair(r)).toEqual(['a|d', 'b|c']);
+    expect(r.rematches).toBe(0);
+  });
+  it('reports rematches when every pair is taken', () => {
+    const all = [{ a: 'a', b: 'c' }, { a: 'a', b: 'd' }, { a: 'b', b: 'c' }, { a: 'b', b: 'd' }];
+    expect(pairSwiss(['a', 'b', 'c', 'd'], r1, 's', undefined, all).rematches).toBe(2);
+  });
+  it('a bye in alsoPlayed is not a rematch', () => {
+    const r = pairSwiss(['a', 'b', 'c', 'd'], r1, 's', undefined, [{ a: 'a', b: null }]);
+    expect(r.rematches).toBe(0);
+    expect(pair(r)).toContain('a|c');
+  });
+});

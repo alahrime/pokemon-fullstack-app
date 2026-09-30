@@ -22,6 +22,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [changed, setChanged] = useState(false);
   const busyRef = useRef(false);
   if (!isOrganiser && !(me && judges.includes(me))) return null;
 
@@ -48,16 +49,26 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
   const unsettled = current.filter((p) => !isCounted(p, now)).length;
   const overdue = running && !!t.roundEndsAt && now >= new Date(t.roundEndsAt);
 
-  function openPreview() {
-    setError(null);
+  // Built from the current props and a fresh clock, both when opened and again on Confirm.
+  function propose(): Preview {
+    const at = new Date();
     const active = entrants.filter((e) => !e.dropped).map((e) => e.playerId);
     // Called directly, never as a .map callback: extra arguments would land in its node budget.
-    const r = pairSwiss(active, toGames(pairings, now), t.id);
-    setPreview({ round: running ? t.currentRound + 1 : 1, pairs: r.pairs, rematches: r.rematches, repeatBye: r.repeatBye, unsettled });
+    // Only counted games rank; EVERY non-bye pairing blocks a rematch (the server checks them all, in any state).
+    const r = pairSwiss(active, toGames(pairings, at), t.id, undefined, pairings.map((p) => ({ a: p.playerA, b: p.playerB })));
+    const open = running ? pairings.filter((p) => p.round === t.currentRound && p.playerB !== null && !isCounted(p, at)).length : 0;
+    return { round: running ? t.currentRound + 1 : 1, pairs: r.pairs, rematches: r.rematches, repeatBye: r.repeatBye, unsettled: open };
+  }
+  function openPreview() {
+    setError(null);
+    setChanged(false);
+    setPreview(propose());
   }
 
   async function confirmStart(override: boolean) {
     if (!preview) return;
+    const fresh = propose();
+    if (JSON.stringify(fresh) !== JSON.stringify(preview)) { setPreview(fresh); setChanged(true); return; }
     const force = preview.unsettled > 0;
     if (force && !window.confirm(`${preview.unsettled} unsettled ${preview.unsettled === 1 ? 'game is' : 'games are'} still open in round ${t.currentRound}. Start round ${preview.round} anyway?`)) return;
     if (await run(() => startRound(t.id, preview.pairs, force, override))) setPreview(null);
@@ -76,7 +87,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
           names={names} busy={busy} run={run} />
       )}
       {isOrganiser && (state === 'draft' || state === 'registration') && <HostDetails tournament={t} busy={busy} run={run} />}
-      <AuditLog tournamentId={t.id} names={names} busy={busy} />
+      <AuditLog tournamentId={t.id} names={names} pairings={pairings} busy={busy} />
       {isOrganiser && !over && (
         <section className="host-section" aria-label="Danger">
           <button type="button" className="btn" disabled={busy}
@@ -86,7 +97,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
         </section>
       )}
       {preview && (
-        <PairingPreview preview={preview} names={names} busy={busy} error={error} onConfirm={(o) => void confirmStart(o)} onClose={() => setPreview(null)} />
+        <PairingPreview preview={preview} changed={changed} names={names} busy={busy} error={error} onConfirm={(o) => void confirmStart(o)} onClose={() => setPreview(null)} />
       )}
     </section>
   );

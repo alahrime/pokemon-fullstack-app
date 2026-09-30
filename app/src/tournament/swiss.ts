@@ -130,10 +130,13 @@ function greedy(order: string[], played: ReadonlySet<string>): Pairing[] {
 
 export function pairSwiss(
   activeIn: readonly string[], games: readonly Game[], seed: string, nodeBudget = NODE_BUDGET,
+  // Pairs that must not repeat although their game does not count yet (pending, reported, disputed): the
+  // server refuses a rematch of ANY non-bye pairing. They never affect ranking. Byes are ignored.
+  alsoPlayed: readonly Pairing[] = [],
 ): { pairs: Pairing[]; rematches: number; repeatBye: boolean } {
   const active = [...new Set(activeIn)];
   if (active.length === 0) return { pairs: [], rematches: 0, repeatBye: false };
-  const played = new Set(games.filter((g) => g.b !== null).map((g) => pairKey(g.a, g.b as string)));
+  const played = new Set([...games, ...alsoPlayed].filter((g) => g.b !== null).map((g) => pairKey(g.a, g.b as string)));
   const hadBye = new Set(games.filter((g) => g.b === null).map((g) => g.a));
   let order: string[];
   let byeCandidates: string[];

@@ -189,6 +189,14 @@ describe('readers', () => {
     h.rows.tournament_audit = [{ id: 'x', actor_id: null, action: 'settle', detail: { a: 1 }, created_at: PAST }];
     expect(await T.listJudges('t')).toEqual(['j1', 'j2']);
     expect(await T.listAudit('t')).toEqual([{ id: 'x', actorId: null, action: 'settle', detail: { a: 1 }, createdAt: PAST }]);
+    // the newest rows, capped by the query itself (not trimmed after fetching everything)
+    expect(h.calls.filter((c) => c.op.startsWith('tournament_audit.') && ['order', 'limit'].includes(c.op.split('.')[1]))).toEqual([
+      { op: 'tournament_audit.order', payload: ['created_at', { ascending: false }] },
+      { op: 'tournament_audit.limit', payload: [50] },
+    ]);
+    h.calls = [];
+    await T.listAudit('t', 10);
+    expect(h.calls.find((c) => c.op === 'tournament_audit.limit')?.payload).toEqual([10]);
   });
   it('readers throw on error', async () => {
     h.err = { message: 'denied' };

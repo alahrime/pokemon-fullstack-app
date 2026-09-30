@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listAudit, type AuditRow } from '../../lib/tournaments';
+import { listAudit, type AuditRow, type Pairing } from '../../lib/tournaments';
 import { messageOf } from './hostRun';
 import { playerName } from './playerName';
 
@@ -14,11 +14,13 @@ type D = Record<string, unknown>;
 const num = (v: unknown): v is number => typeof v === 'number';
 
 /** Plain words for the values that matter; never a raw id. */
-function detailOf(action: string, raw: unknown, names: ReadonlyMap<string, string>): string {
+function detailOf(action: string, raw: unknown, names: ReadonlyMap<string, string>, pairings: readonly Pairing[]): string {
   const d: D = raw && typeof raw === 'object' ? (raw as D) : {};
   const who = (v: unknown) => (typeof v === 'string' ? playerName(names, v) : null);
   const out: (string | null | false)[] = [];
   if (num(d.round)) out.push(`round ${d.round}`);
+  const game = action === 'settle_pairing' ? pairings.find((p) => p.id === d.pairing) : undefined;
+  if (game) out.push(`round ${game.round} table ${game.tableNo}: ${playerName(names, game.playerA)} vs ${game.playerB ? playerName(names, game.playerB) : 'a bye'}`);
   if (d.forced === true) out.push(`forced (${num(d.unsettled) ? d.unsettled : 'some'} unsettled)`);
   if (d.override === true) out.push('override');
   if (num(d.score_a) && num(d.score_b)) out.push(`${d.score_a}–${d.score_b}`);
@@ -30,8 +32,8 @@ function detailOf(action: string, raw: unknown, names: ReadonlyMap<string, strin
   return out.filter(Boolean).join(', ');
 }
 
-/** Collapsed until asked for; the last 50 rows, newest first, read lazily. */
-export function AuditLog({ tournamentId, names, busy }: { tournamentId: string; names: ReadonlyMap<string, string>; busy: boolean }) {
+/** Collapsed until asked for; the newest 50 rows (the reader caps and orders them), read lazily. */
+export function AuditLog({ tournamentId, names, pairings, busy }: { tournamentId: string; names: ReadonlyMap<string, string>; pairings: readonly Pairing[]; busy: boolean }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function AuditLog({ tournamentId, names, busy }: { tournamentId: string; 
     setRows(null);
     setError(null);
     listAudit(tournamentId)
-      .then((r) => live && setRows(r.slice(-50).reverse()))
+      .then((r) => live && setRows(r))
       .catch((e) => live && setError(messageOf(e)));
     return () => { live = false; };
   }, [open, tournamentId]);
@@ -56,7 +58,7 @@ export function AuditLog({ tournamentId, names, busy }: { tournamentId: string; 
       {open && rows && (
         <ul className="host-list">
           {rows.map((r) => {
-            const detail = detailOf(r.action, r.detail, names);
+            const detail = detailOf(r.action, r.detail, names, pairings);
             return (
               <li key={r.id} data-testid="audit-row">
                 {(r.actorId ? playerName(names, r.actorId) : 'System')} · {ACTIONS[r.action] ?? r.action}{detail && ` (${detail})`} · {new Date(r.createdAt).toLocaleString()}

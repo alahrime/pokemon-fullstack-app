@@ -33,12 +33,13 @@ const names = new Map([['org', 'Olive'], ['a', 'Ash'], ['b', 'Bea'], ['c', 'Cy']
 const changed = vi.fn();
 
 interface O { t?: Partial<Tournament>; state?: TournamentState; entrants?: Entrant[]; pairings?: Pairing[]; judges?: string[]; me?: string | null; isOrganiser?: boolean; now?: Date }
-const mount = (o: O = {}) => {
+const panel = (o: O = {}) => {
   const t = tour(o.t);
-  return render(<HostPanel tournament={t} state={o.state ?? t.state} entrants={o.entrants ?? four} pairings={o.pairings ?? []} names={names}
+  return <HostPanel tournament={t} state={o.state ?? t.state} entrants={o.entrants ?? four} pairings={o.pairings ?? []} names={names}
     judges={o.judges ?? []} me={o.me === undefined ? 'org' : o.me} isOrganiser={o.isOrganiser ?? false}
-    now={o.now ?? NOW} onChanged={changed} />);
+    now={o.now ?? NOW} onChanged={changed} />;
 };
+const mount = (o: O = {}) => render(panel(o));
 const asOrg = (o: O = {}) => mount({ ...o, me: 'org', isOrganiser: true });
 const asJudge = (o: O = {}) => mount({ ...o, me: 'j', judges: ['j'], isOrganiser: false });
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -246,7 +247,7 @@ describe('needs attention', () => {
     ['Award Ash the win', 2, 0], ['Award Bea the win', 0, 2], [/^Double loss/, 0, 0],
   ] as const)('%s settles %i–%i with the optional note', async (label, sa, sb) => {
     asOrg({ pairings: [pr()] });
-    fireEvent.change(screen.getByLabelText('Note (optional)'), { target: { value: 'timed out' } });
+    fireEvent.change(screen.getByLabelText('Note for table 1'), { target: { value: 'timed out' } });
     await click(label);
     expect(T.settlePairing).toHaveBeenCalledWith('p', sa, sb, 'timed out');
     expect(changed).toHaveBeenCalledTimes(1);
@@ -355,12 +356,25 @@ describe('audit log', () => {
     expect(text).not.toContain('zzz');
   });
 
-  it('shows only the last 50, newest first', async () => {
-    T.listAudit.mockResolvedValue(Array.from({ length: 60 }, (_, i) => ({ id: String(i), actorId: 'org', action: 'open_registration', detail: {}, createdAt: new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString() })));
+  it('keeps the order it is given (newest first from the reader) without trimming', async () => {
+    T.listAudit.mockResolvedValue(rows);
     asOrg({});
     await click('Audit log');
-    const items = screen.getAllByTestId('audit-row');
-    expect(items).toHaveLength(50);
+    expect(screen.getAllByTestId('audit-row').map((r) => r.textContent?.slice(0, 5))).toEqual(['Olive', 'Jo · ', 'Olive', 'Olive']);
+    expect(T.listAudit).toHaveBeenCalledWith('t1');
+  });
+
+  it('names the game a settle was for when the pairing is known, else just "a game"', async () => {
+    T.listAudit.mockResolvedValue([rows[1]]);
+    asOrg({ pairings: [pr({ id: 'zzz', tableNo: 3 })] });
+    await click('Audit log');
+    expect(screen.getByTestId('audit-row').textContent).toContain('round 2 table 3: Ash vs Bea');
+    expect(screen.getByTestId('audit-row').textContent).not.toContain('zzz');
+    cleanup();
+    asOrg({});
+    await click('Audit log');
+    expect(screen.getByTestId('audit-row').textContent).toContain('Settled a game');
+    expect(screen.getByTestId('audit-row').textContent).not.toContain('round 2 table');
   });
 
   it('a slow response after collapse does not land', async () => {
@@ -459,12 +473,109 @@ describe('PairingPreview', () => {
   it('a repeated bye alone asks for the tick and says so', async () => {
     const { PairingPreview } = await import('../PairingPreview');
     const onConfirm = vi.fn();
-    render(<PairingPreview preview={{ round: 3, pairs: [{ a: 'a', b: null }], rematches: 0, repeatBye: true, unsettled: 0 }}
+    render(<PairingPreview changed={false} preview={{ round: 3, pairs: [{ a: 'a', b: null }], rematches: 0, repeatBye: true, unsettled: 0 }}
       names={names} busy={false} error={null} onConfirm={onConfirm} onClose={vi.fn()} />);
     expect(screen.getByText(/repeated bye/)).toBeTruthy();
     expect(screen.getByText('Ash has a bye')).toBeTruthy();
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm round 3' }));
     expect(onConfirm).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('C1 forced progress counts unfinished games as played', () => {
+  // all six pairs met over rounds 1-3; round 3 is unfinished, so only rounds 1-2 count
+  const all = [
+    settled('r1a', 1, 'org', 'a', 2, 0), settled('r1b', 1, 'b', 'c', 2, 1),
+    settled('r2a', 2, 'org', 'b', 2, 0), settled('r2b', 2, 'a', 'c', 2, 0),
+    pr({ id: 'r3a', round: 3, tableNo: 1, playerA: 'org', playerB: 'c' }), pr({ id: 'r3b', round: 3, tableNo: 2, playerA: 'a', playerB: 'b' }),
+  ];
+  it('shows the rematch warning and needs the tick; override only after it', async () => {
+    asOrg({ t: { currentRound: 3 }, pairings: all });
+    await click('Progress anyway (2 unsettled)');
+    expect(screen.getByText(/2 rematches/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Confirm round 4' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(T.startRound).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Allow rematches / repeat bye' }));
+    await click('Confirm round 4');
+    expect(T.startRound.mock.calls[0].slice(2)).toEqual([true, true]);
+  });
+});
+
+describe('C2 a lapsed deadline still needs close_registration', () => {
+  const lapsed = { state: 'closed' as const, t: { state: 'registration' as const, registrationClosesAt: PAST, currentRound: 0, roundEndsAt: null } };
+  it('offers Close registration (deadline passed), not Start round 1', async () => {
+    asOrg(lapsed);
+    expect(screen.queryByRole('button', { name: 'Start round 1' })).toBeNull();
+    await click('Close registration (deadline passed)');
+    expect(T.closeRegistration).toHaveBeenCalledWith('t1');
+  });
+  it('still disabled with a reason under two players', () => {
+    asOrg({ ...lapsed, entrants: [ent('org')] });
+    expect((screen.getByRole('button', { name: 'Close registration (deadline passed)' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('At least two players are needed')).toBeTruthy();
+  });
+  it('a judge gets neither', () => {
+    asJudge(lapsed);
+    expect(screen.queryByRole('button', { name: /Close registration|Start round 1/ })).toBeNull();
+  });
+});
+
+describe('I1 a stale preview is re-checked on Confirm', () => {
+  const closed = { state: 'closed' as const, t: { state: 'closed' as const, currentRound: 0, roundEndsAt: null } };
+  it('a player dropping while the dialog is open replaces the pairings and needs a second Confirm', async () => {
+    const { rerender } = asOrg(closed);
+    await click('Start round 1');
+    rerender(panel({ me: 'org', isOrganiser: true, ...closed, entrants: [ent('org'), ent('a'), ent('b'), ent('c', true)] }));
+    await click('Confirm round 1');
+    expect(T.startRound).not.toHaveBeenCalled();
+    expect(screen.getByText('The field changed — please review the new pairings')).toBeTruthy();
+    expect(screen.getByText(/has a bye/)).toBeTruthy();
+    await click('Confirm round 1');
+    const pairs = T.startRound.mock.calls[0][1] as { a: string; b: string | null }[];
+    expect(pairs.flatMap((p) => [p.a, p.b]).filter(Boolean).sort()).toEqual(['a', 'b', 'org']);
+  });
+  it('a result settling while the dialog is open drops the force', async () => {
+    const open = [...round1, pr({ id: 'u1' }), pr({ id: 'u2', tableNo: 2, playerA: 'org', playerB: 'c' })];
+    const { rerender } = asOrg({ pairings: open });
+    await click('Progress anyway (2 unsettled)');
+    rerender(panel({ me: 'org', isOrganiser: true, pairings: [...round1, settled('u1', 2, 'a', 'b', 2, 0), settled('u2', 2, 'org', 'c', 2, 0)] }));
+    await click('Confirm round 3');
+    expect(T.startRound).not.toHaveBeenCalled();
+    expect(screen.getByText('The field changed — please review the new pairings')).toBeTruthy();
+    await click('Confirm round 3');
+    expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+  it('an unchanged field goes straight through', async () => {
+    asOrg(closed);
+    await click('Start round 1');
+    await click('Confirm round 1');
+    expect(T.startRound).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('I2 the clock is read when the host acts', () => {
+  it('a report that passed final_at since the last render counts', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-29T12:00:00Z'));
+    asOrg({ pairings: [...round1, pr({ state: 'reported', scoreA: 2, scoreB: 0, finalAt: '2026-09-29T12:00:30Z' }), settled('q', 2, 'org', 'c', 2, 0)] });
+    expect(screen.getByRole('button', { name: 'Progress anyway (1 unsettled)' })).toBeTruthy(); // render-time clock
+    vi.setSystemTime(new Date('2026-09-29T12:01:00Z'));
+    await click('Progress anyway (1 unsettled)');
+    expect(screen.queryByText(/unsettled from the previous round/)).toBeNull();
+    await click('Confirm round 3');
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
+    vi.useRealTimers();
+  });
+});
+
+describe('m3 the note belongs to its own game', () => {
+  it('a note typed at one table is not sent for another', async () => {
+    asOrg({ pairings: [pr(), pr({ id: 'q', tableNo: 2, playerA: 'c', playerB: 'j' })] });
+    fireEvent.change(screen.getByLabelText('Note for table 1'), { target: { value: 'late' } });
+    await click('Award Cy the win');
+    expect(T.settlePairing).toHaveBeenCalledWith('q', 2, 0, null);
   });
 });

@@ -16,13 +16,16 @@ export function HostLifecycle({ tournament: t, state, entrants, unsettled, isOrg
       {state === 'draft' && isOrganiser && (
         <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => openRegistration(t.id))}>Open registration</button>
       )}
-      {state === 'registration' && isOrganiser && (
+      {/* The database state, not the clock: a lapsed deadline reads as closed but only close_registration moves it on. */}
+      {t.state === 'registration' && isOrganiser && (
         <>
-          <button type="button" className="btn btn-primary" disabled={busy || active < 2} onClick={() => void run(() => closeRegistration(t.id))}>Close registration</button>
+          <button type="button" className="btn btn-primary" disabled={busy || active < 2} onClick={() => void run(() => closeRegistration(t.id))}>
+            {state === 'closed' ? 'Close registration (deadline passed)' : 'Close registration'}
+          </button>
           {active < 2 && <span className="text-muted">At least two players are needed</span>}
         </>
       )}
-      {state === 'closed' && <button type="button" className="btn btn-primary" disabled={busy} onClick={onPreview}>Start round 1</button>}
+      {t.state === 'closed' && <button type="button" className="btn btn-primary" disabled={busy} onClick={onPreview}>Start round 1</button>}
       {state === 'running' && !last && (
         <button type="button" className="btn btn-primary" disabled={busy} onClick={onPreview}>
           {unsettled > 0 ? `Progress anyway (${unsettled} unsettled)` : 'Progress bracket round'}

@@ -160,6 +160,15 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Season ratings for the open queue on Great, Ultra and Master.',
   },
   {
+    id: 'records',
+    label: 'Records',
+    kicker: 'History',
+    glyph: '☰',
+    // Poison: no other screen carries it (screens.test.ts guards distinct hues).
+    hue: 'var(--type-poison)',
+    blurb: 'Your win rate, opponents, calendar and match history.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',
@@ -213,7 +222,7 @@ export const SECTIONS: SectionDef[] = [
     glyph: '⚔',
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
-    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'ranked'],
+    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'ranked', 'records'],
   },
 ];
 

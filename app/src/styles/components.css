@@ -6728,3 +6728,19 @@ th.bt-matrix-head { text-align: center; }
 .ranked-board th { font-weight: 600; color: var(--text-muted); }
 .ranked-board tr.is-me td { font-weight: 700; }
 .ranked-provisional { margin: 0; }
+
+/* Records */
+.records-screen { display: grid; gap: var(--space-3); }
+.records-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr)); gap: var(--space-3); margin: 0; }
+.records-tiles dt { color: var(--text-muted); font-size: var(--text-sm, 0.85rem); }
+.records-tiles dd { margin: 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.records-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
+.records-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.records-day { min-height: 3rem; padding: 2px 4px; display: flex; flex-direction: column; border: 1px solid var(--border, transparent); border-radius: 4px; }
+.records-day.has-games { background: var(--surface-2); }
+.records-date { font-size: 0.75rem; color: var(--text-muted); }
+.records-tally { font-weight: 700; font-variant-numeric: tabular-nums; }
+.records-history ul { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-1); }
+.records-history li { display: grid; grid-template-columns: 1.5rem 1fr auto auto auto; gap: var(--space-3); align-items: baseline; }
+.records-win, .records-loss { font-weight: 700; }
+@media (max-width: 480px) { .records-history li { grid-template-columns: 1.5rem 1fr auto; } .records-history li > :nth-child(3), .records-history li > :nth-child(4) { display: none; } }

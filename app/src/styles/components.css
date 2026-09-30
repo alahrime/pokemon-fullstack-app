@@ -6705,6 +6705,11 @@ th.bt-matrix-head { text-align: center; }
 .bracket-name.is-loser, .player-dropped { text-decoration: line-through; }
 .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: var(--type-grass); }
 .bracket-row:has(.is-loser) .bracket-mark { color: var(--type-fire); }
+/* Light themes: the raw type colours are 3.0:1 / 2.85:1 on --surface-2; 30% toward black is >= 5:1. */
+:root[data-theme='modernist'] .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark,
+:root[data-theme='paper'] .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: color-mix(in srgb, var(--type-grass), #000 30%); }
+:root[data-theme='modernist'] .bracket-row:has(.is-loser) .bracket-mark,
+:root[data-theme='paper'] .bracket-row:has(.is-loser) .bracket-mark { color: color-mix(in srgb, var(--type-fire), #000 30%); }
 .bracket-you, .bracket-tag { border: var(--border-hairline) solid var(--rule-strong); padding: 0 var(--space-1); }
 .bracket mark { background: var(--color-accent-2-300); color: inherit; }
 .standings-scroll { overflow-x: auto; min-width: 0; }

@@ -3,7 +3,7 @@ import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { LEAGUE_BY_ID } from '../lib/data';
 import type { LeagueId } from '../lib/types';
-import { byDay, exportRecords, listMyRecords, monthGrid, summarise, wilson, type RecordRow } from '../lib/records';
+import { byDay, exportRecords, gritStatus, listMyRecords, myGrit, type Grit, monthGrid, summarise, wilson, type RecordRow } from '../lib/records';
 
 const SHOWN = 50;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -15,6 +15,7 @@ export function RecordsScreen() {
   const uid = user?.id ?? null;
   const [rows, setRows] = useState<RecordRow[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [grit, setGrit] = useState<Grit | null>(null);
   const [ranked, setRanked] = useState(false);
   const [more, setMore] = useState(SHOWN);
   const [ym, setYm] = useState(() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1 }; });
@@ -23,6 +24,7 @@ export function RecordsScreen() {
     if (!uid) return;
     let live = true;
     listMyRecords().then((r) => live && setRows(r)).catch(() => live && setFailed(true));
+    myGrit().then((g) => live && setGrit(g)).catch(() => {});
     return () => { live = false; };
   }, [uid]);
 
@@ -70,6 +72,7 @@ export function RecordsScreen() {
             <div><dt>Games</dt><dd>{sum.wins}–{sum.games - sum.wins}</dd></div>
             <div><dt>Opponents</dt><dd>{sum.uniqueOpponents}</dd></div>
             <div><dt>Rounds</dt><dd>{sum.roundsWon}–{sum.roundsLost}</dd></div>
+            {grit && <GritTile g={grit} />}
           </dl>
 
           <section className="panel chamfer-9 records-cal" aria-label="Calendar">
@@ -108,6 +111,19 @@ export function RecordsScreen() {
           </section>
         </>
       )}
+    </div>
+  );
+}
+
+/** Win rate in the game after a loss, over tournament rounds; independent of the Ranked/All switch. */
+function GritTile({ g }: { g: Grit }) {
+  const s = gritStatus(g);
+  return (
+    <div className="records-grit">
+      <dt>Grit</dt>
+      {s.ready
+        ? <dd data-testid="grit">{pct(s.rate)}{g.postLossGames < 30 && ` (${pct(s.interval[0])}–${pct(s.interval[1])})`}<small className="text-muted"> after a loss, {g.postLossGames} games</small></dd>
+        : <dd className="text-muted records-grit-note" data-testid="grit">{s.note}</dd>}
     </div>
   );
 }

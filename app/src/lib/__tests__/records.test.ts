@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { summarise, wilson, byDay, monthGrid, toCsvRows, type RecordRow } from '../records';
+import { describe, it, expect, vi } from 'vitest';
+
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock('../supabase', () => ({ supabase: { rpc } }));
+
+import { summarise, wilson, byDay, monthGrid, toCsvRows, gritStatus, myGrit, type RecordRow } from '../records';
 
 const row = (o: Partial<RecordRow> = {}): RecordRow => ({
   matchId: 'm', playedAt: '2026-09-10T12:00:00Z', league: 'great', source: 'queue', ranked: true,
@@ -43,5 +47,28 @@ describe('records', () => {
   it('builds CSV rows with the local date', () => {
     const [c] = toCsvRows([row({ playedAt: '2026-09-11T06:30:00Z', won: false })], 'America/Los_Angeles');
     expect(c).toMatchObject({ date: '2026-09-10', result: 'loss', opponent: 'Ash', ranked: 'yes' });
+  });
+});
+
+describe('gritStatus', () => {
+  const g = (o = {}) => ({ postLossGames: 20, postLossWins: 12, tournaments: 3, gate: 10, ...o });
+  it('shows a rate and interval once there are enough games and events', () => {
+    const s = gritStatus(g());
+    expect(s.ready && s.rate).toBe(0.6);
+    expect(s.ready && s.interval[0] < 0.6 && s.interval[1] > 0.6).toBe(true);
+  });
+  it('holds back below the gate, or with a single tournament, and says how far off', () => {
+    expect(gritStatus(g({ postLossGames: 9 }))).toEqual({ ready: false, note: 'Not enough tournament play yet (9 of 10 games, 3 of 2 tournaments)' });
+    expect(gritStatus(g({ tournaments: 1 })).ready).toBe(false);
+    expect(gritStatus(g({ gate: 21 })).ready).toBe(false);
+  });
+});
+
+describe('myGrit', () => {
+  it('maps the row, and throws on an error', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ post_loss_games: 4, post_loss_wins: 3, tournaments: 2, gate: 10 }], error: null });
+    expect(await myGrit()).toEqual({ postLossGames: 4, postLossWins: 3, tournaments: 2, gate: 10 });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
+    await expect(myGrit()).rejects.toThrow('boom');
   });
 });

@@ -33,6 +33,8 @@ design authority; the plans argue from it.
 
 ## Start here — next session
 
+**Tournaments deploy check, run 2026-09-30 (measured against the hosted project):** items 1–4 PASS — all five migrations have a remote value; RLS on for all six tournament tables; `anon` cannot execute `create_tournament`, `authenticated` cannot execute `_forfeit_pending`; the friend-code policy exists. Item 6 half-done: the deployed site serves Play → Tournaments and shows "Sign in to see and host tournaments" signed out; the signed-in empty list is still unseen (needs a real sign-in — the user's). Item 5 (Max rows >= 512) is **still unmeasured**: production has ~1 profile, and `authenticator`'s role config carries no `pgrst` setting, so it is the dashboard default (1000) unless someone changed it — eyeball Dashboard → API settings.
+
 **First, verify the tournaments deploy (production).** The push of 2026-09-30 carries five additive
 migrations (`20260930000000`, `…0010`, `…0100`, `…0110`, `…0120`). The GitHub app applies them; confirm:
 1. `npx supabase migration list --linked` shows all five with a remote value.

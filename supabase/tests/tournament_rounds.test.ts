@@ -330,6 +330,11 @@ describe('tournament rounds', () => {
 
     await call(p4, 'drop_out', q(id)); // reported: the entered result stands
     expect(await pairingOf(id, p4)).toMatchObject({ state: 'reported', score_a: 2, score_b: 1, reported_by: p3, settled_by: null });
+    const pid4 = (await pairingOf(id, p4)).id;
+    for (const fn of ['confirm_score', 'dispute_score']) {
+      expect((await refusal(() => call(p4, fn, q(pid4)))).message).toMatch(/you have dropped out/);
+    }
+    expect((await refusal(() => report(p4, pid4, 0, 2))).message).toMatch(/you have dropped out/);
     await call(p5, 'drop_out', q(id)); // bye: untouched
     expect(await pairingOf(id, p5)).toEqual(byeBefore);
     await call(p2, 'drop_out', q(id)); // pending, as player_b: 2-0 to player_a

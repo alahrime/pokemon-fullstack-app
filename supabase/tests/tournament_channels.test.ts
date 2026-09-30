@@ -116,6 +116,37 @@ describe('tournament channels', () => {
     expect((await refusal(() => asAnon()(`select public.can_announce('${ch}')`))).code).toBe('42501');
   });
 
+  it('lets only the organiser and judges pin in a tournament channel, and members read the pins', async () => {
+    const [m] = await as(p1)<{ id: string }>(
+      `insert into public.messages (channel_id, author_id, body) values ('${ch}', '${p1}', 'pin me') returning id`);
+    const pin = (u: string) => as(u)(`insert into public.message_pins (message_id, pinned_by) values ('${m.id}', '${u}')`);
+    await refusal(() => pin(p1)); // an entrant, even of their own message
+    await refusal(() => pin(outsider));
+    await pin(org);
+    expect(await as(p1)(`select message_id from public.message_pins where message_id = '${m.id}'`)).toHaveLength(1);
+    expect(await as(outsider)(`select message_id from public.message_pins where message_id = '${m.id}'`)).toHaveLength(0);
+    // an entrant's unpin removes nothing
+    await as(p1)(`delete from public.message_pins where message_id = '${m.id}'`);
+    expect(await sql(`select 1 from public.message_pins where message_id = '${m.id}'`)).toHaveLength(1);
+    // a judge may unpin and pin; once revoked, not
+    await sql(`insert into public.tournament_roles (tournament_id, user_id, granted_by) values ('${tid}', '${judge}', '${org}')`);
+    await as(judge)(`delete from public.message_pins where message_id = '${m.id}'`);
+    expect(await sql(`select 1 from public.message_pins where message_id = '${m.id}'`)).toHaveLength(0);
+    await pin(judge);
+    await sql(`delete from public.tournament_roles where tournament_id = '${tid}' and user_id = '${judge}'`);
+    await as(judge)(`delete from public.message_pins where message_id = '${m.id}'`);
+    expect(await sql(`select 1 from public.message_pins where message_id = '${m.id}'`)).toHaveLength(1);
+  });
+
+  it('leaves pinning open to any member of a group', async () => {
+    const [g] = await sql<{ id: string }>(`insert into public.channels (kind, created_by, title) values ('group', '${p1}', 'G2') returning id`);
+    await sql(`insert into public.channel_members (channel_id, user_id) values ('${g.id}', '${p1}')`);
+    const [m] = await as(p1)<{ id: string }>(`insert into public.messages (channel_id, author_id, body) values ('${g.id}', '${p1}', 'x') returning id`);
+    await as(p1)(`insert into public.message_pins (message_id, pinned_by) values ('${m.id}', '${p1}')`);
+    expect(await as(p1)(`select 1 from public.message_pins where message_id = '${m.id}'`)).toHaveLength(1);
+    await sql(`delete from public.channels where id = '${g.id}'`);
+  });
+
   it('survives a cancelled tournament with its members and messages', async () => {
     await sql(`update public.tournaments set state = 'cancelled' where id = '${tid}'`);
     expect((await as(p1)(`select id from public.messages where channel_id = '${ch}'`)).length).toBeGreaterThanOrEqual(1);

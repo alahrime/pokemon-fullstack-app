@@ -38,6 +38,10 @@ function table(name: string) {
       calls.push({ table: name, op: 'is', payload: [col, val] });
       return q;
     }),
+    delete: vi.fn(() => {
+      calls.push({ table: name, op: 'delete' });
+      return q;
+    }),
     in: vi.fn((col: string, vals: unknown) => {
       calls.push({ table: name, op: 'in', payload: [col, vals] });
       return q;
@@ -94,6 +98,9 @@ const {
   tournamentChannelId,
   canAnnounce,
   latestAnnouncement,
+  listPins,
+  pinMessage,
+  unpinMessage,
   humanTime,
 } = await import('../channels');
 
@@ -454,6 +461,28 @@ describe('announcements', () => {
     await sendMessage('c1', 'b');
     const inserts = calls.filter((c) => c.op === 'insert').map((c) => c.payload);
     expect(inserts).toEqual([{ channel_id: 'c1', body: 'b', kind: 'announcement' }, { channel_id: 'c1', body: 'b' }]);
+  });
+});
+
+describe('pins', () => {
+  const msg = (id: string, deleted: string | null = null) => ({ id, channel_id: 'c1', author_id: 'o', body: id, created_at: 't', edited_at: null, deleted_at: deleted, kind: 'text', offer_id: null });
+
+  it('lists the pinned messages of a channel, leaving out deleted ones', async () => {
+    rows.message_pins = [{ pinned_at: 'a', messages: msg('m1') }, { pinned_at: 'b', messages: msg('m2', 'd') }];
+    expect((await listPins('c1')).map((m) => m.id)).toEqual(['m1']);
+    expect(calls).toContainEqual({ table: 'message_pins', op: 'eq', payload: ['messages.channel_id', 'c1'] });
+    updateError = { message: 'nope' };
+    await expect(listPins('c1')).rejects.toThrow('nope');
+  });
+
+  it('pins and unpins by message id, surfacing errors', async () => {
+    await pinMessage('m1');
+    await unpinMessage('m1');
+    expect(calls).toContainEqual({ table: 'message_pins', op: 'insert', payload: { message_id: 'm1' } });
+    expect(calls).toContainEqual({ table: 'message_pins', op: 'eq', payload: ['message_id', 'm1'] });
+    updateError = { message: 'denied' };
+    await expect(pinMessage('m1')).rejects.toThrow('denied');
+    await expect(unpinMessage('m1')).rejects.toThrow('denied');
   });
 });
 

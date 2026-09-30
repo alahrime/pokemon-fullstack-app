@@ -4,6 +4,9 @@ import { useSession } from '../state/SessionContext';
 import {
   canAnnounce,
   listMessages,
+  listPins,
+  pinMessage,
+  unpinMessage,
   markRead,
   reportMessage,
   sendMessage,
@@ -111,12 +114,29 @@ export function ChatPane({
   // Organisers and judges of a tournament's channel may flag a message as an announcement.
   const [mayAnnounce, setMayAnnounce] = useState(false);
   const [announce, setAnnounce] = useState(false);
+  // Pins are read by every member; only the people who run the tournament may change them.
+  const [pins, setPins] = useState<Message[]>([]);
   useEffect(() => {
     if (channel.kind !== 'tournament') return;
     let live = true;
     canAnnounce(channel.id).then((ok) => live && setMayAnnounce(ok)).catch(() => {});
+    listPins(channel.id).then((p) => live && setPins(p)).catch(() => {});
     return () => { live = false; };
   }, [channel.id, channel.kind]);
+  async function togglePin(m: Message) {
+    setSendError(null);
+    try {
+      if (pins.some((p) => p.id === m.id)) {
+        await unpinMessage(m.id);
+        setPins((prev) => prev.filter((p) => p.id !== m.id));
+      } else {
+        await pinMessage(m.id);
+        setPins((prev) => [m, ...prev]);
+      }
+    } catch (e) {
+      setSendError(messageOf(e));
+    }
+  }
   const [sendError, setSendError] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportingId, setReportingId] = useState<string | null>(null);
@@ -289,6 +309,13 @@ export function ChatPane({
             </p>
           )}
 
+          {pins.length > 0 && (
+            <section className="chat-pins" aria-label="Pinned messages">
+              <span className="hud-label">Pinned</span>
+              <ul>{pins.map((p) => <li key={p.id}>{p.body}</li>)}</ul>
+            </section>
+          )}
+
           <ul className="chat-transcript">
             {messages.map((m) => {
               const isOwn = !!user && m.authorId === user.id;
@@ -305,6 +332,11 @@ export function ChatPane({
                       {m.kind === 'announcement' && !m.deletedAt && <strong className="hud-label chat-announcement-tag">Announcement </strong>}
                       {m.deletedAt ? 'Message deleted' : m.body}
                     </p>
+                  )}
+                  {mayAnnounce && !m.deletedAt && (
+                    <button type="button" className="btn btn-ghost" aria-label={`${pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'} message “${snippetOf(m.body)}”`} onClick={() => void togglePin(m)}>
+                      {pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'}
+                    </button>
                   )}
                   {canReport && reportedIds.has(m.id) && (
                     <span className="text-faint">Reported</span>

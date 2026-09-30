@@ -150,6 +150,29 @@ export async function latestAnnouncement(channelId: string): Promise<Message | n
   return r ? toMessage(r as unknown as MessageRow) : null;
 }
 
+/** Pinned, undeleted messages of a channel, newest pin first. */
+export async function listPins(channelId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('message_pins')
+    .select('pinned_at, messages!inner(id, channel_id, author_id, body, created_at, edited_at, deleted_at, kind, offer_id)')
+    .eq('messages.channel_id', channelId)
+    .order('pinned_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as { messages: MessageRow }[])
+    .map((r) => toMessage(r.messages))
+    .filter((m) => !m.deletedAt);
+}
+
+export async function pinMessage(messageId: string): Promise<void> {
+  const { error } = await supabase.from('message_pins').insert({ message_id: messageId });
+  if (error) throw new Error(error.message);
+}
+
+export async function unpinMessage(messageId: string): Promise<void> {
+  const { error } = await supabase.from('message_pins').delete().eq('message_id', messageId);
+  if (error) throw new Error(error.message);
+}
+
 export async function openDm(otherId: string): Promise<string> {
   const { data, error } = await supabase.rpc('open_dm', { p_other: otherId });
   if (error) throw new Error(error.message);

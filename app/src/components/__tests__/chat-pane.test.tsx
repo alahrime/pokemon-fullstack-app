@@ -11,6 +11,9 @@ const reportMessage = vi.fn();
 const markRead = vi.fn();
 const canAnnounce = vi.fn();
 let extra: unknown[] = [];
+const listPins = vi.fn();
+const pinMessage = vi.fn();
+const unpinMessage = vi.fn();
 let onMessage: ((m: unknown) => void) | null = null;
 
 // UUID-shaped on purpose: these ids are what used to leak into every Report
@@ -33,6 +36,9 @@ vi.mock('../../lib/channels', () => ({
   withDisplayNames: async (cs: unknown) => cs,
   listMessages: async () => [...transcript, ...extra],
   canAnnounce: (...a: unknown[]) => canAnnounce(...a),
+  listPins: (...a: unknown[]) => listPins(...a),
+  pinMessage: (...a: unknown[]) => pinMessage(...a),
+  unpinMessage: (...a: unknown[]) => unpinMessage(...a),
   sendMessage: (...a: unknown[]) => sendMessage(...a),
   subscribeToChannel: (_channelId: string, cb: (m: unknown) => void) => {
     onMessage = cb;
@@ -51,6 +57,9 @@ beforeEach(() => {
   reportMessage.mockReset().mockResolvedValue('report-1');
   markRead.mockReset().mockResolvedValue(undefined);
   canAnnounce.mockReset().mockResolvedValue(false);
+  listPins.mockReset().mockResolvedValue([]);
+  pinMessage.mockReset().mockResolvedValue(undefined);
+  unpinMessage.mockReset().mockResolvedValue(undefined);
   extra = [];
   onMessage = null;
 });
@@ -478,5 +487,39 @@ describe('announcements', () => {
     await screen.findByText(/Doors at 6/);
     expect(container.querySelectorAll('.is-announcement')).toHaveLength(1);
     expect(screen.getAllByText('Announcement')).toHaveLength(1);
+  });
+
+  describe('pins', () => {
+    it('shows pinned messages to every member, but Pin only to organisers and judges', async () => {
+      listPins.mockResolvedValue([{ id: M1, channelId: 'c1', authorId: 'them', body: 'hey', createdAt: 't1', editedAt: null, deletedAt: null, kind: 'text' }]);
+      pane(tournament);
+      const strip = await screen.findByLabelText('Pinned messages');
+      expect(strip.textContent).toContain('hey');
+      expect(screen.queryByRole('button', { name: /^(Pin|Unpin) message/ })).toBeNull();
+    });
+
+    it('pins and unpins from the message row, updating the strip', async () => {
+      canAnnounce.mockResolvedValue(true);
+      pane(tournament);
+      fireEvent.click(await screen.findByRole('button', { name: 'Pin message “hey”' }));
+      await waitFor(() => expect(pinMessage).toHaveBeenCalledWith(M1));
+      expect((await screen.findByLabelText('Pinned messages')).textContent).toContain('hey');
+      fireEvent.click(await screen.findByRole('button', { name: 'Unpin message “hey”' }));
+      await waitFor(() => expect(unpinMessage).toHaveBeenCalledWith(M1));
+      await waitFor(() => expect(screen.queryByLabelText('Pinned messages')).toBeNull());
+    });
+
+    it('says so when a pin is refused, and never reads pins in a DM', async () => {
+      canAnnounce.mockResolvedValue(true);
+      pinMessage.mockRejectedValue(new Error('refused'));
+      pane(tournament);
+      fireEvent.click(await screen.findByRole('button', { name: 'Pin message “hey”' }));
+      expect((await screen.findByRole('alert')).textContent).toBe('refused');
+      cleanup();
+      listPins.mockClear();
+      pane(dm);
+      await screen.findByText('hey');
+      expect(listPins).not.toHaveBeenCalled();
+    });
   });
 });

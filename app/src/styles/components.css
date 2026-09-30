@@ -6326,6 +6326,8 @@ th.bt-matrix-head { text-align: center; }
   background: var(--surface-2);
 }
 .chat-announcement-tag { color: var(--color-accent); }
+.chat-pins { padding: var(--space-2); border-left: 3px solid var(--color-accent-2); font-size: var(--text-sm); }
+.chat-pins ul { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: grid; gap: var(--space-1); }
 .chat-announce { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .chat-message-body {
   margin: 0;

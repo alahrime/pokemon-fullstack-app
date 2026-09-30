@@ -387,6 +387,19 @@ describe('audit log', () => {
     expect(screen.queryByTestId('audit-row')).toBeNull();
   });
 
+  it('refetches while open when a game settles, and not on an unrelated re-render', async () => {
+    T.listAudit.mockResolvedValue(rows);
+    const { rerender } = asOrg({ t: { currentRound: 1 }, pairings: [pr({ id: 'u1' })] });
+    await click('Audit log');
+    expect(T.listAudit).toHaveBeenCalledTimes(1);
+    rerender(panel({ isOrganiser: true, t: { currentRound: 1 }, pairings: [pr({ id: 'u1' })] }));
+    await flush();
+    expect(T.listAudit).toHaveBeenCalledTimes(1);
+    rerender(panel({ isOrganiser: true, t: { currentRound: 1 }, pairings: [settled('u1', 1, 'org', 'a', 2, 0)] }));
+    await flush();
+    expect(T.listAudit).toHaveBeenCalledTimes(2);
+  });
+
   it('a failed read is shown', async () => {
     T.listAudit.mockRejectedValue(new Error('nope'));
     asOrg({});

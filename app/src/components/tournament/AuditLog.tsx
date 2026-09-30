@@ -32,22 +32,24 @@ function detailOf(action: string, raw: unknown, names: ReadonlyMap<string, strin
   return out.filter(Boolean).join(', ');
 }
 
-/** Collapsed until asked for; the newest 50 rows (the reader caps and orders them), read lazily. */
+/** Collapsed until asked for; the newest 50 rows (the reader caps and orders them), read lazily and refreshed when the pairings change. */
 export function AuditLog({ tournamentId, names, pairings, busy }: { tournamentId: string; names: ReadonlyMap<string, string>; pairings: readonly Pairing[]; busy: boolean }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A game or round changing is what writes audit rows; refetch then, keeping the rows on screen.
+  const sig = pairings.map((p) => `${p.id}${p.state}`).join();
+  useEffect(() => { setRows(null); }, [tournamentId]);
 
   useEffect(() => {
     if (!open) return;
     let live = true;
-    setRows(null);
     setError(null);
     listAudit(tournamentId)
       .then((r) => live && setRows(r))
       .catch((e) => live && setError(messageOf(e)));
     return () => { live = false; };
-  }, [open, tournamentId]);
+  }, [open, tournamentId, sig]);
 
   return (
     <section className="host-section" aria-label="Audit">

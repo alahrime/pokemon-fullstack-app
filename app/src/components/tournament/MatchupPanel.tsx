@@ -17,9 +17,9 @@ const CHOICES: readonly [string, number, number][] = [
 type Code = { for: string; code: string | null; failed: boolean };
 
 /** The viewer's own matchup this round: both teams, the opponent's friend code and DM, and the score control. */
-export function MatchupPanel({ pairing, me, tournament, rosters, names, now, onChanged }: {
+export function MatchupPanel({ pairing, me, tournament, rosters, names, now: nowProp, hideMine = false, onChanged }: {
   pairing: Pairing; me: string; tournament: Tournament; rosters: ReadonlyMap<string, RosterMember[]>;
-  names: ReadonlyMap<string, string>; now: Date; onChanged: () => void;
+  names: ReadonlyMap<string, string>; now: Date; hideMine?: boolean; onChanged: () => void;
 }) {
   const { requestChannel } = useChatDockRequest();
   const isA = pairing.playerA === me;
@@ -32,6 +32,16 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now, onC
   const [correcting, setCorrecting] = useState(false);
   const [code, setCode] = useState<Code | null>(null);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'manual'>('idle');
+  // The screen's clock only moves on a poll: tick to the deadline so the actions go at finality.
+  const [tickNow, setTickNow] = useState(nowProp);
+  const now = tickNow > nowProp ? tickNow : nowProp;
+  useEffect(() => {
+    if (!pairing.finalAt) return;
+    const ms = Date.parse(pairing.finalAt) - Date.now();
+    if (!(ms > 0)) return;
+    const t = setTimeout(() => setTickNow(new Date(Date.now() + 1)), ms + 50);
+    return () => clearTimeout(t);
+  }, [pairing.finalAt]);
   const oppRef = useRef(opp);
   oppRef.current = opp;
 
@@ -100,8 +110,12 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now, onC
     );
   }
 
-  const mineOf = (a: number | null, b: number | null) => (isA ? `${a}–${b}` : `${b}–${a}`);
-  const score = pairing.scoreA !== null && pairing.scoreB !== null ? mineOf(pairing.scoreA, pairing.scoreB) : '';
+  // Viewer-framed, and it says who won: "0–2" alone reads as the opponent's own score.
+  const has = pairing.scoreA !== null && pairing.scoreB !== null;
+  const m = has ? (isA ? pairing.scoreA : pairing.scoreB)! : 0;
+  const th = has ? (isA ? pairing.scoreB : pairing.scoreA)! : 0;
+  const score = has ? `you ${m > th ? 'won' : 'lost'} ${m}–${th}` : '';
+  const short = has ? `I ${m > th ? 'won' : 'lost'} ${m}–${th}` : '';
   const isFinal = !!pairing.finalAt && new Date(pairing.finalAt) <= now;
   const finalTime = pairing.finalAt ? new Date(pairing.finalAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
   const canAct = tournament.state === 'running' && !isFinal;
@@ -118,27 +132,33 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now, onC
   function scoreControl() {
     switch (pairing.state) {
       case 'pending': return canAct ? picker : null;
-      case 'disputed': return <p>Disputed — the organiser or a judge will settle it</p>;
-      case 'settled': return <p>Final score {score}</p>;
+      case 'disputed': return <>{score && <p>Reported: {score}</p>}<p>Disputed — the organiser or a judge will settle it</p></>;
+      case 'settled': return <p>Final: {score}</p>;
       case 'reported': {
-        if (isFinal) return <p>Final score {score}</p>;
+        if (isFinal) return <p>Final: {score}</p>;
         const until = <>final at {finalTime} unless disputed</>;
         if (pairing.reportedBy === me) {
           return (
             <>
-              <p>You reported {score}. Waiting for {oppName} to confirm — {until}</p>
-              {canAct && (correcting ? picker : (
-                <button type="button" className="btn" onClick={() => setCorrecting(true)}>Correct result</button>
+              <p>You reported: {score}. Waiting for {oppName} to confirm — {until}</p>
+              {canAct && (correcting ? (
+                <>
+                  {picker}
+                  <button type="button" className="btn" disabled={busy} onClick={() => setCorrecting(false)}>Cancel</button>
+                </>
+              ) : (
+                <button type="button" className="btn" disabled={busy} onClick={() => setCorrecting(true)}>Correct result</button>
               ))}
             </>
           );
         }
         return (
           <>
-            <p>{oppName} reported {score} — {until}</p>
+            <p>{oppName} reported: {score} — {until}</p>
             {canAct && (
               <div className="matchup-scores">
-                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => confirmScore(pairing.id))}>Confirm</button>
+                <button type="button" className="btn btn-primary" disabled={busy} aria-label={`Confirm: ${short}`}
+                  onClick={() => void run(() => confirmScore(pairing.id))}>Confirm</button>
                 <button type="button" className="btn" disabled={busy} onClick={dispute}>Dispute</button>
               </div>
             )}
@@ -156,13 +176,13 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now, onC
       <h3 className="matchup-head">Table {pairing.tableNo}: you vs {oppName}</h3>
       <RoundClock endsAt={tournament.roundEndsAt} />
       <div className="matchup-rosters">
-        {mine && <PlayerRoster name={name(me)} roster={mine} />}
+        {mine ? <PlayerRoster name={name(me)} roster={mine} hidden={hideMine} /> : <p className="text-muted">Your team is not shown here</p>}
         {theirs ? <PlayerRoster name={oppName} roster={theirs} /> : <p className="text-muted">Their team is not visible yet</p>}
       </div>
       <div className="matchup-contact">
         {!live ? <span className="text-muted">Friend code no longer shared</span>
           : !shownCode ? <span className="text-muted">Loading friend code…</span>
-          : shownCode.failed ? <span className="text-muted">Couldn't load a friend code</span>
+          : shownCode.failed ? <span className="text-muted" role="status">Couldn't load a friend code</span>
           : shownCode.code === null ? <span className="text-muted">No friend code shared</span>
           : (
             <>

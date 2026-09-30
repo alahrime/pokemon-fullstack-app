@@ -89,8 +89,8 @@ describe('reported', () => {
   it('by me: shows my score from my side, finality, and lets me correct', async () => {
     mount(pr({ playerA: 'rival', playerB: 'me', scoreA: 0, scoreB: 2, state: 'reported', reportedBy: 'me', finalAt: fin }));
     await flush();
-    expect(screen.getByText(`You reported 2–0. Waiting for Gary to confirm — final at ${fmt} unless disputed`)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.getByText(`You reported: you won 2–0. Waiting for Gary to confirm — final at ${fmt} unless disputed`)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Confirm: I won 2–0' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Correct result' }));
     fireEvent.click(screen.getByRole('button', { name: 'I lost 1–2' }));
     await flush();
@@ -99,9 +99,9 @@ describe('reported', () => {
   it('by the opponent: confirm, and dispute behind window.confirm', async () => {
     mount(pr({ scoreA: 0, scoreB: 2, state: 'reported', reportedBy: 'rival', finalAt: fin }));
     await flush();
-    expect(screen.getByText(`Gary reported 0–2 — final at ${fmt} unless disputed`)).toBeTruthy();
+    expect(screen.getByText(`Gary reported: you lost 0–2 — final at ${fmt} unless disputed`)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Correct result' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm: I lost 0–2' }));
     await flush();
     expect(T.confirmScore).toHaveBeenCalledWith('p');
     const c = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
@@ -119,7 +119,7 @@ describe('reported', () => {
     for (const by of ['me', 'rival']) {
       mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: by, finalAt: fin }), { now: past });
       await flush();
-      expect(screen.getByText('Final score 2–0')).toBeTruthy();
+      expect(screen.getByText('Final: you won 2–0')).toBeTruthy();
       for (const n of ['Confirm', 'Dispute', 'Correct result', 'I won 2–0']) expect(screen.queryByRole('button', { name: n })).toBeNull();
       cleanup();
     }
@@ -128,11 +128,90 @@ describe('reported', () => {
     T.confirmScore.mockRejectedValueOnce(new Error('that round is over'));
     mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: 'rival', finalAt: fin }));
     await flush();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm: I won 2–0' }));
     await flush();
     expect(screen.getByRole('alert').textContent).toBe('that round is over');
-    expect((screen.getByRole('button', { name: 'Confirm' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Confirm: I won 2–0' }) as HTMLButtonElement).disabled).toBe(false);
     expect(changed).not.toHaveBeenCalled();
+  });
+});
+
+describe('result wording, both viewers', () => {
+  const fin = '2026-09-29T12:30:00Z';
+  const both = (over: Partial<Pairing>, a: [number, number]) => {
+    // viewer is A with (a0,a1); viewer is B with the mirror stored scores
+    const asA = pr({ ...over, scoreA: a[0], scoreB: a[1] });
+    const asB = pr({ ...over, playerA: 'rival', playerB: 'me', scoreA: a[1], scoreB: a[0] });
+    return [asA, asB];
+  };
+  it.each([
+    [[2, 1], 'you won 2–1', 'I won 2–1'], [[0, 2], 'you lost 0–2', 'I lost 0–2'], [[1, 2], 'you lost 1–2', 'I lost 1–2'],
+  ] as const)('%j', async (sc, text, short) => {
+    for (const p of both({ state: 'reported', reportedBy: 'rival', finalAt: fin }, [...sc])) {
+      mount(p); await flush();
+      expect(screen.getByText(new RegExp(`^Gary reported: ${text} —`))).toBeTruthy();
+      expect(screen.getByRole('button', { name: `Confirm: ${short}` })).toBeTruthy();
+      cleanup();
+    }
+    for (const p of both({ state: 'reported', reportedBy: 'me', finalAt: fin }, [...sc])) {
+      mount(p); await flush();
+      expect(screen.getByText(new RegExp(`^You reported: ${text}\\.`))).toBeTruthy();
+      cleanup();
+    }
+    for (const p of both({ state: 'disputed', reportedBy: 'me' }, [...sc])) {
+      mount(p); await flush();
+      expect(screen.getByText(`Reported: ${text}`)).toBeTruthy();
+      cleanup();
+    }
+    for (const p of both({ state: 'settled' }, [...sc])) {
+      mount(p); await flush();
+      expect(screen.getByText(`Final: ${text}`)).toBeTruthy();
+      cleanup();
+    }
+  });
+});
+
+describe('finality and small controls', () => {
+  it('the actions go when the deadline passes, with no new props', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(NOW);
+    mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: 'rival', finalAt: '2026-09-29T12:05:00Z' }));
+    await flush();
+    expect(screen.getByRole('button', { name: /^Confirm/ })).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(5 * 60_000 + 100); });
+    expect(screen.queryByRole('button', { name: /^Confirm/ })).toBeNull();
+    expect(screen.getByText('Final: you won 2–0')).toBeTruthy();
+  });
+  it('Cancel closes the correction picker; Correct is disabled while busy', async () => {
+    mount(pr({ scoreA: 2, scoreB: 0, state: 'reported', reportedBy: 'me', finalAt: '2026-09-29T12:30:00Z' }));
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'Correct result' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'Correct result' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'I won 2–0' })).toBeNull();
+    const d = deferred<string>();
+    C.openDm.mockReturnValueOnce(d.p);
+    fireEvent.click(screen.getByRole('button', { name: 'Message Gary' }));
+    expect((screen.getByRole('button', { name: 'Correct result' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => { d.res('c'); await d.p; });
+  });
+  it('a failed friend code is a quiet status, not an alert', async () => {
+    M.opponentFriendCode.mockRejectedValueOnce(new Error('x'));
+    mount(pr());
+    await flush();
+    expect(screen.getByRole('status').textContent).toBe("Couldn't load a friend code");
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it('hideMine covers my six only; my absent roster says so', async () => {
+    const { container } = render(<MatchupPanel pairing={pr()} me="me" tournament={tour()} rosters={rosters}
+      names={names} now={NOW} hideMine onChanged={changed} />);
+    await flush();
+    expect(container.querySelectorAll('.roster-card-hidden')).toHaveLength(6);
+    expect(new Set([...container.querySelectorAll('.roster-card .numeric')].map((n) => n.textContent))).toEqual(new Set(['CP 1222']));
+    cleanup();
+    mount(pr(), { rosters: new Map([['rival', roster(1222)]]) });
+    await flush();
+    expect(screen.getByText('Your team is not shown here')).toBeTruthy();
   });
 });
 
@@ -146,7 +225,7 @@ describe('other states', () => {
   it('settled: the final score from my side, no actions, no friend code', async () => {
     mount(pr({ playerA: 'rival', playerB: 'me', scoreA: 1, scoreB: 2, state: 'settled' }));
     await flush();
-    expect(screen.getByText('Final score 2–1')).toBeTruthy();
+    expect(screen.getByText('Final: you won 2–1')).toBeTruthy();
     expect(screen.getByText('Friend code no longer shared')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Message/ })).toBeNull();
     expect(M.opponentFriendCode).not.toHaveBeenCalled();

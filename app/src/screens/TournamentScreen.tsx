@@ -4,7 +4,7 @@ import { useSession } from '../state/SessionContext';
 import { useTournament } from '../state/useTournament';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { hashForTournament } from '../lib/route';
-import { isLivePairing, withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
+import { withdrawFromTournament, type Tournament, type TournamentState } from '../lib/tournaments';
 import { PlayerRoster } from '../components/tournament/RosterCard';
 import { Bracket } from '../components/tournament/Bracket';
 import { Standings } from '../components/tournament/Standings';
@@ -88,7 +88,6 @@ export function TournamentScreen({ id }: { id: string }) {
   const myRoster = me ? v.rosters.get(me) : undefined;
   const open = s === 'registration';
   const full = t.entrants >= t.maxPlayers;
-  const matchup = s === 'running' && v.pairings.some((p) => isLivePairing(p, t, me));
   // The viewer's pairing this round, a bye included: the panel stays for the whole round.
   const myPairing = s === 'running' ? v.pairings.find((p) => p.round === t.currentRound && (p.playerA === me || p.playerB === me)) : undefined;
   const isHost = t.organiserId === me;
@@ -156,7 +155,7 @@ export function TournamentScreen({ id }: { id: string }) {
             <button type="button" className="btn" onClick={() => void withdraw()}>Withdraw</button>
           </>
         )}
-        {matchup && <button type="button" className="btn btn-primary" aria-expanded={showMatch} onClick={() => setShowMatch((x) => !x)}>View your matchup</button>}
+        {myPairing && <button type="button" className="btn btn-primary" aria-expanded={showMatch} onClick={() => setShowMatch((x) => !x)}>{showMatch ? 'Hide your matchup' : 'View your matchup'}</button>}
         <button type="button" className="btn" onClick={() => void copyLink()}>Share tournament page</button>
         {share === 'copied' && <span role="status" className="text-muted">Copied</span>}
         {share === 'manual' && (
@@ -167,7 +166,7 @@ export function TournamentScreen({ id }: { id: string }) {
 
       {showMatch && myPairing && me && (
         <div ref={matchRef}>
-          <MatchupPanel pairing={myPairing} me={me} tournament={t} rosters={v.rosters} names={v.names} now={now} onChanged={v.refresh} />
+          <MatchupPanel pairing={myPairing} me={me} tournament={t} rosters={v.rosters} names={v.names} now={now} hideMine={hideMine} onChanged={v.refresh} />
         </div>
       )}
 

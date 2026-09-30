@@ -126,7 +126,18 @@ describe('your matchup', () => {
     expect(open.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'panel p for me' }));
     expect(refresh).toHaveBeenCalledTimes(1);
-    fireEvent.click(open);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide your matchup' }));
+    expect(screen.queryByRole('button', { name: /^panel/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View your matchup' })).toBeTruthy();
+  });
+  it('stays open, and closable, after the pairing settles', () => {
+    V.view.mockReturnValue(running());
+    const { rerender } = mount();
+    fireEvent.click(screen.getByRole('button', { name: 'View your matchup' }));
+    V.view.mockReturnValue(running({ pairings: [pairing({ state: 'settled', scoreA: 2, scoreB: 0 })] }));
+    rerender(<AppStateProvider><TournamentScreen id={ID} /><Probe /></AppStateProvider>);
+    expect(screen.getByRole('button', { name: 'panel p for me' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide your matchup' }));
     expect(screen.queryByRole('button', { name: /^panel/ })).toBeNull();
   });
 });
@@ -140,10 +151,10 @@ describe('the primary action', () => {
     ['entered, closed', { tournament: tour({ state: 'closed' }), entrants: [entrant('me')] }, []],
     ['entered, running, live pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing()] }, ['View your matchup']],
     ['entered, running, only an old pairing', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ round: 1 })] }, []],
-    ['entered, running, a bye', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ playerB: null })] }, []],
+    ['entered, running, a bye', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ playerB: null })] }, ['View your matchup']],
     ['not entered, running', { tournament: tour({ state: 'running', currentRound: 2 }), pairings: [pairing({ playerA: 'x', playerB: 'y' })] }, []],
     ['host, not entered, open', { tournament: inR({ organiserId: 'me' }) }, ['Register']],
-    ['entered, running, pairing already settled', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ state: 'settled' })] }, []],
+    ['entered, running, pairing already settled', { tournament: tour({ state: 'running', currentRound: 2 }), entrants: [entrant('me')], pairings: [pairing({ state: 'settled' })] }, ['View your matchup']],
     ['finished', { tournament: tour({ state: 'complete' }), entrants: [entrant('me')] }, []],
   ];
   it.each(table)('%s', (_n, over, expected) => {

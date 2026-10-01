@@ -17,8 +17,8 @@ export function RosterCard({ member, hidden = false, onRemove }: { member: TeamM
     ...member.charges.flatMap((id) => s?.chargeMoves.filter((m) => m.id === id) ?? []),
   ];
   return (
-    <div className="roster-card">
-      {s && <MonTile refId={member.ref} label={name} shadow={shadow} bestBuddy={member.bestBuddy} size={76} />}
+    <div className="roster-card items-center gap-3 hover:-translate-y-px hover:border-[var(--color-accent)]">
+      {s && <MonTile refId={member.ref} label={name} shadow={shadow} bestBuddy={member.bestBuddy} size={76} className="w-[92px] flex-none max-[480px]:w-20" />}
       <div className="roster-card-body">
         <div className="roster-card-badges">
           {shadow && <span className="roster-badge">Shadow</span>}

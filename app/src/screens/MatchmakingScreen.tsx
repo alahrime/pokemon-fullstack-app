@@ -160,7 +160,7 @@ function OfferRoster({ members }: { members: StoredMember[] }) {
             // Index, not ref: a roster may legitimately repeat nothing, but a
             // malformed row could, and a duplicate key drops a member.
             key={i}
-            className={`offer-roster-mon${unreadable ? ' is-unreadable' : ''}`}
+            className={`offer-roster-mon block basis-[84px] whitespace-normal max-[480px]:basis-[72px]${unreadable ? ' is-unreadable' : ''}`}
             data-ref={typeof m.ref === 'string' ? m.ref : undefined}
             data-unknown-move={unknownMove ?? undefined}
             title={title}

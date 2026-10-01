@@ -202,8 +202,8 @@ export function ChatDock() {
                     aria-label={railAriaLabel(c, unread)}
                     onClick={() => openChannel(c.id)}
                   >
-                    <span className="chat-rail-title">{c.displayTitle}</span>
-                    <span className="chat-rail-sub text-faint">{subLine(c)}</span>
+                    <span className="chat-rail-title max-w-full [overflow-wrap:anywhere]">{c.displayTitle}</span>
+                    <span className="chat-rail-sub max-w-full text-faint [overflow-wrap:anywhere]">{subLine(c)}</span>
                     {unread && (
                       <span className="chat-rail-unread-tag" aria-hidden="true">
                         Unread

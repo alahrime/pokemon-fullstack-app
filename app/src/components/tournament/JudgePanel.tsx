@@ -37,7 +37,7 @@ export function JudgePanel({ tournamentId, organiserId, state, entrants, judges,
         ))}
       </ul>
       <div className="host-actions">
-        <div className="field">
+        <div className="field min-w-0 max-w-full">
           <label htmlFor="host-judge">Appoint judge</label>
           <select id="host-judge" className="input" value={pick} disabled={busy} onChange={(e) => setPick(e.target.value)}>
             <option value="">Choose a player</option>
@@ -48,7 +48,7 @@ export function JudgePanel({ tournamentId, organiserId, state, entrants, judges,
           onClick={async () => { if (await run(() => grantJudge(tournamentId, pick))) setPick(''); }}>Appoint</button>
       </div>
       <form className="host-actions" onSubmit={(e) => void find(e)}>
-        <div className="field">
+        <div className="field min-w-0 max-w-full">
           <label htmlFor="host-judge-find">Find anyone by name</label>
           <input id="host-judge-find" className="input" value={term} disabled={busy} onChange={(e) => setTerm(e.target.value)} />
         </div>

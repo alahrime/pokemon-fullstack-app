@@ -41,7 +41,7 @@ export function NeedsAttention({ pairings, names, me, now, busy, run }: Props) {
                 <span className="text-muted">You are playing this game, so another host has to settle it.</span>
               ) : (
                 <div className="host-actions">
-                  <div className="field">
+                  <div className="field min-w-0 max-w-full">
                     <label htmlFor={`host-note-${p.id}`}>Note for table {p.tableNo}</label>
                     <input id={`host-note-${p.id}`} className="input" value={notes[p.id] ?? ''} maxLength={200} placeholder="Optional"
                       onChange={(e) => setNotes((s) => ({ ...s, [p.id]: e.target.value }))} />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listAudit, type AuditRow, type Pairing } from '../../lib/tournaments';
+import { AUDIT_LIMIT, listAudit, type AuditRow, type Pairing } from '../../lib/tournaments';
 import { messageOf } from './hostRun';
 import { playerName } from './playerName';
 
@@ -58,7 +58,7 @@ export function AuditLog({ tournamentId, names, pairings, busy }: { tournamentId
       {open && error && <p className="friend-notice" role="alert">{error}</p>}
       {open && rows && rows.length === 0 && <p className="text-muted">Nothing recorded yet</p>}
       {open && rows && (
-        <ul className="host-list">
+        <ul className="host-list max-h-80 overflow-y-auto" tabIndex={0} aria-label="Audit entries">
           {rows.map((r) => {
             const detail = detailOf(r.action, r.detail, names, pairings);
             return (
@@ -69,6 +69,7 @@ export function AuditLog({ tournamentId, names, pairings, busy }: { tournamentId
           })}
         </ul>
       )}
+      {open && rows && rows.length >= AUDIT_LIMIT && <p className="text-muted">Showing the newest {AUDIT_LIMIT} entries.</p>}
     </section>
   );
 }

@@ -188,8 +188,10 @@ export async function listJudges(id: string): Promise<string[]> {
   return (data ?? []).map((r) => r.user_id as string);
 }
 
+/** How many audit rows the host panel asks for. */
+export const AUDIT_LIMIT = 50;
 /** The newest `limit` rows, newest first. */
-export async function listAudit(id: string, limit = 50): Promise<AuditRow[]> {
+export async function listAudit(id: string, limit = AUDIT_LIMIT): Promise<AuditRow[]> {
   const { data, error } = await supabase
     .from('tournament_audit').select('id, actor_id, action, detail, created_at')
     .eq('tournament_id', id).order('created_at', { ascending: false }).limit(limit);

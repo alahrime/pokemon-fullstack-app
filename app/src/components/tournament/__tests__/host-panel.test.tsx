@@ -391,6 +391,25 @@ describe('audit log', () => {
     expect(screen.getByTestId('audit-row').textContent).not.toContain('round 2 table');
   });
 
+  it('says the list is capped only when it is full, and bounds its height', async () => {
+    const many = Array.from({ length: 50 }, (_, i) => ({ ...rows[0], id: `m${i}` }));
+    T.listAudit.mockResolvedValue(many);
+    asOrg({});
+    await click('Audit log');
+    expect(screen.getByText('Showing the newest 50 entries.')).toBeTruthy();
+    const list = screen.getByLabelText('Audit entries');
+    expect(list.className).toMatch(/max-h-80/);
+    expect(list.className).toMatch(/overflow-y-auto/);
+    expect(list.tabIndex).toBe(0);
+  });
+
+  it('shows no cap notice below the limit', async () => {
+    T.listAudit.mockResolvedValue(rows);
+    asOrg({});
+    await click('Audit log');
+    expect(screen.queryByText(/Showing the newest/)).toBeNull();
+  });
+
   it('a slow response after collapse does not land', async () => {
     const d = deferred<typeof rows>();
     T.listAudit.mockReturnValue(d.p);

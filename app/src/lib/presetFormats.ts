@@ -18,7 +18,13 @@ export interface Cup {
   include?: { types?: string[]; ids?: string[] };
   exclude?: { types?: string[]; ids?: string[]; tags?: string[] };
 }
-export interface PresetFormat { key: string; name: string; base: LeagueId; cup: Cup; format: Format }
+export interface PresetFormat {
+  key: string; name: string; base: LeagueId; cup: Cup; format: Format;
+  /** Colours for a cup that is not defined by types (the Mega and retro cups); types, then the league, otherwise. */
+  palette?: string[];
+}
+
+const MEGA = ['#ef5a3c', '#f2b630'];
 
 const ref = (ids: string[]) => ids.map((i) => `=${i}`).join(',');
 
@@ -47,8 +53,8 @@ export function toFormat(base: LeagueId, cup: Cup): Format {
   };
 }
 
-const preset = (key: string, name: string, base: LeagueId, cup: Cup = {}): PresetFormat =>
-  ({ key, name, base, cup, format: toFormat(base, cup) });
+const preset = (key: string, name: string, base: LeagueId, cup: Cup = {}, palette?: string[]): PresetFormat =>
+  ({ key, name, base, cup, format: toFormat(base, cup), palette });
 
 const ORDER = ['great', 'ultra', 'master', 'mega-great', 'mega-ultra', 'mega-master', 'mega-color', 'retro', 'laic-2027',
   'battlefrontier-spectral', 'battlefrontier-cauldron', 'battlefrontier-master'];
@@ -58,7 +64,7 @@ export const PRESET_FORMATS: PresetFormat[] = ([
   preset('great', 'Great League', 'great'),
   preset('ultra', 'Ultra League', 'ultra'),
   preset('master', 'Master League', 'master'),
-  preset('retro', 'Retro Cup', 'great', { exclude: { types: ['dark', 'fairy', 'steel'] } }),
+  preset('retro', 'Retro Cup', 'great', { exclude: { types: ['dark', 'fairy', 'steel'] } }, ['#d9822b', '#7a4fa6']),
   preset('battlefrontier-spectral', 'Battle Frontier (Spectral)', 'great', {
     include: { types: ['bug', 'ghost', 'ice', 'poison', 'psychic'] },
     exclude: {
@@ -81,9 +87,9 @@ export const PRESET_FORMATS: PresetFormat[] = ([
   preset('mega-great', 'Mega Great League', 'great', {
     every: true,
     exclude: { ids: ['mewtwo_mega_x', 'mewtwo_mega_y', 'kyogre_primal', 'groudon_primal', 'rayquaza_mega'] },
-  }),
-  preset('mega-ultra', 'Mega Ultra League', 'ultra', { every: true }),
-  preset('mega-master', 'Mega Master League', 'master', { every: true }),
+  }, ['var(--lg-great)', ...MEGA]),
+  preset('mega-ultra', 'Mega Ultra League', 'ultra', { every: true }, ['var(--lg-ultra-accent)', ...MEGA]),
+  preset('mega-master', 'Mega Master League', 'master', { every: true }, ['var(--lg-master)', ...MEGA]),
   preset('mega-color', 'Mega Color Cup', 'great', { every: true, include: { types: ['fire', 'water', 'grass', 'electric'] } }),
   preset('laic-2027', 'LAIC 2027 Championship Series Cup', 'great', {
     every: true,
@@ -93,7 +99,7 @@ export const PRESET_FORMATS: PresetFormat[] = ([
       ids: ['altaria', 'annihilape', 'araquanid', 'chansey', 'clodsire', 'corsola_galarian', 'dusclops', 'furret', 'jellicent', 'kingdra',
         'medicham', 'oranguru', 'snorlax', 'wobbuffet', 'sableye_mega'],
     },
-  }),
+  }, ['#2aa7a0', '#f2b630']),
   preset('battlefrontier-master', 'Battle Frontier (Master)', 'master', {
     every: true,
     exclude: {
@@ -103,11 +109,19 @@ export const PRESET_FORMATS: PresetFormat[] = ([
   }),
 ] as PresetFormat[]).sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
 
+/** GBL is three; Show 6 is a roster of six from which three are brought to each battle. */
+export const SHOW_6 = 6;
+export function withTeamSize(format: Format, size: 3 | 6): Format {
+  const { bring: _bring, ...rest } = format.composition;
+  return { ...format, composition: size === SHOW_6 ? { ...rest, size, bring: 3 } : { ...rest, size } };
+}
+
 /**
- * The saved-format version to challenge on for a preset: your copy if one with identical rules exists, otherwise
- * a new one saved now. Matched by rules hash, not name, so renaming or re-saving a copy never forks it.
+ * The saved-format version to challenge on for a cup or a one-off variant of your own format: your copy if one with
+ * identical rules exists, otherwise a new one saved now. Matched by rules hash, not name, so renaming or re-saving
+ * a copy never forks it.
  */
-export async function versionFor(p: PresetFormat, mine: readonly SavedFormat[]): Promise<string> {
+export async function versionFor(p: { name: string; format: Format }, mine: readonly SavedFormat[]): Promise<string> {
   const hash = await rulesHash(p.format);
   const have = mine.find((f) => f.rulesHash === hash);
   if (have) return have.versionId;

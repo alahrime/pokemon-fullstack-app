@@ -6,7 +6,8 @@ import { createChallenge, declineChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
 import { pickableFor } from '../lib/data';
-import { PRESET_FORMATS, versionFor, type PresetFormat } from '../lib/presetFormats';
+import { PRESET_FORMATS, versionFor, withTeamSize, type PresetFormat } from '../lib/presetFormats';
+import { LeagueSelect, type LeagueOption } from './LeagueSelect';
 import { resolvePool, rulesHash, validateTeam, type Format } from '../rules';
 import { describeViolation } from '../tournament/roster';
 import type { LeagueId } from '../lib/types';
@@ -44,6 +45,8 @@ export function ChallengeSheet({
   const [formats, setFormats] = useState<SavedFormat[] | null>(null);
   // A plain league is always there to start from, so the team can be built before anything else is decided.
   const [choiceKey, setChoiceKey] = useState(`preset:${defaultLeague ?? state.league}`);
+  // null: the format's own size. GBL is 3, Show 6 is six on the roster and three brought.
+  const [sizePick, setSizePick] = useState<3 | 6 | null>(null);
   const [presetHashes, setPresetHashes] = useState<ReadonlySet<string>>(new Set());
   const [slots, setSlots] = useState<Slots>([]);
   const [scheduled, setScheduled] = useState(false);
@@ -51,7 +54,7 @@ export function ChallengeSheet({
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const firstRef = useRef<HTMLSelectElement>(null);
+  const firstRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,12 +93,27 @@ export function ChallengeSheet({
 
   // Cups first; then your own formats, minus any that are just a copy of a cup.
   const own = (formats ?? []).filter((f) => !presetHashes.has(f.rulesHash));
-  const choice: { name: string; format: Format; saved?: SavedFormat; preset?: PresetFormat } | undefined = choiceKey.startsWith('preset:')
+  const picked: { name: string; format: Format; saved?: SavedFormat; preset?: PresetFormat } | undefined = choiceKey.startsWith('preset:')
     ? PRESET_FORMATS.filter((p) => `preset:${p.key}` === choiceKey).map((p) => ({ name: p.name, format: p.format, preset: p }))[0]
     : own.filter((f) => f.id === choiceKey).map((f) => ({ name: f.name, format: f.format, saved: f }))[0];
+  const ownSize = picked?.format.composition.size;
+  const wantSize = sizePick ?? (ownSize === 6 ? 6 : 3);
+  // Changing the size changes the rules, so it is a different format: saved under its own name on send.
+  const resized = !!picked && ownSize !== wantSize && (wantSize === 3 || wantSize === 6);
+  const choice = picked && resized
+    ? { name: `${picked.name} · ${wantSize === 6 ? 'Show 6' : 'GBL'}`, format: withTeamSize(picked.format, wantSize as 3 | 6) }
+    : picked;
   const format = choice?.format;
   const league: LeagueId = format?.base ?? state.league;
   const size = format?.composition.size;
+
+  const formatOptions: LeagueOption[] = [
+    ...PRESET_FORMATS.map((p) => ({
+      value: `preset:${p.key}`, label: p.name, league: p.base, types: p.cup.include?.types, palette: p.palette, group: 'Standard',
+      note: p.base === 'master' ? 'No cap' : `${p.base === 'great' ? 1500 : 2500} CP`,
+    })),
+    ...own.map((f) => ({ value: f.id, label: f.name, league: f.format.base, group: 'Your formats' })),
+  ];
 
   // A new slot count is a different team; a different format of the same size keeps what was built.
   useEffect(() => setSlots(size ? emptySlots(size) : []), [size]);
@@ -122,7 +140,7 @@ export function ChallengeSheet({
     setError(null);
     let created = false;
     try {
-      const formatVersionId = choice.saved?.versionId ?? (await versionFor(choice.preset!, formats ?? []));
+      const formatVersionId = (!resized && picked?.saved?.versionId) || (await versionFor(choice, formats ?? []));
       await createChallenge({
         targetId: target.id,
         league,
@@ -168,19 +186,26 @@ export function ChallengeSheet({
           <div className="challenge-sheet-col">
             <div className="field">
               <label htmlFor="challenge-format">Format</label>
-              <select id="challenge-format" ref={firstRef} className="input" value={choiceKey} onChange={(e) => setChoiceKey(e.target.value)}>
-                <optgroup label="Standard">
-                  {PRESET_FORMATS.map((p) => <option key={p.key} value={`preset:${p.key}`}>{p.name}</option>)}
-                </optgroup>
-                {own.length > 0 && (
-                  <optgroup label="Your formats">
-                    {own.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </optgroup>
-                )}
-              </select>
+              <LeagueSelect
+                id="challenge-format"
+                label="Format"
+                buttonRef={firstRef}
+                value={choiceKey}
+                options={formatOptions}
+                onChange={(k) => { setChoiceKey(k); setSizePick(null); }}
+              />
               <p className="text-muted ct-hint">
                 {restricted ? 'Only Pokémon this format allows can be brought.' : 'Any Pokémon within the league can be brought.'}
               </p>
+            </div>
+
+            <div className="field">
+              <span className="hud-label" id="challenge-size">Team size</span>
+              <div className="form-toggle" role="group" aria-labelledby="challenge-size">
+                <button type="button" className={`form-opt${wantSize === 3 ? ' is-active' : ''}`} aria-pressed={wantSize === 3} onClick={() => setSizePick(3)}>GBL · 3</button>
+                <button type="button" className={`form-opt${wantSize === 6 ? ' is-active' : ''}`} aria-pressed={wantSize === 6} onClick={() => setSizePick(6)}>Show 6 · 6</button>
+              </div>
+              {wantSize === 6 && <p className="text-muted ct-hint">Six on the roster; three are brought to each battle.</p>}
             </div>
 
             <div className="field">

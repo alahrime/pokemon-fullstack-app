@@ -35,6 +35,16 @@ describe('FormatBuilderScreen', () => {
     expect(Number(screen.getByTestId('pool-count').textContent)).toBe(0);
   });
 
+  it('lists the standard cups, and loading one fills the builder with its name and pool', () => {
+    renderScreen();
+    for (const n of ['Great League', 'Mega Great League', 'Retro Cup', 'Battle Frontier (Cauldron)']) {
+      expect(screen.getByRole('button', { name: `Load ${n}` })).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Load Retro Cup' }));
+    expect((screen.getByLabelText('Format name') as HTMLInputElement).value).toBe('Retro Cup');
+    expect(Number(screen.getByTestId('pool-count').textContent)).toBeGreaterThan(500);
+  });
+
   it('adding a deny clause shrinks the pool', () => {
     renderScreen();
     openAdvanced();

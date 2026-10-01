@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { TeamBuilderScreen } from '../TeamBuilderScreen';
@@ -101,14 +101,23 @@ describe('TeamBuilderScreen — analysis', () => {
     fireEvent.click(analyse);
     await waitFor(() => expect(container.querySelector('.team-report')).toBeTruthy(), { timeout: 60000 });
     expect(container.textContent).toMatch(/%/);
+    const best = [...container.querySelectorAll('.hud-label')].find((e) => /Best teams of/.test(e.textContent ?? ''))!;
+    expect(container.querySelector('.team-report')!.compareDocumentPosition(best) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }, 90000);
 
   it('suggests a completion for a partial team', async () => {
     const { container } = renderApp(<TeamBuilderScreen size={3} />);
     await pick(container, 'azumarill');
     await pick(container, 'registeel');
+    const reveal = vi.fn();
+    Element.prototype.scrollIntoView = reveal;
     fireEvent.click(screen.getByRole('button', { name: /Suggest next pick/i }));
     await waitFor(() => expect(container.querySelector('.suggest-cards')).toBeTruthy(), { timeout: 60000 });
+    // The result sits above the (very long) Best teams list and is scrolled to: below it, a click looked like
+    // it did nothing.
+    const best = [...container.querySelectorAll('.hud-label')].find((e) => /Best teams of/.test(e.textContent ?? ''))!;
+    expect(container.querySelector('.suggest-cards')!.compareDocumentPosition(best) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => expect(reveal).toHaveBeenCalled());
   }, 90000);
 
   it('suggests beside two Pokemon that already share a typing', async () => {

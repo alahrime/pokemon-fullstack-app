@@ -5,6 +5,9 @@ import { FormatSet } from '../components/FormatSet';
 import { PoolPreview } from '../components/PoolPreview';
 import { TypeFilterRow } from '../components/TypeFilterRow';
 import { LEAGUES } from '../lib/data';
+import { PRESET_FORMATS } from '../lib/presetFormats';
+import { LeagueEmblem } from '../components/LeagueEmblem';
+import { LeagueSelect, optionStyle } from '../components/LeagueSelect';
 import type { LeagueId } from '../lib/types';
 import { RULES_SCHEMA, lintFormat, type Format } from '../rules';
 import { useFormats, type FormatsApi } from '../state/useFormats';
@@ -110,16 +113,14 @@ export function FormatBuilderScreen() {
             placeholder="Air Ban"
           />
 
-          <label className="hud-label" htmlFor="format-league">League</label>
-          <select
+          <span className="hud-label" id="format-league-label">League</span>
+          <LeagueSelect
             id="format-league"
+            label="League"
             value={format.base}
-            onChange={(e) => setFormat({ ...format, base: e.target.value as LeagueId })}
-          >
-            {LEAGUES.map((l) => (
-              <option key={l.id} value={l.id}>{l.label}</option>
-            ))}
-          </select>
+            options={LEAGUES.map((l) => ({ value: l.id, label: l.label, league: l.id }))}
+            onChange={(v) => setFormat({ ...format, base: v as LeagueId })}
+          />
 
           <label className="hud-label" htmlFor="format-size">Team size</label>
           <input
@@ -178,6 +179,26 @@ export function FormatBuilderScreen() {
             <PoolPreview format={format} explain={explain.trim() || undefined} />
           </div>
         </div>
+
+        <section className="format-saved format-standard">
+          <p className="hud-label">Standard formats</p>
+          <p className="text-muted">The cups you can challenge on. Load one to read its rules or save your own copy to change.</p>
+          <ul>
+            {PRESET_FORMATS.map((p) => (
+              <li key={p.key}>
+                <button
+                  type="button"
+                  className="btn chip-btn fmt-standard"
+                  style={optionStyle({ league: p.base, types: p.cup.include?.types, palette: p.palette })}
+                  onClick={() => { setFormat(p.format); setName(p.name); setEditing(undefined); }}
+                >
+                  <LeagueEmblem league={p.base} size={22} />
+                  Load {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="format-saved">
           <p className="hud-label">Saved formats</p>

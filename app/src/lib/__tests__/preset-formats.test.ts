@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PRESET_FORMATS, type Cup } from '../presetFormats';
+import { PRESET_FORMATS, withTeamSize, type Cup } from '../presetFormats';
 import { everyRefFor, opponentCandidatesFor, parseRef, speciesOf } from '../data';
 import { lintFormat, resolvePool } from '../../rules';
 
@@ -68,5 +68,13 @@ describe('preset formats', () => {
     const cauldron = resolvePool(PRESET_FORMATS.find((p) => p.key === 'battlefrontier-cauldron')!.format).legal;
     expect(cauldron).not.toContain('forretress');
     expect(cauldron).toContain('forretress_shadow');
+  });
+
+  it('Show 6 is six on the roster and three brought; GBL is three, and either way the pool is untouched', () => {
+    const f = PRESET_FORMATS[0].format;
+    expect(withTeamSize(f, 6).composition).toMatchObject({ size: 6, bring: 3 });
+    expect(withTeamSize(withTeamSize(f, 6), 3).composition).toEqual({ size: 3 });
+    expect(withTeamSize(f, 6).pool).toBe(f.pool);
+    expect(withTeamSize(f, 6).base).toBe(f.base);
   });
 });

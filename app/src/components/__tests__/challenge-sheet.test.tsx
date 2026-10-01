@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ChallengeSheet } from '../ChallengeSheet';
 import { speciesOf } from '../../lib/data';
@@ -59,11 +59,18 @@ function open(onClose = vi.fn()) {
   renderApp(<ChallengeSheet target={target} onClose={onClose} />);
   return onClose;
 }
-/** The Format select starts on the plain league; pass a key only to move off it. */
+const formatBox = () => screen.findByRole('combobox', { name: 'Format' });
+const optionNames = async () => {
+  fireEvent.click(await formatBox());
+  return within(screen.getByRole('listbox', { name: 'Format' })).getAllByRole('option').map((o) => o.textContent?.replace(' ✓', '').replace(/(1500 CP|2500 CP|No cap)$/, '').trim());
+};
+async function pickFormat(name: string) {
+  fireEvent.click(await formatBox());
+  fireEvent.click(await screen.findByRole('option', { name: new RegExp(`^${name.replace(/[()]/g, '\\$&')}`) }));
+}
+/** The Format select starts on the plain league; pass a name only to move off it. */
 async function choose(teamName = 'Team t3', formatName?: string) {
-  if (formatName) {
-    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: (await screen.findByRole('option', { name: formatName })).getAttribute('value') } });
-  }
+  if (formatName) await pickFormat(formatName);
   fireEvent.change(await screen.findByLabelText('Saved team'), { target: { value: (await screen.findByRole('option', { name: teamName })).getAttribute('value') } });
 }
 const great = () => screen.findByRole('option', { name: 'Team t3' });
@@ -99,19 +106,31 @@ describe('ChallengeSheet', () => {
   });
   it('starts on the plain league, so a team can be built with no format chosen', async () => {
     open();
-    expect(((await screen.findByLabelText('Format')) as HTMLSelectElement).value).toBe('preset:great');
+    expect((await formatBox()).textContent).toMatch(/Great League/);
     expect(screen.queryByLabelText('League')).toBeNull();
     expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(3);
     await great();
     expect(listTeams).toHaveBeenCalledWith(3);
   });
 
-  it('lists the standard cups, then your own formats', async () => {
+  it('lists the standard cups in PvPoke order, then your own formats, each with its league emblem', async () => {
     open();
-    for (const n of ['Great League', 'Ultra League', 'Master League', 'Mega Great League', 'Mega Ultra League', 'Mega Master League', 'Mega Color Cup', 'Retro Cup', 'LAIC 2027 Championship Series Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']) {
-      expect(await screen.findByRole('option', { name: n })).toBeTruthy();
-    }
-    expect(await screen.findByRole('option', { name: 'Fmt g3' })).toBeTruthy();
+    const names = await optionNames();
+    expect(names.slice(0, 12)).toEqual(['Great League', 'Ultra League', 'Master League', 'Mega Great League', 'Mega Ultra League', 'Mega Master League', 'Mega Color Cup', 'Retro Cup', 'LAIC 2027 Championship Series Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']);
+    expect(names).toContain('Fmt g3');
+    for (const o of within(screen.getByRole('listbox', { name: 'Format' })).getAllByRole('option')) expect(o.querySelector('svg')).toBeTruthy();
+  });
+
+  it('colours a cup by the types it is made of, and a plain league by its ball', async () => {
+    open();
+    await formatBox().then((b) => fireEvent.click(b));
+    const style = (name: RegExp) => (within(screen.getByRole('listbox', { name: 'Format' })).getByRole('option', { name }) as HTMLElement).getAttribute('style') ?? '';
+    const cauldron = style(/Cauldron/);
+    for (const t of ['bug', 'dark', 'fairy', 'ghost', 'poison']) expect(cauldron).toContain(`--type-${t}`);
+    expect(style(/^Ultra League/)).toContain('--lg-ultra');
+    // Cauldron plays under Ultra's cap, so it wears Ultra's emblem.
+    const list = within(screen.getByRole('listbox', { name: 'Format' }));
+    expect(list.getByRole('option', { name: /Cauldron/ }).querySelector('svg')?.innerHTML).toBe(list.getByRole('option', { name: /^Ultra League/ }).querySelector('svg')?.innerHTML);
   });
 
   it('a format of your own that is only a copy of a cup is not listed twice', async () => {
@@ -119,14 +138,20 @@ describe('ChallengeSheet', () => {
     const { rulesHash } = await import('../../rules');
     formats = [{ ...fmt('copy', 'great', 3), name: 'Retro copy', rulesHash: await rulesHash(PRESET_FORMATS.find((p) => p.key === 'retro')!.format) }, fmt('g3', 'great', 3)];
     open();
-    await screen.findByRole('option', { name: 'Fmt g3' });
-    expect(screen.queryByRole('option', { name: 'Retro copy' })).toBeNull();
+    // The cups' hashes are computed asynchronously; until they are, a copy still shows.
+    await waitFor(async () => {
+      fireEvent.click(await formatBox());
+      const names = within(screen.getByRole('listbox', { name: 'Format' })).getAllByRole('option').map((o) => o.textContent ?? '');
+      fireEvent.click(await formatBox());
+      expect(names.some((n) => n.startsWith('Fmt g3'))).toBe(true);
+      expect(names.some((n) => n.startsWith('Retro copy'))).toBe(false);
+    });
   });
 
   it('follows the format to its league: Ultra League lists ultra teams only', async () => {
     open();
     await screen.findByRole('option', { name: 'Team t3' });
-    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: 'preset:ultra' } });
+    await pickFormat('Ultra League');
     expect(await screen.findByRole('option', { name: 'Team tu' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'Team t3' })).toBeNull();
   });
@@ -135,7 +160,7 @@ describe('ChallengeSheet', () => {
     formats = [fmt('g6', 'great', 6)];
     open();
     await screen.findByRole('option', { name: 'Team t3' });
-    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: 'g6' } });
+    await pickFormat('Fmt g6');
     expect(await screen.findByRole('option', { name: 'Team t6' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(6);
   });
@@ -254,7 +279,31 @@ describe('ChallengeSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
     await waitFor(() => expect(createChallenge).toHaveBeenCalled());
     expect(versionFor).toHaveBeenCalledTimes(1);
-    expect(versionFor.mock.calls[0][0].key).toBe('great');
+    expect(versionFor.mock.calls[0][0].name).toBe('Great League');
+  });
+
+  it('offers GBL (3) and Show 6 (6): six slots, three brought, saved as its own format on send', async () => {
+    open();
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(3);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show 6 · 6' }));
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(6);
+    expect(await screen.findByRole('option', { name: 'Team t6' })).toBeTruthy();
+    fireEvent.change(await screen.findByLabelText('Saved team'), { target: { value: 't6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
+    await waitFor(() => expect(createChallenge).toHaveBeenCalled());
+    const sent = createChallenge.mock.calls[0][0];
+    expect(sent.format.composition).toMatchObject({ size: 6, bring: 3 });
+    expect(sent.team).toHaveLength(6);
+    expect(versionFor.mock.calls[0][0].name).toBe('Great League · Show 6');
+  });
+
+  it('a six-Pokémon format of your own starts on Show 6 and can be sent as GBL', async () => {
+    formats = [fmt('g6', 'great', 6)];
+    open();
+    await pickFormat('Fmt g6');
+    expect(screen.getByRole('button', { name: 'Show 6 · 6' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'GBL · 3' }));
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(3);
   });
 
   it('your own format goes out on its own version, with no cup saved', async () => {
@@ -292,7 +341,7 @@ describe('ChallengeSheet', () => {
     it('is named a counter, starts at the original league, and sends a counter', async () => {
       counter();
       expect(await screen.findByRole('dialog', { name: 'Counter Ally' })).toBeTruthy();
-      expect(((await screen.findByLabelText('Format')) as HTMLSelectElement).value).toBe('preset:ultra');
+      expect((await formatBox()).textContent).toMatch(/Ultra League/);
       expect(screen.getByRole('button', { name: 'Send counter' })).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Send challenge' })).toBeNull();
     });

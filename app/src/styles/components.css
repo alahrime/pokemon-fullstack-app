@@ -6827,3 +6827,70 @@ th.bt-matrix-head { text-align: center; }
 .opponent-panel-open { display: grid; gap: var(--space-1); min-width: 0; }
 .opponent-panel-open ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .opponent-panel-open li { overflow-wrap: anywhere; }
+
+/* League dropdown (components/LeagueSelect): emblem + per-option colour. Each row sets --ls-rail / --ls-wash from
+   its own colours, so a Fairy-and-Poison cup runs pink into purple and a league keeps its ball's colours. */
+.ls { position: relative; }
+.ls-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  padding-left: calc(var(--space-3) + 3px);
+  background-image: var(--ls-wash);
+}
+.ls-btn::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background-image: var(--ls-rail); }
+.ls-btn:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-ring); outline: none; }
+.ls-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ls-note { color: var(--text-muted); font-size: var(--text-xs); letter-spacing: 0.05em; }
+.ls-caret { margin-left: auto; color: var(--text-muted); }
+.ls-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: min(22rem, 50vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.6);
+}
+.ls-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 46px;
+  padding: var(--space-1) var(--space-3) var(--space-1) calc(var(--space-3) + 3px);
+  cursor: pointer;
+  background-image: var(--ls-wash);
+  transition: background-image var(--dur-1) var(--ease-out);
+}
+.ls-opt + .ls-opt { margin-top: 2px; }
+.ls-opt::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background-image: var(--ls-rail); }
+.ls-opt.is-active { background-image: var(--ls-wash-hot); }
+.ls-opt.is-selected .ls-name::after { content: ' ✓'; color: var(--color-accent); }
+.ls-opt.starts-group { margin-top: 18px; }
+.ls-opt.starts-group::after {
+  content: attr(data-group);
+  position: absolute;
+  left: 0;
+  top: -16px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ls-opt.starts-group:first-child { margin-top: 18px; }
+.fmt-standard { gap: var(--space-2); background-image: var(--ls-wash); }
+.fmt-standard:hover:not(:disabled) { background-image: var(--ls-wash-hot); }
+.format-standard ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }

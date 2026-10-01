@@ -509,9 +509,20 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       );
       setElapsed(performance.now() - t0);
       setBusy(false);
+      setReveal('report');
     }, 0);
   };
   const [elapsed, setElapsed] = useState(0);
+  // Bring a fresh result into view. Both panels sit below the buttons that ask for them, under whatever the other
+  // one is showing, and a result that arrives off screen reads as a click that did nothing.
+  const reportRef = useRef<HTMLDivElement>(null);
+  const picksRef = useRef<HTMLDivElement>(null);
+  const [reveal, setReveal] = useState<'report' | 'picks' | null>(null);
+  useEffect(() => {
+    if (!reveal) return;
+    (reveal === 'report' ? reportRef : picksRef).current?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+    setReveal(null);
+  }, [reveal]);
 
   const suggest = () => {
     setBusy(true);
@@ -525,6 +536,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       // otherwise gets scored on moves it is not carrying.
       setPicks(suggestCompletions(team, league, size, { builds }));
       setBusy(false);
+      setReveal('picks');
     }, 0);
   };
   // Cheap — a filter over the top 100, no simulation — so it is recomputed for
@@ -696,10 +708,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         </div>
       </div>
 
-      <BestTeams league={league} size={size} onLoad={load} />
-
       {picks && (
-        <div className="panel">
+        <div className="panel" ref={picksRef}>
           <div className="hud-label">Best completions</div>
           <p className="text-muted">
             Every candidate tried in the open slot and the whole roster re-simulated. With carryover
@@ -770,7 +780,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       )}
 
       {(report || weak) && (
-        <div className="team-report">
+        <div className="team-report" ref={reportRef}>
           {!report && (
             <div className="panel text-muted">
               A roster of {team.length} cannot field a line, so there is no chain result and no
@@ -884,6 +894,11 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           {size === 6 && ' Six is scored as a matrix game: both players choose their three after seeing the other six.'}
         </div>
       )}
+      {/* After the results, not before: this list runs to thousands of pixels, and with it above them an
+          analysis or a suggestion landed 15,000px below the button that asked for it — clicked, and nothing
+          visibly happened. */}
+      <BestTeams league={league} size={size} onLoad={load} />
+
       {adding && (
         <AddPokemonModal
           league={league}

@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
 import {
-  challengeView, declineChallenge, fetchChallenges, withdrawChallenge, type Challenge,
+  challengeView, declineChallenge, fetchChallenges, subscribeToOffer, withdrawChallenge, type Challenge,
 } from '../lib/challenges';
 import { acceptOffer, confirmOffer } from '../lib/matchmaking';
 import { myMatches } from '../lib/matches';
 import { listTeams, type SavedTeam } from '../lib/saves';
 import { LEAGUE_BY_ID } from '../lib/data';
 
-const POLL_MS = 10_000;
+// Realtime does the work; this poll only covers a dropped socket (and clock-derived expiry is computed on render).
+const POLL_MS = 60_000;
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
@@ -35,15 +36,16 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
     }
   }, [offerId]);
 
-  // Poll only while the challenge can still change.
+  // Refetch the instant the offer row changes; poll slowly as a fallback. Both stop once the challenge is over.
   const view = user && challenge !== undefined ? challengeView(challenge, user.id, new Date()) : null;
   const terminal = view?.tone === 'dead' || view?.tone === 'done';
   useEffect(() => {
     void load();
     if (terminal) return;
+    const stop = subscribeToOffer(offerId, () => void load());
     const id = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(id);
-  }, [load, terminal]);
+    return () => { stop(); clearInterval(id); };
+  }, [load, terminal, offerId]);
 
   // Teams the accepter can bring: same size as the proposer's, same league.
   const wantsTeam = !!challenge && !!user && challenge.targetId === user.id && challenge.state === 'open';

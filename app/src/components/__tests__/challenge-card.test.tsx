@@ -10,12 +10,16 @@ const confirmOffer = vi.fn();
 const myMatches = vi.fn();
 const listTeams = vi.fn();
 const patch = vi.fn();
+const stop = vi.fn();
+let fire: () => void = () => {};
+const subscribeToOffer = vi.fn((_id: string, onChange: () => void) => { fire = onChange; return stop; });
 
 vi.mock('../../lib/challenges', async (orig) => ({
   ...(await orig<typeof import('../../lib/challenges')>()),
   fetchChallenges: (...a: unknown[]) => fetchChallenges(...a),
   declineChallenge: (...a: unknown[]) => declineChallenge(...a),
   withdrawChallenge: (...a: unknown[]) => withdrawChallenge(...a),
+  subscribeToOffer: (id: string, cb: () => void) => subscribeToOffer(id, cb),
 }));
 vi.mock('../../lib/matchmaking', () => ({
   acceptOffer: (...a: unknown[]) => acceptOffer(...a),
@@ -72,8 +76,8 @@ describe('ChallengeCard', () => {
     const sel = screen.getByLabelText('Team to bring') as HTMLSelectElement;
     fireEvent.change(sel, { target: { value: 't2' } });
     expect(listTeams).toHaveBeenCalledTimes(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(listTeams).toHaveBeenCalledTimes(1);
     expect((screen.getByLabelText('Team to bring') as HTMLSelectElement).value).toBe('t2');
   });
@@ -132,14 +136,44 @@ describe('ChallengeCard', () => {
     expect(fetchChallenges.mock.calls.length).toBe(n);
   });
 
-  it('polls every 10s while live', async () => {
+  it('still polls every 60s while live, as a fallback for a dropped socket', async () => {
     vi.useFakeTimers();
     serve({});
     render(<ChallengeCard offerId="o" />);
     await flush();
     const n = fetchChallenges.mock.calls.length;
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetchChallenges.mock.calls.length).toBe(n); // no longer every 10s
+    await act(async () => { await vi.advanceTimersByTimeAsync(50_000); });
     expect(fetchChallenges.mock.calls.length).toBeGreaterThan(n);
+  });
+
+  it('refetches the moment its offer row changes, and shows the new state', async () => {
+    serve({});
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Waiting for you')).toBeTruthy();
+    expect(subscribeToOffer).toHaveBeenCalledWith('o', expect.any(Function));
+    const n = fetchChallenges.mock.calls.length;
+    serve({ state: 'lapsed' });
+    await act(async () => { fire(); });
+    await waitFor(() => expect(fetchChallenges.mock.calls.length).toBeGreaterThan(n));
+    await waitFor(() => expect(screen.queryByText('Waiting for you')).toBeNull());
+  });
+
+  it('stops listening when it unmounts, and does not listen to a challenge that is over', async () => {
+    serve({});
+    const live = render(<ChallengeCard offerId="o" />);
+    await screen.findByText('Waiting for you');
+    live.unmount();
+    expect(stop).toHaveBeenCalled();
+    subscribeToOffer.mockClear();
+    stop.mockClear();
+    serve({ state: 'lapsed' });
+    render(<ChallengeCard offerId="o" />);
+    await screen.findByText(/expired|declined|lapsed|ended/i).catch(() => null);
+    await flush();
+    // A dead challenge may subscribe once before its first load lands; whatever it opened must be closed again.
+    expect(stop.mock.calls.length).toBe(subscribeToOffer.mock.calls.length);
   });
 
   it('decline calls declineChallenge and re-fetches', async () => {

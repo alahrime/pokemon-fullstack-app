@@ -58,8 +58,8 @@ describe('RecordsScreen', () => {
     show();
     const ash = await screen.findByRole('button', { name: 'Ash' });
     expect(screen.getAllByText('Pokémon')).toHaveLength(2);
-    expect(screen.getAllByText('Medicham').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Azumarill').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Medicham')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Azumarill')).length).toBeGreaterThan(0);
     fireEvent.click(ash);
     expect(window.location.hash).toMatch(/^#\/play\/players\//);
   });

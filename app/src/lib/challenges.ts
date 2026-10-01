@@ -163,3 +163,24 @@ export async function myChallenges(): Promise<Challenge[]> {
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => toChallenge(r as unknown as Row));
 }
+
+/**
+ * Calls `onChange` whenever the offer row `offerId` is updated or deleted, so a card can refetch at once.
+ * The payload is ignored on purpose: the card needs the joined view, and a refetch goes through RLS.
+ * `id=eq.` is a primary-key filter, which Realtime supports for deletes as well as updates.
+ *
+ * The teardown is idempotent and each call opens a uniquely named channel, for the same StrictMode reasons
+ * as `subscribeToChannel` in channels.ts.
+ */
+export function subscribeToOffer(offerId: string, onChange: () => void): () => void {
+  const sub = supabase
+    .channel(`offer:${offerId}:${crypto.randomUUID()}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'match_offers', filter: `id=eq.${offerId}` }, () => onChange())
+    .subscribe();
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    supabase.removeChannel(sub);
+  };
+}

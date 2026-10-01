@@ -49,16 +49,16 @@ describe('PlayerScreen', () => {
     expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Misty');
     expect(await screen.findByText(/Tournament games · 1–1/)).toBeTruthy();
     expect(screen.getAllByText('Cerulean Cup')).toHaveLength(2);
-    expect(screen.getAllByText('Azumarill').length).toBeGreaterThan(0);
-    expect(screen.getByText('Registeel')).toBeTruthy();
+    expect((await screen.findAllByText('Azumarill')).length).toBeGreaterThan(0); // species data loads lazily
+    expect(await screen.findByText('Registeel')).toBeTruthy();
     expect(screen.getByText('Brock: not shown.')).toBeTruthy();
   });
 
   it("lists only your own matches against this player, with both teams", async () => {
     show();
     expect(await screen.findByText(/Your matches against Misty · 1–0/)).toBeTruthy();
-    expect(screen.getByText('Medicham')).toBeTruthy();
-    expect(screen.getByText('Stunfisk (Galarian)')).toBeTruthy();
+    expect(await screen.findByText('Medicham')).toBeTruthy();
+    expect(await screen.findByText('Stunfisk (Galarian)')).toBeTruthy();
     expect(screen.queryByText('Other')).toBeNull();
   });
 

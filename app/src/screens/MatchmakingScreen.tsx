@@ -5,7 +5,7 @@ import { SpeciesSearch } from '../components/SpeciesSearch';
 import type { AddPokemonChoice } from '../components/AddPokemonModal';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
-import { Sprite } from '../components/Sprite';
+import { MonTile } from '../components/MonTile';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 import { decodeMember, encodeMember, type StoredMember } from '../lib/teamCodec';
@@ -165,8 +165,11 @@ function OfferRoster({ members }: { members: StoredMember[] }) {
             data-unknown-move={unknownMove ?? undefined}
             title={title}
           >
-            {species && <Sprite sprite={species.sprite} dex={species.dex} size={22} shadow={shadow} />}
-            <span className="offer-roster-name">{name}</span>
+            {species ? (
+              <MonTile refId={m.ref} label={name} shadow={shadow} size={56} nameClass="offer-roster-name" />
+            ) : (
+              <span className="offer-roster-name">{name}</span>
+            )}
           </li>
         );
       })}

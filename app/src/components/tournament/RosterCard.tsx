@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { displayName, parseRef, speciesOf } from '../../lib/data';
 import type { TeamMember } from '../../tournament/roster';
-import { Sprite } from '../Sprite';
+import { MonTile } from '../MonTile';
 import { TypeBadge } from '../TypeBadge';
 
 /** One Pokémon of a roster. `hidden` (a viewer covering their own team) shows nothing about it. */
@@ -18,9 +18,8 @@ export function RosterCard({ member, hidden = false, onRemove }: { member: TeamM
   ];
   return (
     <div className="roster-card">
-      {s && <Sprite sprite={s.sprite} dex={s.dex} size={48} shadow={shadow} bestBuddy={member.bestBuddy} />}
+      {s && <MonTile refId={member.ref} label={name} shadow={shadow} bestBuddy={member.bestBuddy} size={76} />}
       <div className="roster-card-body">
-        <div className="roster-card-name">{name}</div>
         <div className="roster-card-badges">
           {shadow && <span className="roster-badge">Shadow</span>}
           {member.bestBuddy && <span className="roster-badge">Best Buddy</span>}

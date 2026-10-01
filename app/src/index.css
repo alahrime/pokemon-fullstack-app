@@ -43,6 +43,7 @@
 @import './styles/hud.css' layer(components);
 @import './styles/types.css' layer(components);
 @import './styles/leagues.css' layer(components);
+@import './styles/futuristic.css' layer(components);
 
 /* Tailwind's spacing scale is already ours: both are a 4px base, so `p-4`
    and `var(--space-4)` are both 16px with nothing to configure. Overriding

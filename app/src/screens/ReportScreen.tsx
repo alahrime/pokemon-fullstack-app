@@ -382,7 +382,7 @@ export function ReportScreen() {
               edge so it lines up with the board beneath it. Leading the row
               made a 620px field the first thing in the column, which read as a
               second header rather than a control inside one. */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="hud-label text-(--text-faint) whitespace-nowrap">
               {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
             </span>

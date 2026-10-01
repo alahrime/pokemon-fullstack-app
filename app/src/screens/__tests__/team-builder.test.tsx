@@ -23,7 +23,8 @@ async function pick(container: HTMLElement, typed: string) {
     );
     if (!hit) throw new Error(`no search result for "${typed}"`);
     return hit;
-  });
+    // Generous: the live matchup matrix recomputes in jsdom between picks, and a pick waits behind it.
+  }, { timeout: 10000 });
   fireEvent.mouseDown(row);
 }
 
@@ -155,11 +156,11 @@ describe('TeamBuilderScreen — Show 6', () => {
     // the list has to run far enough down it to show where the answers stop.
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.length).toBeLessThanOrEqual(20);
-    const shares = rows.map((r) => {
-      const [lost, of] = r.querySelector('.weak-share-text')!.textContent!.split('/').map(Number);
-      return lost / of;
-    });
-    expect([...shares].sort((a, b) => b - a)).toEqual(shares);
+    // Ranked by the matrix's own pressure, so the list and the matrix above it name the same worst opponent first.
+    await waitFor(() => expect(container.querySelector('.mx-table:not(.mx-alts) tbody tr .mx-name')).toBeTruthy(), { timeout: 20000 });
+    expect(rows[0].querySelector('.weak-name')!.textContent).toBe(
+      container.querySelector('.mx-table:not(.mx-alts) tbody tr .mx-name')!.textContent,
+    );
     // Every row says how many members lose, out of the whole six.
     expect(rows[0].querySelector('.weak-share-text')!.textContent).toMatch(/^[1-6]\/6$/);
     // A row nothing answers is marked, not merely sorted first.
@@ -204,17 +205,16 @@ describe('TeamBuilderScreen — Show 6', () => {
     expect(container.querySelectorAll('.suggest-cards .pc').length).toBeGreaterThan(0);
   }, 180000);
 
-  it('labels a six by its guaranteed floor, not as a win rate', async () => {
+  it('labels a suggestion by the threat score it would leave, not a win rate or a floor', async () => {
     const { container } = renderApp(<TeamBuilderScreen size={6} />);
     await fill(container, ['azumarill', 'registeel', 'medicham']);
     fireEvent.click(screen.getByRole('button', { name: /Suggest next pick/i }));
     await waitFor(() => expect(container.querySelector('.suggest-cards')).toBeTruthy(), { timeout: 120000 });
     const labels = [...container.querySelectorAll('.suggest-cards .pc-metric-label')];
     expect(labels.length).toBeGreaterThan(0);
-    expect(labels.every((l) => l.textContent?.trim() === 'floor')).toBe(true);
-    // A floor is a margin. Rendered with a % it reads as a hopeless team.
+    expect(labels.every((l) => l.textContent?.trim() === 'threat score')).toBe(true);
     const values = [...container.querySelectorAll('.suggest-cards .pc-metric-value')];
-    expect(values.every((v) => !v.textContent?.includes('%'))).toBe(true);
+    expect(values.every((v) => /^\d+$/.test(v.textContent?.trim() ?? ''))).toBe(true);
   }, 180000);
 
   it('takes a suggested sixth member onto the roster', async () => {

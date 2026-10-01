@@ -1,7 +1,7 @@
 import { conflictsOnTeam } from './data';
 import { teamPool } from './rankings';
 import { teamBattle } from './team';
-import { monFor, type MonBuild } from './teambuild';
+import { monFor, type MonBuild } from './monFor';
 import type { BattleMon, LeagueId } from './types';
 
 /**
@@ -35,7 +35,7 @@ export function duel(mine: BattleMon, foe: BattleMon): Ratings {
 
 const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 /** Shield counts won, out of three. A matchup is "answered" where it is won at two or more. */
-const wins = (r: Ratings) => r.filter((x) => x > 500).length;
+export const wins = (r: Ratings) => r.filter((x) => x > 500).length;
 
 export interface MatrixRow {
   ref: string;
@@ -47,7 +47,17 @@ export interface MatrixRow {
   beats: string[];
   /** 0..1: how hard this opponent presses the roster, weighted by how likely it is to be met. */
   pressure: number;
+  /** How likely the opponent is to be met, 0..1 — the weight `pressure` carries. */
+  weight: number;
 }
+
+const pressureOf = (memberMeans: readonly number[]) => {
+  const all = mean(memberMeans);
+  const best = memberMeans.length ? Math.max(...memberMeans) : 0;
+  // Half how badly the whole roster fares, half how thin the best answer is: an opponent nothing answers
+  // outranks one the roster merely loses to on average.
+  return 0.5 * (1 - all / 1000) + 0.5 * (1 - best / 1000);
+};
 
 /** Likelier opponents (nearer the top of the league's pool) count for more. */
 const likelihood = (idx: number) => 1 / (1 + idx / 40);
@@ -56,16 +66,14 @@ function rowFor(team: string[], foeRef: string, lg: LeagueId, builds: Record<str
   const foe = monFor(foeRef, lg);
   const cells = team.map((m) => duel(monFor(m, lg, builds?.[m]), foe));
   const means = cells.map(mean);
-  const best = means.length ? Math.max(...means) : 0;
-  const m = mean(means);
+  const weight = likelihood(idx);
   return {
     ref: foeRef,
     cells,
-    mean: m,
+    mean: mean(means),
     beats: team.filter((_, i) => wins(cells[i]) < 2),
-    // Half how badly the whole roster fares, half how thin the best answer is: an opponent nothing answers
-    // outranks one the roster merely loses to on average.
-    pressure: (0.5 * (1 - m / 1000) + 0.5 * (1 - best / 1000)) * likelihood(idx),
+    pressure: pressureOf(means) * weight,
+    weight,
   };
 }
 
@@ -117,5 +125,42 @@ export function alternativesFor(team: string[], threats: readonly MatrixRow[], l
     .filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r)))
     .map((r) => altRowFor(r, threats, lg))
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+export interface Completion {
+  ref: string;
+  /** The roster's threat score with this Pokémon added. */
+  after: number;
+  /** Threat score points it removes (negative if it makes things worse). */
+  gain: number;
+}
+
+/**
+ * Who to add. Each candidate is fought against the opponents that press the roster now, and the roster is scored
+ * again with it in the line: an opponent is only a problem to the extent nobody on the roster, new member included,
+ * answers it. Lowest resulting threat score first.
+ */
+export function completionsFor(
+  team: string[], candidates: readonly string[], lg: LeagueId, builds?: Record<string, MonBuild>, limit = 12,
+): Completion[] {
+  const threats = topThreats(team, lg, builds);
+  if (threats.length === 0) return [];
+  const before = threatScore(threats);
+  return candidates
+    .filter((c) => !team.includes(c))
+    .map((cand) => {
+      const me = monFor(cand, lg);
+      const total = threats.reduce((sum, t) => {
+        // A threat that is the candidate itself or its relative is no matchup for it; the roster's own answer stands.
+        const means = conflictsOnTeam(cand, t.ref) || cand === t.ref
+          ? t.cells.map(mean)
+          : [...t.cells, duel(me, monFor(t.ref, lg))].map(mean);
+        return sum + pressureOf(means) * t.weight;
+      }, 0);
+      const after = Math.round(total * 100);
+      return { ref: cand, after, gain: before - after };
+    })
+    .sort((a, b) => a.after - b.after)
     .slice(0, limit);
 }

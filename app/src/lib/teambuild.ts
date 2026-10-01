@@ -1,9 +1,10 @@
-import { defaultSpreadFor, getEntry, mkBattleMon, selectedCharges } from './engine';
-import { conflictsOnTeam, movesFor, speciesOf } from './data';
+import { monFor, type MonBuild } from './monFor';
+import { completionsFor, duel, topThreats, wins as shieldWins, type MatrixRow } from './matchupMatrix';
+import { conflictsOnTeam, speciesOf } from './data';
 import { resistancesOf, sharedTypePairs, weaknessesOf } from './synergy';
 import { teamBattle, carryoverEdge } from './team';
 import { teamPool } from './rankings';
-import type { BattleMon, IV, LeagueId } from './types';
+import type { BattleMon, LeagueId } from './types';
 
 /**
  * Team analysis, run live rather than read from a table.
@@ -15,42 +16,7 @@ import type { BattleMon, IV, LeagueId } from './types';
  * teams is tens of milliseconds — comfortably inside a render.
  */
 
-const monCache = new Map<string, BattleMon>();
-
-/**
- * A build chosen by hand, rather than the league's rated set at the rank-1 roll.
- *
- * §1d records that the rated set is often not the played set, and a team of
- * three is where that matters most — so the team builder lets a slot carry its
- * own moves and IVs. Absent, everything behaves exactly as before.
- */
-export interface MonBuild {
-  fastIdx: number;
-  /** Empty means the league's rated charged moves. */
-  chargeIds: string[];
-  iv: IV;
-}
-
-export function monFor(ref: string, lg: LeagueId, build?: MonBuild): BattleMon {
-  const sp = speciesOf(ref)!;
-  // A custom build must not collide with the cached rated one, so the key
-  // carries it. Rated lookups keep the short key and stay a cache hit.
-  const key = build
-    ? `${ref}|${lg}|${build.fastIdx}|${build.chargeIds.join(',')}|${build.iv.a}.${build.iv.d}.${build.iv.s}`
-    : `${ref}|${lg}`;
-  const hit = monCache.get(key);
-  if (hit) return hit;
-  const rated = movesFor(sp, lg);
-  const fast = build ? (sp.fastMoves[Math.min(build.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast) : rated.fast;
-  const charges = build && build.chargeIds.length ? selectedCharges(sp, build.chargeIds) : rated.charges;
-  // The same roll the slot's card displays. These two disagreeing is the one
-  // thing this must not do: the card would describe a build the analysis behind
-  // it never fielded.
-  const entry = build ? getEntry(ref, build.iv, lg).entry : defaultSpreadFor(ref, lg, true);
-  const mon = mkBattleMon(entry, fast, charges, sp.types);
-  monCache.set(key, mon);
-  return mon;
-}
+export { monFor, type MonBuild } from './monFor';
 
 /**
  * Opponent teams to measure against.
@@ -130,41 +96,6 @@ export interface TeamReport {
 }
 
 /**
- * Who on the roster beats a given opponent, one-on-one.
- *
- * A single matchup rather than a chain: the question is whether this member is
- * an answer to that Pokemon at all, and a chain result would fold in whatever
- * the two before it left behind. Cheap enough to run for every threat against
- * every member — twenty threats and six members is 120 battles, against the
- * sixteen thousand the six's matrix game already costs.
- */
-function answerBreakdown(
-  team: string[],
-  threatRef: string,
-  lg: LeagueId,
-  builds?: Record<string, MonBuild>,
-): { answered: string[]; lost: string[] } {
-  const foe = monFor(threatRef, lg);
-  const answered: string[] = [];
-  const lost: string[] = [];
-  for (const ref of team) {
-    const r = teamBattle([monFor(ref, lg, builds?.[ref])], [foe]);
-    (r.win ? answered : lost).push(ref);
-  }
-  return { answered, lost };
-}
-
-/** Attach the "who answers this" breakdown to a list of scored threats. */
-function withAnswers(
-  rows: { ref: string; lossRate: number; meanHpCost: number }[],
-  team: string[],
-  lg: LeagueId,
-  builds?: Record<string, MonBuild>,
-): FieldThreat[] {
-  return rows.map((t) => ({ ...t, ...answerBreakdown(team, t.ref, lg, builds) }));
-}
-
-/**
  * Score a team against a sampled field, with carryover.
  *
  * `threats` is computed per opposing *Pokemon* rather than per opposing team,
@@ -184,20 +115,12 @@ export function analyseTeam(
   let wins = 0;
   let hp = 0;
   let carry = 0;
-  const threat = new Map<string, { losses: number; seen: number; hpCost: number }>();
 
   for (const foes of field) {
     const theirs = foes.map((r) => monFor(r, lg));
     const r = teamBattle(mine, theirs);
     if (r.win) wins++;
     hp += r.hpFracA;
-    for (const ref of foes) {
-      const t = threat.get(ref) ?? { losses: 0, seen: 0, hpCost: 0 };
-      t.seen++;
-      if (!r.win) t.losses++;
-      t.hpCost += 1 - r.hpFracA;
-      threat.set(ref, t);
-    }
   }
 
   // Carryover is measured on a smaller slice: it needs two simulations per
@@ -212,16 +135,19 @@ export function analyseTeam(
   }
   carry = slice.length ? (chainedWins - isolatedWins) / slice.length : 0;
 
-  const threats = withAnswers(
-    [...threat.entries()]
-      .filter(([, t]) => t.seen >= 3)
-      .map(([ref, t]) => ({ ref, lossRate: t.losses / t.seen, meanHpCost: t.hpCost / t.seen }))
-      .sort((a, b) => b.lossRate - a.lossRate || b.meanHpCost - a.meanHpCost)
-      .slice(0, 12),
-    team,
-    lg,
-    opts.builds,
-  );
+  // The same opponents the matrix names, ranked by the same pressure across 0, 1 and 2 shields, so this list and
+  // the matrix beside it cannot disagree about what the problem is.
+  const threats: FieldThreat[] = topThreats(team, lg, opts.builds, 12).map((t) => {
+    const flat = t.cells.flat();
+    const losses = flat.filter((r) => r < 500);
+    return {
+      ref: t.ref,
+      lossRate: losses.length / flat.length,
+      meanHpCost: losses.length ? losses.reduce((x, r) => x + (500 - r) / 500, 0) / losses.length : 0,
+      answered: team.filter((r) => !t.beats.includes(r)),
+      lost: t.beats,
+    };
+  });
 
   return {
     winRate: wins / field.length,
@@ -251,7 +177,7 @@ export interface Suggestion {
    * size, because a floor rendered as a win rate reads as a catastrophic team
    * rather than as the wrong unit.
    */
-  metric: 'winRate' | 'floor';
+  metric: 'threat';
   /** Types this pick resists that the existing members are weak to. */
   covers: string[];
   /**
@@ -367,107 +293,20 @@ export function suggestCompletions(
 ): Suggestion[] {
   const limit = opts.limit ?? 12;
   const { pool } = completionPool(partial, lg, targetSize);
-  // A roster of fewer than three cannot field a line, so there is no matrix
-  // game to play yet and the chain is the only thing left to measure.
-  const asSix = targetSize === 6 && partial.length >= 2;
-  const score = asSix
-    ? sixScorer(lg, opts.count ?? 8, opts.builds)
-    : chainScorer(lg, opts.count ?? 90, opts.builds);
-
-  const scored = pool.map((ref) => ({ ref, value: score([...partial, ref]) }));
-  const sorted = scored.map((s) => s.value).sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
   // What the pick actually shores up, so the list says why rather than only
   // how much. A weakness the existing team already answers is not a reason.
   const open = new Set(
     partial.flatMap((p) => weaknessesOf(speciesOf(p)?.types ?? []))
       .filter((w) => !partial.some((p) => resistancesOf(speciesOf(p)?.types ?? []).includes(w))),
   );
-  const out: Suggestion[] = scored.map((s) => ({
-    ...s,
-    metric: asSix ? 'floor' : 'winRate',
-    gain: s.value - median,
-    covers: resistancesOf(speciesOf(s.ref)?.types ?? []).filter((r) => open.has(r)),
+  // Scored on the matrix's own measure: the roster's threat score with the pick in the line, lowest first.
+  return completionsFor(partial, pool, lg, opts.builds, limit).map((c) => ({
+    ref: c.ref,
+    value: c.after,
+    metric: 'threat' as const,
+    gain: c.gain,
+    covers: resistancesOf(speciesOf(c.ref)?.types ?? []).filter((r) => open.has(r)),
   }));
-  out.sort((a, b) => b.value - a.value);
-  return out.slice(0, limit);
-}
-
-/**
- * Share of a sampled field of threes that this roster, played as a chain, beats.
- *
- * Threes whatever the target size, because three is what enters. Sampling
- * *sixes* for the six's one-member fallback scored every candidate at exactly
- * zero — a two-Pokemon chain never beats six — which is a column of noughts
- * rather than a ranking.
- */
-function chainScorer(
-  lg: LeagueId,
-  count: number,
-  builds?: Record<string, MonBuild>,
-): (roster: string[]) => number {
-  const field = sampleFieldTeams(lg, 3, count);
-  return (roster) => {
-    const mine = roster.map((r) => monFor(r, lg, builds?.[r]));
-    let wins = 0;
-    for (const foes of field) if (teamBattle(mine, foes.map((r) => monFor(r, lg))).win) wins++;
-    return wins / field.length;
-  };
-}
-
-/**
- * Mean guaranteed value of a Show 6 roster, re-picking against each opponent.
- *
- * Affordable only because a line's floors depend on the line and the field, not
- * on which roster contains it: the lines the existing members already form are
- * simulated once and reused by every candidate, so a pool of 30 costs 310
- * distinct lines rather than 30 x 20.
- *
- * Measured 165ms at two members to 1.9s at five in Ultra, where nothing is
- * filtered out and 95 candidates each contribute ten new lines. That is the
- * same order as the Analyse button beside it, which is the bar: both are a
- * click that says "Simulating…".
- */
-function sixScorer(
-  lg: LeagueId,
-  count: number,
-  builds?: Record<string, MonBuild>,
-): (roster: string[]) => number {
-  const field = sampleFieldTeams(lg, 6, count);
-  // The opponent's twenty answers per six, built once. Their side runs its
-  // rated loadout, for the reason the rankings sweep only your own: letting
-  // sets nobody plays vote makes the number describe a game nobody is playing.
-  const answers = field.map((six) => subteams(six, 3).map((a) => a.map((r) => monFor(r, lg))));
-  const cache = new Map<string, Float64Array>();
-  const floorsFor = (line: string[]) => {
-    const key = [...line].sort().join('|');
-    const hit = cache.get(key);
-    if (hit) return hit;
-    const mine = line.map((r) => monFor(r, lg, builds?.[r]));
-    const floors = new Float64Array(field.length);
-    for (let i = 0; i < answers.length; i++) {
-      let worst = Infinity;
-      for (const answer of answers[i]) {
-        const r = teamBattle(mine, answer);
-        const v = r.hpFracA - r.hpFracB;
-        if (v < worst) worst = v;
-      }
-      floors[i] = worst;
-    }
-    cache.set(key, floors);
-    return floors;
-  };
-
-  return (roster) => {
-    const lines = subteams(roster, 3).map(floorsFor);
-    let total = 0;
-    for (let i = 0; i < field.length; i++) {
-      let best = -Infinity;
-      for (const floors of lines) if (floors[i] > best) best = floors[i];
-      total += best;
-    }
-    return field.length ? total / field.length : 0;
-  };
 }
 
 /**
@@ -645,27 +484,19 @@ export function weaknessesAgainst(
   lg: LeagueId,
   opts: { limit?: number; builds?: Record<string, MonBuild> } = {},
 ): Weakness[] {
-  if (team.length === 0) return [];
-  const limit = opts.limit ?? 20;
-  const mine = team.map((r) => ({ ref: r, mon: monFor(r, lg, opts.builds?.[r]) }));
-  const rows: Weakness[] = [];
-  for (const foeRef of teamPool(lg)) {
-    if (team.some((r) => r === foeRef || conflictsOnTeam(r, foeRef))) continue;
-    const foe = monFor(foeRef, lg);
-    const answered: string[] = [];
-    const lost: string[] = [];
-    let bestMargin = -Infinity;
-    for (const m of mine) {
-      const v = answersAt(m.mon, foe);
-      if (v.margin > bestMargin) bestMargin = v.margin;
-      (v.answers ? answered : lost).push(m.ref);
-    }
-    rows.push({ ref: foeRef, beatShare: lost.length / mine.length, bestMargin, answered, lost });
-  }
-  return rows
-    .filter((w) => w.lost.length > 0)
-    .sort((a, b) => b.beatShare - a.beatShare || a.bestMargin - b.bestMargin)
-    .slice(0, limit);
+  return topThreats(team, lg, opts.builds, opts.limit ?? 20).map((t) => weaknessOf(t, team));
+}
+
+/** A matrix row in this module's terms: the same opponent, ranked by the same pressure. */
+function weaknessOf(t: MatrixRow, team: string[]): Weakness {
+  const means = t.cells.map((c) => c.reduce((x, y) => x + y, 0) / 3);
+  return {
+    ref: t.ref,
+    beatShare: t.beats.length / team.length,
+    bestMargin: (Math.max(...means) - 500) / 500,
+    answered: team.filter((r) => !t.beats.includes(r)),
+    lost: t.beats,
+  };
 }
 
 /**
@@ -683,14 +514,8 @@ export function weaknessesAgainst(
  * list that says everything is on fire.
  */
 function answersAt(mine: BattleMon, foe: BattleMon): { answers: boolean; margin: number } {
-  let wins = 0;
-  let margin = 0;
-  for (const shields of [0, 1, 2]) {
-    const r = teamBattle([mine], [foe], { shields });
-    if (r.win) wins++;
-    margin += r.hpFracA - r.hpFracB;
-  }
-  return { answers: wins >= 2, margin: margin / 3 };
+  const r = duel(mine, foe);
+  return { answers: shieldWins(r) >= 2, margin: (r.reduce((x, y) => x + y, 0) / 3 - 500) / 500 };
 }
 
 /**

@@ -22,6 +22,9 @@ const savesApi = vi.hoisted(() => ({
   deleteTeam: vi.fn(),
 }));
 vi.mock('../../lib/saves', () => savesApi);
+// These tests are about saving a roster. Modules reset for every test here, so the live matchup matrix would pay its
+// cold-start simulation each time, for nothing this file asserts.
+vi.mock('../../components/MatchupMatrix', () => ({ MatchupMatrix: () => null }));
 
 const pkg = vi.hoisted(() => ({ client: null as unknown }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => pkg.client }));

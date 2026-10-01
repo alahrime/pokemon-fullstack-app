@@ -709,21 +709,9 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         <div className="panel" ref={picksRef}>
           <div className="hud-label">Best completions</div>
           <p className="text-muted">
-            Every candidate tried in the open slot and the whole roster re-simulated. With carryover
-            in play a candidate cannot be scored on its own matchups — its value depends on what the
-            rest of the team leaves it.{' '}
-            {picks[0]?.metric === 'floor' ? (
-              <>
-                A six is scored as the matrix game, not as a longer chain: against each sampled
-                opposing six, you field whichever of your lines best survives their best answer, and
-                the headline is the mean of those guaranteed values. It is routinely negative until
-                the roster is deep — a partial six cannot answer a full one.
-              </>
-            ) : (
-              <>The headline is the share of the sampled field this chain beats.</>
-            )}{' '}
-            The second column compares that against the <em>median</em> candidate, so it measures
-            this pick rather than the fact that three beats two.
+            Every candidate is fought against the opponents that press your roster hardest, at 0, 1 and 2 shields, and the roster is
+            scored again with it in the line — the same threat score as the matrix above, so the two always agree. The big number is
+            the threat score you would have; the small one is how many points it takes off.
           </p>
           {picks.length === 0 ? (
             <p className="text-muted">
@@ -738,20 +726,16 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                     refId={p.ref}
                     league={league}
                     size="full"
-                    metric={
-                      p.metric === 'floor'
-                        ? `${p.value >= 0 ? '+' : ''}${(p.value * 100).toFixed(0)}`
-                        : `${Math.round(p.value * 100)}%`
-                    }
-                    metricLabel={p.metric === 'floor' ? 'floor' : 'win rate'}
+                    metric={String(p.value)}
+                    metricLabel="threat score"
                     onClick={() => add(p.ref)}
                     title="Add to the team"
                     note={
                       <span className="suggest-why">
                         <span className={`numeric suggest-gain${p.gain >= 0 ? ' is-up' : ' is-down'}`}>
-                          {p.gain >= 0 ? '+' : ''}{Math.round(p.gain * 100)}
+                          {p.gain >= 0 ? '−' : '+'}{Math.abs(Math.round(p.gain))}
                         </span>
-                        <span className="text-faint">vs median pick</span>
+                        <span className="text-faint">threat points</span>
                         {p.covers.length > 0 && (
                           <span className="suggest-covers">
                             shores up {p.covers.map((c) => <TypeBadge key={c} type={c} />)}

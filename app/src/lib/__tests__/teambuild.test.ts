@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { completionPool, suggestCompletions } from '../teambuild';
 import { conflictsOnTeam, speciesOf } from '../data';
 import { sharedTypePairs } from '../synergy';
+import { threatScore, topThreats } from '../matchupMatrix';
 import { teamPool } from '../rankings';
 import type { LeagueId } from '../types';
 
@@ -109,92 +110,63 @@ describe('completionPool — who may be suggested', () => {
   });
 });
 
-describe('suggestCompletions — which game each size is scored on', () => {
-  it('scores a three as a chain and says so', () => {
-    const out = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 6, limit: 4 });
+describe('suggestCompletions — scored on the matrix\'s own threat score', () => {
+  const partial = ['azumarill', 'registeel'];
+
+  it('ranks by the threat score the roster would have with the pick in the line, lowest first', () => {
+    const out = suggestCompletions(partial, 'great', 3, { limit: 8 });
     expect(out.length).toBeGreaterThan(0);
     for (const s of out) {
-      expect(s.metric).toBe('winRate');
-      expect(s.value).toBeGreaterThanOrEqual(0);
-      expect(s.value).toBeLessThanOrEqual(1);
+      expect(s.metric).toBe('threat');
+      expect(Number.isInteger(s.value)).toBe(true);
     }
+    for (let i = 1; i < out.length; i++) expect(out[i - 1].value).toBeLessThanOrEqual(out[i].value);
   });
 
-  it('scores a six as the matrix game once a line can be fielded', () => {
-    const out = suggestCompletions(['azumarill', 'registeel'], 'great', 6, { count: 2, limit: 4 });
-    expect(out.length).toBeGreaterThan(0);
-    for (const s of out) {
-      expect(s.metric).toBe('floor');
-      // A floor is a margin, not a rate: negative is normal and above 1 is not.
-      expect(Math.abs(s.value)).toBeLessThanOrEqual(1);
-    }
+  it('reports each pick against the roster as it stands, in the same units as the matrix', () => {
+    const now = threatScore(topThreats(partial, 'great'));
+    for (const s of suggestCompletions(partial, 'great', 3, { limit: 6 })) expect(s.gain).toBe(now - s.value);
   });
 
-  it('falls back to the chain for a six with one member, and not to a column of noughts', () => {
-    // Two Pokemon cannot form a line, so there is no matrix game yet. Scoring
-    // that pair against sampled *sixes* gave every candidate exactly 0.
-    const out = suggestCompletions(['azumarill'], 'great', 6, { count: 8, limit: 8 });
-    expect(out.length).toBeGreaterThan(0);
-    expect(out.every((s) => s.metric === 'winRate')).toBe(true);
-    expect(out.some((s) => s.value > 0)).toBe(true);
+  it('scores a three and a six the same way — the matrix does not depend on the size', () => {
+    const three = suggestCompletions(partial, 'great', 3, { limit: 3 });
+    const six = suggestCompletions(partial, 'great', 6, { limit: 3 });
+    expect(three.every((s) => s.metric === 'threat') && six.every((s) => s.metric === 'threat')).toBe(true);
   });
 
   it('returns a ranked list for every Show 6 partial size, in every league', () => {
     for (const lg of LEAGUES) {
       for (let k = 1; k <= 5; k++) {
-        const out = suggestCompletions(FIVE[lg].slice(0, k), lg, 6, { count: 1, limit: 3 });
+        const out = suggestCompletions(FIVE[lg].slice(0, k), lg, 6, { limit: 3 });
         expect(out.length, `${lg} partial ${k}`).toBeGreaterThan(0);
         for (const s of out) expect(Number.isFinite(s.value)).toBe(true);
       }
     }
   }, 120000);
 
-  it('sorts by value, best first', () => {
-    const out = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 6, limit: 8 });
-    for (let i = 1; i < out.length; i++) expect(out[i - 1].value).toBeGreaterThanOrEqual(out[i].value);
-  });
-
-  it('measures gain against one median, so the column ranks picks not team sizes', () => {
-    const out = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 6, limit: 8 });
-    const medians = out.map((s) => s.value - s.gain);
-    for (const m of medians) expect(m).toBeCloseTo(medians[0], 9);
-  });
-
   it('never suggests a member of the partial team', () => {
-    const partial = FIVE.great;
-    const out = suggestCompletions(partial, 'great', 6, { count: 1, limit: 12 });
-    for (const s of out) expect(partial).not.toContain(s.ref);
+    const five = FIVE.great;
+    for (const s of suggestCompletions(five, 'great', 6, { limit: 12 })) expect(five).not.toContain(s.ref);
   });
 
   it('scores the build a slot is carrying, not the league rated set', () => {
-    const partial = ['azumarill', 'registeel'];
-    const rated = suggestCompletions(partial, 'great', 3, { count: 8, limit: 12 });
-    // Registeel on its worst legal fast move is a different Pokemon to build
-    // around, so the completions it wants must move.
+    const rated = suggestCompletions(partial, 'great', 3, { limit: 12 });
+    // Registeel on its worst legal fast move is a different Pokemon to build around, so what it wants must move.
     const sp = speciesOf('registeel')!;
     const built = suggestCompletions(partial, 'great', 3, {
-      count: 8,
       limit: 12,
-      builds: {
-        registeel: { fastIdx: sp.fastMoves.length - 1, chargeIds: [], iv: { a: 0, d: 15, s: 15 } },
-      },
+      builds: { registeel: { fastIdx: sp.fastMoves.length - 1, chargeIds: [], iv: { a: 0, d: 15, s: 15 } } },
     });
     expect(built.length).toBe(rated.length);
-    const changed =
-      built.some((b, i) => b.ref !== rated[i].ref) ||
-      built.some((b, i) => Math.abs(b.value - rated[i].value) > 1e-9);
-    expect(changed).toBe(true);
+    expect(built.some((b, i) => b.ref !== rated[i].ref || b.value !== rated[i].value)).toBe(true);
   });
 
-  it('is deterministic — the field is a yardstick, not a draw', () => {
-    const a = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 6, limit: 5 });
-    const b = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 6, limit: 5 });
-    expect(a).toEqual(b);
+  it('is deterministic', () => {
+    expect(suggestCompletions(partial, 'great', 3, { limit: 5 })).toEqual(suggestCompletions(partial, 'great', 3, { limit: 5 }));
   });
 
   it('names only weaknesses the existing members leave open', () => {
-    const out = suggestCompletions(['azumarill', 'registeel'], 'great', 3, { count: 4, limit: 6 });
-    for (const s of out) {
+    for (const s of suggestCompletions(partial, 'great', 3, { limit: 6 })) {
       expect(Array.isArray(s.covers)).toBe(true);
       expect(new Set(s.covers).size).toBe(s.covers.length);
     }

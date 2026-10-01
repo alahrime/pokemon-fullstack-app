@@ -126,8 +126,8 @@ describe('suggestCompletions', () => {
   it('respects the limit', () => {
     expect(suggestCompletions(['registeel'], 'great', 3, { count: 4, limit: 3 }).length).toBeLessThanOrEqual(3);
   });
-  it('returns something for an empty partial team', () => {
-    expect(suggestCompletions([], 'great', 3, { count: 4, limit: 4 }).length).toBeGreaterThan(0);
+  it('has nothing to say about an empty partial team: with no roster there is nothing pressing it to answer', () => {
+    expect(suggestCompletions([], 'great', 3, { limit: 4 })).toEqual([]);
   });
 });
 

@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { createChallenge, declineChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
 import { LEAGUES } from '../lib/data';
-import { listServerFormats, listTeams, type SavedFormat, type SavedTeam } from '../lib/saves';
+import { listServerFormats, type SavedFormat } from '../lib/saves';
+import { resolvePool, validateTeam } from '../rules';
+import { describeViolation } from '../tournament/roster';
 import type { LeagueId } from '../lib/types';
+import { ChallengeTeam, emptySlots, filledTeam, type Slots } from './ChallengeTeam';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -14,7 +17,7 @@ function messageOf(e: unknown): string {
 
 /**
  * Propose a match to one person: a league, one of YOUR saved server formats
- * for it, one of your saved teams that fits that format, and when. Sending
+ * for it, a team of that format's size (loaded from your saved teams or built here, and saveable from here), and when. Sending
  * creates the challenge, opens (or finds) the DM with the target and asks the
  * dock to open it, where the challenge card lives. Any of your own formats will do,
  * private or not — the target can read the one you challenge on. A refusal
@@ -40,8 +43,7 @@ export function ChallengeSheet({
   const [league, setLeague] = useState<LeagueId>(defaultLeague ?? state.league);
   const [formats, setFormats] = useState<SavedFormat[] | null>(null);
   const [formatId, setFormatId] = useState('');
-  const [teams, setTeams] = useState<SavedTeam[] | null>(null);
-  const [teamId, setTeamId] = useState('');
+  const [slots, setSlots] = useState<Slots>([]);
   const [scheduled, setScheduled] = useState(false);
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,7 +53,8 @@ export function ChallengeSheet({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // The Pokémon editor (a .modal-scrim) closes itself on Escape; the sheet stays.
+      if (e.key === 'Escape' && !document.querySelector('.modal-scrim')) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -81,25 +84,23 @@ export function ChallengeSheet({
   const format = leagueFormats.find((f) => f.id === formatId);
   const size = format?.format.composition.size;
 
-  useEffect(() => {
-    setTeams(null);
-    setTeamId('');
-    if (size !== 3 && size !== 6) return;
-    let live = true;
-    listTeams(size)
-      .then((ts) => live && setTeams(ts))
-      .catch((e) => live && (setTeams([]), setError(messageOf(e))));
-    return () => {
-      live = false;
-    };
-  }, [size]);
+  // A new slot count is a different team; a different format of the same size keeps what was built.
+  useEffect(() => setSlots(size ? emptySlots(size) : []), [size]);
 
-  const leagueTeams = (teams ?? []).filter((t) => t.league === league && t.size === size);
-  const team = leagueTeams.find((t) => t.id === teamId);
-  const ready = !!format && !!team && (!scheduled || when !== '') && !busy;
+  const restrictTo = useMemo(() => {
+    try { return format ? new Set(resolvePool(format.format).legal) : undefined; } catch { return undefined; }
+  }, [format]);
+  const team = filledTeam(slots);
+  const problems = useMemo(() => {
+    if (!format || !team) return [];
+    try {
+      return validateTeam(team.map((m) => ({ ref: m.ref, fast: m.fast_move, charges: m.charge_moves })), format.format).violations.map(describeViolation);
+    } catch { return []; }
+  }, [format, team]);
+  const ready = !!format && !!team && problems.length === 0 && (!scheduled || when !== '') && !busy;
 
   async function send() {
-    if (!format || !team) return;
+    if (!format || !team || !ready) return;
     setBusy(true);
     setError(null);
     let created = false;
@@ -109,7 +110,7 @@ export function ChallengeSheet({
         league,
         formatVersionId: format.versionId,
         format: format.format,
-        team: team.members,
+        team,
         scheduledFor: scheduled ? new Date(when) : undefined,
       });
       created = true;
@@ -140,88 +141,83 @@ export function ChallengeSheet({
         aria-modal="true"
         aria-label={`${counterOf ? 'Counter' : 'Challenge'} ${target.name}`}
       >
-        <div className="hud-label">{counterOf ? 'Counter' : 'Challenge'} {target.name}</div>
-
-        <div className="field">
-          <label htmlFor="challenge-league">League</label>
-          <select
-            id="challenge-league"
-            ref={firstRef}
-            className="input"
-            value={league}
-            onChange={(e) => {
-              setLeague(e.target.value as LeagueId);
-              setFormatId('');
-            }}
-          >
-            {LEAGUES.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
-              </option>
-            ))}
-          </select>
+        <div className="challenge-sheet-head">
+          <div className="hud-label">{counterOf ? 'Counter' : 'Challenge'} {target.name}</div>
+          <button type="button" className="btn btn-ghost btn-sm" aria-label="Close dialog" onClick={onClose}>✕</button>
         </div>
 
-        <div className="field">
-          <label htmlFor="challenge-format">Format</label>
-          <select id="challenge-format" className="input" value={formatId} onChange={(e) => setFormatId(e.target.value)}>
-            <option value="">Choose a format</option>
-            {leagueFormats.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-          {formats && leagueFormats.length === 0 && (
-            <p className="text-muted">No saved formats for this league — save one on the Formats screen.</p>
-          )}
-        </div>
+        <div className="challenge-sheet-cols">
+          <div className="challenge-sheet-col">
+            <div className="field">
+              <label htmlFor="challenge-league">League</label>
+              <select
+                id="challenge-league"
+                ref={firstRef}
+                className="input"
+                value={league}
+                onChange={(e) => {
+                  setLeague(e.target.value as LeagueId);
+                  setFormatId('');
+                }}
+              >
+                {LEAGUES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="field">
-          <label htmlFor="challenge-team">Team</label>
-          <select
-            id="challenge-team"
-            className="input"
-            value={teamId}
-            disabled={!format}
-            onChange={(e) => setTeamId(e.target.value)}
-          >
-            <option value="">Choose a team</option>
-            {leagueTeams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          {format && teams && leagueTeams.length === 0 && (
-            <p className="text-muted">
-              No saved {size}-Pokémon teams for this league — build one on the Teams screen.
-            </p>
-          )}
-        </div>
+            <div className="field">
+              <label htmlFor="challenge-format">Format</label>
+              <select id="challenge-format" className="input" value={formatId} onChange={(e) => setFormatId(e.target.value)}>
+                <option value="">Choose a format</option>
+                {leagueFormats.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              {formats && leagueFormats.length === 0 && (
+                <p className="text-muted">No saved formats for this league — save one on the Formats screen.</p>
+              )}
+            </div>
 
-        <div className="seg-group challenge-sheet-when" role="radiogroup" aria-label="Start">
-          <label className={`btn seg-btn radio${scheduled ? '' : ' is-active'}`}>
-            <input type="radio" name="challenge-when" checked={!scheduled} onChange={() => setScheduled(false)} />
-            Now
-          </label>
-          <label className={`btn seg-btn radio${scheduled ? ' is-active' : ''}`}>
-            <input type="radio" name="challenge-when" checked={scheduled} onChange={() => setScheduled(true)} />
-            Scheduled
-          </label>
-        </div>
-        {scheduled && (
-          <div className="field">
-            <label htmlFor="challenge-when">When</label>
-            <input
-              id="challenge-when"
-              className="input"
-              type="datetime-local"
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-            />
+            <div className="field">
+              <span className="hud-label" id="challenge-start">Start</span>
+              <div className="form-toggle" role="group" aria-labelledby="challenge-start">
+                <button type="button" className={`form-opt${scheduled ? '' : ' is-active'}`} aria-pressed={!scheduled} onClick={() => setScheduled(false)}>Now</button>
+                <button type="button" className={`form-opt${scheduled ? ' is-active' : ''}`} aria-pressed={scheduled} onClick={() => setScheduled(true)}>Scheduled</button>
+              </div>
+            </div>
+            {scheduled && (
+              <div className="field">
+                <label htmlFor="challenge-when">When</label>
+                <input
+                  id="challenge-when"
+                  className="input"
+                  type="datetime-local"
+                  value={when}
+                  onChange={(e) => setWhen(e.target.value)}
+                />
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="challenge-sheet-col">
+            <div className="hud-label">Your team{size ? ` · ${slots.filter(Boolean).length} / ${size}` : ''}</div>
+            {size ? (
+              <ChallengeTeam league={league} size={size} slots={slots} onChange={setSlots} restrictTo={restrictTo} />
+            ) : (
+              <p className="text-muted">Choose a format to see how many Pokémon it takes.</p>
+            )}
+            {problems.length > 0 && (
+              <ul className="roster-problems">
+                {problems.map((p) => <li key={p} className="roster-problem">{p}</li>)}
+              </ul>
+            )}
+          </div>
+        </div>
 
         {error && (
           <p className="friend-notice" role="alert">

@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ChallengeSheet } from '../ChallengeSheet';
+import { speciesOf } from '../../lib/data';
 
 const createChallenge = vi.fn();
 const declineChallenge = vi.fn();
 const openDm = vi.fn();
 const requestChannel = vi.fn();
 const listTeams = vi.fn();
+const saveTeam = vi.fn();
 let formats: unknown[] = [];
 let teams: unknown[] = [];
 
 vi.mock('../../lib/saves', () => ({
   listServerFormats: async () => formats,
   listTeams: (...a: unknown[]) => listTeams(...a),
+  saveTeam: (...a: unknown[]) => saveTeam(...a),
 }));
 vi.mock('../../lib/challenges', () => ({
   createChallenge: (...a: unknown[]) => createChallenge(...a),
@@ -35,8 +38,13 @@ const fmt = (id: string, base: string, size: number) => ({
   id, name: `Fmt ${id}`, version: 1, versionId: `v-${id}`, rulesHash: 'h',
   format: { base, composition: { size } },
 });
+// Real species, so the slots can name moves; IVs are irrelevant here.
+const REFS = ['machamp', 'azumarill', 'medicham', 'altaria', 'registeel', 'swampert'];
+const member = (ref: string) => ({
+  ref, fast_move: speciesOf(ref)!.fastMoves[0].id, charge_moves: [] as string[], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: null,
+});
 const team = (id: string, league: string, size: number) => ({
-  id, name: `Team ${id}`, league, size, members: [{ ref: id }],
+  id, name: `Team ${id}`, league, size, members: REFS.slice(0, size).map(member),
 });
 const target = { id: 'ally', name: 'Ally' };
 
@@ -46,7 +54,7 @@ function open(onClose = vi.fn()) {
 }
 async function choose(formatName = 'Fmt g3', teamName = 'Team t3') {
   fireEvent.change(await screen.findByLabelText('Format'), { target: { value: (await screen.findByRole('option', { name: formatName })).getAttribute('value') } });
-  fireEvent.change(await screen.findByLabelText('Team'), { target: { value: (await screen.findByRole('option', { name: teamName })).getAttribute('value') } });
+  fireEvent.change(await screen.findByLabelText('Saved team'), { target: { value: (await screen.findByRole('option', { name: teamName })).getAttribute('value') } });
 }
 
 beforeEach(() => {
@@ -56,7 +64,8 @@ beforeEach(() => {
   requestChannel.mockReset();
   formats = [fmt('g3', 'great', 3), fmt('u3', 'ultra', 3)];
   teams = [team('t3', 'great', 3), team('t6', 'great', 6), team('tu', 'ultra', 3)];
-  listTeams.mockReset().mockImplementation(async () => teams);
+  // The server filters by size (`listTeams(size)`); the league filter is the component's.
+  listTeams.mockReset().mockImplementation(async (n: number) => (teams as { size: number }[]).filter((t) => t.size === n));
 });
 
 describe('ChallengeSheet', () => {
@@ -106,11 +115,34 @@ describe('ChallengeSheet', () => {
     await waitFor(() => expect(send.disabled).toBe(false));
   });
 
+  it('a loaded team fills the slots, can be changed, and the slots are what is sent', async () => {
+    open();
+    await choose();
+    expect(await screen.findByText('Machamp')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove slot 1' }));
+    expect((screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: '+ Add Pokémon' })).toBeTruthy();
+  });
+
+  it('can be built on the fly and saved from the sheet', async () => {
+    saveTeam.mockResolvedValue('new');
+    open();
+    await choose();
+    await screen.findByText('Machamp');
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Mine' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save team' }));
+    await waitFor(() => expect(saveTeam).toHaveBeenCalled());
+    expect(saveTeam.mock.calls[0][0]).toMatchObject({ name: 'Mine', league: 'great', size: 3 });
+    expect(saveTeam.mock.calls[0][0].members).toHaveLength(3);
+    // "Mine" is not the loaded team's name, so this is a new team, not an overwrite of t3.
+    expect(saveTeam.mock.calls[0][0].id).toBeUndefined();
+  });
+
   it('Scheduled reveals a datetime-local and passes a Date; Now passes none', async () => {
     open();
     await choose();
     expect(screen.queryByLabelText('When')).toBeNull();
-    fireEvent.click(screen.getByLabelText('Scheduled'));
+    fireEvent.click(screen.getByRole('button', { name: 'Scheduled' }));
     const when = screen.getByLabelText('When') as HTMLInputElement;
     expect(when.type).toBe('datetime-local');
     fireEvent.change(when, { target: { value: '2099-01-02T03:04' } });
@@ -127,7 +159,7 @@ describe('ChallengeSheet', () => {
     expect(createChallenge).toHaveBeenCalledWith({
       targetId: 'ally', league: 'great', formatVersionId: 'v-g3',
       format: { base: 'great', composition: { size: 3 } },
-      team: [{ ref: 't3' }], scheduledFor: undefined,
+      team: REFS.slice(0, 3).map(member), scheduledFor: undefined,
     });
     expect(openDm).toHaveBeenCalledWith('ally');
     expect(requestChannel).toHaveBeenCalledWith('dm1');

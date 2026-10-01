@@ -11,6 +11,8 @@ export interface StoredMember {
   iv_defense: number;
   iv_stamina: number;
   level: number | null;
+  /** Challenge teams only: `team_members` has no such column, so `saveTeam` drops it. */
+  best_buddy?: boolean;
 }
 
 export interface DecodedMember {
@@ -48,6 +50,7 @@ export function encodeMember(choice: AddPokemonChoice, league: LeagueId): Stored
     iv_defense: choice.iv.d,
     iv_stamina: choice.iv.s,
     level,
+    ...(choice.bestBuddy ? { best_buddy: true } : {}),
   };
 }
 
@@ -62,6 +65,7 @@ export function decodeMember(stored: StoredMember): DecodedMember {
       // silently is how a saved team quietly becomes a different team.
       fastIdx: idx >= 0 ? idx : 0,
       iv: { a: stored.iv_attack, d: stored.iv_defense, s: stored.iv_stamina },
+      ...(stored.best_buddy ? { bestBuddy: true } : {}),
     },
     unknownMove: idx >= 0 ? null : stored.fast_move,
   };

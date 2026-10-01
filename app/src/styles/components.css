@@ -6469,17 +6469,80 @@ th.bt-matrix-head { text-align: center; }
 }
 .challenge-sheet {
   display: grid;
-  gap: var(--space-3);
-  width: min(420px, 100%);
+  gap: var(--space-4);
+  width: min(1040px, 100%);
   max-height: 100%;
   overflow-y: auto;
+  padding: var(--space-5);
 }
-.challenge-sheet-when { width: fit-content; }
+.challenge-sheet.is-narrow { width: min(680px, 100%); }
+.challenge-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.challenge-sheet-cols { display: grid; gap: var(--space-5); align-items: start; }
+@media (min-width: 860px) {
+  .challenge-sheet-cols { grid-template-columns: minmax(15rem, 1fr) minmax(0, 2fr); }
+}
+.challenge-sheet-col { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
 .challenge-sheet-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
+/* Controls in these sheets are sized to be hit, and the focus ring is an inset shadow: the buttons are
+   clip-path chamfered, which cuts an outline off at the corners. */
+.challenge-sheet .btn { min-height: 40px; }
+.challenge-sheet .btn-sm { min-height: 32px; }
+.challenge-sheet-actions .btn { min-width: 7rem; }
+.challenge-sheet .btn:focus-visible,
+.challenge-sheet .form-opt:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+.challenge-sheet .btn-ghost { border-color: var(--rule-hairline); }
+
+/* Challenge team builder */
+.ct { display: grid; gap: var(--space-3); }
+.ct-hint { margin: 0; font-size: var(--text-sm); }
+.ct-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+}
+.ct-slot {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: var(--surface-1);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+.ct-slot:hover { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--rule-hairline)); }
+.ct-slot.is-empty { place-items: start; border-style: dashed; min-height: 7rem; }
+.ct-add { align-self: center; justify-self: stretch; }
+.ct-slot-id { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.ct-slot-name { font-weight: 600; overflow-wrap: anywhere; }
+.ct-slot-moves { font-size: var(--text-sm); overflow-wrap: anywhere; }
+.ct-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.ct-chip {
+  padding: 1px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: var(--border-hairline) solid var(--rule-strong);
+  color: var(--text-muted);
+}
+.ct-chip.is-shadow { color: #fff; border-color: var(--shadow-aura); background: var(--shadow-ink); }
+.ct-chip.is-buddy { color: #2a1c04; border-color: #e0a800; background: #f5c518; }
+.ct-slot-actions { display: flex; gap: var(--space-2); }
+.ct-save { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ct-name { flex: 1 1 12rem; min-width: 0; }
+
+.modal-forms { flex-direction: row; flex-wrap: wrap; gap: var(--space-4); }
 
 /* — Chat screen: inbox / conversation / opponent — */
 /* Five filters do not fit the 14-18rem inbox column, and the last one ("Tournaments")

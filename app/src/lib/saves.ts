@@ -67,6 +67,12 @@ function writeError(error: { code?: string; message: string }, name: string): Er
   return new Error(error.message);
 }
 
+/** The `team_members` columns only: a member from a challenge can carry fields the table lacks. */
+const column = (m: StoredMember): StoredMember => ({
+  ref: m.ref, fast_move: m.fast_move, charge_moves: m.charge_moves,
+  iv_attack: m.iv_attack, iv_defense: m.iv_defense, iv_stamina: m.iv_stamina, level: m.level,
+});
+
 export async function saveTeam(t: {
   id?: string;
   name: string;
@@ -96,7 +102,7 @@ export async function saveTeam(t: {
       const { error: upsertError } = await supabase
         .from('team_members')
         .upsert(
-          t.members.map((m, i) => ({ ...m, team_id: id, slot: i + 1 })),
+          t.members.map((m, i) => ({ ...column(m), team_id: id, slot: i + 1 })),
           { onConflict: 'team_id,slot' },
         );
       if (upsertError) throw new Error(upsertError.message);
@@ -118,7 +124,7 @@ export async function saveTeam(t: {
     if (t.members.length > 0) {
       const { error: insertError } = await supabase
         .from('team_members')
-        .insert(t.members.map((m, i) => ({ ...m, team_id: id, slot: i + 1 })));
+        .insert(t.members.map((m, i) => ({ ...column(m), team_id: id, slot: i + 1 })));
       if (insertError) throw new Error(insertError.message);
     }
   }

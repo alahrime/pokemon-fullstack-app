@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestSpreadFor, chargesOf, defaultSpreadFor, getEntry, selectedCharges } from '../lib/engine';
+import { LEAGUE_BY_ID, displayName, makeRef, movesFor, parseRef, speciesOf } from '../lib/data';
+import { bestBuddyEligible, bestSpreadFor, chargesOf, defaultSpreadFor, getEntry, selectedCharges } from '../lib/engine';
+import { BestBuddyToggle } from './BestBuddyToggle';
 import { SpeciesSearch } from './SpeciesSearch';
 import { Sprite } from './Sprite';
 import { TypeBadge } from './TypeBadge';
@@ -45,23 +46,41 @@ export interface AddPokemonChoice {
   chargeIds: string[];
   fastIdx: number;
   iv: IV;
+  /** Set only by callers that ask for it (`buddy`); absent means not Best Buddy. */
+  bestBuddy?: boolean;
 }
+
+/** Shadows cannot learn Return, so it is offered only on a shadow-eligible Pokémon that is not a Shadow. */
+export const RETURN_ID = 'RETURN';
 
 export function AddPokemonModal({
   league,
   restrictTo,
+  initial,
+  buddy = false,
   onCommit,
   onClose,
 }: {
   league: LeagueId;
   restrictTo?: ReadonlySet<string>;
+  /** Opens on this build instead of the rated one, for editing a member already placed. */
+  initial?: AddPokemonChoice;
+  /** Offer the Best Buddy toggle; only meaningful where the result is used for it. */
+  buddy?: boolean;
   onCommit: (choice: AddPokemonChoice) => void;
   onClose: () => void;
 }) {
-  const [ref, setRef] = useState<string>('');
-  const [fastIdx, setFastIdx] = useState(0);
-  const [chargeIds, setChargeIds] = useState<string[]>([]);
-  const [iv, setIv] = useState<IV>({ a: 0, d: 15, s: 15 });
+  const [ref, setRef] = useState<string>(initial?.ref ?? '');
+  const [fastIdx, setFastIdx] = useState(initial?.fastIdx ?? 0);
+  const [chargeIds, setChargeIds] = useState<string[]>(initial?.chargeIds ?? []);
+  const [iv, setIv] = useState<IV>(initial?.iv ?? { a: 0, d: 15, s: 15 });
+  const [bestBuddy, setBestBuddy] = useState(initial?.bestBuddy ?? false);
+  // The reset below must not overwrite the build being edited. Cleared once the species changes, and compared
+  // rather than flagged so StrictMode's second effect pass cannot consume it.
+  const seedMoves = useRef(initial?.ref ? parseRef(initial.ref).id : null);
+  const seedIv = useRef(initial?.ref ?? null);
+  const isShadow = parseRef(ref).shadow;
+  const baseId = parseRef(ref).id;
   const panel = useRef<HTMLDivElement>(null);
 
   const sp = ref ? speciesOf(ref) : null;
@@ -80,12 +99,21 @@ export function AddPokemonModal({
   // over from the previous pick names a move the new species does not learn.
   // The same bug the nav search had (see App.tsx), in a place where it would be
   // even less visible.
+  // Moves follow the species, IVs follow the ref: flipping Shadow keeps the moves picked but re-rolls the spread,
+  // since a Shadow's best IVs are not its base form's.
   useEffect(() => {
-    if (!sp || !rated || !opening) return;
+    if (!sp || !rated) return;
+    if (seedMoves.current === baseId) return;
+    seedMoves.current = null;
     setFastIdx(Math.max(0, sp.fastMoves.findIndex((m) => m.id === rated.fast.id)));
     setChargeIds(rated.charges.map((c) => c.id));
+  }, [baseId, sp, rated]);
+  useEffect(() => {
+    if (!opening) return;
+    if (seedIv.current === ref) return;
+    seedIv.current = null;
     setIv({ a: opening.a, d: opening.d, s: opening.s });
-  }, [ref, sp, rated, opening]);
+  }, [ref, opening]);
 
   /**
    * Escape closes; focus moves into the panel so the keyboard lands somewhere,
@@ -110,12 +138,12 @@ export function AddPokemonModal({
     };
   }, [onClose]);
 
-  const entry = useMemo(() => (ref ? getEntry(ref, iv, league).entry : null), [ref, iv, league]);
+  const entry = useMemo(() => (ref ? getEntry(ref, iv, league, bestBuddy).entry : null), [ref, iv, league, bestBuddy]);
   const allCharges = sp ? chargesOf(sp.chargeMove, sp.chargeMove2).concat(sp.chargeMoves) : [];
   const chargePool = useMemo(() => {
     const seen = new Set<string>();
-    return allCharges.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
-  }, [allCharges]);
+    return allCharges.filter((c) => (isShadow && c.id === RETURN_ID) || seen.has(c.id) ? false : (seen.add(c.id), true));
+  }, [allCharges, isShadow]);
 
   const toggleCharge = (id: string) =>
     setChargeIds((cur) =>
@@ -124,7 +152,7 @@ export function AddPokemonModal({
 
   const commit = () => {
     if (!ref) return;
-    onCommit({ ref, chargeIds, fastIdx, iv });
+    onCommit({ ref, chargeIds, fastIdx, iv, ...(buddy && bestBuddy ? { bestBuddy: true } : {}) });
     onClose();
   };
 
@@ -179,6 +207,31 @@ export function AddPokemonModal({
 
           {sp && rated && entry && (
             <>
+              {(sp.shadowEligible || buddy) && (
+                <div className="modal-section modal-forms">
+                  {sp.shadowEligible && (
+                    <div>
+                      <div className="hud-label">Form</div>
+                      <div className="form-toggle" role="group" aria-label="Form">
+                        <button type="button" className={`form-opt${isShadow ? '' : ' is-active'}`} aria-pressed={!isShadow}
+                          onClick={() => setRef(makeRef(baseId, false))}>Normal</button>
+                        <button type="button" className={`form-opt form-opt-shadow${isShadow ? ' is-active' : ''}`} aria-pressed={isShadow}
+                          onClick={() => {
+                            setRef(makeRef(baseId, true));
+                            setChargeIds((cur) => cur.filter((id) => id !== RETURN_ID));
+                          }}>Shadow</button>
+                      </div>
+                    </div>
+                  )}
+                  {buddy && (
+                    <div>
+                      <div className="hud-label">Level cap</div>
+                      <BestBuddyToggle on={bestBuddy} eligible={bestBuddyEligible(sp, LEAGUE_BY_ID.get(league)!)} onChange={setBestBuddy} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="modal-id" style={{
                 ['--t1' as string]: `var(--type-${sp.types[0]})`,
                 ['--t2' as string]: `var(--type-${sp.types[1] ?? sp.types[0]})`,
@@ -242,7 +295,9 @@ export function AddPokemonModal({
                       key={c.id}
                       className={`btn chip-btn${chargeIds.includes(c.id) ? ' is-active' : ''}`}
                       onClick={() => toggleCharge(c.id)}
-                      title={`${c.energy} energy · ${(c.power / c.energy).toFixed(2)} damage per energy`}
+                      title={c.id === RETURN_ID
+                        ? `Non-Shadow only · ${c.energy} energy · ${(c.power / c.energy).toFixed(2)} damage per energy`
+                        : `${c.energy} energy · ${(c.power / c.energy).toFixed(2)} damage per energy`}
                     >
                       {c.name}
                       <span className="numeric modal-move-eco">
@@ -264,7 +319,7 @@ export function AddPokemonModal({
         <div className="modal-foot">
           <button className="btn btn-sm" onClick={onClose}>Cancel</button>
           <button className="btn btn-sm is-primary" onClick={commit} disabled={!ref}>
-            Add to team
+            {initial ? 'Save changes' : 'Add to team'}
           </button>
         </div>
       </div>

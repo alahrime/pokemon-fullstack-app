@@ -7,8 +7,8 @@ import {
 import { acceptOffer, confirmOffer } from '../lib/matchmaking';
 import { resolveDisplayNames } from '../lib/channels';
 import { ChallengeSheet } from './ChallengeSheet';
+import { ChallengeAcceptSheet } from './ChallengeAcceptSheet';
 import { myMatches } from '../lib/matches';
-import { listTeams, type SavedTeam } from '../lib/saves';
 import { LEAGUE_BY_ID } from '../lib/data';
 
 // Realtime does the work; this poll only covers a dropped socket (and clock-derived expiry is computed on render).
@@ -24,8 +24,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
   const { user } = useSession();
   const { patch } = useAppState();
   const [challenge, setChallenge] = useState<Challenge | null | undefined>(undefined); // undefined = loading
-  const [teams, setTeams] = useState<SavedTeam[]>([]);
-  const [teamId, setTeamId] = useState('');
+  const [accepting, setAccepting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countering, setCountering] = useState<{ id: string; name: string } | null>(null);
@@ -49,20 +48,6 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
     const id = setInterval(() => void load(), POLL_MS);
     return () => { stop(); clearInterval(id); };
   }, [load, terminal, offerId]);
-
-  // Teams the accepter can bring: same size as the proposer's, same league.
-  const wantsTeam = !!challenge && !!user && challenge.targetId === user.id && challenge.state === 'open';
-  const size = challenge?.rosterSize;
-  const lg = challenge?.league;
-  useEffect(() => {
-    if (!wantsTeam) return;
-    if (size !== 3 && size !== 6) return; // only sizes the app can save
-    void listTeams(size).then((ts) => {
-      const ok = ts.filter((t) => t.league === lg);
-      setTeams(ok);
-      setTeamId((cur) => (ok.some((t) => t.id === cur) ? cur : ok[0]?.id ?? ''));
-    }).catch((e) => setError(messageOf(e)));
-  }, [wantsTeam, size, lg]);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -114,21 +99,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
       <p>{view.label}</p>
       <div className="challenge-card-actions">
         {has('accept') && (
-          <>
-            {teams.length > 0 && (
-              <select className="input" aria-label="Team to bring" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            )}
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy || !teamId}
-              onClick={() => void run(() => acceptOffer(offerId, teams.find((t) => t.id === teamId)!.members))}
-            >
-              Accept
-            </button>
-          </>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setAccepting(true)}>Accept</button>
         )}
         {has('confirm') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => confirmOffer(offerId))}>Confirm</button>
@@ -146,10 +117,15 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
           <button type="button" className="btn" disabled={busy} onClick={() => void openMatch()}>Open match</button>
         )}
       </div>
-      {has('accept') && teams.length === 0 && challenge && (
-        <p className="text-faint">Save a team of {challenge.rosterSize} in Teams first</p>
-      )}
       {error && <p className="friend-notice" role="alert">{error}</p>}
+      {accepting && challenge && (
+        <ChallengeAcceptSheet
+          league={challenge.league}
+          size={challenge.rosterSize}
+          onAccept={async (team) => { await acceptOffer(offerId, team); await load(); }}
+          onClose={() => setAccepting(false)}
+        />
+      )}
       {countering && challenge && (
         <ChallengeSheet target={countering} counterOf={offerId} defaultLeague={challenge.league} onClose={() => setCountering(null)} />
       )}

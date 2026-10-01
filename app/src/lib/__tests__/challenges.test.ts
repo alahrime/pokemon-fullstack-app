@@ -1,10 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
-import { challengeView, createChallenge, type Challenge } from '../challenges';
+import { challengeView, createChallenge, isLiveChallenge, liveChallengesWith, type Challenge } from '../challenges';
 import { rulesHash, RULES_SCHEMA, type Format } from '../../rules';
 import { DATA_REV } from '../data';
 
 const rpc = vi.hoisted(() => vi.fn());
-vi.mock('../supabase', () => ({ supabase: { rpc } }));
+const query = vi.hoisted(() => ({ filters: [] as unknown[][], rows: [] as unknown[] }));
+const builder = vi.hoisted(() => {
+  const b: Record<string, unknown> = {};
+  for (const m of ['select', 'or', 'in', 'order', 'not']) b[m] = (...a: unknown[]) => { query.filters.push([m, ...a]); return b; };
+  b.limit = () => Promise.resolve({ data: query.rows, error: null });
+  return b;
+});
+vi.mock('../supabase', () => ({
+  supabase: { rpc, from: () => builder, auth: { getSession: async () => ({ data: { session: { user: { id: 'ann' } } }, error: null }) } },
+}));
 
 const FORMAT: Format = {
   schema: RULES_SCHEMA, base: 'great', pool: [],
@@ -69,5 +78,29 @@ describe('createChallenge', () => {
     rpc.mockClear();
     await expect(createChallenge({ ...a, scheduledFor: new Date(Date.now() - 1000) })).rejects.toThrow(/past/);
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('live challenges between two people', () => {
+  const at = (o: Partial<Challenge>) => ({ ...base, ...o });
+  it('counts open and accepted challenges that have not expired, and nothing else', () => {
+    expect(isLiveChallenge(at({}), NOW)).toBe(true);
+    expect(isLiveChallenge(at({ state: 'accepted' }), NOW)).toBe(true);
+    expect(isLiveChallenge(at({ expiresAt: '2026-09-29T11:00:00Z' }), NOW)).toBe(false);
+    for (const state of ['lapsed', 'declined', 'converted', 'confirmed'] as const) expect(isLiveChallenge(at({ state }), NOW), state).toBe(false);
+  });
+
+  it('asks for both directions between me and them, open or accepted only, and drops an expired row', async () => {
+    query.filters.length = 0;
+    const row = (id: string, exp: string) => ({
+      id, proposer_id: 'ann', target_id: 'bob', league: 'great', state: 'open', scheduled_for: null, expires_at: exp,
+      verified_hash: 'h', match_id: null, team: [], format_versions: null,
+    });
+    query.rows = [row('live', '2026-09-29T13:00:00Z'), row('stale', '2026-09-29T11:00:00Z')];
+    const out = await liveChallengesWith('bob', NOW);
+    expect(out.map((c) => c.id)).toEqual(['live']);
+    const or = query.filters.find((f) => f[0] === 'or')![1] as string;
+    expect(or).toBe('and(proposer_id.eq.ann,target_id.eq.bob),and(proposer_id.eq.bob,target_id.eq.ann)');
+    expect(query.filters.find((f) => f[0] === 'in')).toEqual(['in', 'state', ['open', 'accepted']]);
   });
 });

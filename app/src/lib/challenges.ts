@@ -164,6 +164,27 @@ export async function myChallenges(): Promise<Challenge[]> {
   return (data ?? []).map((r) => toChallenge(r as unknown as Row));
 }
 
+/** A challenge that can still be answered: open or accepted, and not past its expiry. */
+export const isLiveChallenge = (c: Challenge, now: Date): boolean =>
+  (c.state === 'open' || c.state === 'accepted') && new Date(c.expiresAt) > now;
+
+/** The live challenges between me and `otherId`, in either direction, newest first. */
+export async function liveChallengesWith(otherId: string, now: Date = new Date()): Promise<Challenge[]> {
+  const { data: s, error: se } = await supabase.auth.getSession();
+  if (se) throw new Error(se.message);
+  const me = s.session?.user.id;
+  if (!me) return [];
+  const { data, error } = await supabase
+    .from('match_offers')
+    .select(COLS)
+    .or(`and(proposer_id.eq.${me},target_id.eq.${otherId}),and(proposer_id.eq.${otherId},target_id.eq.${me})`)
+    .in('state', ['open', 'accepted'])
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => toChallenge(r as unknown as Row)).filter((c) => isLiveChallenge(c, now));
+}
+
 /**
  * Calls `onChange` whenever the offer row `offerId` is updated or deleted, so a card can refetch at once.
  * The payload is ignored on purpose: the card needs the joined view, and a refetch goes through RLS.

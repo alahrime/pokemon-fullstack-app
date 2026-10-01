@@ -11,7 +11,8 @@ import { PokemonCard } from '../components/PokemonCard';
 import { TypeBadge } from '../components/TypeBadge';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { AddPokemonModal, movesForChoice, type AddPokemonChoice } from '../components/AddPokemonModal';
-import { BestTeams } from '../components/BestTeams';
+import { takeHandedOffTeam } from '../lib/teamHandoff';
+import { MatchupMatrix } from '../components/MatchupMatrix';
 import { InfoPopover } from '../components/InfoPopover';
 import { useSession } from '../state/SessionContext';
 import { deleteTeam, listTeams, saveTeam, type SavedTeam } from '../lib/saves';
@@ -257,7 +258,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const { state } = useAppState();
   const { user } = useSession();
   const league = state.league;
-  const [team, setTeam] = useState<string[]>([]);
+  const [team, setTeam] = useState<string[]>(() => takeHandedOffTeam(size) ?? []);
   const [adding, setAdding] = useState(false);
   /**
    * Per-species build overrides chosen through the modal.
@@ -350,12 +351,6 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   };
   const clear = (i: number) => {
     setTeam((t) => t.filter((_, n) => n !== i));
-    invalidate();
-  };
-  // Loading a discovered team replaces the roster outright rather than
-  // appending, so a half-built team does not silently reject the load.
-  const load = (refs: string[]) => {
-    setTeam(refs.slice(0, size));
     invalidate();
   };
 
@@ -708,6 +703,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         </div>
       </div>
 
+      <MatchupMatrix team={team} builds={builds} league={league} onAdd={add} full={team.length >= size} />
+
       {picks && (
         <div className="panel" ref={picksRef}>
           <div className="hud-label">Best completions</div>
@@ -894,11 +891,6 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           {size === 6 && ' Six is scored as a matrix game: both players choose their three after seeing the other six.'}
         </div>
       )}
-      {/* After the results, not before: this list runs to thousands of pixels, and with it above them an
-          analysis or a suggestion landed 15,000px below the button that asked for it — clicked, and nothing
-          visibly happened. */}
-      <BestTeams league={league} size={size} onLoad={load} />
-
       {adding && (
         <AddPokemonModal
           league={league}

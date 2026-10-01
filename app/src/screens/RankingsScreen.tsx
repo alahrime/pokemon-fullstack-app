@@ -13,6 +13,8 @@ import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
 import { SegButton, SegGroup } from '../components/Seg';
 import { Pager } from '../components/Pager';
+import { BestTeams } from '../components/BestTeams';
+import { handOffTeam } from '../lib/teamHandoff';
 
 /** Rows per page. The full pool runs to 1140 in Great. */
 
@@ -142,8 +144,10 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
 }
 
 export function RankingsScreen() {
-  const { state } = useAppState();
+  const { state, patch } = useAppState();
   const league = state.league;
+  // What is being ranked: single Pokémon, or the best teams of three or six (which lived under the team builders).
+  const [view, setView] = useState<'pokemon' | 'teams3' | 'teams6'>('pokemon');
   const [cat, setCat] = useState<CategoryId>('overall');
   const tier = DEFAULT_TIER(league);
   const [page, setPage] = useState(0);
@@ -189,6 +193,29 @@ export function RankingsScreen() {
         }
         blurb="Every league-legal form, ranked by PvPoke's method on our battles."
       />
+      <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
+        <div className="field rank-view">
+          <label className="hud-label" htmlFor="rank-view">Ranking of</label>
+          <select id="rank-view" className="input" value={view} onChange={(e) => setView(e.target.value as typeof view)}>
+            <option value="pokemon">Individual Pokémon</option>
+            <option value="teams3">Teams of 3 (GBL)</option>
+            <option value="teams6">Teams of 6 (Show 6)</option>
+          </select>
+        </div>
+      </div>
+
+      {view !== 'pokemon' ? (
+        <BestTeams
+          league={league}
+          size={view === 'teams3' ? 3 : 6}
+          onLoad={(refs) => {
+            const size = view === 'teams3' ? 3 : 6;
+            handOffTeam(refs, size);
+            patch({ screen: size === 3 ? 'gbl' : 'show6' });
+          }}
+        />
+      ) : (
+      <>
       <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
         <div>
           <div className="hud-label">Category</div>
@@ -308,6 +335,8 @@ export function RankingsScreen() {
         onSize={(n) => { setPageSize(n); setPage(0); }}
         unit={`in ${LEAGUE_BY_ID.get(league)!.name}`}
       />
+      </>
+      )}
     </div>
   );
 }

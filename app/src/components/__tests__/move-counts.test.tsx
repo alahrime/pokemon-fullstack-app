@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { fireEvent } from '@testing-library/react';
+import { cleanup, fireEvent } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { MoveCounts } from '../MoveCounts';
 import { PokemonCard } from '../PokemonCard';
 import { RankingsScreen } from '../../screens/RankingsScreen';
 import { CoresScreen } from '../../screens/CoresScreen';
-import { TeamBuilderScreen } from '../../screens/TeamBuilderScreen';
 import { BattleScreen } from '../../screens/BattleScreen';
 import { fastMoveCounts } from '../../lib/engine';
 import { SPECIES_BY_ID, movesFor } from '../../lib/data';
@@ -75,15 +74,16 @@ describe('every screen that lists a moveset uses it', () => {
     expect(container.querySelector('.rank-move')).toBeNull();
   });
 
-  it('the team builders do — on the discovered lists, which is what they show', () => {
-    // These render `compact` cards. Gating the counts to `full` put them on the
-    // team slots, which are empty until you pick something, and left them off
-    // the lists that are on screen from the moment the page loads.
-    for (const size of [3, 6] as const) {
-      const { container } = renderApp(<TeamBuilderScreen size={size} />);
+  it('the best-team lists do — in Rankings, where the discovered teams now live', () => {
+    // These render `compact` cards. Gating the counts to `full` put them on the team slots, which are empty
+    // until you pick something, and left them off the lists that are on screen from the moment the page loads.
+    for (const view of ['teams3', 'teams6']) {
+      cleanup();
+      const { container } = renderApp(<RankingsScreen />);
+      fireEvent.change(container.querySelector('#rank-view')!, { target: { value: view } });
       const member = container.querySelector('.bt-members .pc');
-      expect(member, `size ${size}: no discovered member card`).toBeTruthy();
-      expect(runsIn(member as HTMLElement).length, `size ${size}`).toBeGreaterThan(0);
+      expect(member, `${view}: no discovered member card`).toBeTruthy();
+      expect(runsIn(member as HTMLElement).length, view).toBeGreaterThan(0);
     }
   });
 

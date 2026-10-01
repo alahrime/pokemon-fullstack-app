@@ -101,8 +101,6 @@ describe('TeamBuilderScreen — analysis', () => {
     fireEvent.click(analyse);
     await waitFor(() => expect(container.querySelector('.team-report')).toBeTruthy(), { timeout: 60000 });
     expect(container.textContent).toMatch(/%/);
-    const best = [...container.querySelectorAll('.hud-label')].find((e) => /Best teams of/.test(e.textContent ?? ''))!;
-    expect(container.querySelector('.team-report')!.compareDocumentPosition(best) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }, 90000);
 
   it('suggests a completion for a partial team', async () => {
@@ -113,10 +111,7 @@ describe('TeamBuilderScreen — analysis', () => {
     Element.prototype.scrollIntoView = reveal;
     fireEvent.click(screen.getByRole('button', { name: /Suggest next pick/i }));
     await waitFor(() => expect(container.querySelector('.suggest-cards')).toBeTruthy(), { timeout: 60000 });
-    // The result sits above the (very long) Best teams list and is scrolled to: below it, a click looked like
-    // it did nothing.
-    const best = [...container.querySelectorAll('.hud-label')].find((e) => /Best teams of/.test(e.textContent ?? ''))!;
-    expect(container.querySelector('.suggest-cards')!.compareDocumentPosition(best) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The result is scrolled to: out of sight below the button, a click looked like it did nothing.
     await waitFor(() => expect(reveal).toHaveBeenCalled());
   }, 90000);
 

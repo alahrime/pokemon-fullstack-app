@@ -129,6 +129,15 @@ describe('saved teams', () => {
     expect((members?.payload as { slot: number }[]).map((m) => m.slot)).toEqual([1, 2]);
   });
 
+  it('writes best_buddy per member, false when the member has none', async () => {
+    const { calls } = harness({ teams: [{ id: 't1' }] });
+    const { saveTeam } = await import('../saves');
+    const base = { fast_move: 'BUBBLE', charge_moves: [], iv_attack: 0, iv_defense: 15, iv_stamina: 15, level: 40 };
+    await saveTeam({ name: 'Mine', league: 'great', size: 3, members: [{ ref: 'azumarill', ...base, best_buddy: true }, { ref: 'registeel', ...base }] });
+    const rows = calls.find((c) => c.table === 'team_members' && c.op === 'insert')?.payload as { best_buddy: boolean }[];
+    expect(rows.map((r) => r.best_buddy)).toEqual([true, false]);
+  });
+
   /**
    * Task 5b: `size` is what the database now filters `listTeams` by and
    * checks against (3 or 6). It has to actually leave the client on both

@@ -27,7 +27,7 @@ export interface SavedTeam {
 export async function listTeams(size: 3 | 6): Promise<SavedTeam[]> {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, league, size, team_members(slot, ref, fast_move, charge_moves, iv_attack, iv_defense, iv_stamina, level)')
+    .select('id, name, league, size, team_members(slot, ref, fast_move, charge_moves, iv_attack, iv_defense, iv_stamina, level, best_buddy)')
     .eq('size', size)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);
@@ -67,10 +67,11 @@ function writeError(error: { code?: string; message: string }, name: string): Er
   return new Error(error.message);
 }
 
-/** The `team_members` columns only: a member from a challenge can carry fields the table lacks. */
-const column = (m: StoredMember): StoredMember => ({
+/** Exactly the `team_members` columns, so a stray field on a member cannot reach the insert. */
+const column = (m: StoredMember) => ({
   ref: m.ref, fast_move: m.fast_move, charge_moves: m.charge_moves,
   iv_attack: m.iv_attack, iv_defense: m.iv_defense, iv_stamina: m.iv_stamina, level: m.level,
+  best_buddy: !!m.best_buddy,
 });
 
 export async function saveTeam(t: {

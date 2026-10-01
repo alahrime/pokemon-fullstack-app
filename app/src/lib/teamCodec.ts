@@ -11,7 +11,7 @@ export interface StoredMember {
   iv_defense: number;
   iv_stamina: number;
   level: number | null;
-  /** Challenge teams only: `team_members` has no such column, so `saveTeam` drops it. */
+  /** Absent means false; stored rows and challenge teams written before it existed have none. */
   best_buddy?: boolean;
 }
 

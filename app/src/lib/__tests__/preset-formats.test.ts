@@ -48,6 +48,12 @@ describe('preset formats', () => {
     expect(legal('battlefrontier-master').has('venusaur_mega')).toBe(true);
   });
 
+  it('no Mega or Primal is offered as a Shadow', () => {
+    const legal = resolvePool(PRESET_FORMATS.find((p) => p.key === 'mega-great')!.format).legal;
+    expect(legal.filter((r) => /_mega|_primal/.test(r) && r.endsWith('_shadow'))).toEqual([]);
+    expect(legal).toContain('venusaur_shadow');
+  });
+
   it('Mega Color Cup keeps a Mega only if one of its types is fire, water, grass or electric', () => {
     const legal = new Set(resolvePool(PRESET_FORMATS.find((p) => p.key === 'mega-color')!.format).legal);
     expect(legal.has('blastoise_mega_x') || legal.has('blastoise_mega')).toBe(true);

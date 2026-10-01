@@ -359,16 +359,17 @@ export function pickableFor(_league: LeagueId): string[] {
  * Every ref a team could be built from under a league's cap, ranked or not, Megas and Primals included: a species
  * is in if its level-1, 0/0/0 form is within the cap, since anything above that can only be brought down by
  * powering down, never below level 1. The Mega cups are made of this; a Shadow row exists wherever the species
- * can be a Shadow. Distinct from `opponentCandidatesFor`, which is who is *ranked* and so who the engine
+ * can be a Shadow (never a Mega or Primal). Distinct from `opponentCandidatesFor`, which is who is *ranked* and so who the engine
  * simulates as a foe.
  */
 export function everyRefFor(league: LeagueId): string[] {
   const cap = LEAGUE_BY_ID.get(league)!.cap;
   const cp1 = (s: Species) =>
     Math.max(10, Math.floor((s.atk * CPM[0] * Math.sqrt(s.def * CPM[0]) * Math.sqrt(s.hp * CPM[0])) / 10));
+  // A Mega or Primal is never a Shadow, though the data carries its base form's shadowEligible.
   return SPECIES.filter((s) => isSimulated(s.id) && cp1(s) <= cap).flatMap((s) => [
     s.id,
-    ...(s.shadowEligible ? [makeRef(s.id, true)] : []),
+    ...(s.shadowEligible && !/_mega|_primal/.test(s.id) ? [makeRef(s.id, true)] : []),
   ]);
 }
 

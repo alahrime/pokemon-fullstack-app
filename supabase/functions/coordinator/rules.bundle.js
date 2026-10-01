@@ -387,7 +387,7 @@ function everyRefFor(league) {
   const cp1 = (s) => Math.max(10, Math.floor(s.atk * CPM[0] * Math.sqrt(s.def * CPM[0]) * Math.sqrt(s.hp * CPM[0]) / 10));
   return SPECIES.filter((s) => isSimulated(s.id) && cp1(s) <= cap).flatMap((s) => [
     s.id,
-    ...s.shadowEligible ? [makeRef(s.id, true)] : []
+    ...s.shadowEligible && !/_mega|_primal/.test(s.id) ? [makeRef(s.id, true)] : []
   ]);
 }
 function opponentCandidatesFor(league) {

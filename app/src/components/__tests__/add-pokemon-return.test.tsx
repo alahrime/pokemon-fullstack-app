@@ -40,6 +40,8 @@ describe('AddPokemonModal with a Mega', () => {
     render(<AddPokemonModal league="great" initial={{ ref: 'venusaur_mega', chargeIds: [], fastIdx: 0, iv }} onCommit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getAllByText('Venusaur (Mega)').length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.modal-moves button').length).toBeGreaterThan(2);
+    expect(screen.queryByRole('button', { name: /^Return/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Form' })).toBeNull();
   });
 
   it('finds a Mega by name when the format admits it, and not when it does not', async () => {

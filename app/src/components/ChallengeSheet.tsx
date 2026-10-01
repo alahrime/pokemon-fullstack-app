@@ -5,6 +5,7 @@ import { useChatDockRequest } from '../state/ChatDockContext';
 import { createChallenge, declineChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
+import { pickableFor } from '../lib/data';
 import { PRESET_FORMATS, versionFor, type PresetFormat } from '../lib/presetFormats';
 import { resolvePool, rulesHash, validateTeam, type Format } from '../rules';
 import { describeViolation } from '../tournament/roster';
@@ -99,10 +100,11 @@ export function ChallengeSheet({
   // A new slot count is a different team; a different format of the same size keeps what was built.
   useEffect(() => setSlots(size ? emptySlots(size) : []), [size]);
 
-  // A plain league has no rules of its own to enforce, so anything pickable may be brought; a cup's pool binds.
+  // A plain league has no rules of its own to enforce, so anything pickable (no Megas, as in GBL) may be brought; a cup's pool binds.
   const restricted = !!format && (format.pool.length > 0 || (format.start ?? 'league') !== 'league');
   const restrictTo = useMemo(() => {
-    try { return format && restricted ? new Set(resolvePool(format).legal) : undefined; } catch { return undefined; }
+    if (!format) return undefined;
+    try { return new Set(restricted ? resolvePool(format).legal : pickableFor(format.base)); } catch { return undefined; }
   }, [format, restricted]);
   const team = filledTeam(slots);
   const problems = useMemo(() => {

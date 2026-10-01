@@ -50,7 +50,7 @@ export interface AddPokemonChoice {
   bestBuddy?: boolean;
 }
 
-/** Shadows cannot learn Return, so it is offered only on a shadow-eligible Pokémon that is not a Shadow. */
+/** Shadows and Megas cannot learn Return, so it is offered only on a shadow-eligible Pokémon that is neither. */
 export const RETURN_ID = 'RETURN';
 
 export function AddPokemonModal({
@@ -84,6 +84,9 @@ export function AddPokemonModal({
   const panel = useRef<HTMLDivElement>(null);
 
   const sp = ref ? speciesOf(ref) : null;
+  // The data gives a Mega its base form's shadowEligible; a Mega is never a Shadow.
+  const isMega = /_mega|_primal/.test(baseId);
+  const canShadow = !!sp?.shadowEligible && !isMega;
   const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   const best = useMemo(() => (ref && sp ? bestSpreadFor(ref, league, true) : null), [ref, sp, league]);
   // What the slot opens on: the same roll the cards and the rankings show, so
@@ -142,8 +145,8 @@ export function AddPokemonModal({
   const allCharges = sp ? chargesOf(sp.chargeMove, sp.chargeMove2).concat(sp.chargeMoves) : [];
   const chargePool = useMemo(() => {
     const seen = new Set<string>();
-    return allCharges.filter((c) => (isShadow && c.id === RETURN_ID) || seen.has(c.id) ? false : (seen.add(c.id), true));
-  }, [allCharges, isShadow]);
+    return allCharges.filter((c) => ((isShadow || isMega) && c.id === RETURN_ID) || seen.has(c.id) ? false : (seen.add(c.id), true));
+  }, [allCharges, isShadow, isMega]);
 
   const toggleCharge = (id: string) =>
     setChargeIds((cur) =>
@@ -207,9 +210,9 @@ export function AddPokemonModal({
 
           {sp && rated && entry && (
             <>
-              {(sp.shadowEligible || buddy) && (
+              {(canShadow || buddy) && (
                 <div className="modal-section modal-forms">
-                  {sp.shadowEligible && (
+                  {canShadow && (
                     <div>
                       <div className="hud-label">Form</div>
                       <div className="form-toggle" role="group" aria-label="Form">

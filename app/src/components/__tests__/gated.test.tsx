@@ -48,6 +48,19 @@ describe('HeatmapView with WebGL available', () => {
     expect(container.querySelector('.hv-grid')).toBeTruthy();
   });
 
+  it('a terrain that cannot be drawn (the probe passes, the context is a stub) falls back to the flat grid with the reason, instead of taking the screen down', async () => {
+    pretendWebGL();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { iv, cells, palette } = view();
+    const { container, findByRole } = renderApp(
+      <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
+        onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
+    fireEvent.click([...container.querySelectorAll('.hv-controls button')].find((b) => b.textContent === '3D')!);
+    expect((await findByRole('alert')).textContent).toMatch(/The 3D terrain could not be drawn \(.+\), so this is the flat grid/);
+    expect(container.querySelector('.hv-grid')).toBeTruthy();
+    expect(container.querySelector('.hv-terrain')).toBeNull();
+  });
+
   it('hides the toggle entirely where the probe fails', () => {
     const { iv, cells, palette } = view();
     const { container } = renderApp(

@@ -398,6 +398,9 @@ export function SpeciesSearch({
             e.preventDefault();
             if (open && results[activeIndex]) commit(results[activeIndex].ref);
           } else if (e.key === 'Escape') {
+            // Escape dismisses the list first. Left to propagate it also reached the Escape listener of a dialog
+            // around the box and closed the whole dialog, build and all, while the list was still up.
+            if (open) e.stopPropagation();
             setOpen(false);
             setText(resting);
           }
@@ -420,7 +423,9 @@ export function SpeciesSearch({
           one explanation that mattered with it. The note could only ever
           appear alongside results it had nothing to do with. */}
       {open && (results.length > 0 || debounced.trim().length > 0) && (
-        <div className={`search-dropdown${dropUp ? ' is-up' : ''}`}>
+        // A press anywhere on the panel (its scrollbar, the padding between rows, the empty-result note) must not
+        // blur the input: blur closes the list, which dropped it under the cursor before a pick was made.
+        <div className={`search-dropdown${dropUp ? ' is-up' : ''}`} onMouseDown={(e) => e.preventDefault()}>
         {/* The scroll box is this wrapper, not the list. Padding on the list
             would sit outside its own max-height and the box would grow to the
             full 5,500px instead of clipping at `listHeight`. */}

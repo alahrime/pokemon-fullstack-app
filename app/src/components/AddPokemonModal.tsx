@@ -50,7 +50,7 @@ export interface AddPokemonChoice {
   bestBuddy?: boolean;
 }
 
-/** Shadows and Megas cannot learn Return, so it is offered only on a shadow-eligible Pokémon that is neither. */
+/** Shadows cannot learn Return, so it is offered only on a shadow-eligible Pokémon that is not a Shadow (a Mega is never shadow-eligible, so never offers it). */
 export const RETURN_ID = 'RETURN';
 
 export function AddPokemonModal({
@@ -84,9 +84,7 @@ export function AddPokemonModal({
   const panel = useRef<HTMLDivElement>(null);
 
   const sp = ref ? speciesOf(ref) : null;
-  // The data gives a Mega its base form's shadowEligible; a Mega is never a Shadow.
-  const isMega = /_mega|_primal/.test(baseId);
-  const canShadow = !!sp?.shadowEligible && !isMega;
+  const canShadow = !!sp?.shadowEligible;
   const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
   const best = useMemo(() => (ref && sp ? bestSpreadFor(ref, league, true) : null), [ref, sp, league]);
   // What the slot opens on: the same roll the cards and the rankings show, so
@@ -128,9 +126,14 @@ export function AddPokemonModal({
    * long team page jumped the page from the top to 2559px, and closing it left
    * you there. Focus should move; the page should not.
    */
+  // Read through a ref so the effect below runs once. Callers pass `onClose` inline, a new function every render,
+  // and with it in the deps every re-render of the parent (an async load finishing, say) re-ran the effect:
+  // its cleanup and setup moved focus to the panel, out of the search box mid-selection, and the list collapsed.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
     window.addEventListener('keydown', onKey);
     panel.current?.focus({ preventScroll: true });
     return () => {
@@ -139,14 +142,14 @@ export function AddPokemonModal({
       // restore to something still on the page.
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
 
   const entry = useMemo(() => (ref ? getEntry(ref, iv, league, bestBuddy).entry : null), [ref, iv, league, bestBuddy]);
   const allCharges = sp ? chargesOf(sp.chargeMove, sp.chargeMove2).concat(sp.chargeMoves) : [];
   const chargePool = useMemo(() => {
     const seen = new Set<string>();
-    return allCharges.filter((c) => ((isShadow || isMega) && c.id === RETURN_ID) || seen.has(c.id) ? false : (seen.add(c.id), true));
-  }, [allCharges, isShadow, isMega]);
+    return allCharges.filter((c) => (isShadow && c.id === RETURN_ID) || seen.has(c.id) ? false : (seen.add(c.id), true));
+  }, [allCharges, isShadow]);
 
   const toggleCharge = (id: string) =>
     setChargeIds((cur) =>

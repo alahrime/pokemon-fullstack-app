@@ -323,7 +323,10 @@ for (const p of bases) {
   // PvPoke's Pokemon.js: a shadow-eligible species can be purified, which
   // teaches Return - in a league whose cap its level-25 CP fits under. The
   // league half of that is applied where movesets are chosen, off level25CP.
-  const purifiable = (p.tags ?? []).includes('shadoweligible') && !charges.some((c) => c.id === 'RETURN');
+  // PvPoke tags a Mega with its base form's `shadoweligible`, but a Shadow cannot Mega Evolve and a Mega is
+  // never a Shadow, so neither is eligible nor purifiable here.
+  const isMegaForm = /_mega|_primal/.test(p.speciesId);
+  const purifiable = !isMegaForm && (p.tags ?? []).includes('shadoweligible') && !charges.some((c) => c.id === 'RETURN');
   if (purifiable) charges.push(chargeMove('RETURN', types));
 
   // A mon with no usable moveset can't be simulated; drop it rather than ship
@@ -338,7 +341,7 @@ for (const p of bases) {
   const leagues = [];
   const shadowLeagues = [];
   const cap = maxCP(p.baseStats);
-  const isShadowEligible = (p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`);
+  const isShadowEligible = !isMegaForm && ((p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`));
   let recommended = null;
   /**
    * PvPoke publishes a recommended set per league, and they genuinely differ:

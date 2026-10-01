@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Heatmap } from '../../components/Heatmap';
 import { SegButton, SegGroup } from '../../components/Seg';
 import { HudLabel } from '../../components/Hud';
+import { TerrainBoundary } from '../../components/TerrainBoundary';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
 import type { ColorBy } from '../../state/AppState';
@@ -66,6 +67,7 @@ export function HeatmapView({
   // appears and the 2D grid stays the only option.
   const webgl = useMemo(() => hasWebGL(), []);
   const [dim, setDim] = useState<'2d' | '3d'>('2d');
+  const [terrainError, setTerrainError] = useState<string | null>(null);
   const show3d = webgl && dim === '3d';
 
   const legendRef = useRef<HTMLDivElement>(null);
@@ -115,15 +117,18 @@ export function HeatmapView({
             <MotionToggle className="min-h-[38px]" />
             {webgl ? (
               <SegGroup>
-                <SegButton active={dim === '2d'} onClick={() => setDim('2d')} title="Flat grid">
+                <SegButton active={dim === '2d'} onClick={() => { setDim('2d'); setTerrainError(null); }} title="Flat grid">
                   2D
                 </SegButton>
-                <SegButton active={dim === '3d'} onClick={() => setDim('3d')} title="Stat-product terrain">
+                <SegButton active={dim === '3d'} onClick={() => { setDim('3d'); setTerrainError(null); }} title="Stat-product terrain">
                   3D
                 </SegButton>
               </SegGroup>
             ) : null}
           </div>
+          {terrainError && (
+            <p className="friend-notice" role="alert">The 3D terrain could not be drawn ({terrainError}), so this is the flat grid.</p>
+          )}
           {/* The legend sits inside the plotted field itself, not the wrapper:
               its corners are the field's corners, so it lands flush against
               the cells in either position rather than 24px out over the axis
@@ -140,7 +145,9 @@ export function HeatmapView({
                     </div>
                   }
                 >
-                  <Heatmap3D cells={cells} onPick={onPick} />
+                  <TerrainBoundary onError={(m) => { setTerrainError(m); setDim('2d'); }}>
+                    <Heatmap3D cells={cells} onPick={onPick} />
+                  </TerrainBoundary>
                 </Suspense>
               </div>
             </div>

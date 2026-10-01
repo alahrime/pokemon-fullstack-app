@@ -1,5 +1,5 @@
-import { SPECIES_BY_ID, conflictsOnTeam, movesFor, opponentCandidatesFor, parseRef, speciesOf } from '../lib/data';
-import { resolvePool, drawablePool } from './pool';
+import { SPECIES_BY_ID, conflictsOnTeam, movesFor, parseRef, speciesOf } from '../lib/data';
+import { baseRefs, resolvePool, drawablePool } from './pool';
 import { compileBuildSelector, type BuildTerm } from './buildSelector';
 import { compileSelector } from './selector';
 import type { Build, Diagnostic, Format, Quota } from './types';
@@ -165,7 +165,7 @@ export function lintFormat(format: Format, budget: number = SEARCH_NODE_BUDGET):
   });
 
   const { legal, decidedBy } = resolvePool(format);
-  const leagueSize = opponentCandidatesFor(format.base).length;
+  const leagueSize = baseRefs(format).length;
 
   // A clause is dead when it decided nothing — either it matched no ref at all,
   // or every ref it matched was overruled by a later clause. Both read the same

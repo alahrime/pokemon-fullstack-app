@@ -80,8 +80,11 @@ export interface Selection {
  * existed keeps precisely the meaning it had. The builder chooses `empty` for
  * formats it creates — a different default, deliberately, because changing the
  * schema's default would rewrite the meaning of everything already saved.
+ *
+ * `every` starts from every ref buildable under the base's cap, ranked or not, Megas and Primals included, and
+ * clauses restrict it like `league`. It is what the Mega cups are made of.
  */
-export type PoolStart = 'league' | 'empty';
+export type PoolStart = 'league' | 'empty' | 'every';
 
 export interface Format {
   schema: number;

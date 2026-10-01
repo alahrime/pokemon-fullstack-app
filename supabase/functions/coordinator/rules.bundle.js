@@ -382,6 +382,14 @@ var ROSTER = SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => {
   return s.shadowEligible ? [base, { ref: makeRef(s.id, true), species: s, shadow: true, name: `${s.name} (Shadow)` }] : [base];
 });
 var BASE_ROSTER = ROSTER.filter((r) => !r.shadow);
+function everyRefFor(league) {
+  const cap = LEAGUE_BY_ID.get(league).cap;
+  const cp1 = (s) => Math.max(10, Math.floor(s.atk * CPM[0] * Math.sqrt(s.def * CPM[0]) * Math.sqrt(s.hp * CPM[0]) / 10));
+  return SPECIES.filter((s) => isSimulated(s.id) && cp1(s) <= cap).flatMap((s) => [
+    s.id,
+    ...s.shadowEligible ? [makeRef(s.id, true)] : []
+  ]);
+}
 function opponentCandidatesFor(league) {
   return SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => [
     ...s.leagues.includes(league) ? [s.id] : [],
@@ -463,8 +471,9 @@ function compileBuildSelector(select) {
 }
 
 // src/rules/pool.ts
+var baseRefs = (format) => format.start === "every" ? everyRefFor(format.base) : opponentCandidatesFor(format.base);
 function resolvePool(format) {
-  const base = opponentCandidatesFor(format.base);
+  const base = baseRefs(format);
   const compiled = [];
   const bad = [];
   format.pool.forEach((c, i) => {
@@ -632,7 +641,7 @@ function lintFormat(format, budget = SEARCH_NODE_BUDGET) {
     }
   });
   const { legal, decidedBy } = resolvePool(format);
-  const leagueSize = opponentCandidatesFor(format.base).length;
+  const leagueSize = baseRefs(format).length;
   const decisive = new Set(decidedBy.values());
   format.pool.forEach((_, i) => {
     if (!decisive.has(i) && compileSelector(format.pool[i].select)) {

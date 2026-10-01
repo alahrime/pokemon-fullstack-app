@@ -34,3 +34,21 @@ describe('AddPokemonModal forms', () => {
     expect(screen.getByRole('button', { name: /^Return/ }).className).not.toContain('is-active');
   });
 });
+
+describe('AddPokemonModal with a Mega', () => {
+  it('opens a Mega in a league that does not rank it, with moves to choose from', () => {
+    render(<AddPokemonModal league="great" initial={{ ref: 'venusaur_mega', chargeIds: [], fastIdx: 0, iv }} onCommit={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getAllByText('Venusaur (Mega)').length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.modal-moves button').length).toBeGreaterThan(2);
+  });
+
+  it('finds a Mega by name when the format admits it, and not when it does not', async () => {
+    const { rerender } = render(<AddPokemonModal league="great" restrictTo={new Set(['venusaur_mega'])} onCommit={vi.fn()} onClose={vi.fn()} />);
+    const box = screen.getByPlaceholderText('Search any Pokémon…');
+    fireEvent.change(box, { target: { value: 'venusaur' } });
+    expect((await screen.findAllByRole('option')).length).toBe(1);
+    rerender(<AddPokemonModal league="great" restrictTo={new Set(['venusaur'])} onCommit={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Search any Pokémon…'), { target: { value: 'venusaur' } });
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent).join('|')).not.toMatch(/Mega/);
+  });
+});

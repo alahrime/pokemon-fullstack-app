@@ -2,6 +2,7 @@ import speciesRaw from '../data/species.json';
 import opponentsRaw from '../data/opponents.json';
 import type { ChargeMove, FastMove, League, LeagueId, Species, SpeciesForm, SpeciesRef } from './types';
 import { artefact } from './artefact';
+import { CPM } from './cpm';
 
 /**
  * The roster is now the whole released game — every species and alternate
@@ -349,6 +350,23 @@ export function opponentsFor(league: LeagueId): Species[] {
  */
 export function pickableFor(_league: LeagueId): string[] {
   return SPECIES.filter((s) => isSimulated(s.id) && !/_mega|_primal/.test(s.id)).flatMap((s) => [
+    s.id,
+    ...(s.shadowEligible ? [makeRef(s.id, true)] : []),
+  ]);
+}
+
+/**
+ * Every ref a team could be built from under a league's cap, ranked or not, Megas and Primals included: a species
+ * is in if its level-1, 0/0/0 form is within the cap, since anything above that can only be brought down by
+ * powering down, never below level 1. The Mega cups are made of this; a Shadow row exists wherever the species
+ * can be a Shadow. Distinct from `opponentCandidatesFor`, which is who is *ranked* and so who the engine
+ * simulates as a foe.
+ */
+export function everyRefFor(league: LeagueId): string[] {
+  const cap = LEAGUE_BY_ID.get(league)!.cap;
+  const cp1 = (s: Species) =>
+    Math.max(10, Math.floor((s.atk * CPM[0] * Math.sqrt(s.def * CPM[0]) * Math.sqrt(s.hp * CPM[0])) / 10));
+  return SPECIES.filter((s) => isSimulated(s.id) && cp1(s) <= cap).flatMap((s) => [
     s.id,
     ...(s.shadowEligible ? [makeRef(s.id, true)] : []),
   ]);

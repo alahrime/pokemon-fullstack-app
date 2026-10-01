@@ -108,7 +108,7 @@ describe('ChallengeSheet', () => {
 
   it('lists the standard cups, then your own formats', async () => {
     open();
-    for (const n of ['Great League', 'Ultra League', 'Master League', 'Retro Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']) {
+    for (const n of ['Great League', 'Ultra League', 'Master League', 'Mega Great League', 'Mega Ultra League', 'Mega Master League', 'Mega Color Cup', 'Retro Cup', 'LAIC 2027 Championship Series Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']) {
       expect(await screen.findByRole('option', { name: n })).toBeTruthy();
     }
     expect(await screen.findByRole('option', { name: 'Fmt g3' })).toBeTruthy();

@@ -1,4 +1,4 @@
-import { opponentCandidatesFor, rankOfRef } from '../lib/data';
+import { everyRefFor, opponentCandidatesFor, rankOfRef } from '../lib/data';
 import { compileSelector, type RefTerm } from './selector';
 import type { Format } from './types';
 
@@ -30,8 +30,12 @@ export interface PoolResolution {
  * diverges exactly when a format uses an exception — the case the ordering
  * exists to serve.
  */
+/** The refs a format's clauses start from: the ranked league, or (`every`) anything buildable under its cap. */
+export const baseRefs = (format: Format): string[] =>
+  format.start === 'every' ? everyRefFor(format.base) : opponentCandidatesFor(format.base);
+
 export function resolvePool(format: Format): PoolResolution {
-  const base = opponentCandidatesFor(format.base);
+  const base = baseRefs(format);
 
   const compiled: (RefTerm | null)[] = [];
   const bad: number[] = [];

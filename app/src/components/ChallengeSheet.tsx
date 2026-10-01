@@ -100,7 +100,7 @@ export function ChallengeSheet({
   useEffect(() => setSlots(size ? emptySlots(size) : []), [size]);
 
   // A plain league has no rules of its own to enforce, so anything pickable may be brought; a cup's pool binds.
-  const restricted = !!format && (format.pool.length > 0 || format.start === 'empty');
+  const restricted = !!format && (format.pool.length > 0 || (format.start ?? 'league') !== 'league');
   const restrictTo = useMemo(() => {
     try { return format && restricted ? new Set(resolvePool(format).legal) : undefined; } catch { return undefined; }
   }, [format, restricted]);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
-import { createChallenge } from '../lib/challenges';
+import { createChallenge, declineChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
 import { LEAGUES } from '../lib/data';
 import { listServerFormats, listTeams, type SavedFormat, type SavedTeam } from '../lib/saves';
@@ -19,17 +19,25 @@ function messageOf(e: unknown): string {
  * dock to open it, where the challenge card lives. Any of your own formats will do,
  * private or not — the target can read the one you challenge on. A refusal
  * (a past time, someone no longer challengeable) is shown here and leaves the sheet open to fix.
+ *
+ * `counterOf` turns it into a counter: `target` is the person who challenged you, the league starts at theirs,
+ * and once your challenge exists the one you are answering is declined. Create first, decline second, so a
+ * refusal of your new terms leaves their challenge open to accept or decline as before.
  */
 export function ChallengeSheet({
   target,
   onClose,
+  counterOf,
+  defaultLeague,
 }: {
   target: { id: string; name: string };
   onClose: () => void;
+  counterOf?: string;
+  defaultLeague?: LeagueId;
 }) {
   const { state } = useAppState();
   const { requestChannel } = useChatDockRequest();
-  const [league, setLeague] = useState<LeagueId>(state.league);
+  const [league, setLeague] = useState<LeagueId>(defaultLeague ?? state.league);
   const [formats, setFormats] = useState<SavedFormat[] | null>(null);
   const [formatId, setFormatId] = useState('');
   const [teams, setTeams] = useState<SavedTeam[] | null>(null);
@@ -106,13 +114,14 @@ export function ChallengeSheet({
       });
       created = true;
       setSent(true);
+      if (counterOf) await declineChallenge(counterOf);
       const dmId = await openDm(target.id);
       requestChannel(dmId);
       onClose();
     } catch (e) {
       // Once the challenge exists, a retry would create a second one: keep
       // Send disabled and say so.
-      setError(created ? `Challenge sent — couldn't open the chat: ${messageOf(e)}` : messageOf(e));
+      setError(created ? `${counterOf ? 'Counter' : 'Challenge'} sent — couldn't ${counterOf ? 'finish up (decline theirs or open the chat)' : 'open the chat'}: ${messageOf(e)}` : messageOf(e));
       setBusy(created);
     }
   }
@@ -129,9 +138,9 @@ export function ChallengeSheet({
         className="challenge-sheet panel chamfer-9"
         role="dialog"
         aria-modal="true"
-        aria-label={`Challenge ${target.name}`}
+        aria-label={`${counterOf ? 'Counter' : 'Challenge'} ${target.name}`}
       >
-        <div className="hud-label">Challenge {target.name}</div>
+        <div className="hud-label">{counterOf ? 'Counter' : 'Challenge'} {target.name}</div>
 
         <div className="field">
           <label htmlFor="challenge-league">League</label>
@@ -225,7 +234,7 @@ export function ChallengeSheet({
             {sent ? 'Close' : 'Cancel'}
           </button>
           <button type="button" className="btn btn-primary" disabled={!ready} onClick={() => void send()}>
-            Send challenge
+            {counterOf ? 'Send counter' : 'Send challenge'}
           </button>
         </div>
       </div>

@@ -25,7 +25,7 @@ describe('challengeView', () => {
     expect(challengeView(null, 'bob', NOW)).toEqual({ label: 'Withdrawn', tone: 'dead', actions: [] });
   });
   it('the target can accept or decline a verified open challenge', () => {
-    expect(v({}, 'bob')).toMatchObject({ tone: 'open', actions: ['accept', 'decline'] });
+    expect(v({}, 'bob')).toMatchObject({ tone: 'open', actions: ['accept', 'counter', 'decline'] });
   });
   it('shows a verifying state and no Accept in the first minute', () => {
     const r = v({ verifiedHash: null }, 'bob');

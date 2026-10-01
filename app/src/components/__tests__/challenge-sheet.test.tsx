@@ -4,6 +4,7 @@ import { renderApp } from '../../test/render';
 import { ChallengeSheet } from '../ChallengeSheet';
 
 const createChallenge = vi.fn();
+const declineChallenge = vi.fn();
 const openDm = vi.fn();
 const requestChannel = vi.fn();
 const listTeams = vi.fn();
@@ -14,7 +15,10 @@ vi.mock('../../lib/saves', () => ({
   listServerFormats: async () => formats,
   listTeams: (...a: unknown[]) => listTeams(...a),
 }));
-vi.mock('../../lib/challenges', () => ({ createChallenge: (...a: unknown[]) => createChallenge(...a) }));
+vi.mock('../../lib/challenges', () => ({
+  createChallenge: (...a: unknown[]) => createChallenge(...a),
+  declineChallenge: (...a: unknown[]) => declineChallenge(...a),
+}));
 vi.mock('../../lib/channels', () => ({
   openDm: (...a: unknown[]) => openDm(...a),
   // Read by the ChannelListProvider `renderApp` mounts (signed out, never called with data).
@@ -47,6 +51,7 @@ async function choose(formatName = 'Fmt g3', teamName = 'Team t3') {
 
 beforeEach(() => {
   createChallenge.mockReset().mockResolvedValue('ch1');
+  declineChallenge.mockReset().mockResolvedValue(true);
   openDm.mockReset().mockResolvedValue('dm1');
   requestChannel.mockReset();
   formats = [fmt('g3', 'great', 3), fmt('u3', 'ultra', 3)];
@@ -184,5 +189,52 @@ describe('ChallengeSheet', () => {
     open();
     expect(await screen.findByText(/save one on the Formats screen/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  describe('as a counter', () => {
+    const counter = (onClose = vi.fn()) => {
+      renderApp(<ChallengeSheet target={target} counterOf="orig" defaultLeague="ultra" onClose={onClose} />);
+      return onClose;
+    };
+
+    it('is named a counter, starts at the original league, and sends a counter', async () => {
+      counter();
+      expect(await screen.findByRole('dialog', { name: 'Counter Ally' })).toBeTruthy();
+      expect(((await screen.findByLabelText('League')) as HTMLSelectElement).value).toBe('ultra');
+      expect(screen.getByRole('button', { name: 'Send counter' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Send challenge' })).toBeNull();
+    });
+
+    it('creates the new challenge first, then declines the original, then opens the DM', async () => {
+      const order: string[] = [];
+      createChallenge.mockImplementation(async () => { order.push('create'); return 'ch2'; });
+      declineChallenge.mockImplementation(async (id: string) => { order.push(`decline:${id}`); return true; });
+      openDm.mockImplementation(async () => { order.push('dm'); return 'dm1'; });
+      const onClose = counter();
+      await choose('Fmt u3', 'Team tu');
+      fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(order).toEqual(['create', 'decline:orig', 'dm']);
+    });
+
+    it('leaves their challenge alone when your counter is refused', async () => {
+      createChallenge.mockRejectedValue(new Error('someone no longer challengeable'));
+      const onClose = counter();
+      await choose('Fmt u3', 'Team tu');
+      fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(/no longer challengeable/);
+      expect(declineChallenge).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('says so when the counter went out but declining theirs failed, and cannot be sent twice', async () => {
+      declineChallenge.mockRejectedValue(new Error('network'));
+      counter();
+      await choose('Fmt u3', 'Team tu');
+      fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(/Counter sent.*network/);
+      expect((screen.getByRole('button', { name: 'Send counter' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(createChallenge).toHaveBeenCalledTimes(1);
+    });
   });
 });

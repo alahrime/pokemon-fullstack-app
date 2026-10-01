@@ -23,7 +23,7 @@ export interface Challenge {
   formatName: string | null;
 }
 
-export type ChallengeAction = 'accept' | 'decline' | 'confirm' | 'withdraw';
+export type ChallengeAction = 'accept' | 'counter' | 'decline' | 'confirm' | 'withdraw';
 export interface ChallengeView {
   label: string;
   tone: 'open' | 'wait' | 'done' | 'dead';
@@ -44,7 +44,7 @@ export function challengeView(c: Challenge | null, me: string, now: Date): Chall
   if (c.state === 'open') {
     if (theirs) {
       return c.verifiedHash
-        ? { label: 'Waiting for you', tone: 'open', actions: ['accept', 'decline'] }
+        ? { label: 'Waiting for you', tone: 'open', actions: ['accept', 'counter', 'decline'] }
         : { label: 'Verifying the format…', tone: 'wait', actions: ['decline'] };
     }
     if (mine) {

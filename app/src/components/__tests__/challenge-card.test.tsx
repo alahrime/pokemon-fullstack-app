@@ -25,6 +25,13 @@ vi.mock('../../lib/matchmaking', () => ({
   acceptOffer: (...a: unknown[]) => acceptOffer(...a),
   confirmOffer: (...a: unknown[]) => confirmOffer(...a),
 }));
+const resolveDisplayNames = vi.fn();
+vi.mock('../../lib/channels', () => ({ resolveDisplayNames: (...a: unknown[]) => resolveDisplayNames(...a) }));
+vi.mock('../ChallengeSheet', () => ({
+  ChallengeSheet: (p: { target: { id: string; name: string }; counterOf?: string; defaultLeague?: string; onClose: () => void }) => (
+    <div role="dialog" aria-label={`sheet ${p.target.name} ${p.target.id} counterOf=${p.counterOf} ${p.defaultLeague}`}><button onClick={p.onClose}>close sheet</button></div>
+  ),
+}));
 vi.mock('../../lib/matches', () => ({ myMatches: (...a: unknown[]) => myMatches(...a) }));
 vi.mock('../../lib/saves', () => ({ listTeams: (...a: unknown[]) => listTeams(...a) }));
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user: { id: 'me' } }) }));
@@ -48,6 +55,7 @@ beforeEach(() => {
   withdrawChallenge.mockResolvedValue(undefined);
   confirmOffer.mockResolvedValue('m');
   acceptOffer.mockResolvedValue(null);
+  resolveDisplayNames.mockResolvedValue(new Map([['them', 'Ally']]));
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -196,5 +204,26 @@ describe('ChallengeCard', () => {
     expect(alert.textContent).toBe('roster mismatch');
     expect(alert.className).toContain('friend-notice');
     await waitFor(() => expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(false));
+  });
+
+  it('Counter opens the sheet aimed back at the proposer, in the same league, answering this offer', async () => {
+    serve({ league: 'ultra' });
+    render(<ChallengeCard offerId="o" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Counter' }));
+    expect(await screen.findByRole('dialog', { name: 'sheet Ally them counterOf=o ultra' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'close sheet' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('offers Counter only to the target of a verified, open challenge', async () => {
+    serve({ verifiedHash: null });
+    const a = render(<ChallengeCard offerId="o" />);
+    await screen.findByText('Verifying the format…');
+    expect(screen.queryByRole('button', { name: 'Counter' })).toBeNull();
+    a.unmount();
+    serve({ proposerId: 'me', targetId: 'them' });
+    render(<ChallengeCard offerId="o" />);
+    await screen.findByText('Waiting for them');
+    expect(screen.queryByRole('button', { name: 'Counter' })).toBeNull();
   });
 });

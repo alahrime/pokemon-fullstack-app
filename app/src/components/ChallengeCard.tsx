@@ -5,6 +5,8 @@ import {
   challengeView, declineChallenge, fetchChallenges, subscribeToOffer, withdrawChallenge, type Challenge,
 } from '../lib/challenges';
 import { acceptOffer, confirmOffer } from '../lib/matchmaking';
+import { resolveDisplayNames } from '../lib/channels';
+import { ChallengeSheet } from './ChallengeSheet';
 import { myMatches } from '../lib/matches';
 import { listTeams, type SavedTeam } from '../lib/saves';
 import { LEAGUE_BY_ID } from '../lib/data';
@@ -26,6 +28,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
   const [teamId, setTeamId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [countering, setCountering] = useState<{ id: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +68,17 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
     setBusy(true);
     setError(null);
     try { await fn(); await load(); } catch (e) { setError(messageOf(e)); } finally { setBusy(false); }
+  }
+
+  async function openCounter() {
+    if (!challenge) return;
+    setError(null);
+    try {
+      const name = (await resolveDisplayNames([challenge.proposerId])).get(challenge.proposerId) ?? 'them';
+      setCountering({ id: challenge.proposerId, name });
+    } catch (e) {
+      setError(messageOf(e));
+    }
   }
 
   async function openMatch() {
@@ -119,6 +133,9 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
         {has('confirm') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => confirmOffer(offerId))}>Confirm</button>
         )}
+        {has('counter') && (
+          <button type="button" className="btn" disabled={busy} onClick={() => void openCounter()}>Counter</button>
+        )}
         {has('decline') && (
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void run(() => declineChallenge(offerId))}>Decline</button>
         )}
@@ -133,6 +150,9 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
         <p className="text-faint">Save a team of {challenge.rosterSize} in Teams first</p>
       )}
       {error && <p className="friend-notice" role="alert">{error}</p>}
+      {countering && challenge && (
+        <ChallengeSheet target={countering} counterOf={offerId} defaultLeague={challenge.league} onClose={() => setCountering(null)} />
+      )}
     </div>
   );
 }

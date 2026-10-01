@@ -147,7 +147,7 @@ describe('CoresScreen — the rest of its controls', () => {
     fireEvent.click(varied);
     expect(container.querySelectorAll('.core-row, .core-card').length).toBeGreaterThan(0);
     expect(variedCount).toBeGreaterThan(0);
-  });
+  }, 20_000); // ~5s alone: renders every core twice, so it times out at the 5s default under load
 
   it('sorts by rescue, which is the default the others toggle away from', () => {
     const { container } = renderApp(<CoresScreen />);

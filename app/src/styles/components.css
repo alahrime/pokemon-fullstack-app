@@ -6724,6 +6724,9 @@ th.bt-matrix-head { text-align: center; }
 :root[data-theme='paper'] .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: color-mix(in srgb, var(--type-grass), #000 30%); }
 :root[data-theme='modernist'] .bracket-row:has(.is-loser) .bracket-mark,
 :root[data-theme='paper'] .bracket-row:has(.is-loser) .bracket-mark { color: color-mix(in srgb, var(--type-fire), #000 30%); }
+/* Midnight (dark): the raw marks are 4.26:1 / 4.47:1 on --surface-2; 12% toward white is >= 5:1. */
+:root[data-theme='midnight'] .bracket-row:has(.bracket-name:not(.is-loser)) .bracket-mark { color: color-mix(in srgb, var(--type-grass), #fff 12%); }
+:root[data-theme='midnight'] .bracket-row:has(.is-loser) .bracket-mark { color: color-mix(in srgb, var(--type-fire), #fff 12%); }
 .bracket-you, .bracket-tag { border: var(--border-hairline) solid var(--rule-strong); padding: 0 var(--space-1); }
 .bracket mark { background: var(--color-accent-2-300); color: inherit; }
 .standings-scroll { overflow-x: auto; min-width: 0; }

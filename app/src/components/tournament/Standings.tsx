@@ -22,7 +22,7 @@ export function Standings({ entrants, names, pairings, now }: {
           {rows.map((s, i) => (
             <tr key={s.id}>
               <td className="numeric">{i + 1}</td>
-              <td className={dropped.has(s.id) ? 'player-dropped' : ''}>
+              <td className={`[overflow-wrap:anywhere] ${dropped.has(s.id) ? 'player-dropped' : ''}`}>
                 {playerName(names, s.id)}{dropped.has(s.id) && <span className="text-muted"> dropped</span>}
               </td>
               <td className="numeric">{s.matchWins}–{s.matches - s.matchWins}</td>

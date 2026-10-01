@@ -234,7 +234,7 @@ export function FriendsScreen() {
           <ul className="match-list">
             {results.length === 0 && <li className="text-muted">No trainers found.</li>}
             {results.map((r) => (
-              <li key={r.id} className="friend-row">
+              <li key={r.id} className="friend-row [overflow-wrap:anywhere]">
                 <span>{r.displayName}</span>
                 <button
                   type="button"
@@ -255,7 +255,7 @@ export function FriendsScreen() {
         {incoming.length === 0 && <p className="text-muted">Nobody is waiting on you right now.</p>}
         <ul className="match-list">
           {incoming.map((f) => (
-            <li key={f.otherId} className="friend-row" data-kind="incoming">
+            <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="incoming">
               <span>{nameFor(f.otherId)}</span>
               <button
                 type="button"
@@ -283,7 +283,7 @@ export function FriendsScreen() {
         {outgoing.length === 0 && <p className="text-muted">You have not sent any requests.</p>}
         <ul className="match-list">
           {outgoing.map((f) => (
-            <li key={f.otherId} className="friend-row" data-kind="outgoing">
+            <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="outgoing">
               <span>{nameFor(f.otherId)}</span>
               <span className="text-faint">Waiting on them</span>
               <button
@@ -304,7 +304,7 @@ export function FriendsScreen() {
         {accepted.length === 0 && <p className="text-muted">No friends yet.</p>}
         <ul className="match-list">
           {accepted.map((f) => (
-            <li key={f.otherId} className="friend-row" data-kind="accepted">
+            <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="accepted">
               <span>{nameFor(f.otherId)}</span>
               {codes[f.otherId] && <span className="friend-code">{codes[f.otherId]}</span>}
               <button
@@ -341,7 +341,7 @@ export function FriendsScreen() {
         {(blocked ?? []).length === 0 && <p className="text-muted">You have not blocked anyone.</p>}
         <ul className="match-list">
           {(blocked ?? []).map((id) => (
-            <li key={id} className="friend-row" data-kind="blocked">
+            <li key={id} className="friend-row [overflow-wrap:anywhere]" data-kind="blocked">
               <span>{nameFor(id)}</span>
               <button
                 type="button"

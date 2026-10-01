@@ -58,7 +58,7 @@
 }
 
 /* offers: six tiles to a row where there is room, each one a recognisable face */
-.offer-roster { gap: var(--space-2); }
+.offer-roster { gap: var(--space-2); align-items: flex-start; }
 
 /* tournament and record rosters: a tile beside the details, with type-lit edges */
 .roster-grid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }

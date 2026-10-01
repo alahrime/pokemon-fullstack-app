@@ -239,7 +239,54 @@
 .account-panel, .account-form { backdrop-filter: blur(4px); }
 .account-modes .seg-btn.is-active, .league-tabs [aria-selected='true'] { box-shadow: 0 0 18px -6px var(--color-accent); }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   BATTLE / REPORT / CORES / FORMATS / LANDING
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* — battle: each side a lit plate; the verdict a bracketed readout — */
+.bt-side, .bt-pair {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 55%);
+}
+.bt-verdict {
+  padding: var(--space-3);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--color-accent) 40%, var(--rule-strong));
+  border-left: 3px solid var(--color-accent);
+  background-image: linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 60%);
+  box-shadow: 0 0 28px -18px var(--color-accent);
+}
+.battle-mon-art { filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--color-accent) 35%, transparent)); }
+
+/* — report: the frame gets the corner tick every panel has — */
+.report-frame::before {
+  content: '';
+  position: absolute;
+  inset: -1px auto auto -1px;
+  width: 14px;
+  height: 14px;
+  border-top: 2px solid var(--color-accent);
+  border-left: 2px solid var(--color-accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* — cores: expanded detail glows from its rail; pillar rows light on hover — */
+.core-detail { box-shadow: inset 3px 0 0 var(--color-accent), inset 0 0 36px -24px var(--color-accent); }
+.pillar-list > li { transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out); }
+.pillar-list > li:hover { background: color-mix(in srgb, var(--color-accent) 6%, transparent); box-shadow: inset 3px 0 0 var(--color-accent); }
+
+/* — format builder: the side column reads as a console — */
+.format-builder-side {
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-top: 2px solid var(--color-accent);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 40%);
+}
+
+/* — landing: featured cards rise on approach — */
+.landing-featured > li { transition: transform var(--dur-3) var(--ease-out); }
+.landing-featured > li:hover { transform: translateY(-3px); }
+
 @media (prefers-reduced-motion: reduce) {
-  .tournament-card, .section-rail .nav-tab, .chat-rail-list > *, .swap-row, .core-row, .bt-list > * { transition: none; }
+  .tournament-card, .section-rail .nav-tab, .chat-rail-list > *, .swap-row, .core-row, .bt-list > *, .pillar-list > li, .landing-featured > li { transition: none; }
   .challenge-sheet { animation: none; }
 }

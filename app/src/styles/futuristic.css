@@ -206,7 +206,40 @@
 .challenge-sheet-backdrop { backdrop-filter: blur(6px) saturate(1.2); }
 .challenge-sheet { animation: tile-in var(--dur-4) var(--ease-out) backwards; box-shadow: 0 30px 60px -30px var(--color-accent); }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANALYZE / TEAMS / ACCOUNT — the same language on the data screens.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* — meters: a gradient that brightens toward its tip, with a soft glow — */
+.rank-bar-fill, .threat-bar-fill, .core-bar-fill, .weak-share-fill, .hero-meter-fill {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), var(--color-accent));
+  box-shadow: 0 0 10px -2px var(--color-accent);
+}
+
+/* — tables: mono micro-label headers, a lit rail on the hovered row — */
+.table th {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+.table tbody tr:hover { box-shadow: inset 3px 0 0 var(--color-accent); }
+.table tbody tr.is-selected { box-shadow: inset 3px 0 0 var(--color-accent), inset 0 0 28px -18px var(--color-accent); }
+
+/* — stat plates, empty slots, suggestion and swap rows — */
+.stat-cell { background-image: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 75%); }
+.team-slot.is-empty {
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 7%, transparent) 0 6px, transparent 6px 12px);
+  border-style: dashed;
+}
+.swap-row, .core-row, .bt-list > * { transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out); }
+.swap-row:hover, .bt-list > *:hover { box-shadow: inset 3px 0 0 var(--color-accent); }
+
+/* — account forms read as glass panels — */
+.account-panel, .account-form { backdrop-filter: blur(4px); }
+.account-modes .seg-btn.is-active, .league-tabs [aria-selected='true'] { box-shadow: 0 0 18px -6px var(--color-accent); }
+
 @media (prefers-reduced-motion: reduce) {
-  .tournament-card, .section-rail .nav-tab, .chat-rail-list > * { transition: none; }
+  .tournament-card, .section-rail .nav-tab, .chat-rail-list > *, .swap-row, .core-row, .bt-list > * { transition: none; }
   .challenge-sheet { animation: none; }
 }

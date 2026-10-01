@@ -407,6 +407,10 @@ function refTerm(raw2, term) {
     negate = !negate;
     body = body.slice(1).trim();
   }
+  if (body.startsWith("=")) {
+    const want = body.slice(1).trim();
+    return negate ? (ref) => ref !== want : (ref) => ref === want;
+  }
   const rebound = reboundTerm(body);
   if (rebound) return negate ? (ref) => !rebound(ref) : rebound;
   const t = term(raw2);

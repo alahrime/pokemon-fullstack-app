@@ -35,6 +35,13 @@ function refTerm(raw: string, term: (r: string) => (s: Species) => boolean): Ref
     body = body.slice(1).trim();
   }
 
+  // `=ref` is exactly that ref: `=forretress` is the base form, `=forretress_shadow` its Shadow, unlike a bare
+  // word, which names a species and so reaches both. Cup lists name refs this way.
+  if (body.startsWith('=')) {
+    const want = body.slice(1).trim();
+    return negate ? (ref) => ref !== want : (ref) => ref === want;
+  }
+
   const rebound = reboundTerm(body);
   if (rebound) return negate ? (ref) => !rebound(ref) : rebound;
 

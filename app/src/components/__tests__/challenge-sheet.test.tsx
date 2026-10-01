@@ -3,6 +3,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ChallengeSheet } from '../ChallengeSheet';
 import { speciesOf } from '../../lib/data';
+import { PRESET_FORMATS } from '../../lib/presetFormats';
 
 const createChallenge = vi.fn();
 const declineChallenge = vi.fn();
@@ -10,6 +11,7 @@ const openDm = vi.fn();
 const requestChannel = vi.fn();
 const listTeams = vi.fn();
 const saveTeam = vi.fn();
+const versionFor = vi.fn();
 let formats: unknown[] = [];
 let teams: unknown[] = [];
 
@@ -17,6 +19,11 @@ vi.mock('../../lib/saves', () => ({
   listServerFormats: async () => formats,
   listTeams: (...a: unknown[]) => listTeams(...a),
   saveTeam: (...a: unknown[]) => saveTeam(...a),
+  saveServerFormat: vi.fn(),
+}));
+vi.mock('../../lib/presetFormats', async (orig) => ({
+  ...(await orig<typeof import('../../lib/presetFormats')>()),
+  versionFor: (...a: unknown[]) => versionFor(...a),
 }));
 vi.mock('../../lib/challenges', () => ({
   createChallenge: (...a: unknown[]) => createChallenge(...a),
@@ -36,7 +43,7 @@ vi.mock('../../state/ChatDockContext', () => ({
 
 const fmt = (id: string, base: string, size: number) => ({
   id, name: `Fmt ${id}`, version: 1, versionId: `v-${id}`, rulesHash: 'h',
-  format: { base, composition: { size } },
+  format: { schema: 1, base, pool: [], composition: { size }, selection: { mode: 'open' } },
 });
 // Real species, so the slots can name moves; IVs are irrelevant here.
 const REFS = ['machamp', 'azumarill', 'medicham', 'altaria', 'registeel', 'swampert'];
@@ -52,14 +59,19 @@ function open(onClose = vi.fn()) {
   renderApp(<ChallengeSheet target={target} onClose={onClose} />);
   return onClose;
 }
-async function choose(formatName = 'Fmt g3', teamName = 'Team t3') {
-  fireEvent.change(await screen.findByLabelText('Format'), { target: { value: (await screen.findByRole('option', { name: formatName })).getAttribute('value') } });
+/** The Format select starts on the plain league; pass a key only to move off it. */
+async function choose(teamName = 'Team t3', formatName?: string) {
+  if (formatName) {
+    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: (await screen.findByRole('option', { name: formatName })).getAttribute('value') } });
+  }
   fireEvent.change(await screen.findByLabelText('Saved team'), { target: { value: (await screen.findByRole('option', { name: teamName })).getAttribute('value') } });
 }
+const great = () => screen.findByRole('option', { name: 'Team t3' });
 
 beforeEach(() => {
   createChallenge.mockReset().mockResolvedValue('ch1');
   declineChallenge.mockReset().mockResolvedValue(true);
+  versionFor.mockReset().mockResolvedValue('v-preset');
   openDm.mockReset().mockResolvedValue('dm1');
   requestChannel.mockReset();
   formats = [fmt('g3', 'great', 3), fmt('u3', 'ultra', 3)];
@@ -85,29 +97,50 @@ describe('ChallengeSheet', () => {
     fireEvent.mouseDown(d.parentElement!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
-  it('defaults league to state.league and re-filters formats on change', async () => {
+  it('starts on the plain league, so a team can be built with no format chosen', async () => {
     open();
-    const league = (await screen.findByLabelText('League')) as HTMLSelectElement;
-    expect(league.value).toBe('great');
-    expect(await screen.findByRole('option', { name: 'Fmt g3' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Fmt u3' })).toBeNull();
-    fireEvent.change(league, { target: { value: 'ultra' } });
-    expect(await screen.findByRole('option', { name: 'Fmt u3' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Fmt g3' })).toBeNull();
-  });
-
-  it('lists only teams matching the format size and league', async () => {
-    open();
-    fireEvent.change(await screen.findByLabelText('Format'), {
-      target: { value: (await screen.findByRole('option', { name: 'Fmt g3' })).getAttribute('value') },
-    });
-    expect(await screen.findByRole('option', { name: 'Team t3' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Team t6' })).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Team tu' })).toBeNull();
+    expect(((await screen.findByLabelText('Format')) as HTMLSelectElement).value).toBe('preset:great');
+    expect(screen.queryByLabelText('League')).toBeNull();
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(3);
+    await great();
     expect(listTeams).toHaveBeenCalledWith(3);
   });
 
-  it('disables Send until a format and a team are chosen', async () => {
+  it('lists the standard cups, then your own formats', async () => {
+    open();
+    for (const n of ['Great League', 'Ultra League', 'Master League', 'Retro Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']) {
+      expect(await screen.findByRole('option', { name: n })).toBeTruthy();
+    }
+    expect(await screen.findByRole('option', { name: 'Fmt g3' })).toBeTruthy();
+  });
+
+  it('a format of your own that is only a copy of a cup is not listed twice', async () => {
+    const { PRESET_FORMATS } = await import('../../lib/presetFormats');
+    const { rulesHash } = await import('../../rules');
+    formats = [{ ...fmt('copy', 'great', 3), name: 'Retro copy', rulesHash: await rulesHash(PRESET_FORMATS.find((p) => p.key === 'retro')!.format) }, fmt('g3', 'great', 3)];
+    open();
+    await screen.findByRole('option', { name: 'Fmt g3' });
+    expect(screen.queryByRole('option', { name: 'Retro copy' })).toBeNull();
+  });
+
+  it('follows the format to its league: Ultra League lists ultra teams only', async () => {
+    open();
+    await screen.findByRole('option', { name: 'Team t3' });
+    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: 'preset:ultra' } });
+    expect(await screen.findByRole('option', { name: 'Team tu' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Team t3' })).toBeNull();
+  });
+
+  it('a slot count from a six-Pokémon format lists six-Pokémon teams', async () => {
+    formats = [fmt('g6', 'great', 6)];
+    open();
+    await screen.findByRole('option', { name: 'Team t3' });
+    fireEvent.change(await screen.findByLabelText('Format'), { target: { value: 'g6' } });
+    expect(await screen.findByRole('option', { name: 'Team t6' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(6);
+  });
+
+  it('disables Send until the team is full', async () => {
     open();
     const send = (await screen.findByRole('button', { name: 'Send challenge' })) as HTMLButtonElement;
     expect(send.disabled).toBe(true);
@@ -157,8 +190,8 @@ describe('ChallengeSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(createChallenge).toHaveBeenCalledWith({
-      targetId: 'ally', league: 'great', formatVersionId: 'v-g3',
-      format: { base: 'great', composition: { size: 3 } },
+      targetId: 'ally', league: 'great', formatVersionId: 'v-preset',
+      format: PRESET_FORMATS[0].format,
       team: REFS.slice(0, 3).map(member), scheduledFor: undefined,
     });
     expect(openDm).toHaveBeenCalledWith('ally');
@@ -215,11 +248,38 @@ describe('ChallengeSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('points to Formats and Teams when nothing is saved', async () => {
+  it('a cup is saved to your formats on first use; your own format is used as it is', async () => {
+    open();
+    await choose();
+    fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
+    await waitFor(() => expect(createChallenge).toHaveBeenCalled());
+    expect(versionFor).toHaveBeenCalledTimes(1);
+    expect(versionFor.mock.calls[0][0].key).toBe('great');
+  });
+
+  it('your own format goes out on its own version, with no cup saved', async () => {
+    open();
+    await choose('Team t3', 'Fmt g3');
+    fireEvent.click(screen.getByRole('button', { name: 'Send challenge' }));
+    await waitFor(() => expect(createChallenge).toHaveBeenCalled());
+    expect(createChallenge.mock.calls[0][0].formatVersionId).toBe('v-g3');
+    expect(versionFor).not.toHaveBeenCalled();
+  });
+
+  it('a cup binds the team: a Pokémon it bans blocks Send and says so', async () => {
+    teams = [{ ...team('t3', 'great', 3), members: ['umbreon', 'azumarill', 'altaria'].map(member) }];
+    open();
+    await choose('Team t3', 'Retro Cup');
+    expect((await screen.findByText(/Umbreon is not allowed in this format/i)).className).toContain('roster-problem');
+    expect((screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('nothing is saved: the builder is still there to build from scratch', async () => {
     formats = [];
     teams = [];
     open();
-    expect(await screen.findByText(/save one on the Formats screen/i)).toBeTruthy();
+    expect(await screen.findByText(/No saved 3-Pokémon teams for this league/i)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '+ Add Pokémon' })).toHaveLength(3);
     expect((screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -232,7 +292,7 @@ describe('ChallengeSheet', () => {
     it('is named a counter, starts at the original league, and sends a counter', async () => {
       counter();
       expect(await screen.findByRole('dialog', { name: 'Counter Ally' })).toBeTruthy();
-      expect(((await screen.findByLabelText('League')) as HTMLSelectElement).value).toBe('ultra');
+      expect(((await screen.findByLabelText('Format')) as HTMLSelectElement).value).toBe('preset:ultra');
       expect(screen.getByRole('button', { name: 'Send counter' })).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Send challenge' })).toBeNull();
     });
@@ -243,7 +303,7 @@ describe('ChallengeSheet', () => {
       declineChallenge.mockImplementation(async (id: string) => { order.push(`decline:${id}`); return true; });
       openDm.mockImplementation(async () => { order.push('dm'); return 'dm1'; });
       const onClose = counter();
-      await choose('Fmt u3', 'Team tu');
+      await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
       expect(order).toEqual(['create', 'decline:orig', 'dm']);
@@ -252,7 +312,7 @@ describe('ChallengeSheet', () => {
     it('leaves their challenge alone when your counter is refused', async () => {
       createChallenge.mockRejectedValue(new Error('someone no longer challengeable'));
       const onClose = counter();
-      await choose('Fmt u3', 'Team tu');
+      await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
       expect((await screen.findByRole('alert')).textContent).toMatch(/no longer challengeable/);
       expect(declineChallenge).not.toHaveBeenCalled();
@@ -262,7 +322,7 @@ describe('ChallengeSheet', () => {
     it('says so when the counter went out but declining theirs failed, and cannot be sent twice', async () => {
       declineChallenge.mockRejectedValue(new Error('network'));
       counter();
-      await choose('Fmt u3', 'Team tu');
+      await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
       expect((await screen.findByRole('alert')).textContent).toMatch(/Counter sent.*network/);
       expect((screen.getByRole('button', { name: 'Send counter' }) as HTMLButtonElement).disabled).toBe(true);

@@ -52,4 +52,14 @@ describe('compileSelector', () => {
   it('is false for a ref whose species does not exist', () => {
     expect(compileSelector('water')!('not_a_species')).toBe(false);
   });
+
+  it('=ref names exactly one ref, where a bare word names the species', () => {
+    const exact = compileSelector('=azumarill')!;
+    expect(exact(AZU)).toBe(true);
+    expect(exact(AZU_S)).toBe(false);
+    expect(compileSelector('=azumarill_shadow')!(AZU_S)).toBe(true);
+    expect(compileSelector('!=azumarill')!(AZU)).toBe(false);
+    expect(compileSelector('!=azumarill')!(AZU_S)).toBe(true);
+    expect(compileSelector('=azumarill,=registeel')!('registeel')).toBe(true);
+  });
 });

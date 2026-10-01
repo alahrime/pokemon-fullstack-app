@@ -4,9 +4,9 @@ import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { createChallenge, declineChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
-import { LEAGUES } from '../lib/data';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
-import { resolvePool, validateTeam } from '../rules';
+import { PRESET_FORMATS, versionFor, type PresetFormat } from '../lib/presetFormats';
+import { resolvePool, rulesHash, validateTeam, type Format } from '../rules';
 import { describeViolation } from '../tournament/roster';
 import type { LeagueId } from '../lib/types';
 import { ChallengeTeam, emptySlots, filledTeam, type Slots } from './ChallengeTeam';
@@ -16,12 +16,12 @@ function messageOf(e: unknown): string {
 }
 
 /**
- * Propose a match to one person: a league, one of YOUR saved server formats
- * for it, a team of that format's size (loaded from your saved teams or built here, and saveable from here), and when. Sending
- * creates the challenge, opens (or finds) the DM with the target and asks the
- * dock to open it, where the challenge card lives. Any of your own formats will do,
- * private or not — the target can read the one you challenge on. A refusal
- * (a past time, someone no longer challengeable) is shown here and leaves the sheet open to fix.
+ * Propose a match to one person: a format, a team of that format's size, and when. The format starts on the plain
+ * league, so the team can be built straight away; the standard cups and your own saved formats are one select away.
+ * A cup you have not used before is saved to your formats when you send (see `versionFor`). The team is loaded from
+ * your saved teams or built slot by slot, and can be saved from here. Sending creates the challenge, opens (or
+ * finds) the DM with the target and asks the dock to open it, where the challenge card lives. A refusal (a past
+ * time, someone no longer challengeable) is shown here and leaves the sheet open to fix.
  *
  * `counterOf` turns it into a counter: `target` is the person who challenged you, the league starts at theirs,
  * and once your challenge exists the one you are answering is declined. Create first, decline second, so a
@@ -40,9 +40,10 @@ export function ChallengeSheet({
 }) {
   const { state } = useAppState();
   const { requestChannel } = useChatDockRequest();
-  const [league, setLeague] = useState<LeagueId>(defaultLeague ?? state.league);
   const [formats, setFormats] = useState<SavedFormat[] | null>(null);
-  const [formatId, setFormatId] = useState('');
+  // A plain league is always there to start from, so the team can be built before anything else is decided.
+  const [choiceKey, setChoiceKey] = useState(`preset:${defaultLeague ?? state.league}`);
+  const [presetHashes, setPresetHashes] = useState<ReadonlySet<string>>(new Set());
   const [slots, setSlots] = useState<Slots>([]);
   const [scheduled, setScheduled] = useState(false);
   const [when, setWhen] = useState('');
@@ -80,36 +81,51 @@ export function ChallengeSheet({
     };
   }, []);
 
-  const leagueFormats = (formats ?? []).filter((f) => f.format.base === league);
-  const format = leagueFormats.find((f) => f.id === formatId);
-  const size = format?.format.composition.size;
+  useEffect(() => {
+    let live = true;
+    void Promise.all(PRESET_FORMATS.map((p) => rulesHash(p.format))).then((hs) => live && setPresetHashes(new Set(hs)));
+    return () => { live = false; };
+  }, []);
+
+  // Cups first; then your own formats, minus any that are just a copy of a cup.
+  const own = (formats ?? []).filter((f) => !presetHashes.has(f.rulesHash));
+  const choice: { name: string; format: Format; saved?: SavedFormat; preset?: PresetFormat } | undefined = choiceKey.startsWith('preset:')
+    ? PRESET_FORMATS.filter((p) => `preset:${p.key}` === choiceKey).map((p) => ({ name: p.name, format: p.format, preset: p }))[0]
+    : own.filter((f) => f.id === choiceKey).map((f) => ({ name: f.name, format: f.format, saved: f }))[0];
+  const format = choice?.format;
+  const league: LeagueId = format?.base ?? state.league;
+  const size = format?.composition.size;
 
   // A new slot count is a different team; a different format of the same size keeps what was built.
   useEffect(() => setSlots(size ? emptySlots(size) : []), [size]);
 
+  // A plain league has no rules of its own to enforce, so anything pickable may be brought; a cup's pool binds.
+  const restricted = !!format && (format.pool.length > 0 || format.start === 'empty');
   const restrictTo = useMemo(() => {
-    try { return format ? new Set(resolvePool(format.format).legal) : undefined; } catch { return undefined; }
-  }, [format]);
+    try { return format && restricted ? new Set(resolvePool(format).legal) : undefined; } catch { return undefined; }
+  }, [format, restricted]);
   const team = filledTeam(slots);
   const problems = useMemo(() => {
-    if (!format || !team) return [];
+    if (!format || !team || !restricted) return [];
     try {
-      return validateTeam(team.map((m) => ({ ref: m.ref, fast: m.fast_move, charges: m.charge_moves })), format.format).violations.map(describeViolation);
+      return validateTeam(team.map((m) => ({ ref: m.ref, fast: m.fast_move, charges: m.charge_moves })), format).violations.map(describeViolation);
     } catch { return []; }
-  }, [format, team]);
-  const ready = !!format && !!team && problems.length === 0 && (!scheduled || when !== '') && !busy;
+  }, [format, team, restricted]);
+  // `formats` settled first, or a cup would be saved a second time next to the copy still loading.
+  const ready = !!choice && formats !== null && !!team && problems.length === 0 && (!scheduled || when !== '') && !busy;
 
   async function send() {
-    if (!format || !team || !ready) return;
+    if (!choice || !format || !team || !ready) return;
     setBusy(true);
     setError(null);
     let created = false;
     try {
+      const formatVersionId = choice.saved?.versionId ?? (await versionFor(choice.preset!, formats ?? []));
       await createChallenge({
         targetId: target.id,
         league,
-        formatVersionId: format.versionId,
-        format: format.format,
+        formatVersionId,
+        format,
         team,
         scheduledFor: scheduled ? new Date(when) : undefined,
       });
@@ -149,38 +165,20 @@ export function ChallengeSheet({
         <div className="challenge-sheet-cols">
           <div className="challenge-sheet-col">
             <div className="field">
-              <label htmlFor="challenge-league">League</label>
-              <select
-                id="challenge-league"
-                ref={firstRef}
-                className="input"
-                value={league}
-                onChange={(e) => {
-                  setLeague(e.target.value as LeagueId);
-                  setFormatId('');
-                }}
-              >
-                {LEAGUES.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field">
               <label htmlFor="challenge-format">Format</label>
-              <select id="challenge-format" className="input" value={formatId} onChange={(e) => setFormatId(e.target.value)}>
-                <option value="">Choose a format</option>
-                {leagueFormats.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
+              <select id="challenge-format" ref={firstRef} className="input" value={choiceKey} onChange={(e) => setChoiceKey(e.target.value)}>
+                <optgroup label="Standard">
+                  {PRESET_FORMATS.map((p) => <option key={p.key} value={`preset:${p.key}`}>{p.name}</option>)}
+                </optgroup>
+                {own.length > 0 && (
+                  <optgroup label="Your formats">
+                    {own.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </optgroup>
+                )}
               </select>
-              {formats && leagueFormats.length === 0 && (
-                <p className="text-muted">No saved formats for this league — save one on the Formats screen.</p>
-              )}
+              <p className="text-muted ct-hint">
+                {restricted ? 'Only Pokémon this format allows can be brought.' : 'Any Pokémon within the league can be brought.'}
+              </p>
             </div>
 
             <div className="field">

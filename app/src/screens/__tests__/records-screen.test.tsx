@@ -12,7 +12,8 @@ import { AppStateProvider } from '../../state/AppState';
 const now = new Date().toISOString();
 const row = (o = {}) => ({
   matchId: Math.random().toString(), playedAt: now, league: 'great', source: 'queue', ranked: true,
-  opponentId: 'o1', opponentName: 'Ash', myRounds: 2, oppRounds: 0, won: true, ...o,
+  opponentId: 'o1', opponentName: 'Ash', myRounds: 2, oppRounds: 0, won: true,
+  myTeam: [{ ref: 'medicham', fast: 'COUNTER', charges: ['ICE_PUNCH'] }], oppTeam: [{ ref: 'azumarill', fast: 'BUBBLE', charges: ['ICE_BEAM'] }], ...o,
 });
 const show = () => render(<AppStateProvider><RecordsScreen /></AppStateProvider>);
 
@@ -32,11 +33,11 @@ describe('RecordsScreen', () => {
 
   it('shows the tiles, and the ranked switch narrows them', async () => {
     show();
-    await screen.findByText('Misty');
+    await screen.findByRole('button', { name: 'Misty' });
     expect(screen.getByTestId('win-rate').textContent).toMatch(/^50%/);
     expect(screen.getByText('Opponents').nextSibling?.textContent).toBe('2');
     fireEvent.click(screen.getByRole('button', { name: 'Ranked' }));
-    expect(screen.queryByText('Misty')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Misty' })).toBeNull();
     expect(screen.getByTestId('win-rate').textContent).toMatch(/^100%/);
   });
 
@@ -47,8 +48,19 @@ describe('RecordsScreen', () => {
     cleanup();
     R.listMyRecords.mockResolvedValue([row()]);
     show();
-    await screen.findByText('Ash');
+    await screen.findByRole('button', { name: 'Ash' });
     fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
     expect(R.exportRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it('folds each match\'s two teams under a Pokémon toggle, and links the opponent to their profile', async () => {
+    window.location.hash = '#/play/records';
+    show();
+    const ash = await screen.findByRole('button', { name: 'Ash' });
+    expect(screen.getAllByText('Pokémon')).toHaveLength(2);
+    expect(screen.getAllByText('Medicham').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Azumarill').length).toBeGreaterThan(0);
+    fireEvent.click(ash);
+    expect(window.location.hash).toMatch(/^#\/play\/players\//);
   });
 });

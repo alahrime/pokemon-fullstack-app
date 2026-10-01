@@ -7,10 +7,10 @@ import { playerName } from './playerName';
 interface Props {
   entrants: readonly Entrant[]; rosters: ReadonlyMap<string, readonly RosterMember[]>;
   names: ReadonlyMap<string, string>; state: TournamentState; isHost: boolean; me: string | null;
-  organiserId: string; hideMine?: boolean; onRemove?: (playerId: string) => void | Promise<void>; pairings: readonly Pairing[]; now: Date;
+  organiserId: string; hideMine?: boolean; onRemove?: (playerId: string) => void | Promise<void>; onProfile?: (playerId: string) => void; pairings: readonly Pairing[]; now: Date;
 }
 
-export function PlayersTab({ entrants, rosters, names, state, isHost, me, organiserId, hideMine = false, onRemove, pairings, now }: Props) {
+export function PlayersTab({ entrants, rosters, names, state, isHost, me, organiserId, hideMine = false, onRemove, onProfile, pairings, now }: Props) {
   const open = ROSTERS_VISIBLE.includes(state);
   const [removing, setRemoving] = useState(false);
   const removingRef = useRef(false);
@@ -41,8 +41,11 @@ export function PlayersTab({ entrants, rosters, names, state, isHost, me, organi
         return (
           <PlayerRoster key={id} name={playerName(names, id)} dropped={e.dropped} hidden={hideMine && id === me} roster={rosters.get(id)!}
             record={`Wins: ${wins.get(id) ?? 0} - Losses: ${losses.get(id) ?? 0}`}
-            action={canRemove ? (
-              <button type="button" className="btn" disabled={removing} onClick={() => void remove(id)}>Remove player</button>
+            action={(onProfile || canRemove) ? (
+              <div className="player-roster-actions">
+                {onProfile && <button type="button" className="btn" onClick={() => onProfile(id)}>View profile</button>}
+                {canRemove && <button type="button" className="btn" disabled={removing} onClick={() => void remove(id)}>Remove player</button>}
+              </div>
             ) : undefined} />
         );
       })}

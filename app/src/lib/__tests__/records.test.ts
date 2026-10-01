@@ -3,7 +3,7 @@ import { summarise, wilson, byDay, monthGrid, toCsvRows, type RecordRow } from '
 
 const row = (o: Partial<RecordRow> = {}): RecordRow => ({
   matchId: 'm', playedAt: '2026-09-10T12:00:00Z', league: 'great', source: 'queue', ranked: true,
-  opponentId: 'o1', opponentName: 'Ash', myRounds: 2, oppRounds: 1, won: true, ...o,
+  opponentId: 'o1', opponentName: 'Ash', myRounds: 2, oppRounds: 1, won: true, myTeam: [], oppTeam: [], ...o,
 });
 
 describe('records', () => {

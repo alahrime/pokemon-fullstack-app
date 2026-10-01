@@ -3,6 +3,7 @@ import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { LEAGUE_BY_ID } from '../lib/data';
 import type { LeagueId } from '../lib/types';
+import { TeamGrid } from '../components/tournament/RosterCard';
 import { byDay, exportRecords, listMyRecords, monthGrid, summarise, wilson, type RecordRow } from '../lib/records';
 
 const SHOWN = 50;
@@ -97,10 +98,17 @@ export function RecordsScreen() {
               {shown.slice(0, more).map((r) => (
                 <li key={r.matchId}>
                   <span className={r.won ? 'records-win' : 'records-loss'}>{r.won ? 'W' : 'L'}</span>
-                  <span>{r.opponentName}</span>
+                  <span><button type="button" className="btn btn-ghost" onClick={() => patch({ screen: 'player', activePlayerId: r.opponentId })}>{r.opponentName}</button></span>
                   <span className="text-muted">{r.league ? LEAGUE_BY_ID.get(r.league as LeagueId)?.label ?? r.league : r.source}{r.ranked ? ' · ranked' : ''}</span>
                   <span>{r.myRounds}–{r.oppRounds}</span>
                   <time dateTime={r.playedAt}>{new Date(r.playedAt).toLocaleDateString('en-CA', { timeZone: tz })}</time>
+                  <details className="records-teams">
+                    <summary>Pokémon</summary>
+                    <div className="matchup-rosters">
+                      <TeamGrid title="You" team={r.myTeam} />
+                      <TeamGrid title={r.opponentName} team={r.oppTeam} />
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>

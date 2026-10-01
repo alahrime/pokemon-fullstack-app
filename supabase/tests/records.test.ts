@@ -57,6 +57,25 @@ describe('my_match_records', () => {
     expect(bRows.map((r) => r.match_id)).not.toContain(ids.aLosesSeat2);
   });
 
+  it("carries both teams from the caller's side, with species and moves only (no IVs)", async () => {
+    const mem = (ref: string) => ({ ref, fast_move: 'COUNTER', charge_moves: ['ICE_PUNCH'], iv_attack: 15, iv_defense: 14, iv_stamina: 13, level: 40 });
+    const [m] = await sql<{ id: string }>(
+      `insert into public.matches (player_a, player_b, format_version_id, rules_hash, team_a, team_b, data_rev, seed, rounds, source, league, state)
+       values ('${a}', '${c}', '${versionId}', 'aa', '${JSON.stringify([mem('medicham')])}', '${JSON.stringify([mem('azumarill'), mem('registeel')])}', 'r', 's', 3, 'queue', 'great', 'confirmed') returning id`);
+    await sql(`insert into public.match_rounds (match_id, round_no, winner) values ('${m.id}', 1, '${a}'), ('${m.id}', 2, '${a}')`);
+    type T = { ref: string; fast: string; charges: string[] };
+    const q = (who: string) => asUser({ sub: who, role: 'authenticated' })<{ my_team: T[]; opp_team: T[] }>(
+      `select my_team, opp_team from public.my_match_records where match_id = '${m.id}'`);
+    const [fromA] = await q(a);
+    expect(fromA.my_team).toEqual([{ ref: 'medicham', fast: 'COUNTER', charges: ['ICE_PUNCH'] }]);
+    expect(fromA.opp_team.map((x) => x.ref)).toEqual(['azumarill', 'registeel']);
+    const [fromC] = await q(c); // the other seat sees the mirror image
+    expect(fromC.my_team.map((x) => x.ref)).toEqual(['azumarill', 'registeel']);
+    expect(fromC.opp_team.map((x) => x.ref)).toEqual(['medicham']);
+    expect(JSON.stringify([fromA, fromC])).not.toMatch(/iv_|level/);
+    expect(await q(b)).toEqual([]); // a third player sees nothing of it
+  });
+
   it('refuses anonymous callers', async () => {
     expect((await refusal(() => asAnon()(`select * from public.my_match_records`))).code).toBe('42501');
   });

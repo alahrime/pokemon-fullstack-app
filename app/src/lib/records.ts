@@ -1,9 +1,12 @@
 import { supabase } from './supabase';
 import { downloadCsv } from './exportData';
+import type { TeamMember } from '../tournament/roster';
 
 export interface RecordRow {
   matchId: string; playedAt: string; league: string | null; source: string; ranked: boolean;
   opponentId: string; opponentName: string; myRounds: number; oppRounds: number; won: boolean;
+  /** Species and moves only (the server strips IVs); empty for a match with no team on record. */
+  myTeam: TeamMember[]; oppTeam: TeamMember[];
 }
 export interface Summary {
   games: number; wins: number; winRate: number | null; uniqueOpponents: number; roundsWon: number; roundsLost: number;
@@ -24,6 +27,7 @@ export async function listMyRecords(): Promise<RecordRow[]> {
       out.push({
         matchId: r.match_id, playedAt: r.played_at, league: r.league, source: r.source, ranked: r.ranked,
         opponentId: r.opponent_id, opponentName: r.opponent_name, myRounds: r.my_rounds, oppRounds: r.opp_rounds, won: r.won,
+        myTeam: (r.my_team ?? []) as TeamMember[], oppTeam: (r.opp_team ?? []) as TeamMember[],
       });
     }
     if ((data ?? []).length < PAGE) break;

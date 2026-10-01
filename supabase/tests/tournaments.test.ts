@@ -192,7 +192,7 @@ describe('tournaments', () => {
     expect(n).toBe(0);
   });
 
-  it('keeps each roster secret until registration closes, then shows it to members only', async () => {
+  it('keeps each roster secret until registration closes, then shows it to every signed-in user', async () => {
     const id = await opened();
     await call(host, 'grant_judge', id, `'${cal}'`);
     await register(ann, id);
@@ -206,8 +206,16 @@ describe('tournaments', () => {
     expect(await rostersSeen(cal, id)).toBe(0);
 
     await call(host, 'close_registration', id);
-    for (const who of [ann, bob, host, cal]) expect(await rostersSeen(who, id)).toBe(2);
+    for (const who of [ann, bob, host, cal, stranger]) expect(await rostersSeen(who, id)).toBe(2);
+    expect(await asAnon()(`select player_id from public.tournament_rosters where tournament_id = '${id}'`)).toEqual([]); // signed-out sees nothing
+  });
+
+  it('keeps rosters secret from viewers when a tournament is cancelled during registration', async () => {
+    const id = await opened();
+    await register(ann, id);
+    await call(host, 'cancel_tournament', id);
     expect(await rostersSeen(stranger, id)).toBe(0);
+    expect(await rostersSeen(ann, id)).toBe(1);
   });
 
   it('closes lazily when the close time passes, and the time can no longer be moved', async () => {
@@ -218,8 +226,7 @@ describe('tournaments', () => {
     await closesInPast(id);
     const [{ c }] = await as(stranger)<{ c: boolean }>(`select public.tournament_is_closed('${id}') as c`);
     expect(c).toBe(true);
-    for (const who of [ann, bob, host]) expect(await rostersSeen(who, id)).toBe(2);
-    expect(await rostersSeen(stranger, id)).toBe(0);
+    for (const who of [ann, bob, host, stranger]) expect(await rostersSeen(who, id)).toBe(2);
     // Rosters have been seen; reopening by moving the time would let someone edit after looking.
     const moved = await refusal(() =>
       as(host)(`select public.update_tournament('${id}', null, null, null, null, now() + interval '1 day')`));
@@ -397,7 +404,7 @@ describe('tournaments', () => {
       expect(n).toBe(1);
     });
 
-    it('a revoked judge reads no rosters after close; a judge-entrant reads only their own before', async () => {
+    it('a judge-entrant reads only their own roster before close; after close rosters are public, so revoking a judge changes nothing', async () => {
       const id = await opened();
       await call(host, 'grant_judge', id, `'${cal}'`);
       await call(host, 'grant_judge', id, `'${bob}'`);
@@ -410,7 +417,7 @@ describe('tournaments', () => {
       await call(host, 'close_registration', id);
       expect(await rostersSeen(cal, id)).toBe(2);
       await call(host, 'revoke_judge', id, `'${cal}'`);
-      expect(await rostersSeen(cal, id)).toBe(0);
+      expect(await rostersSeen(cal, id)).toBe(2);
     });
   });
 

@@ -175,7 +175,7 @@ export async function listPairings(id: string): Promise<Pairing[]> {
   }));
 }
 
-/** Your own roster is always readable; others' rosters only after registration closes, and only if you are a member. */
+/** Your own roster is always readable; everyone else's once registration has closed (any signed-in user). */
 export async function listRosters(id: string): Promise<Map<string, RosterMember[]>> {
   const { data, error } = await supabase.from('tournament_rosters').select('player_id, roster').eq('tournament_id', id);
   if (error) throw new Error(error.message);
@@ -244,4 +244,63 @@ export async function myTournamentActivity(): Promise<{ tournaments: Tournament[
     }];
   });
   return { tournaments, pairings, judgeOf };
+}
+
+/** One counted tournament game from `playerId`'s side. Byes are not games. */
+export interface PlayerGame {
+  tournamentId: string; title: string; round: number;
+  opponentId: string; myRounds: number; oppRounds: number; won: boolean;
+  myRoster: RosterMember[] | null; oppRoster: RosterMember[] | null;
+}
+
+/** Pure: a counted pairing as seen from `playerId` (scores are stored oriented to player_a/player_b). */
+export function gameFor(p: Pairing, playerId: string, now: Date): { opponentId: string; myRounds: number; oppRounds: number; won: boolean } | null {
+  if (!p.playerB || !isCounted(p, now)) return null;
+  const mine = p.playerA === playerId;
+  if (!mine && p.playerB !== playerId) return null;
+  const my = (mine ? p.scoreA : p.scoreB) ?? 0;
+  const opp = (mine ? p.scoreB : p.scoreA) ?? 0;
+  return { opponentId: mine ? p.playerB : p.playerA, myRounds: my, oppRounds: opp, won: my > opp };
+}
+
+/**
+ * Every counted tournament game `playerId` has played, newest tournament first, with both sixes where the
+ * server shows them (rosters are public once registration closes, so a null roster means it was not readable).
+ * Readable by any signed-in user: pairings follow the tournament's visibility.
+ */
+// ponytail: filters with `.in(...)` lists, which ride the URL; fine to a few hundred opponents, page them if a player gets there.
+export async function listPlayerGames(playerId: string, now: Date = new Date()): Promise<PlayerGame[]> {
+  const rows = await pageAll((from, to) => supabase
+    .from('tournament_pairings')
+    .select('id, tournament_id, round, table_no, player_a, player_b, score_a, score_b, state, reported_by, reported_at, final_at, note')
+    .or(`player_a.eq.${playerId},player_b.eq.${playerId}`).not('player_b', 'is', null)
+    .order('id').range(from, to));
+  const games = rows.flatMap((r) => {
+    const p: Pairing = {
+      id: r.id, tournamentId: r.tournament_id, round: r.round, tableNo: r.table_no, playerA: r.player_a, playerB: r.player_b,
+      scoreA: r.score_a, scoreB: r.score_b, state: r.state as PairingState, reportedBy: r.reported_by,
+      reportedAt: r.reported_at, finalAt: r.final_at, note: r.note,
+    };
+    const g = gameFor(p, playerId, now);
+    return g ? [{ p, g }] : [];
+  });
+  if (games.length === 0) return [];
+  const tIds = [...new Set(games.map(({ p }) => p.tournamentId!))];
+  const people = [...new Set([playerId, ...games.map(({ g }) => g.opponentId)])];
+  const [t, ro] = await Promise.all([
+    supabase.from('tournaments').select('id, title, created_at').in('id', tIds),
+    supabase.from('tournament_rosters').select('tournament_id, player_id, roster').in('tournament_id', tIds).in('player_id', people),
+  ]);
+  if (t.error) throw new Error(t.error.message);
+  if (ro.error) throw new Error(ro.error.message);
+  const meta = new Map((t.data ?? []).map((x) => [x.id as string, x as { id: string; title: string; created_at: string }]));
+  const roster = new Map((ro.data ?? []).map((x) => [`${x.tournament_id}:${x.player_id}`, x.roster as RosterMember[]]));
+  return games
+    .map(({ p, g }) => ({
+      tournamentId: p.tournamentId!, title: meta.get(p.tournamentId!)?.title ?? 'Tournament', round: p.round, ...g,
+      myRoster: roster.get(`${p.tournamentId}:${playerId}`) ?? null, oppRoster: roster.get(`${p.tournamentId}:${g.opponentId}`) ?? null,
+      at: meta.get(p.tournamentId!)?.created_at ?? '',
+    }))
+    .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : b.round - a.round))
+    .map(({ at: _at, ...rest }) => rest);
 }

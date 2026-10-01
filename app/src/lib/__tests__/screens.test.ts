@@ -43,7 +43,7 @@ describe('sections', () => {
     expect(SECTIONS.map((s) => s.id)).toEqual(['analyze', 'teams', 'play']);
     expect(SECTIONS[0].screens).toEqual(['report', 'battle', 'moves', 'rankings', 'diagnostics']);
     expect(SECTIONS[1].screens).toEqual(['gbl', 'show6', 'cores', 'formats']);
-    expect(SECTIONS[2].screens).toEqual(['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'ranked', 'records']);
+    expect(SECTIONS[2].screens).toEqual(['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'player']);
   });
   it('finds a screen\'s section, and none for landing and account', () => {
     expect(sectionOf('rankings')?.id).toBe('analyze');
@@ -53,7 +53,7 @@ describe('sections', () => {
   });
   it('keeps match off the rail and lights Matches while a match is open', () => {
     const play = SECTIONS.find((s) => s.id === 'play')!;
-    expect(railScreens(play).map((d) => d.id)).toEqual(['matchmaking', 'friends', 'chat', 'tournaments', 'ranked', 'records']);
+    expect(railScreens(play).map((d) => d.id)).toEqual(['matchmaking', 'friends', 'chat', 'tournaments', 'records']);
     expect(railIdOf('match')).toBe('matchmaking');
     expect(railIdOf('friends')).toBe('friends');
   });

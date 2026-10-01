@@ -151,15 +151,6 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Host a Swiss event or join one, six Pokémon a side.',
   },
   {
-    id: 'ranked',
-    label: 'Ranked',
-    kicker: 'Ladder',
-    glyph: '▲',
-    // Ice: no other screen carries it (screens.test.ts guards distinct hues).
-    hue: 'var(--type-ice)',
-    blurb: 'Season ratings for the open queue on Great, Ultra and Master.',
-  },
-  {
     id: 'records',
     label: 'Records',
     kicker: 'History',
@@ -167,6 +158,15 @@ export const SCREEN_DEFS: ScreenDef[] = [
     // Poison: no other screen carries it (screens.test.ts guards distinct hues).
     hue: 'var(--type-poison)',
     blurb: 'Your win rate, opponents, calendar and match history.',
+  },
+  {
+    id: 'player',
+    label: 'Player',
+    kicker: 'Profile',
+    glyph: '◐',
+    // Ice: freed when the ranked ladder was removed (screens.test.ts guards distinct hues).
+    hue: 'var(--type-ice)',
+    blurb: 'A player\'s tournament record, and your matches against them.',
   },
   {
     id: 'account',
@@ -222,7 +222,7 @@ export const SECTIONS: SectionDef[] = [
     glyph: '⚔',
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
-    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'ranked', 'records'],
+    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'player'],
   },
 ];
 
@@ -232,12 +232,12 @@ export function sectionOf(screen: Screen): SectionDef | null {
 
 const DEF_OF = new Map(SCREEN_DEFS.map((d) => [d.id, d]));
 
-/** The section's chosen-from screens: everything but the opened-from `match`. */
+/** The section's chosen-from screens: everything but the opened-from `match` and `player`. */
 export function railScreens(section: SectionDef): ScreenDef[] {
-  return section.screens.filter((id) => id !== 'match').map((id) => DEF_OF.get(id)!);
+  return section.screens.filter((id) => id !== 'match' && id !== 'player').map((id) => DEF_OF.get(id)!);
 }
 
-/** Which rail item is lit: an open match keeps Matches lit. */
+/** Which rail item is lit: an open match keeps Matches lit, an open profile keeps Records lit. */
 export function railIdOf(screen: Screen): Screen {
-  return screen === 'match' ? 'matchmaking' : screen;
+  return screen === 'match' ? 'matchmaking' : screen === 'player' ? 'records' : screen;
 }

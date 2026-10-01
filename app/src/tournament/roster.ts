@@ -11,6 +11,9 @@ export const ROSTER_SIZE = 6;
 /** The opponent-visible shape only: no IVs (the server refuses extra keys). */
 export interface RosterMember { ref: string; fast: string; charges: string[]; cp: number; bestBuddy: boolean }
 
+/** What a card can show of a Pokémon: a match team records only the species and moves (no CP, no Best Buddy). */
+export type TeamMember = Pick<RosterMember, 'ref' | 'fast' | 'charges'> & Partial<Pick<RosterMember, 'cp' | 'bestBuddy'>>;
+
 const cpAt = (atk: number, def: number, hp: number, cpm: number) =>
   Math.max(10, Math.floor((atk * Math.sqrt(def) * Math.sqrt(hp) * cpm * cpm) / 10));
 

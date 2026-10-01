@@ -256,7 +256,7 @@ export function TournamentScreen({ id }: { id: string }) {
         )}
         {tab === 'standings' && <Standings entrants={v.entrants} names={v.names} pairings={v.pairings} now={now} />}
         {tab === 'players' && (
-          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={canHost} me={me} hideMine={hideMine} onRemove={remove}
+          <PlayersTab entrants={v.entrants} rosters={v.rosters} names={v.names} state={s} isHost={canHost} me={me} hideMine={hideMine} onRemove={remove} onProfile={(pid) => patch({ screen: 'player', activePlayerId: pid })}
             organiserId={t.organiserId} pairings={v.pairings} now={now} />
         )}
       </div>

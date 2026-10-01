@@ -62,4 +62,13 @@ describe('RankedScreen', () => {
     await screen.findByText('Ash');
     expect(screen.queryByTestId('provisional')).toBeNull();
   });
+
+  it('does not say "10 of 5 games" once the game gate is met but the rating is still settling', async () => {
+    R.getMyRating.mockResolvedValue({ rating: 1547, rd: 157, games: 10, wins: 6 });
+    show();
+    const t = (await screen.findByTestId('provisional')).textContent;
+    expect(t).toContain('10 games');
+    expect(t).not.toContain('of 5');
+    expect(t).toContain('rating still settling');
+  });
 });

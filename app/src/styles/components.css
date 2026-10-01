@@ -6741,6 +6741,8 @@ th.bt-matrix-head { text-align: center; }
 .ranked-board th, .ranked-board td { padding: var(--space-2) var(--space-3); text-align: left; white-space: nowrap; }
 .ranked-board th { font-weight: 600; color: var(--text-muted); }
 .ranked-board tr.is-me td { font-weight: 700; }
+/* A long display name wraps instead of stretching the table past the panel (16px sideways scroll at 375). */
+.ranked-board td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
 .ranked-provisional { margin: 0; }
 
 /* Records */

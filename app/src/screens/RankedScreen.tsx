@@ -78,7 +78,7 @@ export function RankedScreen() {
 
       {mine && gate && !gate.listed && (
         <p className="panel chamfer-9 ranked-provisional" data-testid="provisional">
-          You: {Math.round(mine.rating)} ± {Math.round(mine.rd)} · {mine.games} of {MIN_GAMES} games
+          You: {Math.round(mine.rating)} ± {Math.round(mine.rd)} · {gate.gamesLeft > 0 ? `${mine.games} of ${MIN_GAMES} games` : `${mine.games} games`}
           {gate.gamesLeft === 0 && gate.needsRd ? ` — rating still settling (needs ± ${MAX_RD} or less)` : ''}
         </p>
       )}

@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-09-30 (end of session; M4 and M5 done, see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-09-30 (end of session; M4 and M5 done and browser-verified, see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,9 +41,18 @@ design authority; the plans argue from it.
 
 **State (2026-09-30, end of session):** `main` is pushed and equals `origin/main`; `npm run check` 1785/1785; `check:db` 296 tests with the 5 known reds (the environmental `social.test.ts` ones — one real friendship row of the user's, never delete it). Every migration through `20260930000900` is applied to production (each push applies them; verify with `cd app && npx supabase migration list --linked --workdir ..`, then an anonymous `curl` of a new function should answer `42501 permission denied`, not `PGRST202`).
 
-**This session (all pushed and verified in production):** M4c grit was built, then removed at the user's direction (`20260930000510_drop_grit.sql`; the work is in `f96d750`); **M5 is done except communities**: tournament channels (`…0600`), announcements (`…0700`), pins (`…0800`), announce-only (`…0900`). Each has a spec and plan under `docs/superpowers/`. Nothing from M4/M5 was looked at in the browser (no signed-in session available), so **the new UI has never been seen rendered**: Records screen, the Chat "Tournaments" filter, the tournament page's Open chat button and announcement panel, and the ChatPane's Announce / Pin / Announce-only controls. First thing worth doing with a signed-in session is measure them at 1440 and 375.
+**This session (all pushed and verified in production):** M4c grit was built, then removed at the user's direction (`20260930000510_drop_grit.sql`; the work is in `f96d750`); **M5 is done except communities**: tournament channels (`…0600`), announcements (`…0700`), pins (`…0800`), announce-only (`…0900`). Each has a spec and plan under `docs/superpowers/`. The M4/M5 UI was measured in the browser at the end of the session; see "Browser verification of M4/M5" below.
 
 **The platform spec has no milestone after M5.** Open candidates, none started: persistent communities (the "Slack-shaped" layer, deferred by the user), grit (deferred to the end of major development, recoverable from `f96d750`), and the leftovers listed below. Ask the user which is next; do not assume.
+
+**Browser verification of M4/M5 (2026-09-30, local stack, bots `test-opponent-1/2`).** Measured, not eyeballed:
+- No horizontal overflow at 1440 or 375 (`scrollWidth == clientWidth`) on Records, Ranked, Chat, Tournaments, a tournament page and an open tournament chat.
+- **Fixed:** the Chat filter strip (`.seg-group`, 260px column, 365px of content) hid "Tournaments" past its scroll edge. `.chat-inbox > .seg-group` now wraps (two rows; all five buttons inside the column). Pushed.
+- **Records**, with 40 seeded confirmed matches: win rate, games, rounds and opponents matched a direct SQL query (24–16, 48–32, 10; Ranked 16–16); calendar totals matched once matches outside the shown month were accounted for; CSV carries the UTF-8 BOM and one row per shown match; 375 clean. With 20 matches the Wilson interval showed `60% (39%–78%)` (hand-computed the same); at 60 the interval is gone and "Show more" appears at 50 rows and reveals the rest.
+- **Tournament chat:** the announcement panel, Open chat button, Pinned strip, tagged announcement and the Pin/Unpin and Announce-only controls render for the organiser.
+- **Announce-only, second account:** a non-host entrant sees a textarea before the toggle; with it on, no textarea, no host controls, "Only the hosts can post here.", and both a plain post and an announcement are refused by RLS; with it turned off the textarea returns (after a reload — there is no realtime flag update) and a post is accepted.
+- Not checked: Chat/Tournaments views with real-time updates, a populated Ranked screen, light theme.
+- **Method notes:** the second account ran in the same `localhost` tab by swapping sessions (`signOut` then `signInWithPassword`), because navigating to `127.0.0.1` was refused mid-session; a `tournament` needs a format whose `rules.composition.size` is 6 (insert one directly under the bot's account); seed rows were tagged `seed like 'ui-seed-%'` and every fixture was deleted afterwards.
 
 **Working style that held this session:** brainstorm briefly, present the design in chat, get a "yes", then spec + plan + build inline in one commit, run `npm run check`, push `main`, verify the migration in production. The user has authorised shipping finished, gate-green work without asking again.
 

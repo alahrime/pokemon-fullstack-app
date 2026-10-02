@@ -727,6 +727,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
                     refId={p.ref}
                     league={league}
                     size="full"
+                    sparkle
                     metric={String(p.value)}
                     metricLabel="threat score"
                     onClick={() => add(p.ref)}

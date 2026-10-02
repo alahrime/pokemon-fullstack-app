@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-01 (end of third session: challenge sheet rebuild, standard cups incl. Mega, matchup matrix; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-01 (end of fourth session: shiny sprites and the Porygon2 mascots, limited cups, chat polish; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -39,6 +39,40 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Fourth session, 2026-10-01 (all pushed; `main` == `origin/main`; `npm run check` 1886/1886; no migrations).** Cosmetic and UX work, in the order the user asked for it. By area:
+
+**Shiny sprites** (`state/ThemeContext.tsx`, `components/Sprite.tsx`, `ShinyStar.tsx`, `ShinyBurst.tsx`, `lib/data.ts`)
+- One app-wide preference, stored like theme/motion: `localStorage['paragon.shiny']` ('1'/'0'), mirrored to `data-sprites="shiny|normal"` on `<html>`; `useTheme().shiny/toggleShiny`, and `useShiny()` (false outside a provider, so a bare `Sprite` still renders). `spriteUrl(sprite, shiny)` -> pokemondb `home/shiny/<slug>.png` (same slugs as normal); `spriteFallbackUrl(dex, shiny)` -> PokeAPI `pokemon/shiny/<dex>.png`. GO-only art (Armored Mewtwo) has no shiny and stays as is. `Sprite` takes `shiny` (forces it; the mascots) and `sparkle`.
+- **The only control is the star** in the header, left of "Analyze" (`ShinyStar`, between the brand and the section nav): five-point clip-path star, no visible label, no tooltip, `aria-label="Shiny sprites"`. The user removed every other toggle (theme menu, Analyze switch, landing switch); do not re-add them.
+- **Sparkle** (`ShinyBurst`: 8 four-point sparks, plays once each time shiny turns ON while mounted, never on off, never for a sprite that is `shiny`-forced, dropped under `data-motion='off'` / reduced motion). Opt-in per big single sprite via `<Sprite sparkle>` / `<PokemonCard sparkle>`: header star, Analyze hero (`SpeciesHero`), Battle sprites, Team slots and **Suggest-next-pick cards**, the Cores "Score pair" result, the build-picker preview. **Deliberately not** on lists of small sprites (Rankings rows, search rows, opponent grids, matrix, Cores pairs list). Sparks scale with `size` (spark 0.2x, reach 0.65x).
+
+**Porygon2 mascots** (`screens/LandingScreen.tsx`, CSS under "Six Porygon2…" in `components.css`)
+- 22 shiny Shadow Porygon2 flank the landing title, 11 a side as columns of 3,3,3,2 (left group is `row-reverse` so column 0 is nearest the title). Each has its own tone (`hue-rotate` + `saturate` + `brightness`, so whites/blacks/browns exist too; shiny Porygon2 is hue ~215, `tone(hue, sat, bright)` does the offset); the Shadow aura is drawn after the filter so it stays violet. Alternate ones are mirrored (`--mascot-flip`). Size follows the viewport (`--m: clamp(56px, (100vw-760px)/8-14px, 116px)`, `!important` beats the inline sprite size); columns show at >=1000px (12) and >=1280px (22), a phone shows 6 as rows above and below the title. Each opens Porygon2's report.
+
+**Limited cups** (`components/CupSelect.tsx`, `lib/presetFormats.ts`: `LIMITED_CUPS`, `cupLegal(key)`; `state.cup` + `leaguePatch(id, cup)` in `AppState.tsx`)
+- A cup is a preset other than the three plain leagues. **It is selectable only in Rankings** (a "Limited cup" dropdown on the Pokémon view; Rankings rows are filtered by `cupLegal`), **challenges** (already in the format dropdown) and the **tournament host sheet** (new: the format field is a `LeagueSelect`, cups as Show 6 formats above your saved six-formats, saved on first use through `versionFor`). The league tabs clear it. The user explicitly removed the header dropdown; do not put it back.
+- The cup-aware `allow` option still exists in `lib/matchupMatrix.ts` (`topThreats`, `alternativesFor`, `completionsFor`) and `lib/teambuild.ts` (`analyseTeam`, `analyseShow6`, `weaknessesAgainst`, `suggestSwaps`, `suggestCompletions`, `completionPool`, `sampleFieldTeams`), and `MatchupMatrix` has an `allow` prop, but **no screen passes it now** (Report, Team Builder and the matrix were unfiltered again once the header control went). Tested in `matchup-matrix.test.ts`. Delete it or wire it to a control, whichever the user prefers.
+- `leaguePatch` is the one place a league switch re-rolls the battle pair and spreads (it used to be inline in `App.tsx`).
+
+**Chat, header and search** (`ChatPane.tsx`, `App.tsx`, `components.css`)
+- Chat: Enter sends (Shift+Enter newline), transcript scrolls to the newest, time on each message, **own messages right-aligned in the accent, others left in neutral slate** (`.chat-transcript .chat-message(.is-own)`, announcements keep the accent rail). Checked by a probe element only; signed out there is no chat to look at.
+- **Bug fixed:** the theme panel's lower swatches were unclickable under an open chat dock (nav `z-20` under the dock's `z-40`); nav is now `z-50`. Measured: all 12 swatches blocked before, none after.
+- Analyze/landing search bars (`.report-search`, `.landing-search-input`) are drawn in the complement of the theme accent (`oklch(from var(--color-accent) .84 .16 calc(h + 180))`, amber fallback).
+- Matches (Play) roster: empty slots are the same "+" button and build modal as the team builder; a Pokémon added through it carries its moves/IVs into the posted offer (search-added ones still use the default build).
+
+**Gate notes added this session**
+- `utility-extraction.test.ts` forbids a Tailwind utility glued to a `${…}` in a template literal (`mb-10${x}`): put a space or move the margin to CSS.
+- `responsive.test.tsx` forbids a bare `min-width: >=200px`; use `min()`/`clamp()`.
+- One full-suite run failed once with no failure text and never reproduced (two clean full runs after). If it recurs, run `npx vitest run` and look for the failing file; I suspect a timing test under CPU load.
+- `sed -i` on macOS needs `-i ''`.
+
+**Not verified:** none of the CSS motion (the browser pane runs no transitions: sparkle, mascot hover); only that the elements mount, carry the animation name and end at opacity 0. Whether a Team card's chamfer or the build-picker's overflow clips the outer sparks. The tournament host sheet creating a tournament from a cup end to end (typed and covered by the existing tests, not run against a real server). The Matches "+" slot flow signed in.
+
+**Open candidates, none started:** the cup in the Matchmaking queue format picker; deleting or wiring the unused `allow` plumbing; a Team builder cup control if the user wants cup-aware suggestions after all; a shiny preference per species rather than global (currently global by the user's choice).
+
+
+(The third session's account follows and is still accurate for what it covers.)
 
 **Third session, 2026-10-01 (all pushed; `main` == `origin/main`, last commit `2ab1302`; `npm run check` 1881/1881; one migration, applied locally and in production).** Nine commits since `1ba0f88`. What exists now, by area:
 

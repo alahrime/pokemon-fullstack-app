@@ -1,7 +1,5 @@
 import { LEAGUES } from '../lib/data';
 import { LeagueEmblem } from './LeagueEmblem';
-import { LeagueSelect, type LeagueOption } from './LeagueSelect';
-import { LIMITED_CUPS } from '../lib/presetFormats';
 import type { LeagueId } from '../lib/types';
 
 /**
@@ -27,14 +25,8 @@ const SHORT: Record<LeagueId, string> = {
   master: 'Master',
 };
 
-const CUP_OPTIONS: LeagueOption[] = LIMITED_CUPS.map((p) => ({
-  value: p.key, label: p.name, league: p.base, types: p.cup.include?.types, palette: p.palette,
-  note: p.base === 'master' ? 'No cap' : `${p.base === 'great' ? 1500 : 2500} CP`,
-}));
-
-export function LeagueTabs({ value, cup, onChange }: { value: LeagueId; cup: string | null; onChange: (id: LeagueId, cup: string | null) => void }) {
+export function LeagueTabs({ value, onChange }: { value: LeagueId; onChange: (id: LeagueId) => void }) {
   return (
-    <>
     <div className="league-tabs" role="tablist" aria-label="League">
       {LEAGUES.map((lg) => {
         const active = value === lg.id;
@@ -44,7 +36,7 @@ export function LeagueTabs({ value, cup, onChange }: { value: LeagueId; cup: str
             type="button"
             role="tab"
             aria-selected={active}
-            className={`league-tab${active && !cup ? ' is-active' : ''}`}
+            className={`league-tab${active ? ' is-active' : ''}`}
             style={
               {
                 ['--lg' as string]: `var(--lg-${lg.id})`,
@@ -52,7 +44,7 @@ export function LeagueTabs({ value, cup, onChange }: { value: LeagueId; cup: str
                 ['--lg-accent' as string]: `var(--lg-${lg.id}-accent)`,
               } as React.CSSProperties
             }
-            onClick={() => onChange(lg.id, null)}
+            onClick={() => onChange(lg.id)}
             title={`${lg.name} — rankings, opponents and simulations all change`}
           >
             <LeagueEmblem league={lg.id} size={30} />
@@ -64,15 +56,5 @@ export function LeagueTabs({ value, cup, onChange }: { value: LeagueId; cup: str
         );
       })}
     </div>
-    <div className="cup-select">
-      <LeagueSelect
-        id="cup-select"
-        label="Limited cup"
-        value={cup ?? ''}
-        options={[{ value: '', label: 'No cup', league: value, note: 'Standard rules' }, ...CUP_OPTIONS]}
-        onChange={(k) => { const c = LIMITED_CUPS.find((p) => p.key === k); onChange(c ? c.base : value, c?.key ?? null); }}
-      />
-    </div>
-    </>
   );
 }

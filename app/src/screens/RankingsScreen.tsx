@@ -1,3 +1,4 @@
+import { CupSelect } from '../components/CupSelect';
 import { cupLegal } from '../lib/presetFormats';
 import { useEffect, useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -225,6 +226,10 @@ export function RankingsScreen() {
       ) : (
       <>
       <div className="panel panel-strong flex flex-wrap gap-5 mb-4">
+        <div className="field">
+          <label className="hud-label" htmlFor="cup-select">Limited cup</label>
+          <CupSelect />
+        </div>
         <div>
           <div className="hud-label">Category</div>
           <SegGroup>

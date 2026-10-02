@@ -5,6 +5,8 @@ import { useSession } from '../state/SessionContext';
 import { useTournaments } from '../state/useTournaments';
 import { LEAGUE_BY_ID } from '../lib/data';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
+import { PRESET_FORMATS, SHOW_6, versionFor, withTeamSize } from '../lib/presetFormats';
+import { LeagueSelect, type LeagueOption } from '../components/LeagueSelect';
 import { createTournament, effectiveState, openRegistration, type Tournament, type TournamentState } from '../lib/tournaments';
 import { TournamentScreen } from './TournamentScreen';
 import { defaultRounds } from '../tournament/swiss';
@@ -186,17 +188,28 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
     };
   }, []);
 
+  // The standard cups (as a Show 6 roster) first, then your own six-Pokémon formats.
+  const formatOptions: LeagueOption[] = [
+    ...PRESET_FORMATS.map((p) => ({
+      value: `preset:${p.key}`, label: p.name, league: p.base, types: p.cup.include?.types, palette: p.palette, group: 'Standard',
+      note: p.base === 'master' ? 'No cap' : `${p.base === 'great' ? 1500 : 2500} CP`,
+    })),
+    ...(formats ?? []).map((f) => ({ value: f.id, label: f.name, league: f.format.base, group: 'Your formats' })),
+  ];
   const format = formats?.find((f) => f.id === formatId);
-  const ready = !!format && title.trim() !== '' && !busy && createdId === null;
+  const preset = PRESET_FORMATS.find((p) => `preset:${p.key}` === formatId);
+  const ready = (!!format || !!preset) && formats !== null && title.trim() !== '' && !busy && createdId === null;
 
   async function create() {
-    if (!format) return;
+    if (!format && !preset) return;
     setBusy(true);
     setError(null);
     let id: string | null = null;
     try {
+      // A cup is saved to your own formats the first time it is used, and that copy reused after.
+      const versionId = format ? format.versionId : await versionFor({ name: `${preset!.name} · Show 6`, format: withTeamSize(preset!.format, SHOW_6) }, formats ?? []);
       id = await createTournament({
-        title: title.trim(), description, formatVersionId: format.versionId, rounds, roundMinutes, maxPlayers,
+        title: title.trim(), description, formatVersionId: versionId, rounds, roundMinutes, maxPlayers,
         closesAt: closes ? new Date(closes).toISOString() : null,
       });
       setCreatedId(id);
@@ -244,15 +257,13 @@ function CreateSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
         </div>
         <div className="field">
           <label htmlFor="tn-format">Format</label>
-          <select id="tn-format" className="input" value={formatId} onChange={(e) => setFormatId(e.target.value)}>
-            <option value="">Choose a format</option>
-            {(formats ?? []).map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-          {formats && formats.length === 0 && (
-            <p className="text-muted">You have no saved six-Pokémon formats — save one on the Formats screen.</p>
-          )}
+          <LeagueSelect
+            id="tn-format"
+            label="Format"
+            value={formatId}
+            options={[{ value: '', label: 'Choose a format', league: 'great' }, ...formatOptions]}
+            onChange={setFormatId}
+          />
         </div>
         <div className="field">
           <label htmlFor="tn-rounds">Rounds</label>

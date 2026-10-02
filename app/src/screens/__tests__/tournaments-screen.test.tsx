@@ -193,24 +193,36 @@ describe('host', () => {
   }
   const fill = async () => {
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My Cup' } });
-    await screen.findByRole('option', { name: 'F-a' });
-    fireEvent.change(screen.getByLabelText('Format'), { target: { value: 'a' } });
+    await pickFormat('F-a');
+  };
+  // The format is a listbox (cups carry emblems and colours), opened and picked like a user would.
+  const pickFormat = async (name: string | RegExp) => {
+    await waitFor(() => expect(S.listServerFormats).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('combobox', { name: 'Format' }));
+    fireEvent.click(await screen.findByRole('option', { name }));
   };
 
   it('lists only six-Pokémon formats with the documented defaults', async () => {
     await openSheet();
-    await screen.findByRole('option', { name: 'F-a' });
-    expect(screen.queryByRole('option', { name: 'F-b' })).toBeNull();
+    await waitFor(() => expect(S.listServerFormats).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('combobox', { name: 'Format' }));
+    await screen.findByRole('option', { name: /F-a/ });
+    expect(screen.queryByRole('option', { name: /F-b/ })).toBeNull();
+    // The standard cups are offered whether or not you have saved anything.
+    expect(screen.getByRole('option', { name: /^Great League/ })).toBeTruthy();
     expect((screen.getByLabelText('Rounds') as HTMLInputElement).value).toBe('4');
     expect((screen.getByLabelText(/Round length/) as HTMLInputElement).value).toBe('25');
     expect((screen.getByLabelText('Max players') as HTMLInputElement).value).toBe('64');
     expect((screen.getByLabelText('Open registration now') as HTMLInputElement).checked).toBe(true);
   });
 
-  it('no six-formats: helper text and Create disabled', async () => {
+  it('no six-formats: only the standard cups, and Create waits for a pick', async () => {
     S.listServerFormats.mockResolvedValue([fmt('b', 3)]);
     await openSheet();
-    expect(await screen.findByText(/Formats screen/)).toBeTruthy();
+    await waitFor(() => expect(S.listServerFormats).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('combobox', { name: 'Format' }));
+    expect(await screen.findByRole('option', { name: /^Great League/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /F-b/ })).toBeNull();
     expect((screen.getByRole('button', { name: 'Create' }) as HTMLButtonElement).disabled).toBe(true);
   });
 

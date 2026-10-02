@@ -100,6 +100,30 @@ const [openingA, openingB] = randomMatchup('great');
 const openingIvA = defaultSpreadFor(openingA, 'great');
 const openingIvB = defaultSpreadFor(openingB, 'great');
 
+/**
+ * What changes when the league does: the battle pair is drawn from the league's own pool, so it is re-rolled — a
+ * Great-league matchup left on the Master screen is priced at a cap it never plays under — and so is its spread,
+ * which is priced against the cap. `cup` is the limited cup played under that league's cap, or null.
+ */
+export function leaguePatch(id: LeagueId, cup: string | null): Partial<AppStateShape> {
+  const [a, b] = randomMatchup(id);
+  const spreadA = defaultSpreadFor(a, id);
+  const spreadB = defaultSpreadFor(b, id);
+  return {
+    league: id,
+    cup,
+    oppId: opponentsFor(id)[0]?.id ?? '',
+    battleA: a,
+    battleB: b,
+    fastA: 0,
+    fastB: 0,
+    chargeIdsA: [],
+    chargeIdsB: [],
+    ivA: { a: spreadA.a, d: spreadA.d, s: spreadA.s },
+    ivB: { a: spreadB.a, d: spreadB.d, s: spreadB.s },
+  };
+}
+
 /** The state a fresh session starts in. Exported so tests can assert the
  *  defaults themselves rather than inferring them from rendered text. */
 export const INITIAL_STATE: AppStateShape = {

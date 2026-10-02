@@ -5,6 +5,7 @@ import { goTo } from '../../test/nav';
 import { SECTIONS, SCREEN_DEFS } from '../../lib/screens';
 import App from '../../App';
 import { AddPokemonModal } from '../AddPokemonModal';
+import { CupSelect } from '../CupSelect';
 import { LeagueTabs } from '../LeagueTabs';
 import { SiteFooter } from '../SiteFooter';
 import { SearchHelp } from '../SearchHelp';
@@ -68,18 +69,23 @@ describe('App shell', () => {
 describe('LeagueTabs', () => {
   it('renders the three leagues and reports a change', () => {
     const onChange = vi.fn();
-    const { container } = renderApp(<LeagueTabs value="great" cup={null} onChange={onChange} />);
+    const { container } = renderApp(<LeagueTabs value="great" onChange={onChange} />);
     const tabs = container.querySelectorAll('.league-tab');
     expect(tabs.length).toBe(3);
     fireEvent.click(tabs[1]);
-    expect(onChange).toHaveBeenCalledWith('ultra', null);
+    expect(onChange).toHaveBeenCalledWith('ultra');
   });
-  it('picking a limited cup reports its league and key', () => {
-    const onChange = vi.fn();
-    const { container, getByRole } = renderApp(<LeagueTabs value="great" cup={null} onChange={onChange} />);
-    fireEvent.click(getByRole('combobox', { name: 'Limited cup' }));
-    fireEvent.click(container.querySelector('#cup-select-list [role=option]:nth-child(2)')!);
-    expect(onChange.mock.calls[0][1]).toEqual(expect.any(String));
+});
+
+describe('CupSelect', () => {
+  it('lists the limited cups and picking one moves the league to its cap', () => {
+    const { container, getByRole } = renderApp(<CupSelect />);
+    const btn = getByRole('combobox', { name: 'Limited cup' });
+    fireEvent.click(btn);
+    const opts = container.querySelectorAll('#cup-select-list [role=option]');
+    expect(opts.length).toBeGreaterThan(1);
+    fireEvent.click(opts[1]);
+    expect(btn.textContent).not.toContain('No cup');
   });
 });
 

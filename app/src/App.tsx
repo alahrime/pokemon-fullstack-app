@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { AppStateProvider, useAppState } from './state/AppState';
+import { AppStateProvider, leaguePatch, useAppState } from './state/AppState';
 import { SECTIONS, sectionOf } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
 import { SessionProvider } from './state/SessionContext';
@@ -15,8 +15,6 @@ import { ChatDock } from './components/ChatDock';
 import { LeagueTabs } from './components/LeagueTabs';
 import { SectionRail } from './components/SectionRail';
 import { useBadges } from './state/useBadges';
-import { opponentsFor, randomMatchup } from './lib/data';
-import { defaultSpreadFor } from './lib/engine';
 import { LandingScreen } from './screens/LandingScreen';
 import { ReportScreen } from './screens/ReportScreen';
 import { BattleScreen } from './screens/BattleScreen';
@@ -96,31 +94,7 @@ function Nav() {
       <div className="nav-right">
         <LeagueTabs
           value={state.league}
-          cup={state.cup}
-          onChange={(id, cup) => {
-            // The battle pair is drawn from the league's own pool, so it is
-            // re-rolled here — a Great-league matchup left on the Master
-            // screen is priced at a cap it never plays under.
-            const [a, b] = randomMatchup(id);
-            const spreadA = defaultSpreadFor(a, id);
-            const spreadB = defaultSpreadFor(b, id);
-            patch({
-              league: id,
-              cup,
-              oppId: opponentsFor(id)[0]?.id ?? '',
-              battleA: a,
-              battleB: b,
-              fastA: 0,
-              fastB: 0,
-              chargeIdsA: [],
-              chargeIdsB: [],
-              // The roll is priced against the cap, so it is re-taken with the
-              // league as well as with the species — a Great roll under Master
-              // is a spread nobody would field there.
-              ivA: { a: spreadA.a, d: spreadA.d, s: spreadA.s },
-              ivB: { a: spreadB.a, d: spreadB.d, s: spreadB.s },
-            });
-          }}
+          onChange={(id) => patch(leaguePatch(id, null))}
         />
         <button
           className={`nav-account${state.screen === 'account' ? ' is-active' : ''}`}

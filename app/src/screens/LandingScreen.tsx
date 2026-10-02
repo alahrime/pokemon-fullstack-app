@@ -29,31 +29,42 @@ import { summaryFor } from '../lib/summary';
 
 
 
-/** Shiny Porygon2 is blue; each mascot turns it by this many degrees of hue. The aura is drawn after the turn, so it stays violet. */
-const MASCOTS = [
-  { name: 'red', hue: 145 },
-  { name: 'orange', hue: 175 },
-  { name: 'yellow', hue: 200 },
-  { name: 'green', hue: 265 },
-  { name: 'blue', hue: 0 },
-  { name: 'purple', hue: 60 },
-];
+/**
+ * Shiny Porygon2 is blue (hue ~215°); each mascot turns it to a hue of its own. The aura is drawn after the turn, so it
+ * stays violet. The first six are the ones a narrow screen keeps, so they are the six most distinct.
+ */
+const toRotation = (target: number) => (target - 215 + 360) % 360;
+const MASCOTS = ([
+  ['red', 0], ['orange', 30], ['yellow', 55], ['green', 125], ['blue', 215], ['purple', 275],
+  ['lime', 85], ['teal', 170], ['pink', 335], ['violet', 255], ['amber', 42], ['mint', 150],
+  ['coral', 15], ['cyan', 190], ['magenta', 305], ['chartreuse', 100], ['indigo', 238], ['rose', 352],
+] as const).map(([name, h]) => ({ name, hue: toRotation(h) }));
 
-function MascotGroup({ side, colors, onPick }: { side: 'left' | 'right'; colors: typeof MASCOTS; onPick: () => void }) {
+/** Three to a column, three columns a side; the column nearest the title is the one every screen keeps. */
+const cols = (ids: number[][]) => ids.map((c) => c.map((i) => ({ ...MASCOTS[i], i })));
+const LEFT = cols([[0, 1, 2], [6, 7, 8], [12, 13, 14]]);
+const RIGHT = cols([[3, 4, 5], [9, 10, 11], [15, 16, 17]]);
+
+function MascotGroup({ side, columns, onPick }: { side: 'left' | 'right'; columns: typeof LEFT; onPick: () => void }) {
   return (
     <div className={`landing-mascots is-${side}`}>
-      {colors.map((c) => (
-        <button
-          key={c.name}
-          type="button"
-          className="landing-mascot"
-          style={{ ['--mascot-hue' as string]: `${c.hue}deg` }}
-          aria-label={`Shiny Shadow Porygon2, ${c.name} — open its report`}
-          title="Porygon2"
-          onClick={onPick}
-        >
-          <Sprite sprite="porygon2" dex={233} size={78} shiny shadow className="mascot-tint" />
-        </button>
+      {columns.map((col, ci) => (
+        <div key={ci} className="landing-mascot-col" data-col={ci}>
+          {col.map((c) => (
+            <button
+              key={c.name}
+              type="button"
+              className="landing-mascot"
+              // Every other one faces the other way.
+              style={{ ['--mascot-hue' as string]: `${c.hue}deg`, ['--mascot-flip' as string]: c.i % 2 ? -1 : 1 }}
+              aria-label={`Shiny Shadow Porygon2, ${c.name} — open its report`}
+              title="Porygon2"
+              onClick={onPick}
+            >
+              <Sprite sprite="porygon2" dex={233} size={116} shiny shadow className="mascot-tint" />
+            </button>
+          ))}
+        </div>
       ))}
     </div>
   );
@@ -106,9 +117,9 @@ export function LandingScreen() {
           Pokémon GO · PvP IV analysis
         </p>
 
-        {/* Six Porygon2 flank the title — the "2" in Paragon/IV. Each is shiny, recoloured by hue, and wreathed in the Shadow aura. */}
+        {/* Up to eighteen Porygon2 flank the title (as many as the width allows) — the "2" in Paragon/IV. Each is shiny, recoloured by hue, and wreathed in the Shadow aura. */}
         <div className="landing-title-row relative mb-10">
-          <MascotGroup side="left" colors={MASCOTS.slice(0, 3)} onPick={openPorygon} />
+          <MascotGroup side="left" columns={LEFT} onPick={openPorygon} />
           <h1 className="landing-title relative [animation:landing-rise_var(--dur-5)_var(--ease-out)_200ms_both]">
             Every spread.
             <br />
@@ -118,7 +129,7 @@ export function LandingScreen() {
               Every matchup.
             </span>
           </h1>
-          <MascotGroup side="right" colors={MASCOTS.slice(3)} onPick={openPorygon} />
+          <MascotGroup side="right" columns={RIGHT} onPick={openPorygon} />
         </div>
 
         <p className="relative mb-10 max-w-[58ch] text-lg/relaxed text-(--text-muted) [animation:landing-rise_var(--dur-5)_var(--ease-out)_320ms_both]">

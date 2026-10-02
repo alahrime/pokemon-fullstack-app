@@ -7005,13 +7005,22 @@ th.bt-matrix-head { text-align: center; }
 .landing-mascot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .landing-mascot { transition: none; } }
 
-/* Six Porygon2 flank the landing title, three a side, bowed outward in the middle. Single column on a phone,
-   where the two groups become a row above and a row below the title. */
-.landing-title-row { display: grid; grid-template-columns: auto auto auto; align-items: center; justify-content: center; gap: var(--space-6); }
-.landing-mascots { display: flex; flex-direction: column; align-items: center; }
-.landing-mascots .landing-mascot { padding: 0; margin-block: calc(var(--space-1) * -1); }
-.landing-mascots.is-left .landing-mascot:nth-child(2) { translate: -22px 0; }
-.landing-mascots.is-right .landing-mascot:nth-child(2) { translate: 22px 0; }
+/* Up to eighteen Porygon2 flank the landing title: three to a column, three columns a side, as many columns as the
+   width allows (the one nearest the title always stays). The middle of each column bows outward. Below 760px the
+   two groups become a row above and a row below the title. */
+.landing-title-row { display: grid; grid-template-columns: auto auto auto; align-items: center; justify-content: center; gap: var(--space-8, 3rem); }
+.landing-mascots { display: flex; align-items: center; gap: var(--space-5); }
+.landing-mascots.is-left { flex-direction: row-reverse; }
+.landing-mascot-col { display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+.landing-mascots .landing-mascot { padding: 0; }
+.landing-mascots.is-left .landing-mascot:nth-child(2) { translate: -26px 0; }
+.landing-mascots.is-right .landing-mascot:nth-child(2) { translate: 26px 0; }
+/* Facing: every other one is mirrored. */
+.landing-mascot .mascot-tint { scale: var(--mascot-flip, 1) 1; }
+.landing-mascot-col[data-col='1'] { display: none; }
+.landing-mascot-col[data-col='2'] { display: none; }
+@media (min-width: 1300px) { .landing-mascot-col[data-col='1'] { display: flex; } }
+@media (min-width: 1560px) { .landing-mascot-col[data-col='2'] { display: flex; } }
 /* Hue first, then the Shadow aura, so the aura stays violet whatever the body is turned to. */
 .sprite-shadow.mascot-tint img {
   filter:
@@ -7020,9 +7029,11 @@ th.bt-matrix-head { text-align: center; }
     drop-shadow(0 0 14px color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent));
 }
 @media (max-width: 760px) {
-  .landing-title-row { grid-template-columns: 1fr; gap: var(--space-3); }
-  .landing-mascots { flex-direction: row; justify-content: center; gap: var(--space-4); }
+  .landing-title-row { grid-template-columns: 1fr; gap: var(--space-4); }
+  .landing-mascots, .landing-mascots.is-left { flex-direction: row; justify-content: center; }
   .landing-mascots.is-left { order: -1; }
-  .landing-mascots .landing-mascot { margin-block: 0; }
+  .landing-mascot-col { flex-direction: row; gap: var(--space-3); }
   .landing-mascots .landing-mascot:nth-child(2) { translate: 0 0; }
+  /* The sprite states its size inline; a phone needs three across, so the width yields (!important beats inline). */
+  .landing-mascot .mascot-tint { width: min(116px, 26vw) !important; height: auto !important; aspect-ratio: 1; }
 }

@@ -275,6 +275,19 @@ export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
 const GO_ONLY_SPRITES: Record<string, string> = {
   'mewtwo-armored':
     'https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png',
+  ...Object.fromEntries(
+    (
+      [
+        ['zacian-hero-of-many-battles', 'pm888.fHERO'],
+        ['zacian-crowned-sword', 'pm888.fCROWNED_SWORD'],
+        ['zamazenta-hero-of-many-battles', 'pm889.fHERO'],
+        ['zamazenta-crowned-shield', 'pm889.fCROWNED_SHIELD'],
+      ] as const
+    ).map(([slug, file]) => [
+      slug,
+      `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`,
+    ]),
+  ),
 };
 
 /**

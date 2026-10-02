@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-01 (end of fourth session: shiny sprites and the Porygon2 mascots, limited cups, chat polish; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-02 (fifth session: Zacian/Zamazenta GO sprites, challenges without verification, match screen teams; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -39,6 +39,17 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Fifth session, 2026-10-02 (all pushed; `main` == `origin/main`, last commit `382e290`; `npm run check` 1889/1889; ONE new migration).**
+
+- **Zacian / Zamazenta sprites** (`lib/data.ts` `GO_ONLY_SPRITES`): Hero and Crowned forms of both use the Pokémon GO renders from PokeMiners `pogo_assets` (`pm888.fHERO`, `pm888.fCROWNED_SWORD`, `pm889.fHERO`, `pm889.fCROWNED_SHIELD`), with shiny `.s` variants stored under the key `<slug>:shiny`. `spriteUrl` picks the shiny key only when one exists (Armored Mewtwo still has none). Seen in the sprite audit (`/?audit=sprites`) locally and in production. The pane's lazy loader did not fire for Zamazenta until `loading='eager'` was forced; Zacian loaded unaided; a pane quirk, unconfirmed in a normal browser. Changing `lib/data.ts` changes `supabase/functions/coordinator/rules.bundle.js` (the rules bundle imports it): re-run `npm run build:coordinator` or `verify:coordinator-bundle` fails. The rules hash itself does not depend on sprites.
+- **Challenges need no verification** (migration `20261002000000_challenges_need_no_verification.sql`, **applies to production on push; confirm it did**: `npx supabase migration list --linked`). `accept_offer` skips the `verified_hash` check when `target_id is not null` (public-board offers are still verified) and `accept_offer`/`confirm_offer` write `coalesce(verified_hash, claimed_hash)` as the match's `rules_hash`. `challengeView` (`lib/challenges.ts`) now gives the target Accept/Counter/Decline immediately and the proposer "Waiting for them"; the "Verifying the format…" state is gone. A live challenge becomes a match on accept; **scheduled challenges still need the proposer's confirm** (user was asked whether to drop that; no answer yet).
+- **Auto-open the match** (`components/ChallengeCard.tsx`): when a card it is watching goes from a non-converted state to `converted` it calls `openMatch()`, so both players land on the Match screen (the accepter after the accept, the proposer via realtime/poll).
+- **Match screen shows both teams and friend codes** (`components/MatchTeams.tsx`, `screens/MatchScreen.tsx`, `lib/matches.ts`): `Match` gained optional `myTeam`/`oppTeam` (from `team_a`/`team_b` in `COLUMNS`, flipped by `mySide`); codes from `myFriendCode()` and `opponentFriendCode()`; opponent name from `resolveDisplayNames`. `.match-teams` grid in `components.css` (uses `min(260px,100%)` because `responsive.test.tsx` demands it). League is passed as `'great'` to `movesForChoice` since `Match` carries none; harmless because stored rosters always carry moves.
+- **Not verified:** the Match screen with real data (only the unit test); the migration against a real database; `tools/m4-challenges-roundtrip.ts` check 3 was rewritten to assert accept-converts-immediately but not run (needs the live stack); `supabase/tests/challenges.test.ts` was not re-run and may still assume the old unverified-refusal, so check it with `npm run check:db`. The earlier "challenge shows only Decline" report was most likely the unverified state; with verification removed it should be gone, but the user has not re-tested on a phone.
+- **Reported but not reproduced:** "Rankings crashes when selecting between pages after toggling shiny". Tried paging, page size, categories, leagues, Individual/Teams views, shiny toggles and screen changes on dev and production: no error. Ask for the exact steps or the error text.
+
+### Previous session (fourth)
 
 **Fourth session, 2026-10-01 (all pushed; `main` == `origin/main`; `npm run check` 1886/1886; no migrations).** Cosmetic and UX work, in the order the user asked for it. By area:
 

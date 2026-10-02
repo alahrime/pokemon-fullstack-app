@@ -272,6 +272,9 @@ export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
  * These come from the mined game assets, so they are the same renders the game
  * itself uses.
  */
+const goAsset = (file: string) =>
+  `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`;
+
 const GO_ONLY_SPRITES: Record<string, string> = {
   'mewtwo-armored':
     'https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png',
@@ -283,9 +286,9 @@ const GO_ONLY_SPRITES: Record<string, string> = {
         ['zamazenta-hero-of-many-battles', 'pm889.fHERO'],
         ['zamazenta-crowned-shield', 'pm889.fCROWNED_SHIELD'],
       ] as const
-    ).map(([slug, file]) => [
-      slug,
-      `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`,
+    ).flatMap(([slug, file]) => [
+      [slug, goAsset(file)],
+      [`${slug}:shiny`, goAsset(`${file}.s`)],
     ]),
   ),
 };
@@ -301,8 +304,8 @@ const GO_ONLY_SPRITES: Record<string, string> = {
  * aura, which the UI conveys with a badge instead.
  */
 export function spriteUrl(sprite: string, shiny = false): string {
-  // The GO-only renders have no shiny counterpart, so they stay as they are.
-  return GO_ONLY_SPRITES[sprite] ?? `https://img.pokemondb.net/sprites/home/${shiny ? 'shiny' : 'normal'}/${sprite}.png`;
+  // Armored Mewtwo has no shiny render; the Zacian/Zamazenta forms do (keyed `slug:shiny`).
+  return GO_ONLY_SPRITES[shiny && `${sprite}:shiny` in GO_ONLY_SPRITES ? `${sprite}:shiny` : sprite] ?? `https://img.pokemondb.net/sprites/home/${shiny ? 'shiny' : 'normal'}/${sprite}.png`;
 }
 
 /** Fallback when a slug has no artwork - the pre-existing dex-numbered source. */

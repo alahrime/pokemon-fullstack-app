@@ -382,6 +382,7 @@ var ROSTER = SPECIES.filter((s) => isSimulated(s.id)).flatMap((s) => {
   return s.shadowEligible ? [base, { ref: makeRef(s.id, true), species: s, shadow: true, name: `${s.name} (Shadow)` }] : [base];
 });
 var BASE_ROSTER = ROSTER.filter((r) => !r.shadow);
+var goAsset = (file) => `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`;
 var GO_ONLY_SPRITES = {
   "mewtwo-armored": "https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png",
   ...Object.fromEntries(
@@ -390,9 +391,9 @@ var GO_ONLY_SPRITES = {
       ["zacian-crowned-sword", "pm888.fCROWNED_SWORD"],
       ["zamazenta-hero-of-many-battles", "pm889.fHERO"],
       ["zamazenta-crowned-shield", "pm889.fCROWNED_SHIELD"]
-    ].map(([slug, file]) => [
-      slug,
-      `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`
+    ].flatMap(([slug, file]) => [
+      [slug, goAsset(file)],
+      [`${slug}:shiny`, goAsset(`${file}.s`)]
     ])
   )
 };

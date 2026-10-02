@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { cupLegal } from '../lib/presetFormats';
+import { useEffect, useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { CATEGORIES, CATEGORY_MARK, type CategoryId } from '../lib/scenarios';
@@ -154,11 +155,18 @@ export function RankingsScreen() {
   const [pageSize, setPageSize] = useState(25);
   const [open, setOpen] = useState<string | null>(null);
 
-  const rows = useMemo(() => rankingsFor(league, tier, cat), [league, tier, cat]);
+  const cupSet = cupLegal(state.cup);
+  const rows = useMemo(() => {
+    const all = rankingsFor(league, tier, cat);
+    return cupSet ? all.filter((r) => cupSet.has(r.ref)) : all;
+  }, [league, tier, cat, cupSet]);
   const max = rows[0]?.score ?? 1000;
   const pages = Math.ceil(rows.length / pageSize);
   const slice = rows.slice(page * pageSize, page * pageSize + pageSize);
   const category = CATEGORIES.find((c) => c.id === cat)!;
+
+  // The cup is chosen in the header, so a page past the shorter list must not outlive it.
+  useEffect(() => setPage(0), [state.cup, league]);
 
   const reset = (fn: () => void) => {
     fn();

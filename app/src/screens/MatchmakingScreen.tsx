@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { PokemonCard } from '../components/PokemonCard';
 import { SpeciesSearch } from '../components/SpeciesSearch';
-import type { AddPokemonChoice } from '../components/AddPokemonModal';
+import { AddPokemonModal, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { MonTile } from '../components/MonTile';
@@ -356,7 +356,14 @@ export function MatchmakingScreen() {
     );
   };
   const clear = (i: number) => setTeam((t) => t.filter((_, n) => n !== i));
-  const buildTeam = (): StoredMember[] => team.map((ref) => encodeMember(defaultChoice(ref, league), league));
+  // A Pokémon added through the "+" carries the moves and roll it was built with; one from the search uses the default.
+  const [builds, setBuilds] = useState<Record<string, AddPokemonChoice>>({});
+  const [adding, setAdding] = useState(false);
+  const addBuilt = (choice: AddPokemonChoice) => {
+    setBuilds((b) => ({ ...b, [choice.ref]: choice }));
+    add(choice.ref);
+  };
+  const buildTeam = (): StoredMember[] => team.map((ref) => encodeMember(builds[ref] ?? defaultChoice(ref, league), league));
   /**
    * Ready to JOIN or POST — both of which are queued under your own chosen
    * format, so both need one. Accepting is deliberately not this: see
@@ -658,9 +665,10 @@ export function MatchmakingScreen() {
             return r ? (
               <PokemonCard key={i} refId={r} league={league} size="compact" onClick={() => clear(i)} title="Click to remove" />
             ) : (
-              <div key={i} className="team-slot is-empty">
-                <span className="team-slot-hint">Empty</span>
-              </div>
+              <button key={i} type="button" className="team-slot is-empty" onClick={() => setAdding(true)} title="Add a Pokémon, with its moves and roll">
+                <span className="team-slot-mark" aria-hidden="true">+</span>
+                <span className="team-slot-hint">Add</span>
+              </button>
             );
           })}
         </div>
@@ -676,6 +684,7 @@ export function MatchmakingScreen() {
           />
         </div>
       </div>
+      {adding && <AddPokemonModal league={league} restrictTo={selectable} onCommit={addBuilt} onClose={() => setAdding(false)} />}
 
       <div className="panel">
         <div className="hud-label">Blind queue</div>

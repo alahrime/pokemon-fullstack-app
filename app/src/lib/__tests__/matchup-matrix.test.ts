@@ -1,9 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { SHIELDS, altRowFor, alternativesFor, duel, threatScore, toneOf, topThreats } from '../matchupMatrix';
+import { cupLegal } from '../presetFormats';
 import { monFor } from '../teambuild';
 import { handOffTeam, takeHandedOffTeam } from '../teamHandoff';
 
 const TEAM = ['azumarill', 'registeel', 'altaria'];
+
+describe('matchup matrix under a limited cup', () => {
+  it('draws threats and alternatives only from the cup', () => {
+    const allow = cupLegal('retro')!;
+    const all = topThreats(TEAM, 'great');
+    const cup = topThreats(TEAM, 'great', undefined, 20, allow);
+    expect(cup.length).toBeGreaterThan(0);
+    expect(cup.every((t) => allow.has(t.ref))).toBe(true);
+    expect(all.some((t) => !allow.has(t.ref))).toBe(true);
+    expect(alternativesFor(TEAM, cup, 'great', 20, allow).every((a) => allow.has(a.ref))).toBe(true);
+  });
+});
 
 describe('matchup matrix', () => {
   it('bands a rating by its distance from a draw', () => {

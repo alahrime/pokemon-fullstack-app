@@ -705,7 +705,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         </div>
       </div>
 
-      <MatchupMatrix team={team} builds={builds} league={league} onAdd={add} full={team.length >= size} />
+      <MatchupMatrix team={team} builds={builds} league={league} onAdd={add} full={team.length >= size} allow={cupSet} />
 
       {picks && (
         <div className="panel" ref={picksRef}>

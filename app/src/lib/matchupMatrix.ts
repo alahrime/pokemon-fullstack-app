@@ -85,10 +85,11 @@ export function matrixFor(team: string[], foes: string[], lg: LeagueId, builds?:
 }
 
 /** The opponents that press this roster hardest, across all three shield counts. Most threatening first. */
-export function topThreats(team: string[], lg: LeagueId, builds?: Record<string, MonBuild>, limit = 20): MatrixRow[] {
+export function topThreats(team: string[], lg: LeagueId, builds?: Record<string, MonBuild>, limit = 20, allow?: ReadonlySet<string> | null): MatrixRow[] {
   if (team.length === 0) return [];
   const rows: MatrixRow[] = [];
   teamPool(lg).forEach((f, idx) => {
+    if (allow && !allow.has(f)) return;
     if (team.some((r) => r === f || conflictsOnTeam(r, f))) return;
     rows.push(rowFor(team, f, lg, builds, idx));
   });
@@ -119,10 +120,10 @@ export function altRowFor(ref: string, threats: readonly MatrixRow[], lg: League
 }
 
 /** Pokémon that would answer what presses the roster, best first. Candidates are the league's pool, minus conflicts. */
-export function alternativesFor(team: string[], threats: readonly MatrixRow[], lg: LeagueId, limit = 20): AltRow[] {
+export function alternativesFor(team: string[], threats: readonly MatrixRow[], lg: LeagueId, limit = 20, allow?: ReadonlySet<string> | null): AltRow[] {
   if (team.length === 0 || threats.length === 0) return [];
   return teamPool(lg)
-    .filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r)))
+    .filter((r) => (!allow || allow.has(r)) && !team.some((m) => m === r || conflictsOnTeam(m, r)))
     .map((r) => altRowFor(r, threats, lg))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

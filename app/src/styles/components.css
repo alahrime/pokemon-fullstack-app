@@ -7054,7 +7054,7 @@ th.bt-matrix-head { text-align: center; }
 .shiny-star.is-on .shiny-star-btn { background: linear-gradient(135deg, #7fe7ff, #ff9be8 55%, #ffe58a); }
 .shiny-burst { position: absolute; inset: 0; pointer-events: none; }
 .shiny-burst i {
-  position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; opacity: 0;
+  position: absolute; left: 50%; top: 50%; width: var(--spark, 12px); height: var(--spark, 12px); margin: calc(var(--spark, 12px) / -2) 0 0 calc(var(--spark, 12px) / -2); opacity: 0;
   background: var(--c, #fff);
   clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
   animation: shiny-spark 900ms var(--ease-out) var(--d, 0ms) both;
@@ -7062,7 +7062,7 @@ th.bt-matrix-head { text-align: center; }
 @keyframes shiny-spark {
   0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.2); }
   25% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(var(--a)) translateY(-30px) scale(1.15); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--reach, 30px) * -1)) scale(1.15); }
 }
 [data-motion='off'] .shiny-burst { display: none; }
 @media (prefers-reduced-motion: reduce) { .shiny-burst { display: none; } .shiny-star-btn { transition: none; } }

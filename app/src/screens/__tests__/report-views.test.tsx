@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ReportScreen } from '../ReportScreen';
+import { ShinyStar } from '../../components/ShinyStar';
 import { CoresScreen } from '../CoresScreen';
 import { useEffect } from 'react';
 import { useAppState } from '../../state/AppState';
@@ -207,6 +208,17 @@ describe('report left column', () => {
     // than sharing one block label between them.
     const props = [...side.querySelectorAll('.sw-label')].map((l) => l.textContent);
     expect(props).toEqual(['Shadow', 'Best Buddy']);
+  });
+
+  it('switching shiny on sparkles the hero sprite and no other sprite on the page', () => {
+    const { container, getByRole } = renderApp(<><ShinyStar /><ReportScreen /></>);
+    expect(container.querySelector('.hero .shiny-burst')).toBeNull();
+    fireEvent.click(getByRole('switch', { name: 'Shiny sprites' }));
+    expect(container.querySelectorAll('.hero .shiny-burst i').length).toBe(8);
+    // The header star's own burst plus the hero's: nothing on the small sprites.
+    expect(container.querySelectorAll('.shiny-burst').length).toBe(2);
+    fireEvent.click(getByRole('switch', { name: 'Shiny sprites' }));
+    expect(container.querySelectorAll('.hero .shiny-burst').length).toBe(1);
   });
 
   it('states each stat once — the hero meters, not a second strip beside them', () => {

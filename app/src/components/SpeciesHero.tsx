@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { leagueStatRange } from '../lib/engine';
 import { Sprite } from './Sprite';
+import { ShinyBurst } from './ShinyBurst';
 import { TypeBadge } from './TypeBadge';
 import { LeagueEmblem } from './LeagueEmblem';
 import type { LeagueId, RankedEntry, Species } from '../lib/types';
@@ -63,14 +64,18 @@ export function SpeciesHero({
             completing the corner set with the dex and the league emblem —
             worth it for one badge that sits in the same place on every screen
             instead of one position here and another in Battle. */}
-        <Sprite
-          sprite={species.sprite}
-          dex={species.dex}
-          size={150}
-          shadow={shadow}
-          bestBuddy={bestBuddy}
-          className="sprite-holo"
-        />
+        {/* The one place on this screen the shiny cue plays: the subject, not the dozens of small sprites. */}
+        <div className="relative grid place-items-center">
+          <Sprite
+            sprite={species.sprite}
+            dex={species.dex}
+            size={150}
+            shadow={shadow}
+            bestBuddy={bestBuddy}
+            className="sprite-holo"
+          />
+          <ShinyBurst spark={26} reach={96} />
+        </div>
       </div>
 
       <div className="hero-body">

@@ -101,6 +101,10 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
         {has('accept') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setAccepting(true)}>Accept</button>
         )}
+        {has('decline') && !has('accept') && (
+          // Only the unverified state offers Decline without Accept; show Accept disabled rather than hiding it.
+          <button type="button" className="btn btn-primary" disabled title="Available once the format is verified">Accept</button>
+        )}
         {has('confirm') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => confirmOffer(offerId))}>Confirm</button>
         )}

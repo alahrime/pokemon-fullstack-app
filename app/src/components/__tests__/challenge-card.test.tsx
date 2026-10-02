@@ -76,11 +76,11 @@ describe('ChallengeCard', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('unverified: no Accept, Decline present', async () => {
+  it('unverified: Accept shown but disabled, Decline present', async () => {
     serve({ verifiedHash: null });
     render(<ChallengeCard offerId="o" />);
     expect(await screen.findByText('Verifying the format…')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
   });
 

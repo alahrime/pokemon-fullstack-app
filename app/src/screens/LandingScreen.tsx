@@ -30,20 +30,24 @@ import { summaryFor } from '../lib/summary';
 
 
 /**
- * Shiny Porygon2 is blue (hue ~215°); each mascot turns it to a hue of its own. The aura is drawn after the turn, so it
- * stays violet. The first six are the ones a narrow screen keeps, so they are the six most distinct.
+ * Shiny Porygon2 is blue (hue ~215°). Each mascot turns that to a tone of its own: a hue, plus a saturation and a
+ * brightness, so the set has whites, blacks and browns as well as a colour wheel and stays distinguishable even at
+ * twenty-two. The aura is drawn after the tone, so it stays violet. The first six are what a narrow screen keeps, and
+ * neighbours in the list are far apart in colour.
  */
-const toRotation = (target: number) => (target - 215 + 360) % 360;
+const tone = (hue: number, sat = 1, bright = 1) => `hue-rotate(${(hue - 215 + 360) % 360}deg) saturate(${sat}) brightness(${bright})`;
 const MASCOTS = ([
-  ['red', 0], ['orange', 30], ['yellow', 55], ['green', 125], ['blue', 215], ['purple', 275],
-  ['lime', 85], ['teal', 170], ['pink', 335], ['violet', 255], ['amber', 42], ['mint', 150],
-  ['coral', 15], ['cyan', 190], ['magenta', 305], ['chartreuse', 100], ['indigo', 238], ['rose', 352],
-] as const).map(([name, h]) => ({ name, hue: toRotation(h) }));
+  ['red', tone(0)], ['orange', tone(30)], ['yellow', tone(55)], ['green', tone(130)], ['blue', tone(215)], ['purple', tone(275)],
+  ['white', tone(215, 0, 1.55)], ['black', tone(215, 0, 0.38)], ['pink', tone(335, 0.7, 1.2)], ['teal', tone(170)],
+  ['brown', tone(30, 0.8, 0.55)], ['lime', tone(88)], ['navy', tone(215, 1, 0.5)], ['magenta', tone(305)], ['peach', tone(20, 0.5, 1.45)],
+  ['forest', tone(130, 1, 0.5)], ['cyan', tone(190)], ['maroon', tone(0, 1, 0.5)], ['lavender', tone(275, 0.5, 1.45)], ['silver', tone(215, 0, 1.05)],
+  ['mint', tone(165, 0.5, 1.4)], ['gold', tone(45, 1, 0.8)],
+] as const).map(([name, filter]) => ({ name, filter }));
 
-/** Three to a column, three columns a side; the column nearest the title is the one every screen keeps. */
+/** Three to a column, columns of three then two; the column nearest the title is the one every screen keeps. */
 const cols = (ids: number[][]) => ids.map((c) => c.map((i) => ({ ...MASCOTS[i], i })));
-const LEFT = cols([[0, 1, 2], [6, 7, 8], [12, 13, 14]]);
-const RIGHT = cols([[3, 4, 5], [9, 10, 11], [15, 16, 17]]);
+const LEFT = cols([[0, 1, 2], [6, 7, 8], [12, 13, 14], [18, 19]]);
+const RIGHT = cols([[3, 4, 5], [9, 10, 11], [15, 16, 17], [20, 21]]);
 
 function MascotGroup({ side, columns, onPick }: { side: 'left' | 'right'; columns: typeof LEFT; onPick: () => void }) {
   return (
@@ -56,7 +60,7 @@ function MascotGroup({ side, columns, onPick }: { side: 'left' | 'right'; column
               type="button"
               className="landing-mascot"
               // Every other one faces the other way.
-              style={{ ['--mascot-hue' as string]: `${c.hue}deg`, ['--mascot-flip' as string]: c.i % 2 ? -1 : 1 }}
+              style={{ ['--mascot-tone' as string]: c.filter, ['--mascot-flip' as string]: c.i % 2 ? -1 : 1 }}
               aria-label={`Shiny Shadow Porygon2, ${c.name} — open its report`}
               title="Porygon2"
               onClick={onPick}
@@ -117,7 +121,7 @@ export function LandingScreen() {
           Pokémon GO · PvP IV analysis
         </p>
 
-        {/* Up to eighteen Porygon2 flank the title (as many as the width allows) — the "2" in Paragon/IV. Each is shiny, recoloured by hue, and wreathed in the Shadow aura. */}
+        {/* Up to twenty-two Porygon2 flank the title (as many as the width allows) — the "2" in Paragon/IV. Each is shiny, recoloured by hue, and wreathed in the Shadow aura. */}
         <div className="landing-title-row relative mb-10">
           <MascotGroup side="left" columns={LEFT} onPick={openPorygon} />
           <h1 className="landing-title relative [animation:landing-rise_var(--dur-5)_var(--ease-out)_200ms_both]">

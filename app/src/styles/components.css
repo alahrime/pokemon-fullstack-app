@@ -435,6 +435,13 @@ input[type='range'] { accent-color: var(--color-accent); }
     0 0 14px color-mix(in srgb, #f5c518 45%, transparent);
 }
 
+.sw-shiny.is-on .sw-knob {
+  background: linear-gradient(135deg, #7fe7ff, #ff9be8 55%, #ffe58a);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, #fff 70%, transparent),
+    0 0 14px color-mix(in srgb, #9be7ff 50%, transparent);
+}
+
 /* Shadow badge used beside names. */
 .tag-shadow {
   background: color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent);
@@ -5158,6 +5165,8 @@ th.bt-matrix-head { text-align: center; }
   gap: var(--space-4);
 }
 .rs-prop { min-width: 0; }
+/* Shiny is a third property: its own row under the Shadow / Best Buddy pair. */
+.rs-prop.is-wide { grid-column: 1 / -1; }
 .rs-prop-note {
   margin-top: 7px;
   font-size: var(--text-2xs);
@@ -7009,22 +7018,26 @@ th.bt-matrix-head { text-align: center; }
    width allows (the one nearest the title always stays). The middle of each column bows outward. Below 760px the
    two groups become a row above and a row below the title. */
 .landing-title-row { display: grid; grid-template-columns: auto auto auto; align-items: center; justify-content: center; gap: var(--space-8, 3rem); }
-.landing-mascots { display: flex; align-items: center; gap: var(--space-5); }
+/* The size follows the width: what is left beside the title, shared by eight columns, capped at 116px. */
+.landing-mascots { --m: clamp(56px, calc((100vw - 760px) / 8 - 14px), 116px); display: flex; align-items: center; gap: 14px; }
 .landing-mascots.is-left { flex-direction: row-reverse; }
-.landing-mascot-col { display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+.landing-mascot-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .landing-mascots .landing-mascot { padding: 0; }
-.landing-mascots.is-left .landing-mascot:nth-child(2) { translate: -26px 0; }
-.landing-mascots.is-right .landing-mascot:nth-child(2) { translate: 26px 0; }
+/* The sprite states its size inline; !important lets the width decide it. */
+.landing-mascot .mascot-tint { width: var(--m) !important; height: var(--m) !important; }
+.landing-mascots.is-left .landing-mascot:nth-child(2) { translate: calc(var(--m) * -0.22) 0; }
+.landing-mascots.is-right .landing-mascot:nth-child(2) { translate: calc(var(--m) * 0.22) 0; }
 /* Facing: every other one is mirrored. */
 .landing-mascot .mascot-tint { scale: var(--mascot-flip, 1) 1; }
 .landing-mascot-col[data-col='1'] { display: none; }
 .landing-mascot-col[data-col='2'] { display: none; }
-@media (min-width: 1300px) { .landing-mascot-col[data-col='1'] { display: flex; } }
-@media (min-width: 1560px) { .landing-mascot-col[data-col='2'] { display: flex; } }
+.landing-mascot-col[data-col='3'] { display: none; }
+@media (min-width: 1000px) { .landing-mascot-col[data-col='1'] { display: flex; } }
+@media (min-width: 1280px) { .landing-mascot-col[data-col='2'], .landing-mascot-col[data-col='3'] { display: flex; } }
 /* Hue first, then the Shadow aura, so the aura stays violet whatever the body is turned to. */
 .sprite-shadow.mascot-tint img {
   filter:
-    hue-rotate(var(--mascot-hue, 0deg))
+    var(--mascot-tone, hue-rotate(0deg))
     drop-shadow(0 0 5px color-mix(in srgb, var(--shadow-aura) 85%, transparent))
     drop-shadow(0 0 14px color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent));
 }
@@ -7035,5 +7048,5 @@ th.bt-matrix-head { text-align: center; }
   .landing-mascot-col { flex-direction: row; gap: var(--space-3); }
   .landing-mascots .landing-mascot:nth-child(2) { translate: 0 0; }
   /* The sprite states its size inline; a phone needs three across, so the width yields (!important beats inline). */
-  .landing-mascot .mascot-tint { width: min(116px, 26vw) !important; height: auto !important; aspect-ratio: 1; }
+  .landing-mascots { --m: min(116px, 26vw); }
 }

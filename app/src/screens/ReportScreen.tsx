@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
+import { useTheme } from '../state/ThemeContext';
 import { cupLegal } from '../lib/presetFormats';
 import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
@@ -46,6 +47,7 @@ const REPORT_BOARD = 'report-analysis';
 
 export function ReportScreen() {
   const { state, set, patch, bumpIv } = useAppState();
+  const { shiny, toggleShiny } = useTheme();
   const { league, species: speciesId, shadow, bestBuddy, chargeIds, iv, viz, colorBy, oppId, moveIdx } = state;
 
   const species = SPECIES_BY_ID.get(speciesId)!;
@@ -265,6 +267,19 @@ export function ReportScreen() {
                   ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
                   : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
               </p>
+            </div>
+
+            {/* Independent of Shadow, so a Shiny Shadow is one click each. It is the app-wide sprite preference
+                (the same one as in the theme menu), so the hero, the cards and the search all agree. */}
+            <div className="rs-prop is-wide">
+              <Switch
+                label="Shiny"
+                tone="shiny"
+                checked={shiny}
+                onChange={toggleShiny}
+                title="Show shiny sprites (applies app-wide)"
+              />
+              <p className="rs-prop-note">Sprites only — a shiny plays exactly like the regular colouring.</p>
             </div>
           </div>
 

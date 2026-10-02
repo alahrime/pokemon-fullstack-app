@@ -12,6 +12,7 @@ import { Toaster } from './components/Toaster';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { ChatDock } from './components/ChatDock';
+import { ShinyStar } from './components/ShinyStar';
 import { LeagueTabs } from './components/LeagueTabs';
 import { SectionRail } from './components/SectionRail';
 import { useBadges } from './state/useBadges';
@@ -96,6 +97,7 @@ function Nav() {
           value={state.league}
           onChange={(id) => patch(leaguePatch(id, null))}
         />
+        <ShinyStar />
         <button
           className={`nav-account${state.screen === 'account' ? ' is-active' : ''}`}
           aria-current={state.screen === 'account' ? 'page' : undefined}

@@ -7048,25 +7048,30 @@ th.bt-matrix-head { text-align: center; }
   .landing-mascots { --m: min(116px, 26vw); }
 }
 
-/* The landing Shiny switch: big, bordered in the shiny gradient even when off, so it is the second thing the eye finds. */
-.landing-shiny {
-  margin-bottom: var(--space-10, 40px);
-  display: inline-flex; align-items: center; gap: var(--space-4); cursor: pointer; text-align: left;
-  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
-  color: var(--color-text);
-  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
-              linear-gradient(120deg, #7fe7ff, #ff9be8 50%, #ffe58a) border-box;
-  border: 2px solid transparent;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-  box-shadow: 0 0 24px -6px #9be7ff88;
-  transition: box-shadow var(--dur-2) var(--ease-out);
+/* The shiny star, in the header: no label, a five-point star that lights up and throws sparkles, like a shiny
+   appearing in the games. The glow is on the wrapper because a clip-path would cut it off the star itself. */
+.shiny-star { position: relative; display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; }
+.shiny-star-btn {
+  width: 28px; height: 28px; padding: 0; border: 0; cursor: pointer;
+  background: color-mix(in srgb, var(--color-text) 28%, transparent);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  transition: background var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
-.landing-shiny:hover, .landing-shiny:focus-visible { box-shadow: 0 0 34px -2px #ff9be8aa; outline: none; }
-.landing-shiny-track { position: relative; width: 64px; height: 34px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--color-text) 18%, transparent); transition: background var(--dur-2) var(--ease-out); }
-.landing-shiny-knob { position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 50%; background: var(--text-faint); transition: left var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out); }
-.landing-shiny.is-on .landing-shiny-track { background: linear-gradient(120deg, #7fe7ff, #ff9be8 55%, #ffe58a); }
-.landing-shiny.is-on .landing-shiny-knob { left: 33px; background: #fff; box-shadow: 0 0 12px #fff; }
-.landing-shiny-text { display: grid; gap: 2px; }
-.landing-shiny-name { font-size: var(--text-lg, 18px); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.landing-shiny-state { font-size: var(--text-xs); color: var(--text-muted); }
-@media (prefers-reduced-motion: reduce) { .landing-shiny, .landing-shiny-track, .landing-shiny-knob { transition: none; } }
+.shiny-star-btn:hover { background: color-mix(in srgb, var(--color-text) 55%, transparent); transform: scale(1.1) rotate(12deg); }
+.shiny-star-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; clip-path: none; border-radius: 50%; }
+.shiny-star.is-on { filter: drop-shadow(0 0 6px #ffe58aaa) drop-shadow(0 0 12px #9be7ff88); }
+.shiny-star.is-on .shiny-star-btn { background: linear-gradient(135deg, #7fe7ff, #ff9be8 55%, #ffe58a); }
+.shiny-burst { position: absolute; inset: 0; pointer-events: none; }
+.shiny-burst i {
+  position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; opacity: 0;
+  background: var(--c, #fff);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: shiny-spark 900ms var(--ease-out) var(--d, 0ms) both;
+}
+@keyframes shiny-spark {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.2); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-30px) scale(1.15); }
+}
+[data-motion='off'] .shiny-burst { display: none; }
+@media (prefers-reduced-motion: reduce) { .shiny-burst { display: none; } .shiny-star-btn { transition: none; } }

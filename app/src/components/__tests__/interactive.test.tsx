@@ -5,6 +5,7 @@ import { goTo } from '../../test/nav';
 import { SECTIONS, SCREEN_DEFS } from '../../lib/screens';
 import App from '../../App';
 import { AddPokemonModal } from '../AddPokemonModal';
+import { ShinyStar } from '../ShinyStar';
 import { CupSelect } from '../CupSelect';
 import { LeagueTabs } from '../LeagueTabs';
 import { SiteFooter } from '../SiteFooter';
@@ -74,6 +75,20 @@ describe('LeagueTabs', () => {
     expect(tabs.length).toBe(3);
     fireEvent.click(tabs[1]);
     expect(onChange).toHaveBeenCalledWith('ultra');
+  });
+});
+
+describe('ShinyStar', () => {
+  it('is an unlabelled-on-screen switch that sparkles once when it turns on, not when it turns off', () => {
+    const { container, getByRole } = renderApp(<ShinyStar />);
+    const star = getByRole('switch', { name: 'Shiny sprites' });
+    expect(star.textContent).toBe('');
+    expect(container.querySelector('.shiny-burst')).toBeNull();
+    fireEvent.click(star);
+    expect(star.getAttribute('aria-checked')).toBe('true');
+    expect(container.querySelectorAll('.shiny-burst i').length).toBe(8);
+    fireEvent.click(star);
+    expect(star.getAttribute('aria-checked')).toBe('false');
   });
 });
 

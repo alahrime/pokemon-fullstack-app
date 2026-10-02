@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
-import { useTheme } from '../state/ThemeContext';
 import { SECTIONS, railScreens } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { Sprite } from '../components/Sprite';
@@ -77,7 +76,6 @@ function MascotGroup({ side, columns, onPick }: { side: 'left' | 'right'; column
 
 export function LandingScreen() {
   const { state, set, patch } = useAppState();
-  const { shiny, toggleShiny } = useTheme();
   const league = LEAGUE_BY_ID.get(state.league)!;
 
   // Headline numbers, read from the artefacts rather than written down, so a
@@ -137,21 +135,6 @@ export function LandingScreen() {
           </h1>
           <MascotGroup side="right" columns={RIGHT} onPick={openPorygon} />
         </div>
-
-        {/* The shiny preference, large and lit on the page everyone lands on: it recolours every sprite in the app. */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={shiny}
-          className={`landing-shiny relative${shiny ? ' is-on' : ''}`}
-          onClick={toggleShiny}
-        >
-          <span className="landing-shiny-track" aria-hidden="true"><span className="landing-shiny-knob" /></span>
-          <span className="landing-shiny-text">
-            <span className="landing-shiny-name">✦ Shiny sprites</span>
-            <span className="landing-shiny-state">{shiny ? 'On — every Pokémon is shiny' : 'Off — tap for shiny colours'}</span>
-          </span>
-        </button>
 
         <p className="relative mb-10 max-w-[58ch] text-lg/relaxed text-(--text-muted) [animation:landing-rise_var(--dur-5)_var(--ease-out)_320ms_both]">
           Pick a Pokémon. Paragon ranks all 4,096 IV combinations against the opponents it

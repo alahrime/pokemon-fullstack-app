@@ -29,6 +29,36 @@ import { summaryFor } from '../lib/summary';
 
 
 
+/** Shiny Porygon2 is blue; each mascot turns it by this many degrees of hue. The aura is drawn after the turn, so it stays violet. */
+const MASCOTS = [
+  { name: 'red', hue: 145 },
+  { name: 'orange', hue: 175 },
+  { name: 'yellow', hue: 200 },
+  { name: 'green', hue: 265 },
+  { name: 'blue', hue: 0 },
+  { name: 'purple', hue: 60 },
+];
+
+function MascotGroup({ side, colors, onPick }: { side: 'left' | 'right'; colors: typeof MASCOTS; onPick: () => void }) {
+  return (
+    <div className={`landing-mascots is-${side}`}>
+      {colors.map((c) => (
+        <button
+          key={c.name}
+          type="button"
+          className="landing-mascot"
+          style={{ ['--mascot-hue' as string]: `${c.hue}deg` }}
+          aria-label={`Shiny Shadow Porygon2, ${c.name} — open its report`}
+          title="Porygon2"
+          onClick={onPick}
+        >
+          <Sprite sprite="porygon2" dex={233} size={78} shiny shadow className="mascot-tint" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function LandingScreen() {
   const { state, set, patch } = useAppState();
   const league = LEAGUE_BY_ID.get(state.league)!;
@@ -62,6 +92,8 @@ export function LandingScreen() {
       screen: 'report',
     });
 
+  const openPorygon = () => patch({ species: 'porygon2', moveIdx: 0, chargeIds: [], screen: 'report' });
+
   return (
     <div className="landing">
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -70,30 +102,24 @@ export function LandingScreen() {
           <div className="landing-hero-glow" />
         </div>
 
-        {/* The mascot: Porygon2, for the "2" in Paragon/IV — shiny and Shadow, whatever the sprite toggle says. */}
-        <button
-          type="button"
-          className="landing-mascot relative mb-4 [animation:landing-rise_var(--dur-4)_var(--ease-out)_60ms_both]"
-          aria-label="Shiny Shadow Porygon2 — open its report"
-          title="Porygon2"
-          onClick={() => patch({ species: 'porygon2', moveIdx: 0, chargeIds: [], screen: 'report' })}
-        >
-          <Sprite sprite="porygon2" dex={233} size={132} shiny shadow />
-        </button>
-
         <p className="hud-label relative mb-6 [animation:landing-rise_var(--dur-4)_var(--ease-out)_120ms_both]">
           Pokémon GO · PvP IV analysis
         </p>
 
-        <h1 className="landing-title relative mb-10 [animation:landing-rise_var(--dur-5)_var(--ease-out)_200ms_both]">
-          Every spread.
-          <br />
-          {/* Gradient-filled type: the accent ramp poured through the glyphs
-              rather than sitting behind them. */}
-          <span className="landing-title-accent bg-gradient-to-r from-(--color-accent) via-(--color-accent-2) to-(--color-accent) bg-clip-text text-transparent">
-            Every matchup.
-          </span>
-        </h1>
+        {/* Six Porygon2 flank the title — the "2" in Paragon/IV. Each is shiny, recoloured by hue, and wreathed in the Shadow aura. */}
+        <div className="landing-title-row relative mb-10">
+          <MascotGroup side="left" colors={MASCOTS.slice(0, 3)} onPick={openPorygon} />
+          <h1 className="landing-title relative [animation:landing-rise_var(--dur-5)_var(--ease-out)_200ms_both]">
+            Every spread.
+            <br />
+            {/* Gradient-filled type: the accent ramp poured through the glyphs
+                rather than sitting behind them. */}
+            <span className="landing-title-accent bg-gradient-to-r from-(--color-accent) via-(--color-accent-2) to-(--color-accent) bg-clip-text text-transparent">
+              Every matchup.
+            </span>
+          </h1>
+          <MascotGroup side="right" colors={MASCOTS.slice(3)} onPick={openPorygon} />
+        </div>
 
         <p className="relative mb-10 max-w-[58ch] text-lg/relaxed text-(--text-muted) [animation:landing-rise_var(--dur-5)_var(--ease-out)_320ms_both]">
           Pick a Pokémon. Paragon ranks all 4,096 IV combinations against the opponents it

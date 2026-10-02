@@ -7004,3 +7004,25 @@ th.bt-matrix-head { text-align: center; }
 .landing-mascot:hover { transform: translateY(-3px); }
 .landing-mascot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .landing-mascot { transition: none; } }
+
+/* Six Porygon2 flank the landing title, three a side, bowed outward in the middle. Single column on a phone,
+   where the two groups become a row above and a row below the title. */
+.landing-title-row { display: grid; grid-template-columns: auto auto auto; align-items: center; justify-content: center; gap: var(--space-6); }
+.landing-mascots { display: flex; flex-direction: column; align-items: center; }
+.landing-mascots .landing-mascot { padding: 0; margin-block: calc(var(--space-1) * -1); }
+.landing-mascots.is-left .landing-mascot:nth-child(2) { translate: -22px 0; }
+.landing-mascots.is-right .landing-mascot:nth-child(2) { translate: 22px 0; }
+/* Hue first, then the Shadow aura, so the aura stays violet whatever the body is turned to. */
+.sprite-shadow.mascot-tint img {
+  filter:
+    hue-rotate(var(--mascot-hue, 0deg))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--shadow-aura) 85%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent));
+}
+@media (max-width: 760px) {
+  .landing-title-row { grid-template-columns: 1fr; gap: var(--space-3); }
+  .landing-mascots { flex-direction: row; justify-content: center; gap: var(--space-4); }
+  .landing-mascots.is-left { order: -1; }
+  .landing-mascots .landing-mascot { margin-block: 0; }
+  .landing-mascots .landing-mascot:nth-child(2) { translate: 0 0; }
+}

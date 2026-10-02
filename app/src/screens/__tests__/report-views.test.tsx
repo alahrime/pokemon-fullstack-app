@@ -206,18 +206,7 @@ describe('report left column', () => {
     // The two properties label themselves, over their own switches, rather
     // than sharing one block label between them.
     const props = [...side.querySelectorAll('.sw-label')].map((l) => l.textContent);
-    expect(props).toEqual(['Shadow', 'Best Buddy', 'Shiny']);
-  });
-
-  it('the Shiny switch is the app-wide sprite preference, independent of Shadow', () => {
-    const { container } = renderApp(<With species="venusaur"><ReportScreen /></With>);
-    const sw = (label: string) => container.querySelector<HTMLButtonElement>(`[role=switch][aria-label="${label}"]`)!;
-    fireEvent.click(sw('Shiny'));
-    expect(document.documentElement.getAttribute('data-sprites')).toBe('shiny');
-    fireEvent.click(sw('Shadow'));
-    expect(sw('Shadow').getAttribute('aria-checked')).toBe('true');
-    expect(sw('Shiny').getAttribute('aria-checked')).toBe('true');
-    expect(container.querySelector('.hero .sprite-shadow img')!.getAttribute('src')).toContain('/shiny/');
+    expect(props).toEqual(['Shadow', 'Best Buddy']);
   });
 
   it('states each stat once — the hero meters, not a second strip beside them', () => {

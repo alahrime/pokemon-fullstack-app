@@ -435,13 +435,6 @@ input[type='range'] { accent-color: var(--color-accent); }
     0 0 14px color-mix(in srgb, #f5c518 45%, transparent);
 }
 
-.sw-shiny.is-on .sw-knob {
-  background: linear-gradient(135deg, #7fe7ff, #ff9be8 55%, #ffe58a);
-  box-shadow:
-    inset 0 2px 0 color-mix(in srgb, #fff 70%, transparent),
-    0 0 14px color-mix(in srgb, #9be7ff 50%, transparent);
-}
-
 /* Shadow badge used beside names. */
 .tag-shadow {
   background: color-mix(in srgb, var(--shadow-aura-deep) 70%, transparent);
@@ -5165,8 +5158,6 @@ th.bt-matrix-head { text-align: center; }
   gap: var(--space-4);
 }
 .rs-prop { min-width: 0; }
-/* Shiny is a third property: its own row under the Shadow / Best Buddy pair. */
-.rs-prop.is-wide { grid-column: 1 / -1; }
 .rs-prop-note {
   margin-top: 7px;
   font-size: var(--text-2xs);
@@ -5470,7 +5461,7 @@ th.bt-matrix-head { text-align: center; }
   border-top: var(--border-hairline) solid var(--rule-hairline);
   padding-top: var(--space-2);
 }
-.theme-menu-motion, .theme-menu-shiny { min-height: 30px; }
+.theme-menu-motion { min-height: 30px; }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-menu-bars span,

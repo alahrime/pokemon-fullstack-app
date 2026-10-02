@@ -27,7 +27,7 @@ export function Switch({
   checked: boolean;
   onChange: (on: boolean) => void;
   disabled?: boolean;
-  tone?: 'accent' | 'shadow' | 'buddy' | 'shiny';
+  tone?: 'accent' | 'shadow' | 'buddy';
   title?: string;
 }) {
   return (

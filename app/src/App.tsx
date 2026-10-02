@@ -70,6 +70,7 @@ function Nav() {
       >
         PARAGON<span className="text-(--color-accent)">/</span>IV
       </button>
+      <ShinyStar />
       <nav className="flex items-stretch gap-1 flex-wrap" aria-label="Sections">
         {SECTIONS.map((s) => {
           const active = sectionOf(state.screen)?.id === s.id;
@@ -97,7 +98,6 @@ function Nav() {
           value={state.league}
           onChange={(id) => patch(leaguePatch(id, null))}
         />
-        <ShinyStar />
         <button
           className={`nav-account${state.screen === 'account' ? ' is-active' : ''}`}
           aria-current={state.screen === 'account' ? 'page' : undefined}

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { CUSTOM_THEME, THEMES, useTheme } from '../state/ThemeContext';
 import { CustomThemeEditor } from './CustomThemeEditor';
-import { MotionToggle, ShinyToggle } from './ThemeSwitch';
+import { MotionToggle } from './ThemeSwitch';
 
 /**
  * The theme picker, as an overlay rather than a row.
@@ -115,7 +115,6 @@ export function ThemeMenu() {
           </>
           )}
           <div className="theme-menu-foot">
-            <ShinyToggle className="theme-menu-shiny" />
             <MotionToggle className="theme-menu-motion" />
           </div>
         </div>

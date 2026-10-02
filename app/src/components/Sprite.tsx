@@ -27,6 +27,7 @@ export function Sprite({
   bestBuddy = false,
   shiny: forceShiny,
   sparkle = false,
+  sparkleKey,
 }: {
   sprite: string;
   dex: number;
@@ -44,6 +45,8 @@ export function Sprite({
    * screen, a team slot); a page full of small ones would be a page full of animation.
    */
   sparkle?: boolean;
+  /** Replay the sparkle, while shiny is on, whenever this changes. */
+  sparkleKey?: unknown;
 }) {
   const pref = useShiny();
   const shiny = forceShiny ?? pref;
@@ -92,7 +95,7 @@ export function Sprite({
         </span>
       )}
 
-      {sparkle && forceShiny === undefined && <ShinyBurst spark={Math.round(size * 0.2)} reach={Math.round(size * 0.65)} />}
+      {sparkle && forceShiny === undefined && <ShinyBurst spark={Math.round(size * 0.2)} reach={Math.round(size * 0.65)} retrigger={sparkleKey} />}
 
       {/* Pinned to the top-left, tucked against the corner rather than hung off
           it. It used to hang off the bottom-right at -20%/-14%, which put a

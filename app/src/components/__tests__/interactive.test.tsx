@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { renderApp } from '../../test/render';
@@ -107,6 +108,29 @@ describe('Sprite sparkle', () => {
     expect(container.querySelector('.plain .shiny-burst')).toBeNull();
     expect(container.querySelectorAll('.asked .shiny-burst i').length).toBe(8);
     expect(container.querySelector('.forced .shiny-burst')).toBeNull();
+  });
+});
+
+describe('Sprite sparkle on a league change', () => {
+  it('replays while shiny is on when its key changes, and stays quiet while it is off', () => {
+    const Harness = () => {
+      const [k, setK] = useState('great');
+      return (
+        <>
+          <ShinyStar />
+          <button onClick={() => setK(k === 'great' ? 'ultra' : 'great')}>league</button>
+          <div className="s"><Sprite sprite="azumarill" dex={184} size={104} sparkle sparkleKey={k} /></div>
+        </>
+      );
+    };
+    const { container, getByRole, getByText } = renderApp(<Harness />);
+    fireEvent.click(getByText('league'));
+    expect(container.querySelector('.s .shiny-burst')).toBeNull();
+    fireEvent.click(getByRole('switch', { name: 'Shiny sprites' }));
+    const first = container.querySelector('.s .shiny-burst');
+    expect(first).not.toBeNull();
+    fireEvent.click(getByText('league'));
+    expect(container.querySelector('.s .shiny-burst')).not.toBe(first);
   });
 });
 

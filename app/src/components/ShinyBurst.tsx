@@ -9,16 +9,17 @@ const SPARKS = [
 /**
  * A ring of sparkles, thrown once each time shiny turns ON while this is mounted — the cue a shiny gives in the
  * games. Fill a `position: relative` box with it; `size` is how big each spark is and how far it travels, in px.
- * Turning shiny off, or mounting while it is already on, plays nothing.
+ * Turning shiny off, or mounting while it is already on, plays nothing. `retrigger` replays it, while shiny is on,
+ * whenever that value changes (the Battle screen passes its league: a new league deals a new pair).
  */
-export function ShinyBurst({ spark = 12, reach = 30 }: { spark?: number; reach?: number }) {
+export function ShinyBurst({ spark = 12, reach = 30, retrigger }: { spark?: number; reach?: number; retrigger?: unknown }) {
   const shiny = useShiny();
   const [burst, setBurst] = useState(0);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
     if (shiny) setBurst((n) => n + 1);
-  }, [shiny]);
+  }, [shiny, retrigger]);
   if (burst === 0) return null;
   return (
     // Keyed on the count, so each switch-on remounts it and the animation runs from the start.

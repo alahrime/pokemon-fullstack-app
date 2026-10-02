@@ -32,11 +32,11 @@ import { downloadCsv, stamp } from '../lib/exportData';
 
 // 52 by default, because the default is what the Pairs list uses and that list
 // is the screen. The explicit sizes below are for the denser contexts.
-function Mon({ ref: r, size = 52 }: { ref: string; size?: number }) {
+function Mon({ ref: r, size = 52, sparkle = false }: { ref: string; size?: number; sparkle?: boolean }) {
   const sp = speciesOf(r);
   return (
     <span className="core-mon" title={displayName(r)}>
-      {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(r).shadow} />}
+      {sp && <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(r).shadow} sparkle={sparkle} />}
     </span>
   );
 }
@@ -466,8 +466,8 @@ export function CoresScreen() {
           {result && (
             <div className="core-detail core-check-result">
               <div className="core-check-head">
-                <Mon ref={result.a} size={64} />
-                <Mon ref={result.b} size={64} />
+                <Mon ref={result.a} size={64} sparkle />
+                <Mon ref={result.b} size={64} sparkle />
                 <span className="core-names">
                   {displayName(result.a)} <span className="core-amp">+</span> {displayName(result.b)}
                 </span>

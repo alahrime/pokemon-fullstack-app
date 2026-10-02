@@ -69,6 +69,7 @@ export function PokemonCard({
    * the card would quietly contradict the simulation behind it.
    */
   build,
+  sparkle = false,
 }: {
   refId: string;
   league: LeagueId;
@@ -81,6 +82,8 @@ export function PokemonCard({
   title?: string;
   dim?: boolean;
   build?: { fast: FastMove; charges: ChargeMove[]; iv?: IV } | null;
+  /** Sparkle the sprite when shiny is switched on — for a card that is one of a few on the page. */
+  sparkle?: boolean;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const sp = speciesOf(refId);
@@ -155,7 +158,7 @@ export function PokemonCard({
         <div className="pc-head">
           <div className="pc-art">
             <span className="pc-halo" aria-hidden="true" />
-            <Sprite sprite={sp.sprite} dex={sp.dex} size={SPRITE[size]} shadow={shadow} />
+            <Sprite sprite={sp.sprite} dex={sp.dex} size={SPRITE[size]} shadow={shadow} sparkle={sparkle} />
             {shadow && <span className="pc-shadow" title="Shadow">◆</span>}
           </div>
           <div className="min-w-0 flex flex-col gap-[3px] flex-1">

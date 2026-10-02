@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { spriteFallbackUrl, spriteUrl } from '../lib/data';
 import { BestBuddyRibbon } from './BestBuddyRibbon';
 import { useShiny } from '../state/ThemeContext';
+import { ShinyBurst } from './ShinyBurst';
 
 /**
  * Form-aware sprite.
@@ -25,6 +26,7 @@ export function Sprite({
   shadow = false,
   bestBuddy = false,
   shiny: forceShiny,
+  sparkle = false,
 }: {
   sprite: string;
   dex: number;
@@ -37,6 +39,11 @@ export function Sprite({
   bestBuddy?: boolean;
   /** Overrides the app-wide preference (the mascot is always shiny). */
   shiny?: boolean;
+  /**
+   * Throw the shiny sparkle when the preference is switched on. Opt-in, for the big single sprites (the subject of a
+   * screen, a team slot); a page full of small ones would be a page full of animation.
+   */
+  sparkle?: boolean;
 }) {
   const pref = useShiny();
   const shiny = forceShiny ?? pref;
@@ -84,6 +91,8 @@ export function Sprite({
           #{String(dex).padStart(3, '0')}
         </span>
       )}
+
+      {sparkle && forceShiny === undefined && <ShinyBurst spark={Math.round(size * 0.2)} reach={Math.round(size * 0.65)} />}
 
       {/* Pinned to the top-left, tucked against the corner rather than hung off
           it. It used to hang off the bottom-right at -20%/-14%, which put a

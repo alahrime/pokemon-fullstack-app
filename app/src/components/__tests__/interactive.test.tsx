@@ -5,6 +5,7 @@ import { goTo } from '../../test/nav';
 import { SECTIONS, SCREEN_DEFS } from '../../lib/screens';
 import App from '../../App';
 import { AddPokemonModal } from '../AddPokemonModal';
+import { Sprite } from '../Sprite';
 import { ShinyStar } from '../ShinyStar';
 import { CupSelect } from '../CupSelect';
 import { LeagueTabs } from '../LeagueTabs';
@@ -89,6 +90,23 @@ describe('ShinyStar', () => {
     expect(container.querySelectorAll('.shiny-burst i').length).toBe(8);
     fireEvent.click(star);
     expect(star.getAttribute('aria-checked')).toBe('false');
+  });
+});
+
+describe('Sprite sparkle', () => {
+  it('sparkles only when asked to, and not for a sprite that is always shiny', () => {
+    const { container, getByRole } = renderApp(
+      <>
+        <ShinyStar />
+        <div className="plain"><Sprite sprite="azumarill" dex={184} size={104} /></div>
+        <div className="asked"><Sprite sprite="azumarill" dex={184} size={104} sparkle /></div>
+        <div className="forced"><Sprite sprite="porygon2" dex={233} size={104} shiny sparkle /></div>
+      </>,
+    );
+    fireEvent.click(getByRole('switch', { name: 'Shiny sprites' }));
+    expect(container.querySelector('.plain .shiny-burst')).toBeNull();
+    expect(container.querySelectorAll('.asked .shiny-burst i').length).toBe(8);
+    expect(container.querySelector('.forced .shiny-burst')).toBeNull();
   });
 });
 

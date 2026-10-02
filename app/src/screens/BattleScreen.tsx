@@ -79,7 +79,7 @@ function Side({
 
       <div className="battle-mon">
         <span className="battle-mon-art">
-          <Sprite sprite={species.sprite} dex={species.dex} size={104} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" />
+          <Sprite sprite={species.sprite} dex={species.dex} size={104} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" sparkle />
         </span>
         <div className="min-w-0 flex-1">
           <div className="battle-mon-name">

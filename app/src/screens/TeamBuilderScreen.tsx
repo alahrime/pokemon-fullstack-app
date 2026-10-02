@@ -58,6 +58,7 @@ function Slot({ ref: r, league, onClear, onAdd, build }: {
       refId={r}
       league={league}
       size="full"
+      sparkle
       onClick={onClear}
       title="Click to remove"
       build={resolved ? { ...resolved, iv: build!.iv } : null}

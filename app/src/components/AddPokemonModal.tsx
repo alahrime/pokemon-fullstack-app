@@ -242,7 +242,7 @@ export function AddPokemonModal({
                 ['--t1' as string]: `var(--type-${sp.types[0]})`,
                 ['--t2' as string]: `var(--type-${sp.types[1] ?? sp.types[0]})`,
               }}>
-                <Sprite sprite={sp.sprite} dex={sp.dex} size={72} shadow={parseRef(ref).shadow} />
+                <Sprite sprite={sp.sprite} dex={sp.dex} size={72} shadow={parseRef(ref).shadow} sparkle />
                 <div className="min-w-0">
                   <div className="modal-name">{displayName(ref)}</div>
                   <div className="flex gap-1 my-1 mx-0 flex-wrap">{sp.types.map((t) => <TypeBadge key={t} type={t} />)}</div>

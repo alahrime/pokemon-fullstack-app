@@ -6171,10 +6171,16 @@ th.bt-matrix-head { text-align: center; }
    A Messenger-style dock, fixed to the viewport rather than laid out in the
    page flow — it has to sit on TOP of whatever screen is showing, not take a
    slot next to it. `.chat-dock-panes` grows LEFTWARD off the rail (row-reverse
-   with `flex-end`, so the most recently opened pane sits nearest the rail
-   rather than furthest from it) and wraps to a second line above the rail on
-   a narrow viewport rather than running panes off the left edge of the
-   screen. */
+   with `flex-end`).
+
+   It never wraps: a wrapped second row stacked 70vh panes above the first and
+   put their headers (and close buttons) above the top of the viewport. Instead
+   only as many of the NEWEST panes as fit are shown (the media queries below);
+   the rest stay mounted — drafts and live subscriptions intact — and come back
+   when the window widens, a newer pane closes, or their rail row is clicked
+   (which moves them to the newest slot). Widths: rail 17rem + n panes of 20rem
+   + gaps, so 2 fit from ~968px and 3 from ~1300px. Under 700px the dock is a
+   single full-width column. */
 .chat-dock {
   position: fixed;
   right: var(--space-4);
@@ -6188,10 +6194,11 @@ th.bt-matrix-head { text-align: center; }
 .chat-dock-panes {
   display: flex;
   flex-direction: row-reverse;
-  flex-wrap: wrap-reverse;
   align-items: flex-end;
   gap: var(--space-3);
 }
+@media (max-width: 1299px) { .chat-dock-panes > :nth-last-child(n + 3) { display: none; } }
+@media (max-width: 967px) { .chat-dock-panes > :nth-last-child(n + 2) { display: none; } }
 .chat-rail {
   flex: none;
   width: 17rem;
@@ -6333,6 +6340,7 @@ th.bt-matrix-head { text-align: center; }
   margin: 0;
   flex: 1 1 16rem;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 .chat-message.is-deleted .chat-message-body {
   color: var(--text-faint);
@@ -6568,6 +6576,20 @@ th.bt-matrix-head { text-align: center; }
 .chat-conversation { min-width: 0; }
 .chat-empty { margin: 0; text-align: center; }
 .chat-pane.is-embedded { width: auto; max-height: none; }
+/* The dock floats over arbitrary page content, but `.panel` (and the HUD
+   theme's `:root[data-theme='hud'] .panel`, which sets a `background`
+   shorthand) paints a 70%-alpha gradient that wins over `background:
+   var(--surface-1)` above, so headings and sprites bled through the chat. A
+   solid colour UNDER that gradient keeps its look and makes the dock opaque.
+   `:root:root` outranks the theme selector without !important. */
+:root:root .chat-dock .chat-pane, :root:root .chat-dock .chat-rail { background-color: var(--surface-1); }
+@media (max-width: 700px) {
+  .chat-dock { left: var(--space-4); flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .chat-dock-panes { flex-direction: column; align-items: stretch; }
+  .chat-rail { width: auto; max-height: 35vh; }
+  .chat-pane:not(.is-embedded) { width: auto; min-width: 0; max-height: 55vh; }
+}
+
 .chat-pane.is-embedded .chat-transcript { max-height: 60vh; }
 .opponent-panel {
   display: flex;

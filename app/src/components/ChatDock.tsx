@@ -76,7 +76,10 @@ export function ChatDock() {
   const [minimizedIds, setMinimizedIds] = useState<Set<string>>(new Set());
 
   const openChannel = useCallback((id: string) => {
-    setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    // Re-selecting an open pane moves it to the newest slot: on a narrow
+    // window only the newest few are visible, and a click that did nothing
+    // would leave a hidden conversation unreachable.
+    setOpenIds((prev) => (prev[prev.length - 1] === id ? prev : [...prev.filter((x) => x !== id), id]));
     setMinimizedIds((prev) => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);

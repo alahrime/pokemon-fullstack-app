@@ -63,7 +63,7 @@ const FriendsScreen = lazy(() =>
 function Nav() {
   const { state, set, patch } = useAppState();
   return (
-    <div className="nav sticky top-0 z-20 flex-wrap">
+    <div className="nav sticky top-0 z-50 flex-wrap">
       <button
         className="nav-brand"
         onClick={() => set('screen', 'landing')}

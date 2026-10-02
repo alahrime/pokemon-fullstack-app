@@ -37,3 +37,18 @@ export function MotionToggle({ className }: { className?: string }) {
     </button>
   );
 }
+
+/** Shiny sprites, app-wide — chosen the way the theme is and kept across visits. */
+export function ShinyToggle({ className }: { className?: string }) {
+  const { shiny, toggleShiny } = useTheme();
+  return (
+    <button
+      className={`btn chip-btn${className ? ' ' + className : ''}`}
+      onClick={toggleShiny}
+      aria-pressed={shiny}
+      title={shiny ? 'Show regular sprites (applies app-wide)' : 'Show shiny sprites (applies app-wide)'}
+    >
+      {shiny ? '✦ Shiny on' : '✦ Shiny off'}
+    </button>
+  );
+}

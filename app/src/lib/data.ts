@@ -287,13 +287,14 @@ const GO_ONLY_SPRITES: Record<string, string> = {
  * Shadows deliberately reuse the base sprite; in-game they differ only by an
  * aura, which the UI conveys with a badge instead.
  */
-export function spriteUrl(sprite: string): string {
-  return GO_ONLY_SPRITES[sprite] ?? `https://img.pokemondb.net/sprites/home/normal/${sprite}.png`;
+export function spriteUrl(sprite: string, shiny = false): string {
+  // The GO-only renders have no shiny counterpart, so they stay as they are.
+  return GO_ONLY_SPRITES[sprite] ?? `https://img.pokemondb.net/sprites/home/${shiny ? 'shiny' : 'normal'}/${sprite}.png`;
 }
 
 /** Fallback when a slug has no artwork - the pre-existing dex-numbered source. */
-export function spriteFallbackUrl(dex: number): string {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dex}.png`;
+export function spriteFallbackUrl(dex: number, shiny = false): string {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${shiny ? 'shiny/' : ''}${dex}.png`;
 }
 
 /**

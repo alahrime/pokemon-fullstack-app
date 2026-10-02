@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAppState } from '../state/AppState';
 import { SECTIONS, railScreens } from '../lib/screens';
 import { SpeciesSearch } from '../components/SpeciesSearch';
+import { Sprite } from '../components/Sprite';
 import { PokemonCard } from '../components/PokemonCard';
 import { LEAGUE_BY_ID, ROSTER, SPECIES } from '../lib/data';
 import { summaryFor } from '../lib/summary';
@@ -68,6 +69,17 @@ export function LandingScreen() {
         <div className="landing-hero-clip" aria-hidden="true">
           <div className="landing-hero-glow" />
         </div>
+
+        {/* The mascot: Porygon2, for the "2" in Paragon/IV — shiny and Shadow, whatever the sprite toggle says. */}
+        <button
+          type="button"
+          className="landing-mascot relative mb-4 [animation:landing-rise_var(--dur-4)_var(--ease-out)_60ms_both]"
+          aria-label="Shiny Shadow Porygon2 — open its report"
+          title="Porygon2"
+          onClick={() => patch({ species: 'porygon2', moveIdx: 0, chargeIds: [], screen: 'report' })}
+        >
+          <Sprite sprite="porygon2" dex={233} size={132} shiny shadow />
+        </button>
 
         <p className="hud-label relative mb-6 [animation:landing-rise_var(--dur-4)_var(--ease-out)_120ms_both]">
           Pokémon GO · PvP IV analysis

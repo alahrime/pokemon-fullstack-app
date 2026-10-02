@@ -20,6 +20,9 @@ describe('sprite sources', () => {
   it('falls back to the dex-numbered source when a slug has no artwork', () => {
     expect(spriteFallbackUrl(184)).toContain('/184.png');
     expect(spriteUrl('azumarill')).toContain('azumarill');
+    expect(spriteUrl('azumarill', true)).toContain('/home/shiny/azumarill.png');
+    expect(spriteFallbackUrl(184, true)).toContain('/shiny/184.png');
+    expect(spriteUrl('mewtwo-armored', true)).toBe(spriteUrl('mewtwo-armored'));
   });
 
   it('steps to the fallback art, then to the dex number, when the sources fail', () => {

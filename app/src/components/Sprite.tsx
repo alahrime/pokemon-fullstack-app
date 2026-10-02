@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { spriteFallbackUrl, spriteUrl } from '../lib/data';
 import { BestBuddyRibbon } from './BestBuddyRibbon';
+import { useShiny } from '../state/ThemeContext';
 
 /**
  * Form-aware sprite.
@@ -23,6 +24,7 @@ export function Sprite({
   className,
   shadow = false,
   bestBuddy = false,
+  shiny: forceShiny,
 }: {
   sprite: string;
   dex: number;
@@ -33,13 +35,17 @@ export function Sprite({
   shadow?: boolean;
   /** Corner ribbon marking a spread that only a Best Buddy boost can reach. */
   bestBuddy?: boolean;
+  /** Overrides the app-wide preference (the mascot is always shiny). */
+  shiny?: boolean;
 }) {
+  const pref = useShiny();
+  const shiny = forceShiny ?? pref;
   const [stage, setStage] = useState<0 | 1 | 2>(0);
 
   // A new slug gets a fresh attempt at the primary source.
-  useEffect(() => setStage(0), [sprite, dex]);
+  useEffect(() => setStage(0), [sprite, dex, shiny]);
 
-  const src = stage === 0 ? spriteUrl(sprite) : stage === 1 ? spriteFallbackUrl(dex) : null;
+  const src = stage === 0 ? spriteUrl(sprite, shiny) : stage === 1 ? spriteFallbackUrl(dex, shiny) : null;
 
   // Below ~40px the full corona just smears, so small sprites get a tighter,
   // unanimated variant.

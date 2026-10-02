@@ -5461,7 +5461,7 @@ th.bt-matrix-head { text-align: center; }
   border-top: var(--border-hairline) solid var(--rule-hairline);
   padding-top: var(--space-2);
 }
-.theme-menu-motion { min-height: 30px; }
+.theme-menu-motion, .theme-menu-shiny { min-height: 30px; }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-menu-bars span,
@@ -6998,3 +6998,9 @@ th.bt-matrix-head { text-align: center; }
 }
 .report-search .nav-search-glyph, .landing-search-input .nav-search-glyph,
 .report-search:focus-within .nav-search-glyph, .landing-search-input:focus-within .nav-search-glyph { color: var(--spot); }
+
+/* The landing mascot is a plain button around a sprite: no chrome, but it lifts on hover and keeps a focus ring. */
+.landing-mascot { background: none; border: 0; padding: var(--space-3); cursor: pointer; line-height: 0; transition: transform var(--dur-2) var(--ease-out); }
+.landing-mascot:hover { transform: translateY(-3px); }
+.landing-mascot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .landing-mascot { transition: none; } }

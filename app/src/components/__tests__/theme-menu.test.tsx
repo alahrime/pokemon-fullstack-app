@@ -76,6 +76,13 @@ describe('ThemeMenu', () => {
     expect(localStorage.getItem('paragon.motion')).toBe('off');
   });
 
+  it('carries the shiny-sprite switch, applied and stored like the theme', () => {
+    const { container } = open();
+    fireEvent.click(container.querySelector('.theme-menu-shiny') as HTMLButtonElement);
+    expect(document.documentElement.getAttribute('data-sprites')).toBe('shiny');
+    expect(localStorage.getItem('paragon.shiny')).toBe('1');
+  });
+
   it('leaves motion unstored until it is chosen, so the default stays on', () => {
     // Persisting the derived value on mount pinned whatever the system said on
     // a visitor's first load. Someone who once opened the app with reduced

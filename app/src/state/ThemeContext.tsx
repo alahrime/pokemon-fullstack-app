@@ -48,6 +48,7 @@ const THEME_IDS = THEMES.map((t) => t.id);
 const THEME_KEY = 'paragon.theme';
 const CUSTOM_KEY = 'paragon.theme.custom';
 const MOTION_KEY = 'paragon.motion';
+const SHINY_KEY = 'paragon.shiny';
 
 /** Read the persisted choice, falling back to the OS preference. */
 function initialTheme(): ThemeId {
@@ -91,6 +92,9 @@ interface ThemeContextValue {
   /** True when animation should be suppressed — drives JS-side effects that
    *  CSS alone can't reach (e.g. the R3F camera auto-orbit). */
   reduced: boolean;
+  /** Draw every Pokémon in its shiny colouring (the mascot always is). */
+  shiny: boolean;
+  toggleShiny: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -99,6 +103,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(initialTheme);
   const [custom, setCustomState] = useState<CustomChoice | null>(initialCustom);
   const [motion, setMotionState] = useState<MotionPref>(initialMotion);
+  const [shiny, setShiny] = useState<boolean>(() => typeof window !== 'undefined' && window.localStorage.getItem(SHINY_KEY) === '1');
 
   /**
    * The custom palette is written into a style element rather than a
@@ -147,6 +152,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-motion', motion);
   }, [motion]);
 
+  // Same shape as theme and motion: an attribute on <html> for CSS, a stored choice for the next visit.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-sprites', shiny ? 'shiny' : 'normal');
+    window.localStorage.setItem(SHINY_KEY, shiny ? '1' : '0');
+  }, [shiny]);
+  const toggleShiny = useCallback(() => setShiny((v) => !v), []);
+
   const setTheme = useCallback((t: ThemeId) => setThemeState(t), []);
   const setCustom = useCallback((c: CustomChoice) => setCustomState(c), []);
   const setMotion = useCallback((m: MotionPref) => {
@@ -171,8 +183,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion, reduced: motion === 'off' }),
-    [theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion],
+    () => ({ theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion, reduced: motion === 'off', shiny, toggleShiny }),
+    [theme, setTheme, custom, setCustom, toggleTheme, motion, setMotion, toggleMotion, shiny, toggleShiny],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -182,4 +194,9 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
+}
+
+/** The sprite preference; false outside a provider, so a bare Sprite (a test, a story) still renders. */
+export function useShiny(): boolean {
+  return useContext(ThemeContext)?.shiny ?? false;
 }

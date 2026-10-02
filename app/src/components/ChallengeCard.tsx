@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
 import {
@@ -66,6 +66,14 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
     }
   }
 
+  // A challenge that turns into a match while this card is watching takes both players to it.
+  const seen = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prev = seen.current;
+    seen.current = challenge?.state;
+    if (prev && prev !== 'converted' && challenge?.state === 'converted') void openMatch();
+  }, [challenge?.state]);
+
   async function openMatch() {
     if (!challenge?.matchId) return;
     setError(null);
@@ -100,10 +108,6 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
       <div className="challenge-card-actions">
         {has('accept') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setAccepting(true)}>Accept</button>
-        )}
-        {has('decline') && !has('accept') && (
-          // Only the unverified state offers Decline without Accept; show Accept disabled rather than hiding it.
-          <button type="button" className="btn btn-primary" disabled title="Available once the format is verified">Accept</button>
         )}
         {has('confirm') && (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => confirmOffer(offerId))}>Confirm</button>

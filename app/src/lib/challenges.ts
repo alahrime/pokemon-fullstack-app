@@ -43,17 +43,9 @@ export function challengeView(c: Challenge | null, me: string, now: Date): Chall
   const theirs = c.targetId === me;
   if (c.state === 'open') {
     if (theirs) {
-      return c.verifiedHash
-        ? { label: 'Waiting for you', tone: 'open', actions: ['accept', 'counter', 'decline'] }
-        : { label: 'Verifying the format…', tone: 'wait', actions: ['decline'] };
+      return { label: 'Waiting for you', tone: 'open', actions: ['accept', 'counter', 'decline'] };
     }
-    if (mine) {
-      return {
-        label: c.verifiedHash ? 'Waiting for them' : 'Verifying the format…',
-        tone: 'wait',
-        actions: ['withdraw'],
-      };
-    }
+    if (mine) return { label: 'Waiting for them', tone: 'wait', actions: ['withdraw'] };
   }
   if (c.state === 'accepted') {
     if (mine) return { label: 'They accepted — confirm to lock it in', tone: 'open', actions: ['confirm', 'withdraw'] };

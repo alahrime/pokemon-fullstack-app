@@ -7066,3 +7066,7 @@ th.bt-matrix-head { text-align: center; }
 }
 [data-motion='off'] .shiny-burst { display: none; }
 @media (prefers-reduced-motion: reduce) { .shiny-burst { display: none; } .shiny-star-btn { transition: none; } }
+
+/* ── Match teams: the two rosters side by side, stacked on a phone ───────── */
+.match-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--space-4); margin-block: var(--space-3); }
+.match-team .ct-slots { margin: 0; padding: 0; }

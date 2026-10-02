@@ -76,11 +76,11 @@ describe('ChallengeCard', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('unverified: Accept shown but disabled, Decline present', async () => {
+  it('unverified: Accept and Decline are offered all the same', async () => {
     serve({ verifiedHash: null });
     render(<ChallengeCard offerId="o" />);
-    expect(await screen.findByText('Verifying the format…')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText('Waiting for you')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
   });
 
@@ -190,11 +190,11 @@ describe('ChallengeCard', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('offers Counter only to the target of a verified, open challenge', async () => {
-    serve({ verifiedHash: null });
+  it('offers Counter only to the target of an open challenge', async () => {
+    serve({});
     const a = render(<ChallengeCard offerId="o" />);
-    await screen.findByText('Verifying the format…');
-    expect(screen.queryByRole('button', { name: 'Counter' })).toBeNull();
+    await screen.findByText('Waiting for you');
+    expect(screen.getByRole('button', { name: 'Counter' })).toBeTruthy();
     a.unmount();
     serve({ proposerId: 'me', targetId: 'them' });
     render(<ChallengeCard offerId="o" />);

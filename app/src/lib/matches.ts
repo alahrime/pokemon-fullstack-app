@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { StoredMember } from './teamCodec';
 
 export type MatchState =
   | 'paired' | 'reported' | 'confirmed' | 'mismatch' | 'disputed' | 'unverified' | 'abandoned';
@@ -19,6 +20,9 @@ export interface Match {
   amendDeadline: string | null;
   source: 'queue' | 'offer';
   createdAt: string;
+  /** Both rosters, as the match row holds them (absent on rows built without them). */
+  myTeam?: StoredMember[];
+  oppTeam?: StoredMember[];
 }
 
 /**
@@ -37,7 +41,7 @@ export function toMyTerms(wins: Side[], mySide: Side): boolean[] {
 }
 
 const COLUMNS =
-  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at';
+  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at, team_a, team_b';
 
 interface Row {
   id: string;
@@ -52,6 +56,8 @@ interface Row {
   amend_deadline: string | null;
   source: 'queue' | 'offer';
   created_at: string;
+  team_a?: StoredMember[];
+  team_b?: StoredMember[];
 }
 
 function toMatch(r: Row, me: string | undefined): Match {
@@ -69,6 +75,8 @@ function toMatch(r: Row, me: string | undefined): Match {
     amendDeadline: r.amend_deadline,
     source: r.source,
     createdAt: r.created_at,
+    myTeam: mySide === 'a' ? r.team_a : r.team_b,
+    oppTeam: mySide === 'a' ? r.team_b : r.team_a,
   };
 }
 

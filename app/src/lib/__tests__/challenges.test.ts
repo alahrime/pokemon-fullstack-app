@@ -36,14 +36,12 @@ describe('challengeView', () => {
   it('the target can accept or decline a verified open challenge', () => {
     expect(v({}, 'bob')).toMatchObject({ tone: 'open', actions: ['accept', 'counter', 'decline'] });
   });
-  it('shows a verifying state and no Accept in the first minute', () => {
-    const r = v({ verifiedHash: null }, 'bob');
-    expect(r.label).toMatch(/Verifying/);
-    expect(r.actions).toEqual(['decline']);
+  it('needs no verification: an unverified challenge is accepted or declined all the same', () => {
+    expect(v({ verifiedHash: null }, 'bob')).toMatchObject({ label: 'Waiting for you', actions: ['accept', 'counter', 'decline'] });
   });
   it('the proposer waits and may withdraw', () => {
     expect(v({}, 'ann')).toMatchObject({ tone: 'wait', actions: ['withdraw'] });
-    expect(v({ verifiedHash: null }, 'ann').label).toMatch(/Verifying/);
+    expect(v({ verifiedHash: null }, 'ann').label).toBe('Waiting for them');
   });
   it('a scheduled acceptance asks the proposer to confirm and tells the target to wait', () => {
     const acc = { state: 'accepted' as const, scheduledFor: '2026-10-01T12:00:00Z', expiresAt: '2026-10-01T12:00:00Z' };

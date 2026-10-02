@@ -351,26 +351,13 @@ async function main(): Promise<void> {
   });
 
   // 3 ------------------------------------------------------------------------
-  await check('3. accept before verification is refused; after a coordinator tick it converts to a match', async () => {
-    const pre = (await as(bot2, () => fetchChallenges([c1]))).get(c1);
-    let preNote: string;
-    if (pre?.verifiedHash === null) {
-      const r = await refusal(() => acceptOffer(c1, TEAM_B));
-      assert(r.includes('not been verified yet'), `pre-verification accept refused with ${show(r)}`);
-      preNote = `pre-tick accept refused "${r}"`;
-    } else {
-      // pg_cron's own minute tick got there first — the refusal cannot be observed on this offer.
-      throw new Error(`cron verified ${c1} before the refused accept could run; rerun the script`);
-    }
-    await tick('verify challenge');
-    const verified = (await as(bot2, () => fetchChallenges([c1]))).get(c1);
-    assert(!!verified?.verifiedHash, `after the tick verifiedHash is ${show(verified?.verifiedHash)}`);
+  await check('3. accept needs no verification: it converts to a match straight away', async () => {
     const matchId = await as(bot2, () => acceptOffer(c1, TEAM_B));
     assert(typeof matchId === 'string' && matchId.length > 0, `acceptOffer returned ${show(matchId)}`);
     const after = (await as(bot1, () => fetchChallenges([c1]))).get(c1);
     assert(after?.state === 'converted', `proposer reads state ${show(after?.state)}`);
     assert(after?.matchId === matchId, `matchId ${show(after?.matchId)} vs ${matchId}`);
-    return `${preNote}; after tick verified ${verified!.verifiedHash!.slice(0, 12)}…; accept -> match ${matchId}; state converted`;
+    return `accept -> match ${matchId}; state converted (verified: ${show(after?.verifiedHash)})`;
   });
 
   // 4 ------------------------------------------------------------------------

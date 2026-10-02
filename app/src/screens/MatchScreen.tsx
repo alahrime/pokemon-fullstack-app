@@ -5,6 +5,10 @@ import {
   type Match, type MatchState,
 } from '../lib/matches';
 import { useChatDockRequest } from '../state/ChatDockContext';
+import { MatchTeams } from '../components/MatchTeams';
+import { myFriendCode } from '../lib/friendCode';
+import { opponentFriendCode } from '../lib/matchmaking';
+import { resolveDisplayNames } from '../lib/channels';
 
 /** A best-of-N ends the moment one side reaches this many wins, not before. */
 const needed = (bestOf: number) => Math.floor(bestOf / 2) + 1;
@@ -83,6 +87,18 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
   // The state actually rendered from. Seeded from the `match` prop, but not
   // trusted to stay current on its own — see the effect below.
   const [liveState, setLiveState] = useState<MatchState>(match.state);
+  const [codes, setCodes] = useState<{ mine: string | null; theirs: string | null } | undefined>(undefined);
+  const [oppName, setOppName] = useState('Their');
+
+  useEffect(() => {
+    let live = true;
+    setCodes(undefined);
+    void Promise.all([myFriendCode(), opponentFriendCode(match.opponentId)])
+      .then(([mine, theirs]) => live && setCodes({ mine, theirs }))
+      .catch(() => live && setCodes({ mine: null, theirs: null }));
+    void resolveDisplayNames([match.opponentId]).then((n) => live && setOppName(n.get(match.opponentId) ?? 'Their')).catch(() => {});
+    return () => { live = false; };
+  }, [match.id, match.opponentId]);
 
   // Re-loads whenever the match identity changes — including `mySide`, since
   // that is what `toMyTerms` needs to read a stored report back correctly —
@@ -191,6 +207,8 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
       />
       <div className="panel">
         <p role="status">{HEADLINE[liveState]}</p>
+
+        <MatchTeams myTeam={match.myTeam} oppTeam={match.oppTeam} myCode={codes && codes.mine} oppCode={codes && codes.theirs} oppName={oppName} />
 
         {open && (
           <ul className="match-list round-list">

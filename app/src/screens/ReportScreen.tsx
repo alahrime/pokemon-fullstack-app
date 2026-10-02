@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../state/AppState';
+import { cupLegal } from '../lib/presetFormats';
 import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
   dmg,
@@ -64,7 +65,8 @@ export function ReportScreen() {
     () => rankedOpponents(ref, league, moveIdx, relevanceKind, Infinity, chargeIds, bestBuddy),
     [ref, league, moveIdx, relevanceKind, chargeIds, bestBuddy],
   );
-  const opponents = useMemo(() => relevance.map((r) => r.info), [relevance]);
+  const cupSet = cupLegal(state.cup);
+  const opponents = useMemo(() => relevance.filter((r) => !cupSet || cupSet.has(r.info.id)).map((r) => r.info), [relevance, cupSet]);
 
   // Sorted by whichever metric is selected, then paged. The scan finds ~48
   // decidable matchups against 16 cells; paging shows the surplus without the

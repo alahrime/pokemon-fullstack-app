@@ -12,6 +12,8 @@ export type ColorBy = 'rank' | 'break' | 'bulk';
 export interface AppStateShape {
   screen: Screen;
   league: LeagueId;
+  /** A limited cup (a `PRESET_FORMATS` key) played on top of `league`'s cap, or null for the plain league. */
+  cup: string | null;
   /** Ref, may carry a `_shadow` suffix. */
   species: string;
   shadow: boolean;
@@ -105,6 +107,7 @@ export const INITIAL_STATE: AppStateShape = {
   // job is the search is where you start. Choosing a species moves you on.
   screen: 'landing',
   league: 'great',
+  cup: null,
   species: 'azumarill',
   shadow: false,
   bestBuddy: false,

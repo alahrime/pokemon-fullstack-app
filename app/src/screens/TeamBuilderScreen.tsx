@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { cupLegal } from '../lib/presetFormats';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
@@ -283,13 +284,14 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   //                                 drawn from the tail is noise
   // Only the first is a restriction on the user, and it should be as wide as
   // the game is.
-  const pool = useMemo(() => new Set(teamPool(league)), [league]);
+  const cupSet = cupLegal(state.cup);
+  const pool = useMemo(() => new Set(teamPool(league).filter((r) => !cupSet || cupSet.has(r))), [league, cupSet]);
   const selectable = useMemo(
     () =>
       new Set(
-        pickableFor(league).filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r))),
+        pickableFor(league).filter((r) => (!cupSet || cupSet.has(r)) && !team.some((m) => m === r || conflictsOnTeam(m, r))),
       ),
-    [league, team],
+    [league, team, cupSet],
   );
   const full = team.length === size;
   /**

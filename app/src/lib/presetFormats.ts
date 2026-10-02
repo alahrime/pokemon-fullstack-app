@@ -1,3 +1,4 @@
+import { resolvePool } from '../rules/pool';
 import { rulesHash, RULES_SCHEMA, type Format } from '../rules';
 import type { LeagueId } from './types';
 import { listServerFormats, saveServerFormat, type SavedFormat } from './saves';
@@ -108,6 +109,19 @@ export const PRESET_FORMATS: PresetFormat[] = ([
     },
   }),
 ] as PresetFormat[]).sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+
+/** The plain leagues are the league tabs; every other preset is a limited cup. */
+export const LIMITED_CUPS = PRESET_FORMATS.filter((p) => p.key !== p.base);
+
+const legalCache = new Map<string, Set<string>>();
+/** Refs a limited cup allows (the same resolution a challenge validates against); null for no cup. */
+export function cupLegal(key: string | null): Set<string> | null {
+  const p = key && LIMITED_CUPS.find((c) => c.key === key);
+  if (!p) return null;
+  let s = legalCache.get(p.key);
+  if (!s) legalCache.set(p.key, (s = new Set(resolvePool(p.format).legal)));
+  return s;
+}
 
 /** GBL is three; Show 6 is a roster of six from which three are brought to each battle. */
 export const SHOW_6 = 6;

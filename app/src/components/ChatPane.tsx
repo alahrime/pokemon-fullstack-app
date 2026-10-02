@@ -151,6 +151,9 @@ export function ChatPane({
     }
   }
   const [sendError, setSendError] = useState<string | null>(null);
+  // Newest message in view: on open, and whenever one arrives or is sent.
+  const endRef = useRef<HTMLLIElement>(null);
+  useEffect(() => { endRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [messages.length, minimized]);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportingId, setReportingId] = useState<string | null>(null);
   const [openReportId, setOpenReportId] = useState<string | null>(null);
@@ -336,7 +339,7 @@ export function ChatPane({
               return (
                 <li
                   key={m.id}
-                  className={`chat-message${m.deletedAt ? ' is-deleted' : ''}${m.kind === 'announcement' && !m.deletedAt ? ' is-announcement' : ''}`}
+                  className={`chat-message${isOwn ? ' is-own' : ''}${m.deletedAt ? ' is-deleted' : ''}${m.kind === 'announcement' && !m.deletedAt ? ' is-announcement' : ''}`}
                 >
                   {m.kind === 'challenge' && m.offerId && !m.deletedAt ? (
                     <ChallengeCard offerId={m.offerId} />
@@ -346,6 +349,9 @@ export function ChatPane({
                       {m.deletedAt ? 'Message deleted' : m.body}
                     </p>
                   )}
+                  <time className="chat-message-time text-faint numeric" dateTime={m.createdAt}>
+                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </time>
                   {mayAnnounce && !m.deletedAt && (
                     <button type="button" className="btn btn-ghost" aria-label={`${pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'} message “${snippetOf(m.body)}”`} onClick={() => void togglePin(m)}>
                       {pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'}
@@ -407,6 +413,7 @@ export function ChatPane({
                 </li>
               );
             })}
+            <li ref={endRef} aria-hidden="true" className="chat-end" />
           </ul>
 
           {organiser && (
@@ -430,6 +437,10 @@ export function ChatPane({
               aria-label={`Message to ${label}`}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              // Enter sends, Shift+Enter is a new line.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); }
+              }}
             />
             {mayAnnounce && (
               <label className="chat-announce">

@@ -6950,3 +6950,12 @@ th.bt-matrix-head { text-align: center; }
   .mx-rowhead { min-width: 150px; }
   .mx-bars { width: 40px; }
 }
+
+/* Limited-cup dropdown beside the league tabs. */
+.cup-select { width: min(220px, 100%); }
+.chat-message.is-own { border-inline-start: 2px solid var(--color-accent); }
+.chat-message-time { font-size: var(--text-xs, 11px); }
+.chat-end { list-style: none; height: 0; }
+/* The closed header button has no room for the CP note; the open list still shows it. */
+.cup-select .ls-btn .ls-note { display: none; }
+.cup-select .ls-btn .ls-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

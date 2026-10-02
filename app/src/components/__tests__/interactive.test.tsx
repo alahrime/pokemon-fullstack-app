@@ -68,11 +68,18 @@ describe('App shell', () => {
 describe('LeagueTabs', () => {
   it('renders the three leagues and reports a change', () => {
     const onChange = vi.fn();
-    const { container } = renderApp(<LeagueTabs value="great" onChange={onChange} />);
-    const tabs = container.querySelectorAll('button');
+    const { container } = renderApp(<LeagueTabs value="great" cup={null} onChange={onChange} />);
+    const tabs = container.querySelectorAll('.league-tab');
     expect(tabs.length).toBe(3);
     fireEvent.click(tabs[1]);
-    expect(onChange).toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith('ultra', null);
+  });
+  it('picking a limited cup reports its league and key', () => {
+    const onChange = vi.fn();
+    const { container, getByRole } = renderApp(<LeagueTabs value="great" cup={null} onChange={onChange} />);
+    fireEvent.click(getByRole('combobox', { name: 'Limited cup' }));
+    fireEvent.click(container.querySelector('#cup-select-list [role=option]:nth-child(2)')!);
+    expect(onChange.mock.calls[0][1]).toEqual(expect.any(String));
   });
 });
 

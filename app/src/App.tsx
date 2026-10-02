@@ -96,7 +96,8 @@ function Nav() {
       <div className="nav-right">
         <LeagueTabs
           value={state.league}
-          onChange={(id) => {
+          cup={state.cup}
+          onChange={(id, cup) => {
             // The battle pair is drawn from the league's own pool, so it is
             // re-rolled here — a Great-league matchup left on the Master
             // screen is priced at a cap it never plays under.
@@ -105,6 +106,7 @@ function Nav() {
             const spreadB = defaultSpreadFor(b, id);
             patch({
               league: id,
+              cup,
               oppId: opponentsFor(id)[0]?.id ?? '',
               battleA: a,
               battleB: b,

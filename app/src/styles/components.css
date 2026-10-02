@@ -6959,3 +6959,42 @@ th.bt-matrix-head { text-align: center; }
 /* The closed header button has no room for the CP note; the open list still shows it. */
 .cup-select .ls-btn .ls-note { display: none; }
 .cup-select .ls-btn .ls-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Chat, from the reader's side: yours sit right in the theme accent, theirs sit left in a neutral slate, so who
+   said what reads before a word does. The theme accent is the one colour every theme guarantees against its
+   background; the other side is deliberately not a theme colour. */
+.chat-transcript .chat-message {
+  max-width: 86%;
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--color-text) 9%, var(--surface-2));
+  border-left: 3px solid color-mix(in srgb, var(--color-text) 40%, transparent);
+  border-inline-start-width: 3px;
+}
+.chat-transcript .chat-message.is-own {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--surface-2));
+  border-left: 0;
+  border-right: 3px solid var(--color-accent);
+  border-inline-start: 0;
+}
+.chat-transcript .chat-message.is-announcement { border-left-color: var(--color-accent); }
+.chat-transcript .chat-message.is-deleted { opacity: 0.7; }
+
+/* The Analyze search is the one thing to find on those screens, so it is drawn in the complement of the theme
+   colour (a fixed amber where the browser cannot rotate hue), never the accent the rest of the page is made of. */
+.report-search, .landing-search-input {
+  --spot: #ffd23f;
+  --spot: oklch(from var(--color-accent) 0.84 0.16 calc(h + 180));
+}
+.report-search .input, .landing-search-input .input {
+  border: 2px solid var(--spot);
+  background: color-mix(in srgb, var(--spot) 9%, var(--surface-2));
+  box-shadow: 0 0 16px -4px color-mix(in srgb, var(--spot) 55%, transparent);
+}
+.report-search .input:focus, .landing-search-input .input:focus {
+  border-color: var(--spot);
+  box-shadow: 0 0 0 1px var(--spot), 0 0 22px color-mix(in srgb, var(--spot) 45%, transparent);
+}
+.report-search .nav-search-glyph, .landing-search-input .nav-search-glyph,
+.report-search:focus-within .nav-search-glyph, .landing-search-input:focus-within .nav-search-glyph { color: var(--spot); }

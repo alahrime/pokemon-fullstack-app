@@ -26,8 +26,8 @@ export { monFor, type MonBuild } from './monFor';
  * same seed every call, so a score does not drift between renders and two
  * teams are always compared against the identical field.
  */
-export function sampleFieldTeams(lg: LeagueId, size: number, count: number): string[][] {
-  const pool = teamPool(lg);
+export function sampleFieldTeams(lg: LeagueId, size: number, count: number, allow?: ReadonlySet<string> | null): string[][] {
+  const pool = allow ? teamPool(lg).filter((r) => allow.has(r)) : teamPool(lg);
   const out: string[][] = [];
   // A cheap LCG. Determinism matters more than statistical quality here: the
   // sample is a fixed yardstick, not a source of randomness.
@@ -105,11 +105,11 @@ export interface TeamReport {
 export function analyseTeam(
   team: string[],
   lg: LeagueId,
-  opts: { size?: number; count?: number; builds?: Record<string, MonBuild> } = {},
+  opts: { size?: number; count?: number; builds?: Record<string, MonBuild>; allow?: ReadonlySet<string> | null } = {},
 ): TeamReport {
   const size = opts.size ?? team.length;
   const count = opts.count ?? 240;
-  const field = sampleFieldTeams(lg, size, count);
+  const field = sampleFieldTeams(lg, size, count, opts.allow);
   const mine = team.map((r) => monFor(r, lg, opts.builds?.[r]));
 
   let wins = 0;
@@ -137,7 +137,7 @@ export function analyseTeam(
 
   // The same opponents the matrix names, ranked by the same pressure across 0, 1 and 2 shields, so this list and
   // the matrix beside it cannot disagree about what the problem is.
-  const threats: FieldThreat[] = topThreats(team, lg, opts.builds, 12).map((t) => {
+  const threats: FieldThreat[] = topThreats(team, lg, opts.builds, 12, opts.allow).map((t) => {
     const flat = t.cells.flat();
     const losses = flat.filter((r) => r < 500);
     return {
@@ -238,9 +238,9 @@ export interface CompletionPool {
  * comes out empty: an unexplained empty list and a silently dropped rule are
  * both worse than saying which allowance was used.
  */
-export function completionPool(partial: string[], lg: LeagueId, targetSize: number): CompletionPool {
+export function completionPool(partial: string[], lg: LeagueId, targetSize: number, allow?: ReadonlySet<string> | null): CompletionPool {
   const typesOf = (r: string) => speciesOf(r)?.types ?? [];
-  const legal = teamPool(lg).filter((r) => !partial.some((p) => p === r || conflictsOnTeam(p, r)));
+  const legal = teamPool(lg).filter((r) => (!allow || allow.has(r)) && !partial.some((p) => p === r || conflictsOnTeam(p, r)));
   const nominal = MAX_SHARED_TYPES[targetSize] ?? 0;
   const shared = sharedTypePairs(partial.map(typesOf));
   const base = Math.max(nominal, shared);
@@ -289,10 +289,10 @@ export function suggestCompletions(
   partial: string[],
   lg: LeagueId,
   targetSize: number,
-  opts: { count?: number; limit?: number; builds?: Record<string, MonBuild> } = {},
+  opts: { count?: number; limit?: number; builds?: Record<string, MonBuild>; allow?: ReadonlySet<string> | null } = {},
 ): Suggestion[] {
   const limit = opts.limit ?? 12;
-  const { pool } = completionPool(partial, lg, targetSize);
+  const { pool } = completionPool(partial, lg, targetSize, opts.allow);
   // What the pick actually shores up, so the list says why rather than only
   // how much. A weakness the existing team already answers is not a reason.
   const open = new Set(
@@ -300,7 +300,7 @@ export function suggestCompletions(
       .filter((w) => !partial.some((p) => resistancesOf(speciesOf(p)?.types ?? []).includes(w))),
   );
   // Scored on the matrix's own measure: the roster's threat score with the pick in the line, lowest first.
-  return completionsFor(partial, pool, lg, opts.builds, limit).map((c) => ({
+  return completionsFor(partial, pool, lg, opts.builds, limit, opts.allow).map((c) => ({
     ref: c.ref,
     value: c.after,
     metric: 'threat' as const,
@@ -407,10 +407,10 @@ export interface SixSwap {
 export function analyseShow6(
   six: string[],
   lg: LeagueId,
-  opts: { count?: number; builds?: Record<string, MonBuild> } = {},
+  opts: { count?: number; builds?: Record<string, MonBuild>; allow?: ReadonlySet<string> | null } = {},
 ): Show6Report {
   const count = opts.count ?? 40;
-  const field = sampleFieldTeams(lg, 6, count);
+  const field = sampleFieldTeams(lg, 6, count, opts.allow);
   const myLines = subteams(six);
 
   let bestFloor = -Infinity;
@@ -451,7 +451,7 @@ export function analyseShow6(
   // The pool the field was drawn from is the field: an opponent nobody brings
   // is not a weakness worth a slot. Ranked by how much of your roster it beats
   // and how thin your best answer is.
-  const weakTo = weaknessesAgainst(six, lg, { limit: 20, builds: opts.builds });
+  const weakTo = weaknessesAgainst(six, lg, { limit: 20, builds: opts.builds, allow: opts.allow });
 
   // A six short of three members yields no lines at all, leaving the floor at
   // -Infinity and rendering as such. Report zero rather than a sentinel.
@@ -482,9 +482,9 @@ export function analyseShow6(
 export function weaknessesAgainst(
   team: string[],
   lg: LeagueId,
-  opts: { limit?: number; builds?: Record<string, MonBuild> } = {},
+  opts: { limit?: number; builds?: Record<string, MonBuild>; allow?: ReadonlySet<string> | null } = {},
 ): Weakness[] {
-  return topThreats(team, lg, opts.builds, opts.limit ?? 20).map((t) => weaknessOf(t, team));
+  return topThreats(team, lg, opts.builds, opts.limit ?? 20, opts.allow).map((t) => weaknessOf(t, team));
 }
 
 /** A matrix row in this module's terms: the same opponent, ranked by the same pressure. */
@@ -542,7 +542,7 @@ export function suggestSwaps(
   six: string[],
   threats: readonly Weakness[],
   lg: LeagueId,
-  opts: { limit?: number; builds?: Record<string, MonBuild> } = {},
+  opts: { limit?: number; builds?: Record<string, MonBuild>; allow?: ReadonlySet<string> | null } = {},
 ): SixSwap[] {
   const limit = opts.limit ?? 8;
   if (six.length < 2 || threats.length === 0) return [];
@@ -577,7 +577,7 @@ export function suggestSwaps(
     const rest = six.filter((r) => r !== dropped);
     // Same legality the completion picker applies: no duplicate species, and
     // no typing the roster cannot afford to repeat.
-    const { pool } = completionPool(rest, lg, 6);
+    const { pool } = completionPool(rest, lg, 6, opts.allow);
     const restAnswers = (threatRef: string) =>
       rest.some((r) => answeredBy.get(threatRef)?.has(r));
     const before = covered((t) => !!answeredBy.get(t)?.size);

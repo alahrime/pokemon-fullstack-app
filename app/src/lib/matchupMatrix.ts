@@ -143,9 +143,9 @@ export interface Completion {
  * answers it. Lowest resulting threat score first.
  */
 export function completionsFor(
-  team: string[], candidates: readonly string[], lg: LeagueId, builds?: Record<string, MonBuild>, limit = 12,
+  team: string[], candidates: readonly string[], lg: LeagueId, builds?: Record<string, MonBuild>, limit = 12, allow?: ReadonlySet<string> | null,
 ): Completion[] {
-  const threats = topThreats(team, lg, builds);
+  const threats = topThreats(team, lg, builds, 20, allow);
   if (threats.length === 0) return [];
   const before = threatScore(threats);
   return candidates

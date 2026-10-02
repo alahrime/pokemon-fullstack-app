@@ -309,6 +309,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     setSix(null);
     setPicks(null);
   };
+  // Results were scored against the old cup's field.
+  useEffect(invalidate, [state.cup]);
   // Functional updates, not `setTeam([...team, ref])`. Two picks landing in the
   // same tick both read the `team` their own render closed over, so the second
   // overwrites the first instead of appending — which silently dropped members
@@ -490,18 +492,18 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       // are per-member measurements, and they are most useful while there are
       // still slots to fill.
       const canField = team.length >= 3;
-      const report6 = size === 6 && canField ? analyseShow6(team, league, { builds }) : null;
-      const weakness = report6 ? report6.weakTo : weaknessesAgainst(team, league, { builds });
+      const report6 = size === 6 && canField ? analyseShow6(team, league, { builds, allow: cupSet }) : null;
+      const weakness = report6 ? report6.weakTo : weaknessesAgainst(team, league, { builds, allow: cupSet });
       setSix(report6);
       setWeak(weakness);
       // Scored against the weaknesses just named, so the two panels always
       // agree about what the problem is.
-      setSwaps(suggestSwaps(team, weakness, league, { builds }));
+      setSwaps(suggestSwaps(team, weakness, league, { builds, allow: cupSet }));
       setReport(
         canField
           ? size === 3
-            ? analyseTeam(team, league, { builds })
-            : analyseTeam(team, league, { size: 3, count: 160, builds })
+            ? analyseTeam(team, league, { builds, allow: cupSet })
+            : analyseTeam(team, league, { size: 3, count: 160, builds, allow: cupSet })
           : null,
       );
       setElapsed(performance.now() - t0);
@@ -531,7 +533,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       // back empty from the fourth pick onward in every league.
       // `builds` for the same reason `run` passes it: a slot the modal built
       // otherwise gets scored on moves it is not carrying.
-      setPicks(suggestCompletions(team, league, size, { builds }));
+      setPicks(suggestCompletions(team, league, size, { builds, allow: cupSet }));
       setBusy(false);
       setReveal('picks');
     }, 0);
@@ -539,8 +541,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   // Cheap — a filter over the top 100, no simulation — so it is recomputed for
   // the note rather than threaded out of the scored result.
   const candidates = useMemo(
-    () => (picks ? completionPool(team, league, size) : null),
-    [picks, team, league, size],
+    () => (picks ? completionPool(team, league, size, cupSet) : null),
+    [picks, team, league, size, cupSet],
   );
 
   return (

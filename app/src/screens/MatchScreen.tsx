@@ -108,6 +108,8 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
   // The state actually rendered from. Seeded from the `match` prop, but not
   // trusted to stay current on its own — see the effect below.
   const [liveState, setLiveState] = useState<MatchState>(match.state);
+  // `reported` means ONE side has reported; which one decides whether this player is waiting or being waited on.
+  const [iReported, setIReported] = useState(false);
   const [codes, setCodes] = useState<{ mine: string | null; theirs: string | null } | undefined>(undefined);
   // undefined = loading, null = no such profile.
   const [trainers, setTrainers] = useState<{ me: Profile | null; opp: Profile | null } | undefined>(undefined);
@@ -155,7 +157,9 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
       const fresh = list.find((m) => m.id === match.id);
       if (live && fresh) setLiveState(fresh.state);
     });
+    setIReported(false);
     void myReport(match.id).then((r) => {
+      if (live) setIReported(!!r);
       if (live && r) setIWon(toMyTerms(r.wins, match.mySide));
     });
     void adjudicatedRounds(match.id).then((r) => {
@@ -237,7 +241,7 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
         <Trainer profile={trainers?.opp} label="Opponent" onOpen={() => patch({ screen: 'player', activePlayerId: match.opponentId })} />
       </section>
       <div className="panel">
-        <p role="status">{HEADLINE[liveState]}</p>
+        <p role="status">{liveState === 'reported' && !iReported ? 'Your opponent has reported. Report your result.' : HEADLINE[liveState]}</p>
 
         <MatchTeams myTeam={match.myTeam} oppTeam={match.oppTeam} myCode={codes && codes.mine} oppCode={codes && codes.theirs} oppName={oppName} />
 

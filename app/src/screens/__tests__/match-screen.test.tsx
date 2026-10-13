@@ -17,10 +17,11 @@ const base: Match = {
 
 const submitReport = vi.fn();
 const adjudicatedRounds = vi.fn();
+const myReport = vi.fn();
 vi.mock('../../lib/matches', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/matches')>()),
   submitReport: (...args: unknown[]) => submitReport(...args),
-  myReport: async () => null,
+  myReport: (...args: unknown[]) => myReport(...args),
   adjudicatedRounds: (...args: unknown[]) => adjudicatedRounds(...args),
 }));
 
@@ -34,6 +35,7 @@ vi.mock('../../lib/profile', async (orig) => ({ ...(await orig<typeof import('..
 beforeEach(() => {
   submitReport.mockReset().mockResolvedValue('reported');
   adjudicatedRounds.mockReset().mockResolvedValue([]);
+  myReport.mockReset().mockResolvedValue(null);
   getProfile.mockReset().mockImplementation(async (id: string) =>
     id === 'opp' ? { displayName: 'Brock', avatar: 'brock' } : null);
 });
@@ -191,5 +193,17 @@ describe('match screen', () => {
     expect(within(vs).getByText('You')).toBeTruthy();
     fireEvent.click(opp);
     await waitFor(() => expect(window.location.hash).toBe('#/play/players/opp'));
+  });
+
+  it("tells the player who has not reported that it is their turn, and the one who has that they are waiting", async () => {
+    const reported = { ...base, state: 'reported' as const };
+    renderApp(<MatchScreen match={reported} onChanged={() => {}} />);
+    expect((await screen.findByRole('status')).textContent).toBe('Your opponent has reported. Report your result.');
+  });
+
+  it('says "waiting for your opponent" once your own report is in', async () => {
+    myReport.mockResolvedValue({ wins: ['a', 'a'], amendCount: 0 });
+    renderApp(<MatchScreen match={{ ...base, state: 'reported' }} onChanged={() => {}} />);
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Reported. Waiting for your opponent.'));
   });
 });

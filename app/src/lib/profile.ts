@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { parseRef } from './data';
 import { wilson } from './records';
 import type { LeagueId } from './types';
 import type { PlayerGame } from './tournaments';
@@ -30,10 +31,13 @@ export async function getProfile(id: string): Promise<Profile | null> {
     displayName: r.display_name as string, goUsername: r.go_username as string, createdAt: r.created_at as string,
     avatar: (r.avatar as string | null) ?? null, region: (r.region as string | null) ?? null,
     trainerLevel: (r.trainer_level as number | null) ?? null, xp: r.xp == null ? null : Number(r.xp),
-    favoritePokemon: (r.favorite_pokemon as string[] | null) ?? [], favoriteLeague: (r.favorite_league as LeagueId | null) ?? null,
+    favoritePokemon: speciesOnly((r.favorite_pokemon as string[] | null) ?? []), favoriteLeague: (r.favorite_league as LeagueId | null) ?? null,
     faction: (r.faction as string | null) ?? null, specialty: (r.specialty as string | null) ?? null,
   };
 }
+
+/** A favourite is a species, not a build: a Shadow pick saved before that rule reads as its species, once. */
+export const speciesOnly = (refs: readonly string[]): string[] => [...new Set(refs.map((r) => parseRef(r).id))];
 
 const blank = (s: string | null) => (s?.trim() ? s.trim() : null);
 
@@ -41,7 +45,7 @@ const blank = (s: string | null) => (s?.trim() ? s.trim() : null);
 export async function saveProfile(id: string, e: ProfileEdit): Promise<void> {
   const { data, error } = await supabase.from('profiles').update({
     avatar: e.avatar, region: blank(e.region), trainer_level: e.trainerLevel, xp: e.xp,
-    favorite_pokemon: e.favoritePokemon.slice(0, FAVORITES), favorite_league: e.favoriteLeague,
+    favorite_pokemon: speciesOnly(e.favoritePokemon).slice(0, FAVORITES), favorite_league: e.favoriteLeague,
     faction: blank(e.faction), specialty: blank(e.specialty),
   }).eq('id', id).select('id');
   if (error) throw new Error(error.message);

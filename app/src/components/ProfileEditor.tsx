@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { SpeciesSearch } from './SpeciesSearch';
 import { MonTile } from './MonTile';
 import { SegGroup, SegButton } from './Seg';
-import { displayName, parseRef } from '../lib/data';
+import { displayName } from '../lib/data';
 import { FAVORITES, MAX_LEVEL, SPECIALTIES, loadTrainers, saveProfile, trainerUrl, type Profile, type ProfileEdit } from '../lib/profile';
 import type { LeagueId } from '../lib/types';
 
@@ -127,7 +127,7 @@ export function ProfileEditor({ id, profile, onSaved, onClose }: {
                 return (
                   <li key={ref ?? `empty-${i}`} className={ref ? '' : 'is-empty'}>
                     {ref ? (<>
-                      <MonTile refId={ref} label={displayName(ref)} shadow={parseRef(ref).shadow} size={56} />
+                      <MonTile refId={ref} label={displayName(ref)} size={56} />
                       <button type="button" className="btn btn-ghost profile-six-remove" aria-label={`Remove ${displayName(ref)}`}
                         onClick={() => set({ favoritePokemon: draft.favoritePokemon.filter((r) => r !== ref) })}>✕</button>
                     </>) : <span aria-hidden="true">{i + 1}</span>}
@@ -137,7 +137,7 @@ export function ProfileEditor({ id, profile, onSaved, onClose }: {
             </ol>
             {draft.favoritePokemon.length < FAVORITES && (
               <div className="modal-search">
-                <SpeciesSearch id="profile-favorite" value="" startEmpty includeShadow onChange={addFavorite} placeholder="Add a favourite…" />
+                <SpeciesSearch id="profile-favorite" value="" startEmpty onChange={addFavorite} placeholder="Add a favourite…" />
               </div>
             )}
           </section>

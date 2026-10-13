@@ -48,3 +48,10 @@ describe('placeIn', () => {
     expect(placeIn(ps, 'nobody', new Date())).toBeNull();
   });
 });
+
+describe('speciesOnly', () => {
+  it('reads a Shadow favourite as its species, once', async () => {
+    const { speciesOnly } = await import('../profile');
+    expect(speciesOnly(['ninetales_shadow', 'ninetales', 'glaceon', 'entei_shadow'])).toEqual(['ninetales', 'glaceon', 'entei']);
+  });
+});

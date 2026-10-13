@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
 import { resolveDisplayNames } from '../lib/channels';
@@ -11,7 +12,7 @@ import { TeamGrid } from '../components/tournament/RosterCard';
 import { MonTile } from '../components/MonTile';
 import { LeagueEmblem } from '../components/LeagueEmblem';
 import { ProfileEditor } from '../components/ProfileEditor';
-import { AddPokemonModal } from '../components/AddPokemonModal';
+import { SpeciesSearch } from '../components/SpeciesSearch';
 import { Sprite } from '../components/Sprite';
 import type { TeamMember } from '../tournament/roster';
 
@@ -51,9 +52,40 @@ function Six({ refs, size }: { refs: readonly string[]; size: number }) {
 }
 
 /**
- * The favourite six as a broadcast roster's tiles, Shadows on the purple camo a stream gives them. The owner fills
- * an empty tile with "+", the same build picker every team view opens.
+ * Choosing a favourite is choosing a species: no Shadow, no moves, no roll. Picking one adds it and closes.
+ * An overlay like the team views' "+" picker, so the page stays put.
  */
+function FavoritePicker({ taken, onPick, onClose }: { taken: readonly string[]; onPick: (ref: string) => void; onClose: () => void }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
+    window.addEventListener('keydown', onKey);
+    panel.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    return () => { window.removeEventListener('keydown', onKey); if (opener?.isConnected) opener.focus({ preventScroll: true }); };
+  }, []);
+  return createPortal(
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-panel" ref={panel} role="dialog" aria-modal="true" aria-label="Add a favourite Pokémon">
+        <div className="modal-head">
+          <span className="hud-label">Add a favourite</span>
+          <button type="button" className="btn btn-sm py-0.5 px-2" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="modal-search">
+            <SpeciesSearch id="favorite-species" value="" startEmpty placeholder="Search any Pokémon…"
+              onChange={(ref) => { if (ref && !taken.includes(ref)) onPick(ref); onClose(); }} />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** The favourite six as a broadcast roster's tiles. The owner fills an empty tile with "+" and clears one with ✕. */
 function Roster({ profile, own, onAdd, onRemove }: {
   profile: Profile | null; own: boolean; onAdd: () => void; onRemove: (ref: string) => void;
 }) {
@@ -74,9 +106,8 @@ function Roster({ profile, own, onAdd, onRemove }: {
               </li>
             );
           }
-          const shadow = parseRef(ref).shadow;
           return (
-            <li key={ref} className={`profile-tile${shadow ? ' is-shadow' : ''}`}>
+            <li key={ref} className="profile-tile">
               {s && <Sprite sprite={s.sprite} dex={s.dex} size={92} />}
               <span className="profile-tile-name">{displayName(ref)}</span>
               {own && <button type="button" className="profile-tile-remove" aria-label={`Remove ${displayName(ref)}`} onClick={() => onRemove(ref)}>✕</button>}
@@ -298,8 +329,8 @@ export function PlayerScreen() {
       )}
 
       {adding && profile && (
-        <AddPokemonModal league={fav ?? 'great'} commitLabel="Add to favourites" onClose={() => setAdding(false)}
-          onCommit={(c) => { if (!profile.favoritePokemon.includes(c.ref)) void setFavorites([...profile.favoritePokemon, c.ref].slice(0, FAVORITES)); }} />
+        <FavoritePicker taken={profile.favoritePokemon} onClose={() => setAdding(false)}
+          onPick={(ref) => void setFavorites([...profile.favoritePokemon, ref].slice(0, FAVORITES))} />
       )}
       {editing && profile && me && (
         <ProfileEditor id={me} profile={profile} onClose={() => setEditing(false)}

@@ -58,7 +58,6 @@ export function AddPokemonModal({
   restrictTo,
   initial,
   buddy = false,
-  commitLabel = 'Add to team',
   onCommit,
   onClose,
 }: {
@@ -68,8 +67,6 @@ export function AddPokemonModal({
   initial?: AddPokemonChoice;
   /** Offer the Best Buddy toggle; only meaningful where the result is used for it. */
   buddy?: boolean;
-  /** What adding is called where this opens; a profile's favourites are not a team. */
-  commitLabel?: string;
   onCommit: (choice: AddPokemonChoice) => void;
   onClose: () => void;
 }) {
@@ -328,7 +325,7 @@ export function AddPokemonModal({
         <div className="modal-foot">
           <button className="btn btn-sm" onClick={onClose}>Cancel</button>
           <button className="btn btn-sm is-primary" onClick={commit} disabled={!ref}>
-            {initial ? 'Save changes' : commitLabel}
+            {initial ? 'Save changes' : 'Add to team'}
           </button>
         </div>
       </div>

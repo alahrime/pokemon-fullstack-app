@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
@@ -56,14 +56,22 @@ describe('RecordsScreen', () => {
     show();
     expect(await screen.findByRole('button', { name: 'Brock' })).toBeTruthy();
     expect(T.listPlayerGames).toHaveBeenCalledWith('me');
-    expect(screen.queryByText('No confirmed matches here yet.')).toBeNull();
+    expect(screen.queryByText(/^No games here yet/)).toBeNull();
     expect(screen.getByText(/^Ultra.* · ranked$/)).toBeTruthy();
+  });
+
+  it('opens your own profile from the Your profile button, even with no games', async () => {
+    R.listMyRecords.mockResolvedValue([]);
+    show();
+    await screen.findByText(/^No games here yet/);
+    fireEvent.click(screen.getByRole('button', { name: 'Your profile' }));
+    await waitFor(() => expect(window.location.hash).toBe('#/play/players/me'));
   });
 
   it('says so when there is nothing to show, and exports what is shown', async () => {
     R.listMyRecords.mockResolvedValue([]);
     show();
-    await screen.findByText('No confirmed matches here yet.');
+    await screen.findByText(/^No games here yet/);
     cleanup();
     R.listMyRecords.mockResolvedValue([row()]);
     show();

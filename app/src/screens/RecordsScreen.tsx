@@ -64,12 +64,15 @@ export function RecordsScreen() {
             </button>
           ))}
         </div>
-        <button type="button" className="btn" disabled={shown.length === 0} onClick={() => exportRecords(shown, tz)}>Export CSV</button>
+        <div className="records-actions">
+          <button type="button" className="btn btn-primary" onClick={() => patch({ screen: 'player', activePlayerId: uid })}>Your profile</button>
+          <button type="button" className="btn" disabled={shown.length === 0} onClick={() => exportRecords(shown, tz)}>Export CSV</button>
+        </div>
       </div>
 
       {failed && rows === null && <p className="friend-notice" role="alert">Couldn't load your records.</p>}
       {rows === null && !failed && <p className="text-muted">Loading records…</p>}
-      {rows && shown.length === 0 && <p className="panel text-muted">No confirmed matches here yet.</p>}
+      {rows && shown.length === 0 && <p className="panel text-muted">No games here yet. Confirmed matches and finished tournament games will show up here.</p>}
 
       {rows && shown.length > 0 && (
         <>

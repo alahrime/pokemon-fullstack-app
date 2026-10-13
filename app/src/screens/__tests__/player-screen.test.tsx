@@ -5,11 +5,13 @@ let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const L = vi.hoisted(() => ({ listPlayerGames: vi.fn(), listPlacements: vi.fn() }));
 const P = vi.hoisted(() => ({ getProfile: vi.fn(), saveProfile: vi.fn(), loadTrainers: vi.fn() }));
-// The real build picker needs the lazily loaded movepool; a "+" test only needs a commit.
-vi.mock('../../components/AddPokemonModal', () => ({
-  AddPokemonModal: ({ onCommit, onClose }: { onCommit: (c: { ref: string }) => void; onClose: () => void }) => (
-    <div role="dialog" aria-label="Add a Pokémon to the team"><button onClick={() => { onCommit({ ref: 'azumarill' }); onClose(); }}>Pick Azumarill</button></div>
-  ),
+// The real search loads species lazily; the "+" test only needs a pick, and to see what the picker was asked for.
+const searchProps = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock('../../components/SpeciesSearch', () => ({
+  SpeciesSearch: (props: { onChange: (ref: string) => void; includeShadow?: boolean }) => {
+    searchProps.push(props);
+    return <button type="button" onClick={() => props.onChange('azumarill')}>Pick Azumarill</button>;
+  },
 }));
 vi.mock('../../lib/profile', async (orig) => ({ ...(await orig<typeof import('../../lib/profile')>()), ...P }));
 vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../lib/tournaments')>()), ...L }));
@@ -111,8 +113,13 @@ describe('PlayerScreen', () => {
     show();
     expect(await screen.findAllByRole('button', { name: 'Add a favourite Pokémon' })).toHaveLength(1); // only the next free tile
     fireEvent.click(screen.getByRole('button', { name: 'Add a favourite Pokémon' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pick Azumarill' }));
+    const picker = screen.getByRole('dialog', { name: 'Add a favourite Pokémon' });
+    // A species and nothing else: no Shadow rows, no moves, no roll to choose.
+    expect(searchProps.at(-1)?.includeShadow).toBeFalsy();
+    expect(within(picker).queryByText(/Shadow|Fast move|Charged/i)).toBeNull();
+    fireEvent.click(within(picker).getByRole('button', { name: 'Pick Azumarill' }));
     await waitFor(() => expect(P.saveProfile).toHaveBeenCalledTimes(1));
+    expect(picker.isConnected).toBe(false);
     expect(P.saveProfile.mock.calls[0][1].favoritePokemon).toEqual(['politoed', 'lickilicky', 'azumarill']);
     fireEvent.click(await screen.findByRole('button', { name: 'Remove Politoed' }));
     await waitFor(() => expect(P.saveProfile).toHaveBeenCalledTimes(2));

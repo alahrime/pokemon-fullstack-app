@@ -6824,6 +6824,7 @@ th.bt-matrix-head { text-align: center; }
 
 /* Records */
 .records-screen { display: grid; gap: var(--space-3); }
+.records-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .records-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr)); gap: var(--space-3); margin: 0; }
 .records-tiles dt { color: var(--text-muted); font-size: var(--text-sm, 0.85rem); }
 .records-tiles dd { margin: 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -7169,16 +7170,6 @@ th.bt-matrix-head { text-align: center; }
   transition: border-color var(--dur-2) var(--ease-out);
 }
 .profile-tile:hover { border-color: color-mix(in srgb, var(--pc) 80%, transparent); }
-/* A stream's Shadow tile: violet camo blots behind the sprite. */
-.profile-tile.is-shadow {
-  background:
-    radial-gradient(circle at 22% 28%, color-mix(in srgb, var(--shadow-aura) 55%, transparent) 0 14%, transparent 15%),
-    radial-gradient(circle at 78% 20%, color-mix(in srgb, var(--shadow-aura) 45%, transparent) 0 11%, transparent 12%),
-    radial-gradient(circle at 70% 76%, color-mix(in srgb, var(--shadow-aura) 50%, transparent) 0 16%, transparent 17%),
-    radial-gradient(circle at 18% 82%, color-mix(in srgb, var(--shadow-aura) 40%, transparent) 0 10%, transparent 11%),
-    linear-gradient(180deg, color-mix(in srgb, var(--shadow-aura-deep) 55%, var(--surface-2)), var(--surface-1));
-  border-color: color-mix(in srgb, var(--shadow-aura) 55%, transparent);
-}
 .profile-tile.is-empty { background: none; border-style: dashed; }
 .profile-tile-blank { width: 100%; height: 100%; background: repeating-linear-gradient(135deg, var(--grid-line) 0 1px, transparent 1px 9px); }
 .profile-tile-add { width: 100%; height: 100%; min-height: 0; border: 0; clip-path: none; cursor: pointer; }

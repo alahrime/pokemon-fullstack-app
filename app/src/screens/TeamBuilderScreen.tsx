@@ -692,10 +692,22 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           <button className="btn btn-primary" disabled={team.length < 2 || busy} onClick={run}>
             {busy ? 'Simulating…' : full ? `Analyse ${size === 3 ? 'team' : 'six'}` : `Analyse ${team.length} of ${size}`}
           </button>
-          <button className="btn" disabled={team.length >= size || busy || team.length === 0} onClick={suggest}>
+          <button
+            className="btn"
+            disabled={team.length >= size || busy || team.length === 0}
+            onClick={suggest}
+            aria-describedby={full ? 'suggest-full-hint' : undefined}
+          >
             Suggest next pick
           </button>
           {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
+          {/* A disabled button says nothing about why. The swaps Analyse
+              already lists are the full-roster version of this question. */}
+          {full && (
+            <span id="suggest-full-hint" className="team-actions-hint text-faint">
+              Roster full: Analyse lists swaps, or clear a slot for next-pick suggestions.
+            </span>
+          )}
           {/* The analysis used to leave by the back door: an "Export JSON" of
               the headline numbers and a "Threats CSV" of a table nobody could
               read without a spreadsheet. Both are gone — everything they

@@ -54,7 +54,7 @@ design authority; the plans argue from it.
 8. A visible link between a counter-challenge and the original.
 9. Realtime instead of polls for the bell, badges and chat list.
 10. Limited cups in the Matchmaking queue and tournament format pickers.
-11. A hint or swap suggestions when "Suggest next pick" is disabled on a full roster.
+11. ~~A hint or swap suggestions when "Suggest next pick" is disabled on a full roster.~~ **Done 2026-10-13:** a hint beside the button on a full roster ("Analyse lists swaps, or clear a slot…"), tied by `aria-describedby`; swaps already come from Analyse, so no new engine work. `.team-actions` buttons no longer shrink; the hint wraps under them on phones (measured at 1024 and 375, no overflow).
 12. Pinning favourite trophies on the profile.
 
 **Cleanup done at the end of the session (13 and 14 on that list):**

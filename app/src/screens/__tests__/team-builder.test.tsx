@@ -77,6 +77,18 @@ describe('TeamBuilderScreen — building a roster', () => {
     expect(suggest.disabled).toBe(false);
   });
 
+  it('says why Suggest is disabled once the roster is full', async () => {
+    const { container } = renderApp(<TeamBuilderScreen size={3} />);
+    const suggest = screen.getByRole('button', { name: /Suggest next pick/i }) as HTMLButtonElement;
+    await pick(container, 'azumarill');
+    await pick(container, 'registeel');
+    expect(suggest.getAttribute('aria-describedby')).toBeNull();
+    await pick(container, 'medicham');
+    expect(suggest.disabled).toBe(true);
+    const hint = document.getElementById(suggest.getAttribute('aria-describedby')!);
+    expect(hint?.textContent).toMatch(/Analyse lists swaps/);
+  });
+
   it('refuses a second member of the same species', async () => {
     const { container } = renderApp(<TeamBuilderScreen size={3} />);
     await pick(container, 'azumarill');

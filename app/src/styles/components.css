@@ -2254,6 +2254,10 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .team-add { max-width: 420px; margin-bottom: var(--space-3); }
 .team-actions, .bt-row-main { display: flex; align-items: center; gap: var(--space-3); }
+/* Buttons keep their width; the full-roster hint wraps beside them, or under them on a phone. */
+.team-actions { flex-wrap: wrap; }
+.team-actions > .btn { flex: none; }
+.team-actions > .team-actions-hint { flex: 1 1 16rem; }
 
 .threat-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .threat-list li {

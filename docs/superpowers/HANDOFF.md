@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-13 (sixth session: player profile showcase, Records opens on your profile, team-removal confirmations; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-13 (seventh session: friend profiles and records, a Challenges panel on Friends, a versus header on the Match screen; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -27,6 +27,7 @@ design authority; the plans argue from it.
 | **M4a** — ratings, seasons, leaderboard | **Removed 2026-09-30** at the user's direction (no rating across users): `20260930001000_drop_ratings.sql`, Ranked screen gone. Recoverable from git history. |
 | **M4b** — records (win rate, unique opponents, history, calendar, CSV) | **Built, merged and pushed** 2026-09-30. One migration (`20260930000400_records.sql`, a view). `npm run check` 1763/1763. Spec `specs/2026-09-30-m4b-records-design.md`, plan `plans/2026-09-30-m4b-records.md`. |
 | **M6** — records and profiles | **Built 2026-09-30.** `20260930001100_public_records.sql`: `my_match_records` carries both teams (IVs stripped), tournament rosters public to signed-in users once closed. Client: `PlayerScreen` (`#/play/players/<id>`), Pokémon fold on Records rows, "View profile" on the tournament Players tab. Spec `specs/2026-09-30-records-and-profiles-design.md`. `npm run check` 1789/1789; `check:db` 286/291, the 5 reds are the environmental `social.test.ts` ones. Measured in the browser at 1440 and 375. Verified in production after the push: both migrations applied; anonymous `ratings`/`seasons` -> `PGRST205`, anonymous `my_match_records` -> `42501 permission denied`. A signed-in stranger reading rosters was later verified in the browser too. |
+| **Friends, challenges, versus** | **Built and pushed 2026-10-13.** One migration (`20261013010000_friend_record.sql`). See "Start here". |
 | **Profile showcase** | **Built and pushed 2026-10-13** (`72edcfa..fc62461`); all deployed and confirmed live. One migration (`20261013000000_profile_showcase.sql`), confirmed applied in production. Plan `plans/2026-10-13-profile-showcase.md`. See "Start here". |
 | M4c — grit | **Deferred by the user (2026-09-30): a nice-to-have for the end of major development, not a consideration now.** It was built and shipped, then removed the same day (`20260930000510_drop_grit.sql`). The design and working code are in commit `f96d750` (`feat(grit)`) if it is wanted back. |
 | **M5** — tournament channels | **Built 2026-09-30.** One migration (`20260930000600_tournament_channels.sql`); scope per the user is tournament channels only (communities, announcements, pins, post restrictions are out). `npm run check` 1768/1768; `check:db` 290/295, the 5 reds are the environmental `social.test.ts` ones. Spec `specs/2026-09-30-m5-tournament-channels-design.md`, plan `plans/2026-09-30-m5-tournament-channels.md`. Measured in the browser 2026-09-30 (see "Browser verification of M4/M5"). |
@@ -40,6 +41,17 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Seventh session, 2026-10-13 (pushed; `npm run check` 1921/1921; `check:db` 298/303, the 5 reds are the environmental `social.test.ts` ones; ONE new migration).** The user asked for friend profiles (favourites and records), fuller challenge sending/accepting, and a battle screen with avatars and usernames.
+
+- **Friend records** (`20261013010000_friend_record.sql`, DB test `supabase/tests/friend-record.test.ts` 4/4): `friend_record(p_user)` is SECURITY DEFINER and returns free-match totals only (wins, losses, unique opponents; confirmed matches; a loss is "not more rounds won", the same rule as `my_match_records.won`) to the player themself and accepted, unblocked friends. Anyone else, including past opponents, gets no row. The user chose this over keeping free matches fully private. Client: `friendRecord` in `lib/profile.ts`.
+- **Profiles** (`PlayerScreen`): a "Free matches" stat strip (yourself and friends); for a friend, their friend code, a "Challenge <name>" button (opens `ChallengeSheet`) and their live challenges with you as `ChallengeCard`s. "Friend" is inferred from `friend_record` returning a row for someone else (its contract). "← Records" became "← Back" (`history.back()`, Records when there is no history), since profiles now open from Friends and the Match screen too.
+- **Friends** (`FriendsScreen`): names open the profile (`View <name>'s profile`). A **Challenges** panel at the top lists every live challenge both ways (`myChallenges` + `isLiveChallenge`), "From/To <name>" over the existing `ChallengeCard` (accept, counter, decline, confirm, withdraw, auto-open the match). New challenges are found by a 15s poll; each card follows its own row by realtime. A failing challenges read no longer blanks the screen. The bell's challenge and confirm notices now go to Friends instead of the DM.
+- **Match screen**: a versus header (`Trainer` in `MatchScreen.tsx`): both trainers' Showdown sprites (initial as fallback) with "You"/"Opponent" and names; both names open the profile (both are buttons on purpose, so the two captions share one box model and the sprites stay level).
+- **Measured in the browser** (local stack, showcase-a signed in, seeded friendship/match/challenge, all deleted afterwards): versus sides 553px each and VS centred at 1440, sprites level (delta 0 after the box-model fix; it was 9px), no page overflow at 1440 or 375 on Match, profile and Friends; Decline from the panel showed "Declined", then the poll removed it.
+- **Not verified:** Accept end to end from the new panel (it is the existing `ChallengeAcceptSheet`); the migration in production until confirmed below; the new UI on paragon2 signed in.
+
+### Previous session (sixth)
 
 **Sixth session, 2026-10-13 (all pushed; `main` == `origin/main`, last commit `fc62461`; `npm run check` 1915/1915; ONE new migration, applied in production).** Nine commits, `72edcfa..fc62461`. Plan: `plans/2026-10-13-profile-showcase.md` (the original brief; the layout moved on from it, as below).
 

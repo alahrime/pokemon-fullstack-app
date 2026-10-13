@@ -5,7 +5,11 @@ import { useSession } from '../state/SessionContext';
 import { resolveDisplayNames } from '../lib/channels';
 import { listMyRecords, summarise, type RecordRow } from '../lib/records';
 import { listPlacements, listPlayerGames, type PlayerGame } from '../lib/tournaments';
-import { FAVORITES, getProfile, saveProfile, showcase, trainerUrl, type Bout, type Profile } from '../lib/profile';
+import { FAVORITES, friendRecord, getProfile, saveProfile, showcase, trainerUrl, type Bout, type FreeRecord, type Profile } from '../lib/profile';
+import { liveChallengesWith, type Challenge } from '../lib/challenges';
+import { opponentFriendCode } from '../lib/matchmaking';
+import { ChallengeCard } from '../components/ChallengeCard';
+import { ChallengeSheet } from '../components/ChallengeSheet';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import type { LeagueId } from '../lib/types';
 import { TeamGrid } from '../components/tournament/RosterCard';
@@ -144,11 +148,27 @@ export function PlayerScreen({ playerId, embedded = false }: {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [free, setFree] = useState<FreeRecord | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [challenging, setChallenging] = useState(false);
+  // friend_record answers only for yourself and accepted friends, so a record for someone else means a friend.
+  const friend = id !== me && free !== null;
 
   useEffect(() => {
     if (!me || !id) return;
     let live = true;
     setGames(null); setMine(null); setProfile(null); setPlaces(new Map()); setFailed(false);
+    setFree(null); setCode(null); setChallenges([]);
+    // Extras, not the profile: a failure here leaves the card without them rather than failing it.
+    void friendRecord(id).then(async (f) => {
+      if (!live) return;
+      setFree(f);
+      if (f && id !== me) {
+        const [c, l] = await Promise.all([opponentFriendCode(id).catch(() => null), liveChallengesWith(id).catch(() => [])]);
+        if (live) { setCode(c); setChallenges(l); }
+      }
+    }).catch(() => {});
     Promise.all([getProfile(id), listPlayerGames(id), id === me ? Promise.resolve([] as RecordRow[]) : listMyRecords()])
       .then(async ([p, g, r]) => {
         const finished = [...new Set(g.filter((x) => x.complete && x.teamSize === 6).map((x) => x.tournamentId))];
@@ -166,6 +186,9 @@ export function PlayerScreen({ playerId, embedded = false }: {
   const h2h = useMemo(() => summarise(mine ?? []), [mine]);
   const name = (uid: string) => names.get(uid) ?? 'Unknown player';
   const toRecords = () => patch({ screen: 'records', activePlayerId: null });
+  // The route lives in the hash, so Back returns to wherever the profile was opened from (Friends, a tournament, Records).
+  const back = () => (history.length > 1 ? history.back() : toRecords());
+  const refreshChallenges = () => { if (id) void liveChallengesWith(id).then(setChallenges).catch(() => {}); };
   const open = (uid: string) => patch({ screen: 'player', activePlayerId: uid });
   /** "+" and "✕" save straight away: a tile that looks added must be added. */
   const setFavorites = async (favoritePokemon: string[]) => {
@@ -190,7 +213,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
     return (
       <div className="records-screen">
         <p className="panel text-muted">No player selected.</p>
-        <div><button type="button" className="btn" onClick={toRecords}>← Records</button></div>
+        <div><button type="button" className="btn" onClick={back}>← Back</button></div>
       </div>
     );
   }
@@ -203,7 +226,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
 
   return (
     <div className="records-screen profile-screen">
-      {!embedded && <div><button type="button" className="btn" onClick={toRecords}>← Records</button></div>}
+      {!embedded && <div><button type="button" className="btn" onClick={back}>← Back</button></div>}
       {failed && <p className="friend-notice" role="alert">Couldn't load this profile.</p>}
 
       <section className="profile-card" style={leagueVars(fav)} aria-label="Trainer card">
@@ -225,6 +248,12 @@ export function PlayerScreen({ playerId, embedded = false }: {
               </dl>
             )}
             {profile && <p className="profile-since">Trainer since {new Date(profile.createdAt).getFullYear()}</p>}
+            {friend && (
+              <div className="profile-own">
+                <p className="text-muted">Friend code: <span className="friend-code">{code ?? 'not shared'}</span></p>
+                <button type="button" className="btn btn-primary" onClick={() => setChallenging(true)}>Challenge {shownName}</button>
+              </div>
+            )}
             {saveError && <p className="friend-notice" role="alert">{saveError}</p>}
             {id === me && (
               <div className="profile-own">
@@ -238,6 +267,22 @@ export function PlayerScreen({ playerId, embedded = false }: {
           onAdd={() => setAdding(true)}
           onRemove={(ref) => void setFavorites((profile?.favoritePokemon ?? []).filter((r) => r !== ref))} />
       </section>
+
+      {friend && challenges.length > 0 && (
+        <section className="profile-section" aria-label="Challenges">
+          <h3 className="hud-label">Live challenges with {shownName}</h3>
+          <ul className="match-list">{challenges.map((c) => <li key={c.id}><ChallengeCard offerId={c.id} /></li>)}</ul>
+        </section>
+      )}
+
+      {free && (
+        <dl className="profile-stats" aria-label="Free matches">
+          <div><dt>Free matches</dt><dd className="numeric">{free.wins + free.losses}</dd></div>
+          <div><dt>Wins</dt><dd className="numeric">{free.wins}<small>{pct(free.wins, free.wins + free.losses)}</small></dd></div>
+          <div><dt>Losses</dt><dd className="numeric">{free.losses}</dd></div>
+          <div><dt>Unique opponents</dt><dd className="numeric">{free.opponents}</dd></div>
+        </dl>
+      )}
 
       {games && (<>
         <dl className="profile-stats" aria-label="Show 6 arena">
@@ -334,6 +379,9 @@ export function PlayerScreen({ playerId, embedded = false }: {
         </section>
       )}
 
+      {challenging && id && (
+        <ChallengeSheet target={{ id, name: shownName }} onClose={() => { setChallenging(false); refreshChallenges(); }} />
+      )}
       {adding && profile && (
         <FavoritePicker taken={profile.favoritePokemon} onClose={() => setAdding(false)}
           onPick={(ref) => void setFavorites([...profile.favoritePokemon, ref].slice(0, FAVORITES))} />

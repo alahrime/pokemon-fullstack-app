@@ -24,12 +24,12 @@ describe('buildNotices', () => {
     expect(n).toHaveLength(1);
     expect(n[0]).toMatchObject({ id: 'ch:c1', kind: 'message', title: 'Ann', target: { screen: 'chat', channelId: 'c1' } });
   });
-  it('open challenge to me targets the proposer DM', () => {
+  it('open challenge to me targets the Friends challenges panel', () => {
     const n = run({ challenges: [chal({ id: 'a' })], channels: [ch({})] });
-    expect(n[0]).toMatchObject({ id: 'co:a', kind: 'challenge', target: { screen: 'chat', channelId: 'c1' } });
+    expect(n[0]).toMatchObject({ id: 'co:a', kind: 'challenge', target: { screen: 'friends' } });
   });
-  it('falls back to chat with no channel', () => {
-    expect(run({ challenges: [chal({ id: 'a' })] })[0].target).toEqual({ screen: 'chat' });
+  it('targets Friends with no channel too', () => {
+    expect(run({ challenges: [chal({ id: 'a' })] })[0].target).toEqual({ screen: 'friends' });
   });
   it('my own open challenge yields nothing', () => {
     expect(run({ challenges: [chal({ proposerId: 'me', targetId: 'ann' })] })).toEqual([]);

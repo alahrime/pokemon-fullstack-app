@@ -32,18 +32,11 @@ export function buildNotices(i: {
   const cc: Notice[] = [];
   for (const c of i.challenges) {
     if (!live(c, i.now)) continue;
+    // Both go to Friends, whose Challenges panel answers every live challenge in one place.
     if (c.state === 'open' && c.targetId === i.me) {
-      const dm = i.channels.find((x) => x.otherId === c.proposerId);
-      cc.push({
-        id: 'co:' + c.id, kind: 'challenge', title: name(c.proposerId), detail: 'Challenged you to a match',
-        target: dm ? { screen: 'chat', channelId: dm.id } : { screen: 'chat' },
-      });
+      cc.push({ id: 'co:' + c.id, kind: 'challenge', title: name(c.proposerId), detail: 'Challenged you to a match', target: { screen: 'friends' } });
     } else if (c.state === 'accepted' && c.proposerId === i.me) {
-      const dm = i.channels.find((x) => x.otherId === c.targetId);
-      cc.push({
-        id: 'cc:' + c.id, kind: 'confirm', title: name(c.targetId), detail: 'Accepted — confirm to lock it in',
-        target: dm ? { screen: 'chat', channelId: dm.id } : { screen: 'chat' },
-      });
+      cc.push({ id: 'cc:' + c.id, kind: 'confirm', title: name(c.targetId), detail: 'Accepted — confirm to lock it in', target: { screen: 'friends' } });
     }
   }
   const { me, now } = i;

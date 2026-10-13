@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ChallengeSheet } from '../components/ChallengeSheet';
+import { ChallengeCard } from '../components/ChallengeCard';
+import { isLiveChallenge, myChallenges, type Challenge } from '../lib/challenges';
+import { useAppState } from '../state/AppState';
 import { resolveDisplayNames, searchProfilesByName } from '../lib/channels';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { useSession } from '../state/SessionContext';
@@ -70,8 +73,13 @@ interface ProfileHit {
  * is what a row falls back to when that lookup comes up empty; it is never
  * the uuid itself, the defect this resolution exists to close.
  */
+/** New challenges are found by this poll; each card then follows its own row in real time. */
+const CHALLENGE_POLL_MS = 15_000;
+
 export function FriendsScreen() {
   const { user } = useSession();
+  const { patch } = useAppState();
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [blocked, setBlocked] = useState<string[] | null>(null);
   // Friend codes for accepted friends only — `opponentFriendCode` reads
@@ -93,14 +101,17 @@ export function FriendsScreen() {
   async function load() {
     setLoadError(null);
     try {
-      const [f, b] = await Promise.all([listFriends(), listBlocks()]);
+      // A failing challenges read must not blank the friends list; the poll below retries it.
+      const [f, b, c] = await Promise.all([listFriends(), listBlocks(), myChallenges().catch(() => [] as Challenge[])]);
+      const now = new Date();
       setFriends(f);
       setBlocked(b);
+      setChallenges(c.filter((x) => isLiveChallenge(x, now)));
       // One batched lookup for every id anywhere on this screen — incoming,
       // outgoing, accepted and blocked alike — rather than one per row. See
       // this file's own doc comment on why a uuid must never reach a row's
       // visible text or its accessible name.
-      setNames(await resolveDisplayNames([...f.map((x) => x.otherId), ...b]));
+      setNames(await resolveDisplayNames([...f.map((x) => x.otherId), ...b, ...c.flatMap((x) => [x.proposerId, x.targetId])]));
       const acceptedIds = f.filter((x) => x.status === 'accepted').map((x) => x.otherId);
       const pairs = await Promise.all(
         acceptedIds.map(async (id): Promise<[string, string | null]> => {
@@ -123,6 +134,20 @@ export function FriendsScreen() {
   useEffect(() => {
     if (!user) return;
     void load();
+    let live = true;
+    const id = setInterval(() => {
+      void myChallenges().then((c) => {
+        const now = new Date();
+        if (!live) return;
+        const next = c.filter((x) => isLiveChallenge(x, now));
+        // A challenge from someone not yet named (a stranger met in a match) needs the full reload's name lookup.
+        setChallenges((cur) => {
+          if (next.some((x) => !cur.some((y) => y.id === x.id))) void load();
+          return next;
+        });
+      }).catch(() => {});
+    }, CHALLENGE_POLL_MS);
+    return () => { live = false; clearInterval(id); };
   }, [user]);
 
   /** A resolved display name for `id`, or `UNKNOWN_TRAINER` — never `id`
@@ -134,6 +159,16 @@ export function FriendsScreen() {
   const incoming = (friends ?? []).filter((f) => f.status === 'pending' && f.theyAsked);
   const outgoing = (friends ?? []).filter((f) => f.status === 'pending' && !f.theyAsked);
   const accepted = (friends ?? []).filter((f) => f.status === 'accepted');
+
+  /** A friend's name as the way into their profile. */
+  function profileLink(id: string) {
+    return (
+      <button type="button" className="btn btn-ghost px-1 font-semibold [overflow-wrap:anywhere]" aria-label={`View ${nameFor(id)}'s profile`}
+        onClick={() => patch({ screen: 'player', activePlayerId: id })}>
+        {nameFor(id)}
+      </button>
+    );
+  }
 
   /** Runs one mutation against `f.otherId`/`id`, then reloads on success. */
   async function act(id: string, fn: () => Promise<unknown>) {
@@ -208,6 +243,23 @@ export function FriendsScreen() {
           {loadError}
         </p>
       )}
+
+      <section className="panel" aria-label="Challenges">
+        <div className="hud-label">Challenges</div>
+        {challenges.length === 0 && <p className="text-muted">No live challenges. Challenge a friend from the list below.</p>}
+        <ul className="match-list">
+          {challenges.map((c) => {
+            const incoming = c.targetId === user.id;
+            const other = incoming ? c.proposerId : c.targetId;
+            return (
+              <li key={c.id} className="flex flex-col gap-1" data-kind={incoming ? 'incoming' : 'outgoing'}>
+                <p className="[overflow-wrap:anywhere]">{incoming ? 'From ' : 'To '}{profileLink(other)}</p>
+                <ChallengeCard offerId={c.id} />
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <form className="panel" onSubmit={(e) => void runSearch(e)}>
         <div className="hud-label">Find a trainer</div>
@@ -305,7 +357,7 @@ export function FriendsScreen() {
         <ul className="match-list">
           {accepted.map((f) => (
             <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="accepted">
-              <span>{nameFor(f.otherId)}</span>
+              {profileLink(f.otherId)}
               {codes[f.otherId] && <span className="friend-code">{codes[f.otherId]}</span>}
               <button
                 type="button"
@@ -362,7 +414,7 @@ export function FriendsScreen() {
         </p>
       )}
 
-      {challengeTarget && <ChallengeSheet target={challengeTarget} onClose={() => setChallengeTarget(null)} />}
+      {challengeTarget && <ChallengeSheet target={challengeTarget} onClose={() => { setChallengeTarget(null); void load(); }} />}
     </div>
   );
 }

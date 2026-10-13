@@ -39,6 +39,15 @@ export async function getProfile(id: string): Promise<Profile | null> {
 /** A favourite is a species, not a build: a Shadow pick saved before that rule reads as its species, once. */
 export const speciesOnly = (refs: readonly string[]): string[] => [...new Set(refs.map((r) => parseRef(r).id))];
 
+export interface FreeRecord { wins: number; losses: number; opponents: number }
+
+/** Free-match totals (no matches, no opponents). Yourself and accepted friends only; anyone else is null. */
+export async function friendRecord(id: string): Promise<FreeRecord | null> {
+  const { data, error } = await supabase.rpc('friend_record', { p_user: id });
+  if (error) throw new Error(error.message);
+  return (data as FreeRecord[] | null)?.[0] ?? null;
+}
+
 const blank = (s: string | null) => (s?.trim() ? s.trim() : null);
 
 /** Owner only (RLS); zero rows updated means it was not theirs, which must not read as saved. */

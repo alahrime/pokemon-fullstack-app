@@ -4,7 +4,14 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const L = vi.hoisted(() => ({ listPlayerGames: vi.fn(), listPlacements: vi.fn() }));
-const P = vi.hoisted(() => ({ getProfile: vi.fn(), saveProfile: vi.fn(), loadTrainers: vi.fn() }));
+const P = vi.hoisted(() => ({ getProfile: vi.fn(), saveProfile: vi.fn(), loadTrainers: vi.fn(), friendRecord: vi.fn() }));
+const X = vi.hoisted(() => ({ liveChallengesWith: vi.fn(), opponentFriendCode: vi.fn() }));
+vi.mock('../../lib/challenges', async (orig) => ({ ...(await orig<typeof import('../../lib/challenges')>()), liveChallengesWith: X.liveChallengesWith }));
+vi.mock('../../lib/matchmaking', async (orig) => ({ ...(await orig<typeof import('../../lib/matchmaking')>()), opponentFriendCode: X.opponentFriendCode }));
+vi.mock('../../components/ChallengeCard', () => ({ ChallengeCard: ({ offerId }: { offerId: string }) => <div data-testid="challenge-card" data-offer={offerId} /> }));
+vi.mock('../../components/ChallengeSheet', () => ({
+  ChallengeSheet: ({ target }: { target: { id: string; name: string } }) => <div role="dialog" aria-label={`Challenge sheet for ${target.name}`} data-target-id={target.id} />,
+}));
 // The real search loads species lazily; the "+" test only needs a pick, and to see what the picker was asked for.
 const searchProps = vi.hoisted(() => [] as Record<string, unknown>[]);
 vi.mock('../../components/SpeciesSearch', () => ({
@@ -45,6 +52,9 @@ beforeEach(() => {
     trainerLevel: 44, xp: 110811553, favoritePokemon: ['politoed', 'lickilicky'], favoriteLeague: 'ultra', faction: 'Cascade', specialty: 'Ultra League Specialist',
   });
   P.saveProfile.mockResolvedValue(undefined);
+  P.friendRecord.mockResolvedValue(null);
+  X.liveChallengesWith.mockResolvedValue([]);
+  X.opponentFriendCode.mockResolvedValue(null);
   P.loadTrainers.mockResolvedValue(['misty', 'red']);
   R.listMyRecords.mockResolvedValue([
     { matchId: 'm1', playedAt: new Date().toISOString(), league: 'great', source: 'queue', ranked: true, opponentId: ID, opponentName: 'Misty',
@@ -175,5 +185,29 @@ describe('PlayerScreen', () => {
     const opp = (await screen.findAllByRole('button', { name: 'Brock' }))[0];
     fireEvent.click(opp);
     await waitFor(() => expect(window.location.hash).toBe(`#/play/players/${OPP}`));
+  });
+
+  it("shows a friend's free-match record, friend code, live challenges and a Challenge button", async () => {
+    P.friendRecord.mockResolvedValue({ wins: 7, losses: 3, opponents: 4 });
+    X.opponentFriendCode.mockResolvedValue('1234 5678 9012');
+    X.liveChallengesWith.mockResolvedValue([{ id: 'o1' }]);
+    show();
+    const strip = await screen.findByLabelText('Free matches');
+    expect(within(strip).getByText('10')).toBeTruthy();
+    expect(within(strip).getByText('70.0%')).toBeTruthy();
+    expect(within(strip).getByText('4')).toBeTruthy();
+    expect(await screen.findByText('1234 5678 9012')).toBeTruthy();
+    expect((await screen.findByTestId('challenge-card')).dataset.offer).toBe('o1');
+    fireEvent.click(screen.getByRole('button', { name: 'Challenge Misty' }));
+    expect(screen.getByRole('dialog', { name: 'Challenge sheet for Misty' }).dataset.targetId).toBe(ID);
+  });
+
+  it('shows no record, code or Challenge for someone who is not a friend', async () => {
+    show();
+    await screen.findByRole('heading', { level: 2 });
+    await waitFor(() => expect(P.friendRecord).toHaveBeenCalledWith(ID));
+    expect(screen.queryByLabelText('Free matches')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Challenge/ })).toBeNull();
+    expect(X.opponentFriendCode).not.toHaveBeenCalled();
   });
 });

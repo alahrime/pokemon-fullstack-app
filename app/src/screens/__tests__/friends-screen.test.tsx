@@ -9,6 +9,12 @@ vi.mock('../../components/ChallengeSheet', () => ({
   ),
 }));
 
+vi.mock('../../components/ChallengeCard', () => ({
+  ChallengeCard: ({ offerId }: { offerId: string }) => <div data-testid="challenge-card" data-offer={offerId} />,
+}));
+const CH = vi.hoisted(() => ({ myChallenges: vi.fn() }));
+vi.mock('../../lib/challenges', async (orig) => ({ ...(await orig<typeof import('../../lib/challenges')>()), ...CH }));
+
 const respondToFriendship = vi.fn();
 const requestFriendship = vi.fn();
 const removeFriendship = vi.fn();
@@ -130,6 +136,7 @@ beforeEach(() => {
   blockUser.mockReset().mockResolvedValue(true);
   unblockUser.mockReset().mockResolvedValue(undefined);
   opponentFriendCode.mockReset().mockResolvedValue(null);
+  CH.myChallenges.mockReset().mockResolvedValue([]);
   searchRows.length = 0;
   profileNames = {};
   missingProfileIds.clear();
@@ -274,5 +281,39 @@ describe('friends screen', () => {
     fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
     fireEvent.click(await screen.findByRole('button', { name: /send friend request/i }));
     expect(await screen.findByText('that person cannot be sent a friend request')).toBeInTheDocument();
+  });
+});
+
+describe('friends screen: profiles and challenges', () => {
+  const later = new Date(Date.now() + 3_600_000).toISOString();
+  const chal = (id: string, proposerId: string, targetId: string, state = 'open', expiresAt = later) => ({
+    id, proposerId, targetId, league: 'great', state, scheduledFor: null, expiresAt, verifiedHash: null, matchId: null, rosterSize: 3, formatName: 'GL',
+  });
+
+  it("opens a friend's profile from their name", async () => {
+    renderApp(<FriendsScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: "View mate's profile" }));
+    await waitFor(() => expect(window.location.hash).toBe('#/play/players/mate'));
+  });
+
+  it('lists live challenges both ways with a card each, and drops dead ones', async () => {
+    CH.myChallenges.mockResolvedValue([
+      chal('in1', 'mate', 'me'),
+      chal('out1', 'me', 'mate'),
+      chal('old', 'mate', 'me', 'open', new Date(Date.now() - 1000).toISOString()),
+      chal('done', 'mate', 'me', 'converted'),
+    ]);
+    renderApp(<FriendsScreen />);
+    const panel = await screen.findByRole('region', { name: 'Challenges' });
+    await waitFor(() => expect(panel.querySelectorAll('[data-testid="challenge-card"]')).toHaveLength(2));
+    expect(panel.querySelector('[data-kind="incoming"]')!.textContent).toContain('From mate');
+    expect(panel.querySelector('[data-kind="outgoing"]')!.textContent).toContain('To mate');
+  });
+
+  it('keeps the friends list when the challenges read fails', async () => {
+    CH.myChallenges.mockRejectedValue(new Error('boom'));
+    renderApp(<FriendsScreen />);
+    expect(await screen.findByRole('button', { name: /^remove mate$/i })).toBeTruthy();
+    expect(screen.getByText(/No live challenges/)).toBeTruthy();
   });
 });

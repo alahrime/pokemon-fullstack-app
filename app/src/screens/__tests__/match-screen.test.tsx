@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReactElement } from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { ThemeProvider } from '../../state/ThemeContext';
 import { SessionProvider } from '../../state/SessionContext';
@@ -24,6 +24,9 @@ vi.mock('../../lib/matches', async (importOriginal) => ({
   adjudicatedRounds: (...args: unknown[]) => adjudicatedRounds(...args),
 }));
 
+const getProfile = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/profile', async (orig) => ({ ...(await orig<typeof import('../../lib/profile')>()), getProfile }));
+
 // `@testing-library/user-event` is not a dependency of this project and no
 // other test here uses it (see interactions.test.tsx, screen-leaves.test.tsx)
 // — `fireEvent` is the house convention, so the brief's `userEvent.setup()`
@@ -31,6 +34,8 @@ vi.mock('../../lib/matches', async (importOriginal) => ({
 beforeEach(() => {
   submitReport.mockReset().mockResolvedValue('reported');
   adjudicatedRounds.mockReset().mockResolvedValue([]);
+  getProfile.mockReset().mockImplementation(async (id: string) =>
+    id === 'opp' ? { displayName: 'Brock', avatar: 'brock' } : null);
 });
 
 /**
@@ -176,5 +181,15 @@ describe('match screen', () => {
     expect(await screen.findByText(/confirmed\. both of you reported/i)).toBeInTheDocument();
     expect(await screen.findByText('Adjudicated result')).toBeInTheDocument();
     expect(screen.getByText(/round 1: they won/i)).toBeInTheDocument();
+  });
+
+  it("heads the screen with both trainers, the opponent's avatar and name opening their profile", async () => {
+    renderApp(<MatchScreen match={base} onChanged={() => {}} />);
+    const vs = await screen.findByRole('region', { name: 'Versus' });
+    const opp = await within(vs).findByRole('button', { name: 'Brock' });
+    expect(vs.querySelector('img')!.getAttribute('src')).toContain('/trainers/brock.png');
+    expect(within(vs).getByText('You')).toBeTruthy();
+    fireEvent.click(opp);
+    await waitFor(() => expect(window.location.hash).toBe('#/play/players/opp'));
   });
 });

@@ -4,7 +4,7 @@ import { placeIn, type Pairing, type PlayerGame } from '../tournaments';
 
 const g = (t: string, opp: string, won: boolean, over: Partial<PlayerGame> = {}): PlayerGame => ({
   tournamentId: t, title: t, round: 1, opponentId: opp, myRounds: won ? 2 : 0, oppRounds: won ? 0 : 2, won,
-  myRoster: null, oppRoster: null, league: 'great', formatName: 'F', teamSize: 6, complete: true, ...over,
+  myRoster: null, oppRoster: null, league: 'great', formatName: 'F', teamSize: 6, complete: true, playedAt: '2026-10-01T00:00:00Z', ...over,
 });
 
 describe('tierFor', () => {

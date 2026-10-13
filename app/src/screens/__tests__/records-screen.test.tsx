@@ -5,6 +5,10 @@ let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const R = vi.hoisted(() => ({ listMyRecords: vi.fn(), exportRecords: vi.fn() }));
 vi.mock('../../lib/records', async (orig) => ({ ...(await orig<typeof import('../../lib/records')>()), ...R }));
+const T = vi.hoisted(() => ({ listPlayerGames: vi.fn() }));
+vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../lib/tournaments')>()), ...T }));
+const C = vi.hoisted(() => ({ resolveDisplayNames: vi.fn() }));
+vi.mock('../../lib/channels', async (orig) => ({ ...(await orig<typeof import('../../lib/channels')>()), ...C }));
 
 import { RecordsScreen } from '../RecordsScreen';
 import { AppStateProvider } from '../../state/AppState';
@@ -19,6 +23,8 @@ const show = () => render(<AppStateProvider><RecordsScreen /></AppStateProvider>
 
 beforeEach(() => {
   user = { id: 'me' };
+  T.listPlayerGames.mockResolvedValue([]);
+  C.resolveDisplayNames.mockResolvedValue(new Map([['o3', 'Brock']]));
   R.listMyRecords.mockResolvedValue([row(), row({ won: false, myRounds: 0, oppRounds: 2, opponentId: 'o2', opponentName: 'Misty', ranked: false, source: 'offer', league: 'ubl' })]);
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
@@ -39,6 +45,19 @@ describe('RecordsScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ranked' }));
     expect(screen.queryByRole('button', { name: 'Misty' })).toBeNull();
     expect(screen.getByTestId('win-rate').textContent).toMatch(/^100%/);
+  });
+
+  it('includes tournament games, so a tournament-only player does not see an empty page', async () => {
+    R.listMyRecords.mockResolvedValue([]);
+    T.listPlayerGames.mockResolvedValue([{
+      tournamentId: 't1', title: 'Cup', round: 2, opponentId: 'o3', myRounds: 2, oppRounds: 1, won: true, myRoster: null, oppRoster: null,
+      league: 'ultra', formatName: 'Open', teamSize: 6, complete: true, playedAt: now,
+    }]);
+    show();
+    expect(await screen.findByRole('button', { name: 'Brock' })).toBeTruthy();
+    expect(T.listPlayerGames).toHaveBeenCalledWith('me');
+    expect(screen.queryByText('No confirmed matches here yet.')).toBeNull();
+    expect(screen.getByText(/^Ultra.* · ranked$/)).toBeTruthy();
   });
 
   it('says so when there is nothing to show, and exports what is shown', async () => {

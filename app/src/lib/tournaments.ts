@@ -253,6 +253,8 @@ export interface PlayerGame {
   tournamentId: string; title: string; round: number;
   /** The tournament's league, its format's name and roster size (6 for a Show 6), and whether it has finished. */
   league: LeagueId; formatName: string; teamSize: number; complete: boolean;
+  /** When the result stood: final, else reported, else the tournament's creation (a judge-settled game has neither). */
+  playedAt: string;
   opponentId: string; myRounds: number; oppRounds: number; won: boolean;
   myRoster: RosterMember[] | null; oppRoster: RosterMember[] | null;
 }
@@ -306,6 +308,7 @@ export async function listPlayerGames(playerId: string, now: Date = new Date()):
       tournamentId: p.tournamentId!, title: meta.get(p.tournamentId!)?.title ?? 'Tournament', round: p.round, ...g,
       league: meta.get(p.tournamentId!)?.league ?? 'great', formatName: meta.get(p.tournamentId!)?.format_versions?.formats?.name ?? 'Format',
       teamSize: meta.get(p.tournamentId!)?.format_versions?.rules.composition.size ?? 0, complete: meta.get(p.tournamentId!)?.state === 'complete',
+      playedAt: p.finalAt ?? p.reportedAt ?? meta.get(p.tournamentId!)?.created_at ?? '',
       myRoster: roster.get(`${p.tournamentId}:${playerId}`) ?? null, oppRoster: roster.get(`${p.tournamentId}:${g.opponentId}`) ?? null,
       at: meta.get(p.tournamentId!)?.created_at ?? '',
     }))

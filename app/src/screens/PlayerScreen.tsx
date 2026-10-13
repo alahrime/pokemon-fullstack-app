@@ -51,26 +51,14 @@ function Six({ refs, size }: { refs: readonly string[]; size: number }) {
 }
 
 /**
- * The favourite six as a broadcast roster: the trainer's sprite where a stream puts the player's camera, a name bar
- * with their level in the score box, then the six in two columns. Shadows sit on the purple camo a stream gives them.
- * The owner fills an empty tile with "+", the same build picker every team view opens.
+ * The favourite six as a broadcast roster's tiles, Shadows on the purple camo a stream gives them. The owner fills
+ * an empty tile with "+", the same build picker every team view opens.
  */
-function Roster({ profile, name, own, onAdd, onRemove }: {
-  profile: Profile | null; name: string; own: boolean; onAdd: () => void; onRemove: (ref: string) => void;
+function Roster({ profile, own, onAdd, onRemove }: {
+  profile: Profile | null; own: boolean; onAdd: () => void; onRemove: (ref: string) => void;
 }) {
   const favs = profile?.favoritePokemon ?? [];
   return (
-    <div className="profile-roster">
-      <div className="profile-cam">
-        {profile?.avatar
-          ? <img src={trainerUrl(profile.avatar)} alt={`${name}'s trainer`} width={96} height={96} />
-          : <span className="profile-cam-initial" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>}
-        {profile && <span className="profile-cam-tag">{profile.goUsername}</span>}
-        <div className="profile-cam-bar">
-          <span className="profile-cam-name">{name}</span>
-          <span className="profile-cam-score numeric" title="Trainer level">{profile?.trainerLevel ?? '—'}</span>
-        </div>
-      </div>
       <ol className="profile-roster-grid" aria-label="Favourite Pokémon">
         {Array.from({ length: FAVORITES }, (_, i) => {
           const ref = favs[i];
@@ -96,7 +84,6 @@ function Roster({ profile, name, own, onAdd, onRemove }: {
           );
         })}
       </ol>
-    </div>
   );
 }
 
@@ -182,28 +169,37 @@ export function PlayerScreen() {
       {failed && <p className="friend-notice" role="alert">Couldn't load this profile.</p>}
 
       <section className="profile-card" style={leagueVars(fav)} aria-label="Trainer card">
-        <Roster profile={profile} name={shownName} own={id === me && !!profile}
+        <div className="profile-side">
+          {/* The sprite as drawn: no frame, its own silhouette standing on a contact shadow. */}
+          <figure className="profile-trainer-fig">
+            {profile?.avatar
+              ? <img src={trainerUrl(profile.avatar)} alt={`${shownName}'s trainer`} width={80} height={80} />
+              : <span className="profile-trainer-initial" aria-hidden="true">{shownName.slice(0, 1).toUpperCase()}</span>}
+            {profile && <figcaption className="profile-trainer-tag">{profile.goUsername}</figcaption>}
+          </figure>
+          <div className="profile-ident">
+            <p className="profile-title">{sc.tier.name}{profile?.specialty ? ` · ${profile.specialty}` : ''}</p>
+            <h2 className="player-name profile-name">{shownName}</h2>
+            {profile?.region && <p className="profile-region">{profile.region}</p>}
+            {(profile?.trainerLevel != null || profile?.xp != null) && (
+              <dl className="profile-vitals">
+                {profile.trainerLevel != null && <div><dt>Level</dt><dd className="numeric">{profile.trainerLevel}</dd></div>}
+                {profile.xp != null && <div><dt>XP</dt><dd className="numeric">{profile.xp.toLocaleString('en-US')}</dd></div>}
+              </dl>
+            )}
+            {profile && <p className="profile-since">Trainer since {new Date(profile.createdAt).getFullYear()}</p>}
+            {saveError && <p className="friend-notice" role="alert">{saveError}</p>}
+            {id === me && (
+              <div className="profile-own">
+                <p className="text-muted">This is you. Your full match history is on Records.</p>
+                {profile && <button type="button" className="btn btn-primary" onClick={() => setEditing(true)}>Edit profile</button>}
+              </div>
+            )}
+          </div>
+        </div>
+        <Roster profile={profile} own={id === me && !!profile}
           onAdd={() => setAdding(true)}
           onRemove={(ref) => void setFavorites((profile?.favoritePokemon ?? []).filter((r) => r !== ref))} />
-        <div className="profile-ident">
-          <p className="profile-title">{sc.tier.name}{profile?.specialty ? ` · ${profile.specialty}` : ''}</p>
-          <h2 className="player-name profile-name">{shownName}</h2>
-          {profile?.region && <p className="profile-region">{profile.region}</p>}
-          {(profile?.trainerLevel != null || profile?.xp != null) && (
-            <dl className="profile-vitals">
-              {profile.trainerLevel != null && <div><dt>Level</dt><dd className="numeric">{profile.trainerLevel}</dd></div>}
-              {profile.xp != null && <div><dt>XP</dt><dd className="numeric">{profile.xp.toLocaleString('en-US')}</dd></div>}
-            </dl>
-          )}
-          {profile && <p className="profile-since">Trainer since {new Date(profile.createdAt).getFullYear()}</p>}
-          {saveError && <p className="friend-notice" role="alert">{saveError}</p>}
-          {id === me && (
-            <div className="profile-own">
-              <p className="text-muted">This is you. Your full match history is on Records.</p>
-              {profile && <button type="button" className="btn btn-primary" onClick={() => setEditing(true)}>Edit profile</button>}
-            </div>
-          )}
-        </div>
       </section>
 
       {games && (<>

@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { downloadCsv } from './exportData';
 import type { TeamMember } from '../tournament/roster';
+import type { PlayerGame } from './tournaments';
 
 export interface RecordRow {
   matchId: string; playedAt: string; league: string | null; source: string; ranked: boolean;
@@ -34,6 +35,23 @@ export async function listMyRecords(): Promise<RecordRow[]> {
   }
   return out;
 }
+
+/**
+ * Tournament games as record rows. They live in tournament_pairings, not matches, so `my_match_records` never sees
+ * them — and a player who only plays tournaments would otherwise find Records empty. Counted as ranked, like the
+ * profile's "ranked tournaments".
+ */
+export function tournamentRows(games: readonly PlayerGame[], names: ReadonlyMap<string, string>): RecordRow[] {
+  return games.map((g) => ({
+    matchId: `${g.tournamentId}:${g.round}`, playedAt: g.playedAt, league: g.league, source: 'tournament', ranked: true,
+    opponentId: g.opponentId, opponentName: names.get(g.opponentId) ?? 'Unknown player',
+    myRounds: g.myRounds, oppRounds: g.oppRounds, won: g.won, myTeam: g.myRoster ?? [], oppTeam: g.oppRoster ?? [],
+  }));
+}
+
+/** Matches and tournament games together, newest first. */
+export const mergeRecords = (a: readonly RecordRow[], b: readonly RecordRow[]): RecordRow[] =>
+  [...a, ...b].sort((x, y) => (x.playedAt < y.playedAt ? 1 : x.playedAt > y.playedAt ? -1 : 0));
 
 export function summarise(rows: readonly RecordRow[]): Summary {
   const wins = rows.filter((r) => r.won).length;

@@ -7105,7 +7105,7 @@ th.bt-matrix-head { text-align: center; }
   --pc-accent: var(--lg-accent, var(--color-accent));
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: var(--space-6);
   padding: var(--space-4);
   background:
@@ -7116,69 +7116,42 @@ th.bt-matrix-head { text-align: center; }
   clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
 }
 
-/* Broadcast roster: where a stream puts the player's camera, the trainer's sprite; a name bar with the level in the
-   score box; then the six as two columns of large tiles. Framed in the league tint the way a stream frames its side. */
-.profile-roster { display: grid; gap: var(--space-2); align-content: start; }
-.profile-cam {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse 55% 45% at 50% 72%, color-mix(in srgb, var(--pc) 50%, transparent), transparent 72%),
-    linear-gradient(180deg, color-mix(in srgb, var(--pc-deep) 55%, transparent), transparent 70%),
-    repeating-linear-gradient(0deg, var(--grid-line) 0 1px, transparent 1px 22px),
-    var(--surface-2);
-  border: var(--border-strong) solid color-mix(in srgb, var(--pc) 70%, var(--rule-strong));
-  clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+/* Left: the trainer as drawn, then who they are at the bottom left. Right: the six, broadcast-roster tiles. */
+.profile-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4); min-width: 0; }
+.profile-trainer-fig { position: relative; display: grid; justify-items: start; gap: var(--space-2); margin: 0; }
+/* 120px is 1.5x the 80px sprite: an integer 3x on a 2x display, so pixelated scaling keeps every pixel square.
+   No frame — the drop shadow follows the sprite's own silhouette, and an ellipse grounds its feet. */
+.profile-trainer-fig > img, .profile-trainer-initial {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--pc-deep) 70%, transparent));
 }
-.profile-cam > img { width: 62%; height: 74%; margin-bottom: 36px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 6px 10px color-mix(in srgb, var(--pc-deep) 80%, transparent)); }
-.profile-cam-initial { margin-bottom: 36px; font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: var(--size-display); color: var(--text-faint); }
-.profile-cam-tag {
+.profile-trainer-fig::after {
+  content: '';
   position: absolute;
-  left: var(--space-3);
-  bottom: 52px;
+  left: 20px;
+  top: 104px;
+  width: 80px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--pc) 55%, transparent), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+.profile-trainer-initial { display: grid; place-items: center; font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: var(--size-display); color: var(--text-faint); }
+.profile-trainer-tag {
   padding: 2px 8px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--surface-1) 85%, transparent);
-  border: var(--border-hairline) solid color-mix(in srgb, var(--pc) 60%, transparent);
+  color: var(--text-muted);
+  border-left: 2px solid var(--pc-accent);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
 }
-.profile-cam-bar {
-  position: absolute;
-  inset: auto 0 0 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  border-top: var(--border-hairline) solid color-mix(in srgb, var(--pc) 60%, transparent);
-}
-.profile-cam-name {
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-heading);
-  font-weight: var(--font-heading-weight);
-  font-size: var(--text-xl);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.profile-cam-score {
-  display: grid;
-  place-items: center;
-  min-width: 48px;
-  padding: 0 var(--space-3);
-  font-size: var(--text-xl);
-  font-weight: 800;
-  color: var(--medal-ink);
-  background: var(--pc-accent);
-}
-.profile-roster-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.profile-roster-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); align-content: start; }
 .profile-tile {
   position: relative;
   display: grid;
@@ -7245,8 +7218,8 @@ th.bt-matrix-head { text-align: center; }
 .profile-ident {
   display: grid;
   justify-items: start;
-  align-content: center;
-  gap: var(--space-2);
+  align-content: end;
+  gap: var(--space-1);
   min-width: 0;
 }
 .profile-title {
@@ -7260,7 +7233,7 @@ th.bt-matrix-head { text-align: center; }
 .profile-name {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
-  font-size: clamp(var(--size-h4), 5vw, var(--size-h1));
+  font-size: var(--size-h3);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   line-height: 1.05;
@@ -7438,8 +7411,8 @@ th.bt-matrix-head { text-align: center; }
 
 @media (max-width: 760px) {
   .profile-card { grid-template-columns: minmax(0, 1fr); }
-  .profile-ident { justify-items: center; text-align: center; }
-  .profile-own { justify-content: center; }
+  .profile-trainer-fig > img, .profile-trainer-initial { width: 80px; height: 80px; }
+  .profile-trainer-fig::after { left: 12px; top: 70px; width: 56px; }
 }
 @media (max-width: 640px) {
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

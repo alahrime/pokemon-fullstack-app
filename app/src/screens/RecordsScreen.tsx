@@ -4,7 +4,9 @@ import { useSession } from '../state/SessionContext';
 import { LEAGUE_BY_ID } from '../lib/data';
 import type { LeagueId } from '../lib/types';
 import { TeamGrid } from '../components/tournament/RosterCard';
-import { byDay, exportRecords, listMyRecords, monthGrid, summarise, wilson, type RecordRow } from '../lib/records';
+import { byDay, exportRecords, listMyRecords, mergeRecords, monthGrid, summarise, tournamentRows, wilson, type RecordRow } from '../lib/records';
+import { listPlayerGames } from '../lib/tournaments';
+import { resolveDisplayNames } from '../lib/channels';
 
 const SHOWN = 50;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -23,7 +25,12 @@ export function RecordsScreen() {
   useEffect(() => {
     if (!uid) return;
     let live = true;
-    listMyRecords().then((r) => live && setRows(r)).catch(() => live && setFailed(true));
+    Promise.all([listMyRecords(), listPlayerGames(uid)])
+      .then(async ([m, g]) => {
+        const names = await resolveDisplayNames(g.map((x) => x.opponentId));
+        if (live) setRows(mergeRecords(m, tournamentRows(g, names)));
+      })
+      .catch(() => live && setFailed(true));
     return () => { live = false; };
   }, [uid]);
 

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+const confirmApi = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../ConfirmDialog', () => confirmApi);
 import { Standings } from '../Standings';
 import { PlayersTab } from '../PlayersTab';
 import { movesFor, SPECIES_BY_ID } from '../../../lib/data';
@@ -61,18 +63,18 @@ describe('PlayersTab', () => {
     expect(screen.getAllByText('Azumarill')).toHaveLength(12);
     expect(screen.getAllByText('Registeel')).toHaveLength(6);
   });
-  it('Remove is host only, hidden for the organiser, confirmed, and calls onRemove', () => {
+  it('Remove is host only, hidden for the organiser, confirmed, and calls onRemove', async () => {
     const onRemove = vi.fn();
     const { unmount } = show({ onRemove });
     expect(screen.queryByRole('button', { name: 'Remove player' })).toBeNull();
     unmount();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = confirmApi.confirmDialog.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     show({ isHost: true, me: 'org', onRemove });
     const btns = screen.getAllByRole('button', { name: 'Remove player' });
     expect(btns).toHaveLength(2); // me and r — not the organiser, not the dropped
-    fireEvent.click(btns[0]);
+    await act(async () => { fireEvent.click(btns[0]); });
     expect(onRemove).not.toHaveBeenCalled();
-    fireEvent.click(btns[0]);
+    await act(async () => { fireEvent.click(btns[0]); });
     expect(confirm).toHaveBeenCalledTimes(2);
     expect(onRemove).toHaveBeenCalledWith('me');
   });
@@ -83,11 +85,12 @@ describe('PlayersTab', () => {
   it('the confirm names the consequence and a slow removal blocks a second click', async () => {
     let done!: () => void;
     const onRemove = vi.fn(() => new Promise<void>((r) => { done = r; }));
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = confirmApi.confirmDialog.mockResolvedValue(true);
+    const asked = () => (confirm.mock.lastCall![0] as { body: string }).body;
     show({ isHost: true, me: 'org', onRemove });
     const btns = screen.getAllByRole('button', { name: 'Remove player' });
-    fireEvent.click(btns[0]);
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining('Any unfinished game this round is forfeited.'));
+    await act(async () => { fireEvent.click(btns[0]); });
+    expect(asked()).toContain('Any unfinished game this round is forfeited.');
     expect(btns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
     fireEvent.click(btns[1]);
     expect(onRemove).toHaveBeenCalledTimes(1);
@@ -95,8 +98,8 @@ describe('PlayersTab', () => {
     expect(btns.every((b) => !(b as HTMLButtonElement).disabled)).toBe(true);
     cleanup();
     show({ isHost: true, me: 'org', onRemove, state: 'closed' });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove player' })[0]);
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining('They will be removed from the tournament.'));
+    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Remove player' })[0]); });
+    expect(asked()).toContain('They will be removed from the tournament.');
   });
   it('strikes a dropped player and says so', () => {
     show();

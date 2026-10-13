@@ -4143,6 +4143,12 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   flex: none;
 }
 
+/* "Are you sure?" — the same panel, sized to a question rather than a picker (no 500px floor), and above every other
+   overlay, since it can be asked from inside a sheet or the build picker. */
+.confirm-scrim { z-index: 130; }
+.confirm-panel { width: min(440px, 100%); min-height: 0; }
+.confirm-body { margin: 0; padding: var(--space-4); font-size: var(--text-md); line-height: 1.5; color: var(--color-text); }
+
 .btn.is-primary:disabled { opacity: 0.4; }
 
 /* The empty slot is a button now, not a decorative glyph.

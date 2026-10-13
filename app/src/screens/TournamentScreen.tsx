@@ -15,6 +15,7 @@ import { RosterForm } from '../components/tournament/RosterForm';
 import { RoundClock } from '../components/tournament/RoundClock';
 import { MatchupPanel } from '../components/tournament/MatchupPanel';
 import { HostPanel } from '../components/tournament/HostPanel';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const TABS = [['bracket', 'Bracket'], ['standings', 'Standings'], ['players', 'Players']] as const;
@@ -119,7 +120,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const now = new Date();
 
   async function withdraw() {
-    if (!window.confirm('Withdraw from this tournament?')) return;
+    if (!(await confirmDialog({ title: 'Withdraw', body: `Withdraw from ${t!.title}? Your registered team is removed with you.`, confirmLabel: 'Withdraw' }))) return;
     setNotice(null);
     try {
       await withdrawFromTournament(id);

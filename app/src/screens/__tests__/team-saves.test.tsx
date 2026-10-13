@@ -22,6 +22,9 @@ const savesApi = vi.hoisted(() => ({
   deleteTeam: vi.fn(),
 }));
 vi.mock('../../lib/saves', () => savesApi);
+// The in-app "are you sure?" is its own unit (confirm-dialog.test.tsx); here only the answer and the question matter.
+const confirmApi = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../components/ConfirmDialog', () => confirmApi);
 // These tests are about saving a roster. Modules reset for every test here, so the live matchup matrix would pay its
 // cold-start simulation each time, for nothing this file asserts.
 vi.mock('../../components/MatchupMatrix', () => ({ MatchupMatrix: () => null }));
@@ -427,18 +430,18 @@ describe('signed in', () => {
     });
     const deleteBtn = [...row.querySelectorAll('button')].find((b) => /Delete/i.test(b.textContent ?? ''))!;
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(false);
     fireEvent.click(deleteBtn);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(savesApi.deleteTeam).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
+    confirmSpy.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(deleteBtn);
     });
     await waitFor(() => expect(savesApi.deleteTeam).toHaveBeenCalledWith('t3'));
 
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 });
 
@@ -468,7 +471,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'GL Squad');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -478,7 +481,7 @@ describe('saving over an existing roster', () => {
     const arg = savesApi.saveTeam.mock.calls[0][0] as { id?: string; name: string; members: { ref: string }[] };
     expect(arg.id).toBe('t1');
     expect(arg.members.map((m) => m.ref)).toEqual(['azumarill', 'registeel', 'skarmory']);
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   /**
@@ -498,7 +501,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'GL Squad');
 
-    const confirmSpy = vi.spyOn(window, 'confirm');
+    const confirmSpy = confirmApi.confirmDialog;
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -508,7 +511,7 @@ describe('saving over an existing roster', () => {
     // No id: this is an insert, not the update path that would delete the
     // six's slots 4-6.
     expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBeUndefined();
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   it('writes nothing at all when the replacement is declined', async () => {
@@ -516,7 +519,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'GL Squad');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(false);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -526,7 +529,7 @@ describe('saving over an existing roster', () => {
     // written, and the typed name stays put so it can be edited into a new one.
     expect(savesApi.saveTeam).not.toHaveBeenCalled();
     expect(nameInput(container).value).toBe('GL Squad');
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   it('treats a name differing only in case or surrounding space as the same roster', async () => {
@@ -534,7 +537,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, '  gl squad  ');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -544,7 +547,7 @@ describe('saving over an existing roster', () => {
     expect(arg.id).toBe('t1');
     // The typed spelling wins — they retyped it, so the row takes the new one.
     expect(arg.name).toBe('gl squad');
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   it('inserts without asking when the name is free', async () => {
@@ -552,7 +555,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'A Different Name');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -562,7 +565,7 @@ describe('saving over an existing roster', () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
     expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBeUndefined();
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   it('names both leagues when the roster being replaced was built for a different one', async () => {
@@ -570,7 +573,7 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'UL Squad');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
@@ -578,10 +581,10 @@ describe('saving over an existing roster', () => {
     // saveTeam's update path rewrites `league`, so this replacement changes
     // which cap the roster is judged under. Saying so is the difference
     // between a replacement and a surprise.
-    const asked = confirmSpy.mock.calls[0][0] as string;
+    const asked = (confirmSpy.mock.calls[0][0] as { body: string }).body;
     expect(asked).toContain('Ultra 2500');
     expect(asked).toContain('Great 1500');
-    confirmSpy.mockRestore();
+    confirmSpy.mockReset();
   });
 
   it('replaces the most recently updated row when older duplicates share the name', async () => {
@@ -594,14 +597,14 @@ describe('saving over an existing roster', () => {
     const { container } = await mount(3, session());
     await rosterNamed(container, 'GL Squad');
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(saveButton(container)!);
     });
 
     await waitFor(() => expect(savesApi.saveTeam).toHaveBeenCalledTimes(1));
     expect((savesApi.saveTeam.mock.calls[0][0] as { id?: string }).id).toBe('newest');
-    expect(confirmSpy.mock.calls[0][0] as string).toMatch(/2 saved rosters/i);
-    confirmSpy.mockRestore();
+    expect((confirmSpy.mock.calls[0][0] as { body: string }).body).toMatch(/2 saved rosters/i);
+    confirmSpy.mockReset();
   });
 });

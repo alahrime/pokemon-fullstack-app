@@ -18,6 +18,7 @@ import { useSession } from '../state/SessionContext';
 import { deleteTeam, listTeams, saveTeam, type SavedTeam } from '../lib/saves';
 import { decodeMember, encodeMember } from '../lib/teamCodec';
 import type { LeagueId } from '../lib/types';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 /**
  * Both team builders, which differ only in size and in how a team is scored.
@@ -413,7 +414,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     // Declining writes nothing at all. Falling back to an insert here would
     // answer "don't replace it" with a duplicate, which is what this whole
     // affordance exists to stop.
-    if (target && !window.confirm(replacePrompt(target, clashes.length, league))) return;
+    if (target && !(await confirmDialog({ title: 'Replace saved team', body: replacePrompt(target, clashes.length, league), confirmLabel: 'Replace team' }))) return;
     setSaving(true);
     setSavesError(null);
     try {
@@ -470,7 +471,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   };
 
   const deleteSaved = async (t: SavedTeam) => {
-    if (!window.confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete team', body: `Delete "${t.name}"? This cannot be undone.`, confirmLabel: 'Delete team' }))) return;
     try {
       await deleteTeam(t.id);
       setSavedTeams(await listTeams(size));

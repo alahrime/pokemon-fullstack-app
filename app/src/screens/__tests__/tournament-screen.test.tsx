@@ -20,6 +20,8 @@ vi.mock('../../components/tournament/MatchupPanel', () => ({
 const C = vi.hoisted(() => ({ tournamentChannelId: vi.fn(), latestAnnouncement: vi.fn(), requestChannel: vi.fn() }));
 vi.mock('../../lib/channels', () => ({ tournamentChannelId: C.tournamentChannelId, latestAnnouncement: C.latestAnnouncement }));
 vi.mock('../../state/ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: C.requestChannel }) }));
+const confirmApi = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../components/ConfirmDialog', () => confirmApi);
 
 import { TournamentScreen } from '../TournamentScreen';
 import { AppStateProvider, useAppState } from '../../state/AppState';
@@ -278,7 +280,7 @@ describe('the primary action', () => {
     expect(screen.getByLabelText('Host controls')).toBeTruthy();
   });
   it('Remove player in the Players tab calls removePlayer and refreshes', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    confirmApi.confirmDialog.mockResolvedValue(true);
     const v = view({ tournament: tour({ organiserId: 'me', state: 'closed' }), state: 'closed', rosters: new Map([['me', roster('azumarill')], ['rival', roster('registeel')]]), entrants: [entrant('me'), entrant('rival')] });
     V.view.mockReturnValue(v);
     mount();
@@ -332,7 +334,7 @@ describe('registration', () => {
   it('Withdraw asks first, then withdraws and refreshes', async () => {
     const refresh = vi.fn();
     V.view.mockReturnValue(view({ entrants: [entrant('me')], refresh }));
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = confirmApi.confirmDialog.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     mount();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Withdraw' })); });
     expect(T.withdrawFromTournament).not.toHaveBeenCalled();
@@ -344,7 +346,7 @@ describe('registration', () => {
   it('shows a withdraw refusal', async () => {
     T.withdrawFromTournament.mockRejectedValue(new Error('registration is closed'));
     V.view.mockReturnValue(view({ entrants: [entrant('me')] }));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    confirmApi.confirmDialog.mockResolvedValue(true);
     mount();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Withdraw' })); });
     expect(screen.getByRole('alert').textContent).toContain('registration is closed');

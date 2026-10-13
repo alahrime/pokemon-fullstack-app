@@ -5,6 +5,7 @@ import { decodeMember, encodeMember, type StoredMember } from '../lib/teamCodec'
 import type { LeagueId } from '../lib/types';
 import { AddPokemonModal, movesForChoice } from './AddPokemonModal';
 import { Sprite } from './Sprite';
+import { confirmDialog } from './ConfirmDialog';
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -123,7 +124,8 @@ export function ChallengeTeam({ league, size, slots, onChange, restrictTo }: {
       </ol>
 
       <div className="ct-save">
-        <button type="button" className="btn btn-ghost btn-sm" disabled={!slots.some(Boolean)} onClick={() => { onChange(emptySlots(size)); setLoaded(''); }}>Clear all</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={!slots.some(Boolean)} onClick={() => void confirmDialog({ title: 'Clear team', body: `Clear all ${slots.filter(Boolean).length} Pokémon from this team? Saved teams are not affected.`, confirmLabel: 'Clear team' })
+          .then((ok) => { if (ok) { onChange(emptySlots(size)); setLoaded(''); } })}>Clear all</button>
         {savable && (
           <>
             <input className="input ct-name" aria-label="Team name" placeholder="Name this team to save it" value={name} onChange={(e) => setName(e.target.value)} />

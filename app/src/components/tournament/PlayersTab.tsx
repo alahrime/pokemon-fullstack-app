@@ -3,6 +3,7 @@ import { ROSTERS_VISIBLE, toGames, type Entrant, type Pairing, type TournamentSt
 import type { RosterMember } from '../../tournament/roster';
 import { PlayerRoster } from './RosterCard';
 import { playerName } from './playerName';
+import { confirmDialog } from '../ConfirmDialog';
 
 interface Props {
   entrants: readonly Entrant[]; rosters: ReadonlyMap<string, readonly RosterMember[]>;
@@ -16,8 +17,15 @@ export function PlayersTab({ entrants, rosters, names, state, isHost, me, organi
   const removingRef = useRef(false);
   const remove = async (id: string) => {
     const running = state === 'running';
-    if (removingRef.current || !window.confirm(`Remove ${playerName(names, id)} from this tournament? ${running ? 'Any unfinished game this round is forfeited.' : 'They will be removed from the tournament.'}`)) return;
+    if (removingRef.current) return;
+    // Held across the question too, so a second click cannot stack a second dialog.
     removingRef.current = true;
+    const ok = await confirmDialog({
+      title: 'Remove player',
+      body: `Remove ${playerName(names, id)} and their team from this tournament? ${running ? 'Any unfinished game this round is forfeited.' : 'They will be removed from the tournament.'}`,
+      confirmLabel: 'Remove player',
+    });
+    if (!ok) { removingRef.current = false; return; }
     setRemoving(true);
     try { await onRemove?.(id); } finally { removingRef.current = false; setRemoving(false); }
   };

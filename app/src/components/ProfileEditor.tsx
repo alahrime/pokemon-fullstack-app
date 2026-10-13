@@ -71,7 +71,7 @@ export function ProfileEditor({ id, profile, onSaved, onClose }: {
 
         <div className="modal-body">
           <section className="profile-editor-avatar" aria-label="Avatar">
-            <div className="profile-avatar profile-avatar-sm">
+            <div className="profile-avatar-sm">
               {draft.avatar ? <img src={trainerUrl(draft.avatar)} alt="" width={80} height={80} /> : <span aria-hidden="true">?</span>}
             </div>
             <div className="profile-editor-avatar-ctl">

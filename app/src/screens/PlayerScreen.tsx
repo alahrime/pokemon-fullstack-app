@@ -4,13 +4,15 @@ import { useSession } from '../state/SessionContext';
 import { resolveDisplayNames } from '../lib/channels';
 import { listMyRecords, summarise, type RecordRow } from '../lib/records';
 import { listPlacements, listPlayerGames, type PlayerGame } from '../lib/tournaments';
-import { getProfile, showcase, trainerUrl, type Bout, type Profile } from '../lib/profile';
-import { displayName, parseRef } from '../lib/data';
+import { FAVORITES, getProfile, saveProfile, showcase, trainerUrl, type Bout, type Profile } from '../lib/profile';
+import { displayName, parseRef, speciesOf } from '../lib/data';
 import type { LeagueId } from '../lib/types';
 import { TeamGrid } from '../components/tournament/RosterCard';
 import { MonTile } from '../components/MonTile';
 import { LeagueEmblem } from '../components/LeagueEmblem';
 import { ProfileEditor } from '../components/ProfileEditor';
+import { AddPokemonModal } from '../components/AddPokemonModal';
+import { Sprite } from '../components/Sprite';
 import type { TeamMember } from '../tournament/roster';
 
 const LEAGUE_NAME: Record<LeagueId, string> = { great: 'Great League', ultra: 'Ultra League', master: 'Master League' };
@@ -49,6 +51,56 @@ function Six({ refs, size }: { refs: readonly string[]; size: number }) {
 }
 
 /**
+ * The favourite six as a broadcast roster: the trainer's sprite where a stream puts the player's camera, a name bar
+ * with their level in the score box, then the six in two columns. Shadows sit on the purple camo a stream gives them.
+ * The owner fills an empty tile with "+", the same build picker every team view opens.
+ */
+function Roster({ profile, name, own, onAdd, onRemove }: {
+  profile: Profile | null; name: string; own: boolean; onAdd: () => void; onRemove: (ref: string) => void;
+}) {
+  const favs = profile?.favoritePokemon ?? [];
+  return (
+    <div className="profile-roster">
+      <div className="profile-cam">
+        {profile?.avatar
+          ? <img src={trainerUrl(profile.avatar)} alt={`${name}'s trainer`} width={96} height={96} />
+          : <span className="profile-cam-initial" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>}
+        {profile && <span className="profile-cam-tag">{profile.goUsername}</span>}
+        <div className="profile-cam-bar">
+          <span className="profile-cam-name">{name}</span>
+          <span className="profile-cam-score numeric" title="Trainer level">{profile?.trainerLevel ?? '—'}</span>
+        </div>
+      </div>
+      <ol className="profile-roster-grid" aria-label="Favourite Pokémon">
+        {Array.from({ length: FAVORITES }, (_, i) => {
+          const ref = favs[i];
+          const s = ref ? speciesOf(ref) : undefined;
+          if (!ref) {
+            return (
+              <li key={`empty-${i}`} className="profile-tile is-empty">
+                {own && i === favs.length
+                  ? <button type="button" className="team-slot is-empty profile-tile-add" onClick={onAdd} aria-label="Add a favourite Pokémon">
+                      <span className="team-slot-mark" aria-hidden="true">+</span><span className="team-slot-hint">Add</span>
+                    </button>
+                  : <span className="profile-tile-blank" aria-hidden="true" />}
+              </li>
+            );
+          }
+          const shadow = parseRef(ref).shadow;
+          return (
+            <li key={ref} className={`profile-tile${shadow ? ' is-shadow' : ''}`}>
+              {s && <Sprite sprite={s.sprite} dex={s.dex} size={92} />}
+              <span className="profile-tile-name">{displayName(ref)}</span>
+              {own && <button type="button" className="profile-tile-remove" aria-label={`Remove ${displayName(ref)}`} onClick={() => onRemove(ref)}>✕</button>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/**
  * A player's profile: their trainer card (self-declared, editable by them) and a Show 6 arena breakdown computed
  * from public tournament games — only formats whose roster is six count. For anyone but yourself, also your own
  * matches against them (free matches stay private to the two players, so this is the only place they show).
@@ -65,6 +117,8 @@ export function PlayerScreen() {
   const [mine, setMine] = useState<RecordRow[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (!me || !id) return;
@@ -88,6 +142,14 @@ export function PlayerScreen() {
   const name = (uid: string) => names.get(uid) ?? 'Unknown player';
   const toRecords = () => patch({ screen: 'records', activePlayerId: null });
   const open = (uid: string) => patch({ screen: 'player', activePlayerId: uid });
+  /** "+" and "✕" save straight away: a tile that looks added must be added. */
+  const setFavorites = async (favoritePokemon: string[]) => {
+    if (!profile || !me) return;
+    const next = { ...profile, favoritePokemon };
+    setSaveError('');
+    try { await saveProfile(me, next); setProfile(next); }
+    catch (e) { setSaveError(e instanceof Error ? e.message : String(e)); }
+  };
 
   if (!user) {
     return (
@@ -120,15 +182,9 @@ export function PlayerScreen() {
       {failed && <p className="friend-notice" role="alert">Couldn't load this profile.</p>}
 
       <section className="profile-card" style={leagueVars(fav)} aria-label="Trainer card">
-        <div className="profile-banner">
-          {profile && <span className="profile-handle">{profile.goUsername}</span>}
-          {profile && <span className="profile-since">Since {new Date(profile.createdAt).getFullYear()}</span>}
-          <div className="profile-avatar">
-            {profile?.avatar
-              ? <img src={trainerUrl(profile.avatar)} alt={`${shownName}'s trainer`} width={96} height={96} />
-              : <span aria-hidden="true">{shownName.slice(0, 1).toUpperCase()}</span>}
-          </div>
-        </div>
+        <Roster profile={profile} name={shownName} own={id === me && !!profile}
+          onAdd={() => setAdding(true)}
+          onRemove={(ref) => void setFavorites((profile?.favoritePokemon ?? []).filter((r) => r !== ref))} />
         <div className="profile-ident">
           <p className="profile-title">{sc.tier.name}{profile?.specialty ? ` · ${profile.specialty}` : ''}</p>
           <h2 className="player-name profile-name">{shownName}</h2>
@@ -139,6 +195,8 @@ export function PlayerScreen() {
               {profile.xp != null && <div><dt>XP</dt><dd className="numeric">{profile.xp.toLocaleString('en-US')}</dd></div>}
             </dl>
           )}
+          {profile && <p className="profile-since">Trainer since {new Date(profile.createdAt).getFullYear()}</p>}
+          {saveError && <p className="friend-notice" role="alert">{saveError}</p>}
           {id === me && (
             <div className="profile-own">
               <p className="text-muted">This is you. Your full match history is on Records.</p>
@@ -146,12 +204,6 @@ export function PlayerScreen() {
             </div>
           )}
         </div>
-        {profile && profile.favoritePokemon.length > 0 && (
-          <div className="profile-favorites">
-            <h3 className="hud-label">Favourite Pokémon</h3>
-            <Six refs={profile.favoritePokemon} size={64} />
-          </div>
-        )}
       </section>
 
       {games && (<>
@@ -249,6 +301,10 @@ export function PlayerScreen() {
         </section>
       )}
 
+      {adding && profile && (
+        <AddPokemonModal league={fav ?? 'great'} commitLabel="Add to favourites" onClose={() => setAdding(false)}
+          onCommit={(c) => { if (!profile.favoritePokemon.includes(c.ref)) void setFavorites([...profile.favoritePokemon, c.ref].slice(0, FAVORITES)); }} />
+      )}
       {editing && profile && me && (
         <ProfileEditor id={me} profile={profile} onClose={() => setEditing(false)}
           onSaved={(e) => setProfile({ ...profile, ...e })} />

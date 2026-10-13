@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const L = vi.hoisted(() => ({ listPlayerGames: vi.fn(), listPlacements: vi.fn() }));
 const P = vi.hoisted(() => ({ getProfile: vi.fn(), saveProfile: vi.fn(), loadTrainers: vi.fn() }));
+// The real build picker needs the lazily loaded movepool; a "+" test only needs a commit.
+vi.mock('../../components/AddPokemonModal', () => ({
+  AddPokemonModal: ({ onCommit, onClose }: { onCommit: (c: { ref: string }) => void; onClose: () => void }) => (
+    <div role="dialog" aria-label="Add a Pokémon to the team"><button onClick={() => { onCommit({ ref: 'azumarill' }); onClose(); }}>Pick Azumarill</button></div>
+  ),
+}));
 vi.mock('../../lib/profile', async (orig) => ({ ...(await orig<typeof import('../../lib/profile')>()), ...P }));
 vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../lib/tournaments')>()), ...L }));
 const R = vi.hoisted(() => ({ listMyRecords: vi.fn() }));
@@ -91,13 +97,35 @@ describe('PlayerScreen', () => {
     fireEvent.change(screen.getByPlaceholderText('1–80'), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Choose a trainer' }));
     fireEvent.click(await screen.findByRole('option', { name: 'red' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Politoed' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove Politoed' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
     await waitFor(() => expect(P.saveProfile).toHaveBeenCalled());
     expect(P.saveProfile.mock.calls[0][0]).toBe(ID);
     expect(P.saveProfile.mock.calls[0][1]).toMatchObject({ region: 'Pallet Town', trainerLevel: 50, avatar: 'red', favoritePokemon: ['lickilicky'] });
     await waitFor(() => expect(dialog.isConnected).toBe(false));
     expect(screen.getByText('Pallet Town')).toBeTruthy();
+  });
+
+  it('adds a favourite from an empty tile with "+", and removes one with ✕, saving each at once', async () => {
+    user = { id: ID };
+    show();
+    expect(await screen.findAllByRole('button', { name: 'Add a favourite Pokémon' })).toHaveLength(1); // only the next free tile
+    fireEvent.click(screen.getByRole('button', { name: 'Add a favourite Pokémon' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Azumarill' }));
+    await waitFor(() => expect(P.saveProfile).toHaveBeenCalledTimes(1));
+    expect(P.saveProfile.mock.calls[0][1].favoritePokemon).toEqual(['politoed', 'lickilicky', 'azumarill']);
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Politoed' }));
+    await waitFor(() => expect(P.saveProfile).toHaveBeenCalledTimes(2));
+    expect(P.saveProfile.mock.calls[1][1].favoritePokemon).toEqual(['lickilicky', 'azumarill']);
+  });
+
+  it('says so when a favourite could not be saved, and keeps the tile as it was', async () => {
+    user = { id: ID };
+    P.saveProfile.mockRejectedValueOnce(new Error('network down'));
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Politoed' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('network down');
+    expect(screen.getByText('Politoed')).toBeTruthy();
   });
 
   it('refuses a trainer level out of range without saving', async () => {
@@ -114,6 +142,8 @@ describe('PlayerScreen', () => {
     show();
     await screen.findByText('Cerulean City');
     expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add a favourite Pokémon' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull();
   });
 
   it("lists only your own matches against this player, with both teams", async () => {

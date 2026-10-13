@@ -3,6 +3,8 @@ import { displayName, parseRef, speciesOf } from '../lib/data';
 import { trainerUrl, type Profile } from '../lib/profile';
 import type { PublicMember } from '../lib/teamCodec';
 import { Sprite } from './Sprite';
+import { LeagueEmblem } from './LeagueEmblem';
+import type { LeagueId } from '../lib/types';
 import { TypeIcon } from './TypeBadge';
 
 const NARROW = "[font-family:'Archivo_Narrow',var(--font-heading)] font-bold uppercase tracking-wide";
@@ -82,18 +84,24 @@ function Side({ title, label, profile, team, code, mirror, onOpen }: {
  * Both sides of a match, facing each other: each trainer's banner over their team, the opponent's mirrored. Species
  * and moves only — the server never sends either side's IVs.
  */
-export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp }: {
+export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format }: {
   me: Profile | null | undefined; opp: Profile | null | undefined;
   myTeam?: PublicMember[]; oppTeam?: PublicMember[];
   myCode: string | null | undefined; oppCode: string | null | undefined;
   onOpenMe: () => void; onOpenOpp: () => void;
+  /** The league's emblem and the format's label, between the two banners. */
+  league?: LeagueId; format?: string | null;
 }) {
   const oppName = opp?.displayName ?? 'Their';
   return (
     <section className="panel grid grid-cols-1 items-start gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" aria-label="Versus">
       {/* Two rows, shared by both sides through subgrid: the banners, then the teams. VS sits in the banner row, centred on it. */}
       <Side title="Your team" label="YOU" profile={me} team={myTeam ?? []} code={myCode} mirror={false} onOpen={onOpenMe} />
-      <span className="self-center justify-self-center font-mono text-3xl font-extrabold tracking-widest text-accent lg:col-start-2 lg:row-start-1" aria-hidden="true">VS</span>
+      <div className="flex flex-col items-center gap-1 self-center justify-self-center text-center lg:col-start-2 lg:row-start-1">
+        {league && <LeagueEmblem league={league} size={34} />}
+        <span className="font-mono text-3xl font-extrabold tracking-widest text-accent" aria-hidden="true">VS</span>
+        {format && <span className="max-w-40 font-mono text-[length:var(--text-2xs)] uppercase tracking-wider text-muted">{format}</span>}
+      </div>
       <Side title={`${oppName}'s team`} label="OPPONENT" profile={opp} team={oppTeam ?? []} code={oppCode} mirror onOpen={onOpenOpp} />
     </section>
   );

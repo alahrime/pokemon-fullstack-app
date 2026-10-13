@@ -3,8 +3,7 @@ import { useAppState } from '../state/AppState';
 import { opponentFriendCode, myMatches, type Match } from '../lib/matchmaking';
 import { blockUser } from '../lib/social';
 import { useSession } from '../state/SessionContext';
-import { challengeView, liveChallengesWith, type Challenge } from '../lib/challenges';
-import { LEAGUE_BY_ID } from '../lib/data';
+import { challengeFormatLabel, challengeView, liveChallengesWith, type Challenge } from '../lib/challenges';
 import type { ChannelDisplay } from '../lib/channels';
 
 const OPEN_POLL_MS = 15_000;
@@ -92,7 +91,7 @@ export function OpponentPanel({
             {open.map((c) => (
               <li key={c.id}>
                 <span>{c.proposerId === user?.id ? 'You challenged' : 'They challenged'}</span>
-                {' · '}{c.formatName ?? 'an unnamed format'} · {LEAGUE_BY_ID.get(c.league)?.name ?? c.league}
+                {' · '}{challengeFormatLabel(c.formatName, c.league)}
                 {' · '}{c.scheduledFor ? new Date(c.scheduledFor).toLocaleString() : 'now'}
                 <span className="text-muted"> — {user ? challengeView(c, user.id, new Date()).label : ''}</span>
               </li>

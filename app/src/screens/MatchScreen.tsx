@@ -9,6 +9,7 @@ import { MatchTeams } from '../components/MatchTeams';
 import { myFriendCode } from '../lib/friendCode';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { getProfile, type Profile } from '../lib/profile';
+import { challengeFormatLabel } from '../lib/challenges';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
 
@@ -220,7 +221,8 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
       <MatchTeams me={trainers?.me} opp={trainers?.opp} myTeam={match.myTeam} oppTeam={match.oppTeam}
         myCode={codes && codes.mine} oppCode={codes && codes.theirs}
         onOpenMe={() => user && patch({ screen: 'player', activePlayerId: user.id })}
-        onOpenOpp={() => patch({ screen: 'player', activePlayerId: match.opponentId })} />
+        onOpenOpp={() => patch({ screen: 'player', activePlayerId: match.opponentId })}
+        league={match.league} format={match.league ? challengeFormatLabel(match.formatName ?? null, match.league) : null} />
       <div className="panel">
         <p role="status">{liveState === 'reported' && !iReported ? 'Your opponent has reported. Report your result.' : HEADLINE[liveState]}</p>
 

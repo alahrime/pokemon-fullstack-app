@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { PublicMember } from './teamCodec';
+import type { LeagueId } from './types';
 
 export type MatchState =
   | 'paired' | 'reported' | 'confirmed' | 'mismatch' | 'disputed' | 'unverified' | 'abandoned';
@@ -23,6 +24,9 @@ export interface Match {
   /** Both rosters, species and moves only: the server never sends either side's IVs (absent on rows built without them). */
   myTeam?: PublicMember[];
   oppTeam?: PublicMember[];
+  /** What it is played under; absent on rows built without them. A format the player may not read comes back null. */
+  league?: LeagueId;
+  formatName?: string | null;
 }
 
 /**
@@ -41,7 +45,7 @@ export function toMyTerms(wins: Side[], mySide: Side): boolean[] {
 }
 
 const COLUMNS =
-  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at, team_a_public, team_b_public';
+  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at, team_a_public, team_b_public, league, format_versions(formats(name))';
 
 interface Row {
   id: string;
@@ -58,6 +62,15 @@ interface Row {
   created_at: string;
   team_a_public?: PublicMember[];
   team_b_public?: PublicMember[];
+  league?: LeagueId;
+  // An embedded to-one, which PostgREST returns as an object and the generated types call an array; read both.
+  format_versions?: { formats?: { name: string } | { name: string }[] | null } | { formats?: { name: string } | { name: string }[] | null }[] | null;
+}
+
+function formatNameOf(fv: Row['format_versions']): string | null {
+  const v = Array.isArray(fv) ? fv[0] : fv;
+  const f = Array.isArray(v?.formats) ? v?.formats[0] : v?.formats;
+  return f?.name ?? null;
 }
 
 function toMatch(r: Row, me: string | undefined): Match {
@@ -77,6 +90,8 @@ function toMatch(r: Row, me: string | undefined): Match {
     createdAt: r.created_at,
     myTeam: mySide === 'a' ? r.team_a_public : r.team_b_public,
     oppTeam: mySide === 'a' ? r.team_b_public : r.team_a_public,
+    league: r.league,
+    formatName: formatNameOf(r.format_versions),
   };
 }
 

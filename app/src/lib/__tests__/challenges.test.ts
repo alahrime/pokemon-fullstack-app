@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { challengeView, createChallenge, isLiveChallenge, liveChallengesWith, type Challenge } from '../challenges';
+import { challengeFormatLabel, challengeView, createChallenge, isLiveChallenge, liveChallengesWith, type Challenge } from '../challenges';
 import { rulesHash, RULES_SCHEMA, type Format } from '../../rules';
 import { DATA_REV } from '../data';
 
@@ -100,5 +100,18 @@ describe('live challenges between two people', () => {
     const or = query.filters.find((f) => f[0] === 'or')![1] as string;
     expect(or).toBe('and(proposer_id.eq.ann,target_id.eq.bob),and(proposer_id.eq.bob,target_id.eq.ann)');
     expect(query.filters.find((f) => f[0] === 'in')).toEqual(['in', 'state', ['open', 'accepted']]);
+  });
+});
+
+describe('challengeFormatLabel', () => {
+  it.each([
+    ['Great League', 'great', 'Great League · 1500'],
+    ['Great League · Show 6', 'great', 'Great League · Show 6 · 1500'],
+    ['Ultra League · GBL', 'ultra', 'Ultra League · GBL · 2500'],
+    ['Master League', 'master', 'Master League · no cap'],
+    ['Retro', 'great', 'Retro · Great League · 1500'],
+    [null, 'ultra', 'an unnamed format · Ultra League · 2500'],
+  ] as const)('%s in %s reads "%s"', (name, league, want) => {
+    expect(challengeFormatLabel(name, league)).toBe(want);
   });
 });

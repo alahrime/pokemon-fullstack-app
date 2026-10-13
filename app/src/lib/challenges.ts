@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { DATA_REV } from './data';
+import { DATA_REV, LEAGUE_BY_ID } from './data';
 import { rulesHash, type Format } from '../rules';
 import type { LeagueId } from './types';
 import type { StoredMember } from './teamCodec';
@@ -21,6 +21,18 @@ export interface Challenge {
   /** Length of the proposer's team — what the accepter's roster must match. */
   rosterSize: number;
   formatName: string | null;
+}
+
+/**
+ * What a challenge is played under, saying the league once: a format named after its league ("Great League",
+ * "Great League · Show 6") keeps its name and adds only the cap; a cup ("Retro") keeps the full league name.
+ */
+export function challengeFormatLabel(formatName: string | null, league: LeagueId): string {
+  const lg = LEAGUE_BY_ID.get(league);
+  const name = formatName ?? 'an unnamed format';
+  if (!lg) return `${name} · ${league}`;
+  const [base, cap] = lg.name.split(' · ');
+  return formatName?.startsWith(base) ? `${formatName} · ${cap}` : `${name} · ${lg.name}`;
 }
 
 export type ChallengeAction = 'accept' | 'counter' | 'decline' | 'confirm' | 'withdraw';

@@ -203,6 +203,7 @@ describe('matches', () => {
           id: 'm1', player_a: 'me', player_b: 'them', format_version_id: 'v1', rules_hash: 'h1',
           data_rev: 'r1', rounds: 3, state: 'confirmed', rating_counted: true,
           amend_deadline: '2026-09-03T00:00:00Z', source: 'queue', created_at: '2026-09-02T12:00:00Z',
+          league: 'ultra', format_versions: { formats: { name: 'Ultra League' } },
         },
       ],
     });
@@ -212,6 +213,7 @@ describe('matches', () => {
       id: 'm1', opponentId: 'them', mySide: 'a', formatVersionId: 'v1', rulesHash: 'h1',
       dataRev: 'r1', rounds: 3, state: 'confirmed', ratingCounted: true,
       amendDeadline: '2026-09-03T00:00:00Z', source: 'queue', createdAt: '2026-09-02T12:00:00Z',
+      league: 'ultra', formatName: 'Ultra League',
     });
   });
 });

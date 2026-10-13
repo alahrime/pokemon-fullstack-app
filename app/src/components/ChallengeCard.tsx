@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
 import {
-  challengeView, declineChallenge, fetchChallenges, subscribeToOffer, withdrawChallenge, type Challenge,
+  challengeFormatLabel, challengeView, declineChallenge, fetchChallenges, subscribeToOffer, withdrawChallenge, type Challenge,
 } from '../lib/challenges';
 import { acceptOffer, confirmOffer } from '../lib/matchmaking';
 import { resolveDisplayNames } from '../lib/channels';
 import { ChallengeSheet } from './ChallengeSheet';
 import { ChallengeAcceptSheet } from './ChallengeAcceptSheet';
 import { myMatches } from '../lib/matches';
-import { LEAGUE_BY_ID } from '../lib/data';
 
 // Realtime does the work; this poll only covers a dropped socket (and clock-derived expiry is computed on render).
 const POLL_MS = 60_000;
@@ -99,7 +98,7 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
       <span className="hud-label">Challenge</span>
       {challenge && (
         <p>
-          {challenge.formatName ?? 'an unnamed format'} · {LEAGUE_BY_ID.get(challenge.league)?.name ?? challenge.league} ·{' '}
+          {challengeFormatLabel(challenge.formatName, challenge.league)} ·{' '}
           {challenge.scheduledFor ? new Date(challenge.scheduledFor).toLocaleString() : 'now'}
           {live && ` · expires ${new Date(challenge.expiresAt).toLocaleString()}`}
         </p>

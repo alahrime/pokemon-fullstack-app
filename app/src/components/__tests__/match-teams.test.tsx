@@ -50,4 +50,10 @@ describe('MatchTeams', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ash' }));
     expect(open).toHaveBeenCalled();
   });
+
+  it("names the league and format between the banners when it knows them", () => {
+    render(<MatchTeams me={profile('Misty', null)} opp={profile('Ash', null)} myTeam={[member('medicham')]} oppTeam={[member('azumarill')]}
+      myCode={null} oppCode={null} onOpenMe={vi.fn()} onOpenOpp={vi.fn()} league="ultra" format="Ultra League · 2500" />);
+    expect(screen.getByRole('region', { name: 'Versus' }).textContent).toContain('Ultra League · 2500');
+  });
 });

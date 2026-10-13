@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { LeagueId } from './types';
-import type { Game, Pairing as SwissPairing } from '../tournament/swiss';
+import { standings, type Game, type Pairing as SwissPairing } from '../tournament/swiss';
 import type { RosterMember } from '../tournament/roster';
 import type { Format } from '../rules';
 
@@ -251,6 +251,8 @@ export async function myTournamentActivity(): Promise<{ tournaments: Tournament[
 /** One counted tournament game from `playerId`'s side. Byes are not games. */
 export interface PlayerGame {
   tournamentId: string; title: string; round: number;
+  /** The tournament's league, its format's name and roster size (6 for a Show 6), and whether it has finished. */
+  league: LeagueId; formatName: string; teamSize: number; complete: boolean;
   opponentId: string; myRounds: number; oppRounds: number; won: boolean;
   myRoster: RosterMember[] | null; oppRoster: RosterMember[] | null;
 }
@@ -290,19 +292,40 @@ export async function listPlayerGames(playerId: string, now: Date = new Date()):
   const tIds = [...new Set(games.map(({ p }) => p.tournamentId!))];
   const people = [...new Set([playerId, ...games.map(({ g }) => g.opponentId)])];
   const [t, ro] = await Promise.all([
-    supabase.from('tournaments').select('id, title, created_at').in('id', tIds),
+    supabase.from('tournaments').select('id, title, created_at, league, state, format_versions(rules, formats(name))').in('id', tIds),
     supabase.from('tournament_rosters').select('tournament_id, player_id, roster').in('tournament_id', tIds).in('player_id', people),
   ]);
   if (t.error) throw new Error(t.error.message);
   if (ro.error) throw new Error(ro.error.message);
-  const meta = new Map((t.data ?? []).map((x) => [x.id as string, x as { id: string; title: string; created_at: string }]));
+  type Meta = { id: string; title: string; created_at: string; league: LeagueId; state: TournamentState;
+    format_versions: { rules: Format; formats: { name: string } | null } | null };
+  const meta = new Map(((t.data ?? []) as unknown as Meta[]).map((x) => [x.id, x]));
   const roster = new Map((ro.data ?? []).map((x) => [`${x.tournament_id}:${x.player_id}`, x.roster as RosterMember[]]));
   return games
     .map(({ p, g }) => ({
       tournamentId: p.tournamentId!, title: meta.get(p.tournamentId!)?.title ?? 'Tournament', round: p.round, ...g,
+      league: meta.get(p.tournamentId!)?.league ?? 'great', formatName: meta.get(p.tournamentId!)?.format_versions?.formats?.name ?? 'Format',
+      teamSize: meta.get(p.tournamentId!)?.format_versions?.rules.composition.size ?? 0, complete: meta.get(p.tournamentId!)?.state === 'complete',
       myRoster: roster.get(`${p.tournamentId}:${playerId}`) ?? null, oppRoster: roster.get(`${p.tournamentId}:${g.opponentId}`) ?? null,
       at: meta.get(p.tournamentId!)?.created_at ?? '',
     }))
     .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : b.round - a.round))
     .map(({ at: _at, ...rest }) => rest);
+}
+
+/** Pure: `playerId`'s final place (1-based) and the field size, from a tournament's pairings; null if they never played. */
+export function placeIn(pairings: readonly Pairing[], playerId: string, now: Date): { place: number; field: number } | null {
+  const ids = [...new Set(pairings.flatMap((p) => (p.playerB ? [p.playerA, p.playerB] : [p.playerA])))];
+  const place = standings(ids, toGames(pairings, now)).findIndex((s) => s.id === playerId);
+  return place < 0 ? null : { place: place + 1, field: ids.length };
+}
+
+// ponytail: one pairings read per finished tournament; batch with `.in('tournament_id', ...)` if a profile gets slow.
+export async function listPlacements(playerId: string, tournamentIds: readonly string[], now: Date = new Date()): Promise<Map<string, { place: number; field: number }>> {
+  const out = new Map<string, { place: number; field: number }>();
+  await Promise.all(tournamentIds.map(async (id) => {
+    const p = placeIn(await listPairings(id), playerId, now);
+    if (p) out.set(id, p);
+  }));
+  return out;
 }

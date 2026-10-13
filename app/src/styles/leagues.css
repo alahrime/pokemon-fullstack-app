@@ -22,6 +22,12 @@
   --lg-master: #40217a;
   --lg-master-deep: #24124a;
   --lg-master-accent: #d94fb4;
+
+  /* Podium medals on the profile trophy case: game constants like the balls, not theme colours. */
+  --medal-gold: #d9a520;
+  --medal-silver: #a7b1bd;
+  --medal-bronze: #b8703a;
+  --medal-ink: #1a1408;
 }
 
 /* ── species hero ──────────────────────────────────────────────────────────

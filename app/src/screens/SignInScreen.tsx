@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../state/SessionContext';
+import { hashForPlayer } from '../lib/route';
 import { MINIMUM_AGE, isOldEnough, isRealDate } from '../lib/age';
 import { clearOAuthUrlError, readOAuthUrlError } from '../lib/oauthError';
 import { FRIEND_CODE_HINT, myFriendCode, normalizeFriendCode, saveFriendCode } from '../lib/friendCode';
@@ -444,6 +445,9 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
             </p>
           ) : null}
           {alert}
+          <a className="btn btn-primary" href={hashForPlayer(user.id)}>
+            View and edit your profile
+          </a>
           <button type="button" className="btn btn-secondary" onClick={() => void signOut()}>
             Sign out
           </button>

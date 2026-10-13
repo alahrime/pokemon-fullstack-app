@@ -25,8 +25,10 @@ export function RecordsScreen() {
   const [more, setMore] = useState(SHOWN);
   const [ym, setYm] = useState(() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1 }; });
 
+  // Read only when the history is shown: the Profile view loads its own games, so reading here too doubled them.
+  const history = view === 'history';
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !history) return;
     let live = true;
     Promise.all([listMyRecords(), listPlayerGames(uid)])
       .then(async ([m, g]) => {
@@ -35,7 +37,7 @@ export function RecordsScreen() {
       })
       .catch(() => live && setFailed(true));
     return () => { live = false; };
-  }, [uid]);
+  }, [uid, history]);
 
   const shown = useMemo(() => (rows ?? []).filter((r) => !ranked || r.ranked), [rows, ranked]);
   const sum = useMemo(() => summarise(shown), [shown]);

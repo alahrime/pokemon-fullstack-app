@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-13 (seventh session: friend profiles and records, a Challenges panel on Friends, a versus header on the Match screen; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-13 (seventh session: friend profiles and records, a Challenges panel on Friends, a mirrored Match screen, IVs kept server-side, challenge matches carry their league, dead-code cleanup; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -18,16 +18,15 @@ design authority; the plans argue from it.
 | **M0b** — builder UI controls (type chips, set view, per-species X) | **Merged to main** |
 | **M1a** — accounts and identity | **Merged to main** (`42c6d27`) and **deployed to production** — see below. |
 | **M1b** — user-owned saves | **Merged, pushed, and verified in production** — four tables exist, anonymous writes refused `42501`. Two guarantees still unproven there; see below. |
-| **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. **INERT until the two Vault secrets exist** — see below. |
+| **M2a** — matchmaking: queue, live offers, scheduled offers | **Merged and deployed** 2026-09-04 18:01Z (`9fca5b9`). Verified in production: all tables `200`, anonymous INSERT refused `42501` RLS, anonymous UPDATE refused `42501` **permission denied** — the revoke that closes the two Criticals. The two Vault secrets were created 2026-09-04, but **whether the coordinator tick actually works was never proven** (it verifies public-board offers; challenges no longer need it) — see "Open, in the order they block things". |
 | **Friend codes** — the account screen collects one | **Merged, deployed, verified** (`996be91`). Migration confirmed present in production's own schema dump; the field renders on the deployed site. |
-| **M2b** — reporting and adjudication | **Built, merged to local `main`, NOT pushed.** Both gates green, roundtrip 11/11. Plan: `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
+| **M2b** — reporting and adjudication | **Merged, pushed and deployed** (its four `20260905124*` migrations are applied in production). Roundtrip 11/11. Plan: `docs/superpowers/plans/2026-09-05-m2b-reporting-and-adjudication.md` |
 | **M3a** — friendships and blocks | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1233/1233 and 180/180; roundtrips 9/9 and 11/11. |
-| **M3b** — channels: DMs, groups, match channel | **Planned, not started** — `docs/superpowers/plans/2026-09-05-m3b-channels-dms-and-groups.md` |
 | **M3b** — channels: DMs, groups, match channel | **Built, reviewed, merged and pushed** 2026-09-06. Gates 1256/1256 and 212/212; roundtrips 11/11, 9/9, 13/13. |
 | **M4a** — ratings, seasons, leaderboard | **Removed 2026-09-30** at the user's direction (no rating across users): `20260930001000_drop_ratings.sql`, Ranked screen gone. Recoverable from git history. |
 | **M4b** — records (win rate, unique opponents, history, calendar, CSV) | **Built, merged and pushed** 2026-09-30. One migration (`20260930000400_records.sql`, a view). `npm run check` 1763/1763. Spec `specs/2026-09-30-m4b-records-design.md`, plan `plans/2026-09-30-m4b-records.md`. |
 | **M6** — records and profiles | **Built 2026-09-30.** `20260930001100_public_records.sql`: `my_match_records` carries both teams (IVs stripped), tournament rosters public to signed-in users once closed. Client: `PlayerScreen` (`#/play/players/<id>`), Pokémon fold on Records rows, "View profile" on the tournament Players tab. Spec `specs/2026-09-30-records-and-profiles-design.md`. `npm run check` 1789/1789; `check:db` 286/291, the 5 reds are the environmental `social.test.ts` ones. Measured in the browser at 1440 and 375. Verified in production after the push: both migrations applied; anonymous `ratings`/`seasons` -> `PGRST205`, anonymous `my_match_records` -> `42501 permission denied`. A signed-in stranger reading rosters was later verified in the browser too. |
-| **Friends, challenges, versus** | **Built and pushed 2026-10-13.** One migration (`20261013010000_friend_record.sql`). See "Start here". |
+| **Friends, challenges, match screen** | **Built, pushed and live 2026-10-13** (`0876885..` on `main`). Three migrations (`20261013010000_friend_record`, `20261013020000_rosters_without_ivs`, `20261013030000_offer_matches_carry_their_league`), all applied in production. See "Start here". |
 | **Profile showcase** | **Built and pushed 2026-10-13** (`72edcfa..fc62461`); all deployed and confirmed live. One migration (`20261013000000_profile_showcase.sql`), confirmed applied in production. Plan `plans/2026-10-13-profile-showcase.md`. See "Start here". |
 | M4c — grit | **Deferred by the user (2026-09-30): a nice-to-have for the end of major development, not a consideration now.** It was built and shipped, then removed the same day (`20260930000510_drop_grit.sql`). The design and working code are in commit `f96d750` (`feat(grit)`) if it is wanted back. |
 | **M5** — tournament channels | **Built 2026-09-30.** One migration (`20260930000600_tournament_channels.sql`); scope per the user is tournament channels only (communities, announcements, pins, post restrictions are out). `npm run check` 1768/1768; `check:db` 290/295, the 5 reds are the environmental `social.test.ts` ones. Spec `specs/2026-09-30-m5-tournament-channels-design.md`, plan `plans/2026-09-30-m5-tournament-channels.md`. Measured in the browser 2026-09-30 (see "Browser verification of M4/M5"). |
@@ -42,12 +41,31 @@ design authority; the plans argue from it.
 
 ## Start here — next session
 
-**Seventh session, 2026-10-13 (pushed; `npm run check` 1921/1921; `check:db` 298/303, the 5 reds are the environmental `social.test.ts` ones; ONE new migration).** The user asked for friend profiles (favourites and records), fuller challenge sending/accepting, and a battle screen with avatars and usernames.
+**Seventh session, 2026-10-13 (all pushed; `main` == `origin/main`; `npm run check` 1932/1932; `check:db` 303/308, the 5 reds are the environmental `social.test.ts` ones; THREE new migrations, all confirmed applied in production, and every frontend change confirmed live on paragon2 by grepping the deployed bundle).** The user asked for friend profiles (favourites and records), fuller challenge sending/accepting, a battle screen with both trainers, IVs hidden in matches, the league shown once, and a cleanup pass.
+
+**Next up — the user is choosing from this list (offered at the end of the session; they picked 13 and 14, now done):**
+1. Sign-up confirmation emails are not delivered on the hosted project (only team addresses, a couple an hour), so outsiders cannot sign up. Fix is the user's (custom SMTP in the dashboard); offer exact steps.
+2. Prove the coordinator tick works in production (public-board offers stay unverified otherwise). Read-only check the assistant can run.
+3. Scheduled challenges still need the proposer's confirm; the user was asked in session five whether to drop it and never answered.
+4. "Rankings crashes when changing pages after toggling shiny": reported, never reproduced; needs steps or the error text.
+5. The production check signed in (friend profiles, challenges, Match screen across leagues, profile editor). **Waiting on the user**: the assistant does not sign in to the live site; the user signs in in the browser pane and the assistant drives the rest, asking for the second account's sign-in when needed.
+6. Phone-width checks never done: profile editor, confirm dialog, the profile at 640–760px.
+7. Move the remaining `window.confirm`s to `confirmDialog`, plus a focus trap and optionally a danger token. (Recommended first code task.)
+8. A visible link between a counter-challenge and the original.
+9. Realtime instead of polls for the bell, badges and chat list.
+10. Limited cups in the Matchmaking queue and tournament format pickers.
+11. A hint or swap suggestions when "Suggest next pick" is disabled on a full roster.
+12. Pinning favourite trophies on the profile.
+
+**Cleanup done at the end of the session (13 and 14 on that list):**
+- Deleted the unused cup-filter `allow` plumbing: `topThreats`, `alternativesFor`, `completionsFor` (`lib/matchupMatrix.ts`), `sampleFieldTeams`, `completionPool`, `analyseTeam`, `analyseShow6`, `weaknessesAgainst`, `suggestSwaps`, `suggestCompletions` options (`lib/teambuild.ts`), and the `MatchupMatrix` prop; no screen passed it since the header cup control was removed. `cupLegal` stays (Rankings uses it). Its one test went with it.
+- Records' Profile view no longer reads the match history it does not show (it used to fire `listMyRecords` + `listPlayerGames` on open, doubling the profile's own `listPlayerGames`); the history loads when its tab is opened. Test in `records-screen.test.tsx` fails on the old code.
+- This table: M2b marked deployed, the stale "M3b planned" row removed, M2a's Vault note corrected.
 
 - **Friend records** (`20261013010000_friend_record.sql`, DB test `supabase/tests/friend-record.test.ts` 4/4): `friend_record(p_user)` is SECURITY DEFINER and returns free-match totals only (wins, losses, unique opponents; confirmed matches; a loss is "not more rounds won", the same rule as `my_match_records.won`) to the player themself and accepted, unblocked friends. Anyone else, including past opponents, gets no row. The user chose this over keeping free matches fully private. Client: `friendRecord` in `lib/profile.ts`.
 - **Profiles** (`PlayerScreen`): a "Free matches" stat strip (yourself and friends); for a friend, their friend code, a "Challenge <name>" button (opens `ChallengeSheet`) and their live challenges with you as `ChallengeCard`s. "Friend" is inferred from `friend_record` returning a row for someone else (its contract). "← Records" became "← Back" (`history.back()`, Records when there is no history), since profiles now open from Friends and the Match screen too.
 - **Friends** (`FriendsScreen`): names open the profile (`View <name>'s profile`). A **Challenges** panel at the top lists every live challenge both ways (`myChallenges` + `isLiveChallenge`), "From/To <name>" over the existing `ChallengeCard` (accept, counter, decline, confirm, withdraw, auto-open the match). New challenges are found by a 15s poll; each card follows its own row by realtime. A failing challenges read no longer blanks the screen. The bell's challenge and confirm notices now go to Friends instead of the DM.
-- **Match screen**: a versus header (`Trainer` in `MatchScreen.tsx`): both trainers' Showdown sprites (initial as fallback) with "You"/"Opponent" and names; both names open the profile (both are buttons on purpose, so the two captions share one box model and the sprites stay level).
+- **Match screen, first pass** (superseded by the layout below): both trainers' Showdown sprites (initial as fallback) with names that open the profile; both names are buttons on purpose, so the two captions share one box model and stay level.
 - **Measured in the browser** (local stack, showcase-a signed in, seeded friendship/match/challenge, all deleted afterwards): versus sides 553px each and VS centred at 1440, sprites level (delta 0 after the box-model fix; it was 9px), no page overflow at 1440 or 375 on Match, profile and Friends; Decline from the panel showed "Declined", then the poll removed it.
 - **Production:** migration `20261013010000` applied (remote column in `migration list --linked`) and the deployed Friends chunk contains the new panel, both confirmed 16:24 local.
 - **End to end, in the browser, two accounts (showcase-b sends, showcase-a accepts):** send from Friends with a saved team -> "To tommydubya · Waiting for them"; the target's panel shows Accept/Counter/Decline; Accept with a saved team converts the offer (DB: offer `converted`, match `paired`, bo3, both rosters) and lands the accepter on the Match screen; each side sees itself left, its own team first, its own round buttons; reports W-L-W and L-W-L confirm, and each side reads the mirrored adjudicated result. All rows deleted afterwards.
@@ -59,8 +77,8 @@ design authority; the plans argue from it.
 - **Bug fixed: offer/challenge matches had no league.** Only `pair_queue_entries` wrote `matches.league`; `accept_offer`/`confirm_offer` never did, so every challenge match had `league = null` (Records too). `20261013030000_offer_matches_carry_their_league.sql`: an AFTER INSERT/UPDATE OF match_id trigger on `match_offers` copies the offer's league onto its match when the match has none, plus a backfill. DB test `offer-match-league.test.ts` 2/2. Applied locally by psql (the CLI's `migration up` hung after applying the previous one) and recorded in `schema_migrations`.
 - **Match screen shows the league:** `Match` gained `league` and `formatName` (embedded `format_versions(formats(name))`); the middle column shows the league emblem, VS and the label.
 - **Local end to end across leagues (UI-driven, two accounts):** Ultra 3v3, Master Show 6 6v6, Retro Cup 3v3 sent, accepted, reported from both sides and confirmed; each Match screen showed the right sizes, emblem and label, middle column centred on the banners; Records listed ultra/master/great.
-- **Production signed in: not done.** The assistant does not sign in to the live site; the user must sign in in the browser pane (two accounts, swapping when asked) for that check.
-- **Not verified:** the new UI on paragon2 signed in.
+- **Production:** `20261013020000` confirmed applied and live 16:50; `20261013030000` (with its backfill) and the league label 17:08.
+- **Not verified:** anything on paragon2 signed in (item 5 above). The roundtrip tools in `app/tools/` read rosters only through the service-role client, so the column revoke does not touch them, but none was re-run.
 
 ### Previous session (sixth)
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
@@ -97,5 +97,15 @@ describe('RecordsScreen', () => {
     expect((await screen.findAllByText('Azumarill')).length).toBeGreaterThan(0);
     fireEvent.click(ash);
     expect(window.location.hash).toMatch(/^#\/play\/players\//);
+  });
+
+  it('reads no match history while the Profile view is shown, and reads it once you switch', async () => {
+    open();
+    await screen.findByText(/^profile:/);
+    expect(R.listMyRecords).not.toHaveBeenCalled();
+    expect(T.listPlayerGames).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Match history' }));
+    await waitFor(() => expect(R.listMyRecords).toHaveBeenCalledTimes(1));
+    expect(T.listPlayerGames).toHaveBeenCalledTimes(1);
   });
 });

@@ -57,14 +57,12 @@ function Legend() {
  * count, and who would answer it — with a search to compare anyone else, and a "+" to take an alternative onto the
  * roster. Everything is computed live from the roster and its builds.
  */
-export function MatchupMatrix({ team, builds, league, onAdd, full, allow }: {
+export function MatchupMatrix({ team, builds, league, onAdd, full }: {
   team: string[];
   builds?: Record<string, MonBuild>;
   league: LeagueId;
   onAdd: (ref: string) => void;
   full: boolean;
-  /** A limited cup's legal refs; threats and alternatives are drawn from these only. */
-  allow?: ReadonlySet<string> | null;
 }) {
   // The roster edits instantly; the matrix catches up once the edits stop, so picking six in a row costs one run
   // of the simulation, not six.
@@ -76,9 +74,9 @@ export function MatchupMatrix({ team, builds, league, onAdd, full, allow }: {
   const stale = roster !== team;
   const [extra, setExtra] = useState<string[]>([]);
 
-  const threats = useMemo(() => topThreats(roster, league, builds, 20, allow), [roster, league, builds, allow]);
+  const threats = useMemo(() => topThreats(roster, league, builds, 20), [roster, league, builds]);
   const score = threatScore(threats);
-  const alternatives = useMemo(() => alternativesFor(roster, threats, league, 20, allow), [roster, threats, league, allow]);
+  const alternatives = useMemo(() => alternativesFor(roster, threats, league, 20), [roster, threats, league]);
   const compared = useMemo(
     () => extra.filter((r) => !roster.includes(r)).map((r) => altRowFor(r, threats, league)),
     [extra, roster, threats, league],

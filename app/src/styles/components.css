@@ -7118,13 +7118,13 @@ th.bt-matrix-head { text-align: center; }
 
 /* Left: the trainer as drawn, then who they are at the bottom left. Right: the six, broadcast-roster tiles. */
 .profile-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4); min-width: 0; }
-.profile-trainer-fig { flex: 1; display: grid; place-items: center; min-height: 140px; margin: 0; }
-/* 120px is 1.5x the 80px sprite: an integer 3x on a 2x display, so pixelated scaling keeps every pixel square.
-   No frame — the drop shadow follows the sprite's own silhouette, and the contact shadow is the image's own
+.profile-trainer-fig { flex: 1; display: grid; place-items: center; min-height: 160px; margin: 0; }
+/* 140px is 1.75x the 80px sprite. Not an integer multiple, so a few sprite pixels render a device pixel wider than
+   their neighbours; at this size that is invisible, and 160px (the next clean 2x) is a step too large. No frame — the drop shadow follows the sprite's own silhouette, and the contact shadow is the image's own
    background (it shows only through the transparent pixels), so it stays under the feet wherever the sprite sits. */
 .profile-trainer-fig > img, .profile-trainer-initial {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   object-fit: contain;
   image-rendering: pixelated;
   background: radial-gradient(ellipse 34% 5% at 50% 93%, color-mix(in srgb, var(--pc) 55%, transparent), transparent);
@@ -7154,7 +7154,7 @@ th.bt-matrix-head { text-align: center; }
 }
 .profile-tile:hover { border-color: var(--tile-a); }
 /* Scales with the tile (Sprite sets a fixed inline size, hence !important), lifted clear of the name strip. */
-.profile-tile-sprite { width: 78% !important; height: 78% !important; margin-bottom: 18%; }
+.profile-tile-sprite { width: 70% !important; height: 70% !important; margin-bottom: 18%; }
 .profile-tile.is-empty { background: none; border-style: dashed; }
 .profile-tile-blank { width: 100%; height: 100%; background: repeating-linear-gradient(135deg, var(--grid-line) 0 1px, transparent 1px 9px); }
 .profile-tile-add { width: 100%; height: 100%; min-height: 0; border: 0; clip-path: none; cursor: pointer; }
@@ -7400,7 +7400,8 @@ th.bt-matrix-head { text-align: center; }
   .profile-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .profile-tile-name { font-size: var(--text-sm); padding: 4px var(--space-1) 5px; }
   .profile-card > .profile-roster-grid { order: 0; }
-  .profile-trainer-fig > img, .profile-trainer-initial { width: 80px; height: 80px; }
+  .profile-trainer-fig > img, .profile-trainer-initial { width: 96px; height: 96px; }
+  .profile-trainer-fig { min-height: 110px; }
 }
 @media (max-width: 640px) {
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

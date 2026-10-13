@@ -34,6 +34,8 @@ const mmApi = vi.hoisted(() => ({
   opponentFriendCode: vi.fn(),
 }));
 vi.mock('../../lib/matchmaking', () => mmApi);
+const confirmApi = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../components/ConfirmDialog', () => confirmApi);
 
 /**
  * `../../lib/saves` is mocked the same way, for the same reason — and it is
@@ -356,17 +358,18 @@ describe('signed in — the blind queue', () => {
       return b as HTMLButtonElement;
     });
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fireEvent.click(leaveBtn);
+    const confirmSpy = confirmApi.confirmDialog.mockResolvedValue(false);
+    await act(async () => {
+      fireEvent.click(leaveBtn);
+    });
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(mmApi.leaveQueue).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
+    confirmSpy.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(leaveBtn);
     });
     await waitFor(() => expect(mmApi.leaveQueue).toHaveBeenCalledTimes(1));
-    confirmSpy.mockRestore();
   });
 });
 

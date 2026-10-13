@@ -23,6 +23,16 @@ describe('confirmDialog', () => {
     expect(document.activeElement?.textContent).toBe('Cancel');
   });
 
+  it('traps Tab: focus cycles the two buttons both ways and never leaves the dialog', async () => {
+    void ask();
+    await screen.findByRole('alertdialog');
+    const tab = (shiftKey = false) => { fireEvent.keyDown(window, { key: 'Tab', shiftKey }); return document.activeElement?.textContent; };
+    expect(tab()).toBe('Delete team');
+    expect(tab()).toBe('Cancel');
+    expect(tab(true)).toBe('Delete team');
+    expect(tab(true)).toBe('Cancel');
+  });
+
   it.each([
     ['Cancel', () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))],
     ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],

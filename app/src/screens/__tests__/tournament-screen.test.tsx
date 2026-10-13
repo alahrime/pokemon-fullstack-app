@@ -229,22 +229,22 @@ describe('the primary action', () => {
   describe('drop out', () => {
     const running = (over: Record<string, unknown> = {}) => view({ tournament: tour({ state: 'running', currentRound: 2 }), state: 'running', entrants: [entrant('me')], ...over });
     it('asks first: declined calls nothing', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      confirmApi.confirmDialog.mockResolvedValue(false);
       V.view.mockReturnValue(running());
       mount();
-      fireEvent.click(screen.getByRole('button', { name: 'Drop out' }));
-      expect(window.confirm).toHaveBeenCalledWith('Drop out of Autumn Cup? Your unfinished game this round is lost 0–2 and you will not be paired again.');
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Drop out' })); });
+      expect(confirmApi.confirmDialog).toHaveBeenCalledWith(expect.objectContaining({ body: 'Drop out of Autumn Cup? Your unfinished game this round is lost 0–2 and you will not be paired again.' }));
       expect(T.dropOut).not.toHaveBeenCalled();
     });
     it('success calls dropOut once (busy guard) and refreshes', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      confirmApi.confirmDialog.mockResolvedValue(true);
       let done!: () => void;
       T.dropOut.mockReturnValue(new Promise<boolean>((r) => { done = () => r(true); }));
       const v = running();
       V.view.mockReturnValue(v);
       mount();
       const btn = screen.getByRole('button', { name: 'Drop out' }) as HTMLButtonElement;
-      fireEvent.click(btn);
+      await act(async () => { fireEvent.click(btn); });
       expect(btn.disabled).toBe(true);
       fireEvent.click(btn);
       await act(async () => { done(); await Promise.resolve(); });
@@ -253,7 +253,7 @@ describe('the primary action', () => {
       expect(v.refresh).toHaveBeenCalledTimes(1);
     });
     it('a refusal shows in an alert and no refresh', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      confirmApi.confirmDialog.mockResolvedValue(true);
       T.dropOut.mockRejectedValue(new Error('not running'));
       const v = running();
       V.view.mockReturnValue(v);

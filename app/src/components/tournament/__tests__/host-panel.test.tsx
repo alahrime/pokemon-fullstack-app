@@ -6,6 +6,8 @@ const T = vi.hoisted(() => ({
   startRound: vi.fn(), settlePairing: vi.fn(), finishTournament: vi.fn(), grantJudge: vi.fn(), revokeJudge: vi.fn(),
   listAudit: vi.fn(), searchProfilesByName: vi.fn(),
 }));
+const C = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../ConfirmDialog', () => C);
 vi.mock('../../../lib/channels', () => ({ searchProfilesByName: T.searchProfilesByName }));
 vi.mock('../../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../../lib/tournaments')>()), ...T }));
 
@@ -52,7 +54,7 @@ beforeEach(() => {
   T.startRound.mockResolvedValue(3);
   T.listAudit.mockResolvedValue([]);
   changed.mockReset();
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  C.confirmDialog.mockReset().mockResolvedValue(true);
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -142,7 +144,7 @@ describe('lifecycle', () => {
     await click('Progress bracket round');
     await click('Confirm round 3');
     expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
-    expect(window.confirm).not.toHaveBeenCalled();
+    expect(C.confirmDialog).not.toHaveBeenCalled();
   });
 
   it('pairs are the Swiss pairing over ALL past games', async () => {
@@ -160,12 +162,12 @@ describe('lifecycle', () => {
     await click('Progress anyway (2 unsettled)');
     expect(T.startRound).not.toHaveBeenCalled();
     await click('Confirm round 3');
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('2 unsettled'));
+    expect(C.confirmDialog).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining('2 unsettled') }));
     expect(T.startRound.mock.calls[0].slice(2)).toEqual([true, false]);
   });
 
   it('declining the force confirm starts nothing', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    C.confirmDialog.mockResolvedValue(false);
     asOrg({ pairings: [...round1, pr()] });
     await click('Progress anyway (1 unsettled)');
     await click('Confirm round 3');
@@ -257,10 +259,10 @@ describe('needs attention', () => {
   it('an empty note is sent as null; double loss confirms first', async () => {
     asOrg({ pairings: [pr()] });
     await click(/^Double loss/);
-    expect(window.confirm).toHaveBeenCalled();
+    expect(C.confirmDialog).toHaveBeenCalled();
     expect(T.settlePairing).toHaveBeenCalledWith('p', 0, 0, null);
     T.settlePairing.mockClear();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    C.confirmDialog.mockResolvedValue(false);
     await click(/^Double loss/);
     expect(T.settlePairing).not.toHaveBeenCalled();
   });
@@ -445,13 +447,13 @@ describe('danger and failures', () => {
   it('Cancel confirms naming the consequence, then cancels', async () => {
     asOrg({});
     await click('Cancel tournament');
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/cancel/i));
+    expect(C.confirmDialog).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringMatching(/cancel/i), cancelLabel: 'Keep it' }));
     expect(T.cancelTournament).toHaveBeenCalledWith('t1');
     expect(changed).toHaveBeenCalledTimes(1);
   });
 
   it('declining the confirm cancels nothing', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    C.confirmDialog.mockResolvedValue(false);
     asOrg({});
     await click('Cancel tournament');
     expect(T.cancelTournament).not.toHaveBeenCalled();
@@ -591,7 +593,7 @@ describe('I1 a stale preview is re-checked on Confirm', () => {
     expect(screen.getByText('The field changed — please review the new pairings')).toBeTruthy();
     await click('Confirm round 3');
     expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
-    expect(window.confirm).not.toHaveBeenCalled();
+    expect(C.confirmDialog).not.toHaveBeenCalled();
   });
   it('an unchanged field goes straight through', async () => {
     asOrg(closed);
@@ -611,7 +613,7 @@ describe('I2 the clock is read when the host acts', () => {
     await click('Progress anyway (1 unsettled)');
     expect(screen.queryByText(/still open/)).toBeNull();
     await click('Confirm round 3');
-    expect(window.confirm).not.toHaveBeenCalled();
+    expect(C.confirmDialog).not.toHaveBeenCalled();
     expect(T.startRound.mock.calls[0].slice(2)).toEqual([false, false]);
     vi.useRealTimers();
   });

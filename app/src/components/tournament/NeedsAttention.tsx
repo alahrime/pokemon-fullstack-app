@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { isCounted, settlePairing, type Pairing } from '../../lib/tournaments';
 import type { Run } from './hostRun';
 import { playerName } from './playerName';
+import { confirmDialog } from '../ConfirmDialog';
 
 interface Props { pairings: readonly Pairing[]; names: ReadonlyMap<string, string>; me: string | null; now: Date; busy: boolean; run: Run }
 
@@ -23,7 +24,7 @@ export function NeedsAttention({ pairings, names, me, now, busy, run }: Props) {
     .sort((a, b) => Number(b.state === 'disputed') - Number(a.state === 'disputed') || a.round - b.round || a.tableNo - b.tableNo);
   const who = (id: string) => playerName(names, id);
   const settle = async (p: Pairing, a: number, b: number) => {
-    if (a === 0 && b === 0 && !window.confirm(`Record a double loss at table ${p.tableNo}? Neither player gets the win.`)) return;
+    if (a === 0 && b === 0 && !(await confirmDialog({ title: 'Double loss', body: `Record a double loss at table ${p.tableNo}? Neither player gets the win.`, confirmLabel: 'Record double loss' }))) return;
     await run(() => settlePairing(p.id, a, b, (notes[p.id] ?? '').trim() || null));
   };
   return (

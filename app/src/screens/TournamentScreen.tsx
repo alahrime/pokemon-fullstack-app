@@ -131,7 +131,7 @@ export function TournamentScreen({ id }: { id: string }) {
   }
 
   async function drop() {
-    if (dropping || !window.confirm(`Drop out of ${t!.title}? Your unfinished game this round is lost 0–2 and you will not be paired again.`)) return;
+    if (dropping || !(await confirmDialog({ title: 'Drop out', body: `Drop out of ${t!.title}? Your unfinished game this round is lost 0–2 and you will not be paired again.`, confirmLabel: 'Drop out' }))) return;
     setDropping(true);
     setNotice(null);
     try {

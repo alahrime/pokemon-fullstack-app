@@ -8,6 +8,7 @@ import type { RosterMember } from '../../tournament/roster';
 import { useChatDockRequest } from '../../state/ChatDockContext';
 import { PlayerRoster } from './RosterCard';
 import { RoundClock } from './RoundClock';
+import { confirmDialog } from '../ConfirmDialog';
 
 const messageOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 /** Viewer-side choices: [mine, theirs]. */
@@ -77,7 +78,7 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now: now
   }
   const report = (mine: number, theirs: number) =>
     run(() => (isA ? reportScore(pairing.id, mine, theirs) : reportScore(pairing.id, theirs, mine)));
-  const dispute = () => { if (window.confirm('Dispute this result?')) void run(() => disputeScore(pairing.id)); };
+  const dispute = async () => { if (await confirmDialog({ title: 'Dispute result', body: 'Dispute this result? It will not count until the host settles it.', confirmLabel: 'Dispute' })) void run(() => disputeScore(pairing.id)); };
 
   async function copyCode(c: string) {
     try {
@@ -159,7 +160,7 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now: now
               <div className="matchup-scores">
                 <button type="button" className="btn btn-primary" disabled={busy} aria-label={`Confirm: ${short}`}
                   onClick={() => void run(() => confirmScore(pairing.id))}>Confirm</button>
-                <button type="button" className="btn" disabled={busy} onClick={dispute}>Dispute</button>
+                <button type="button" className="btn" disabled={busy} onClick={() => void dispute()}>Dispute</button>
               </div>
             )}
           </>

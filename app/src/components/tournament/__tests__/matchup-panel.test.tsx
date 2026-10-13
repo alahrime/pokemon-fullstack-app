@@ -8,6 +8,8 @@ vi.mock('../../../lib/matchmaking', () => M);
 const C = vi.hoisted(() => ({ openDm: vi.fn() }));
 vi.mock('../../../lib/channels', () => C);
 const D = vi.hoisted(() => ({ requestChannel: vi.fn() }));
+const Q = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../ConfirmDialog', () => Q);
 vi.mock('../../../state/ChatDockContext', () => ({ useChatDockRequest: () => D }));
 
 import { MatchupPanel } from '../MatchupPanel';
@@ -96,7 +98,7 @@ describe('reported', () => {
     await flush();
     expect(T.reportScore).toHaveBeenCalledWith('p', 2, 1);
   });
-  it('by the opponent: confirm, and dispute behind window.confirm', async () => {
+  it('by the opponent: confirm, and dispute behind confirmDialog', async () => {
     mount(pr({ scoreA: 0, scoreB: 2, state: 'reported', reportedBy: 'rival', finalAt: fin }));
     await flush();
     expect(screen.getByText(`Gary reported: you lost 0–2 — final at ${fmt} unless disputed`)).toBeTruthy();
@@ -104,7 +106,7 @@ describe('reported', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm: I lost 0–2' }));
     await flush();
     expect(T.confirmScore).toHaveBeenCalledWith('p');
-    const c = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const c = Q.confirmDialog.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     fireEvent.click(screen.getByRole('button', { name: 'Dispute' }));
     await flush();
     expect(T.disputeScore).not.toHaveBeenCalled();

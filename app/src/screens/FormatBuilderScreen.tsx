@@ -11,6 +11,7 @@ import { LeagueSelect, optionStyle } from '../components/LeagueSelect';
 import type { LeagueId } from '../lib/types';
 import { RULES_SCHEMA, lintFormat, type Format } from '../rules';
 import { useFormats, type FormatsApi } from '../state/useFormats';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 // New formats start with nothing legal: the type chips and the species picker
 // build the pool up from empty, rather than the author's first move always
@@ -84,8 +85,8 @@ export function FormatBuilderScreen() {
   // blast radius than the localStorage version this screen carried the
   // unconfirmed click over from. The team builder's delete on this same
   // branch confirms; this brings the two into agreement.
-  const onDelete = (s: SavedEntry) => {
-    if (!window.confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
+  const onDelete = async (s: SavedEntry) => {
+    if (!(await confirmDialog({ title: 'Delete format', body: `Delete "${s.name}"? This cannot be undone.`, confirmLabel: 'Delete format' }))) return;
     void remove(s.id);
   };
 
@@ -211,7 +212,7 @@ export function FormatBuilderScreen() {
                 <button
                   type="button"
                   className="btn chip-btn"
-                  onClick={() => onDelete(s)}
+                  onClick={() => void onDelete(s)}
                 >
                   Delete {s.name}
                 </button>

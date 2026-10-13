@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+const C = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../../components/ConfirmDialog', () => C);
 import { FormatBuilderScreen } from '../FormatBuilderScreen';
 import { listFormats } from '../../state/formatStore';
 import { SessionProvider } from '../../state/SessionContext';
@@ -131,17 +133,17 @@ describe('FormatBuilderScreen', () => {
     });
     expect(listFormats()).toHaveLength(1);
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fireEvent.click(screen.getByRole('button', { name: /delete air ban/i }));
+    const confirmSpy = C.confirmDialog.mockResolvedValue(false);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /delete air ban/i }));
+    });
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(listFormats()).toHaveLength(1);
 
-    confirmSpy.mockReturnValue(true);
+    confirmSpy.mockResolvedValue(true);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /delete air ban/i }));
     });
     expect(listFormats()).toHaveLength(0);
-
-    confirmSpy.mockRestore();
   });
 });

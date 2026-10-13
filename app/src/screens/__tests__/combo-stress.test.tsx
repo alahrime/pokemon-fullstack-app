@@ -97,7 +97,6 @@ beforeEach(() => {
   errors = [];
   URL.createObjectURL = () => 'blob:x';
   URL.revokeObjectURL = () => {};
-  window.confirm = () => true;
   vi.spyOn(console, 'error').mockImplementation((...a) => {
     const t = a.map(String).join(' ');
     if (!/suspended resource finished loading/.test(t)) errors.push(t.slice(0, 300));

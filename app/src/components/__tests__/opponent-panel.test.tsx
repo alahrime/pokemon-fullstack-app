@@ -6,6 +6,8 @@ const myMatches = vi.fn();
 const blockUser = vi.fn();
 const patch = vi.fn();
 const liveChallengesWith = vi.fn();
+const C = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
+vi.mock('../ConfirmDialog', () => C);
 vi.mock('../../lib/matchmaking', () => ({
   opponentFriendCode: (...a: unknown[]) => opponentFriendCode(...a),
   myMatches: (...a: unknown[]) => myMatches(...a),
@@ -61,17 +63,18 @@ describe('OpponentPanel', () => {
   });
 
   it('Block blocks only when confirmed', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = C.confirmDialog.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     render(<OpponentPanel channel={dm} onChallenge={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     expect(blockUser).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('u2'));
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect(blockUser).toHaveBeenCalledWith('u2');
   });
 
   it('shows a quiet error when blocking fails', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    C.confirmDialog.mockResolvedValue(true);
     blockUser.mockRejectedValue(new Error('nope'));
     render(<OpponentPanel channel={dm} onChallenge={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));

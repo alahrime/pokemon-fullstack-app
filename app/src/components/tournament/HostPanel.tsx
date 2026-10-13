@@ -10,6 +10,7 @@ import { JudgePanel } from './JudgePanel';
 import { NeedsAttention } from './NeedsAttention';
 import { PairingPreview, type Preview } from './PairingPreview';
 import { messageOf, type Run } from './hostRun';
+import { confirmDialog } from '../ConfirmDialog';
 
 interface Props {
   tournament: Tournament; state: TournamentState; entrants: readonly Entrant[]; pairings: readonly Pairing[];
@@ -72,7 +73,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
     const fresh = propose();
     if (JSON.stringify(fresh) !== JSON.stringify(preview)) { setPreview(fresh); setChanged(true); return; }
     const force = preview.unsettled > 0;
-    if (force && !window.confirm(`${preview.unsettled} unsettled ${preview.unsettled === 1 ? 'game is' : 'games are'} still open in round ${t.currentRound}. Start round ${preview.round} anyway?`)) return;
+    if (force && !(await confirmDialog({ title: 'Start round early', body: `${preview.unsettled} unsettled ${preview.unsettled === 1 ? 'game is' : 'games are'} still open in round ${t.currentRound}. Start round ${preview.round} anyway?`, confirmLabel: `Start round ${preview.round}` }))) return;
     if (await run(() => startRound(t.id, preview.pairs, force, override))) setPreview(null);
   }
 
@@ -93,8 +94,9 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
       {isOrganiser && !over && (
         <section className="host-section" aria-label="Danger">
           <button type="button" className="btn" disabled={busy}
-            onClick={() => {
-              if (window.confirm('Cancel this tournament? Nobody can play or report any more, and this cannot be undone.')) void run(() => cancelTournament(t.id));
+            onClick={async () => {
+              // "Cancel" would read as both answers here, so the way back is named.
+              if (await confirmDialog({ title: 'Cancel tournament', body: 'Cancel this tournament? Nobody can play or report any more, and this cannot be undone.', confirmLabel: 'Cancel tournament', cancelLabel: 'Keep it' })) void run(() => cancelTournament(t.id));
             }}>Cancel tournament</button>
         </section>
       )}

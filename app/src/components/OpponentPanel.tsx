@@ -5,6 +5,7 @@ import { blockUser } from '../lib/social';
 import { useSession } from '../state/SessionContext';
 import { challengeFormatLabel, challengeView, liveChallengesWith, type Challenge } from '../lib/challenges';
 import type { ChannelDisplay } from '../lib/channels';
+import { confirmDialog } from './ConfirmDialog';
 
 const OPEN_POLL_MS = 15_000;
 
@@ -105,8 +106,8 @@ export function OpponentPanel({
       <button
         type="button"
         className="btn btn-ghost chamfer-5"
-        onClick={() => {
-          if (!window.confirm(`Block ${name}? They will no longer be able to message you.`)) return;
+        onClick={async () => {
+          if (!(await confirmDialog({ title: 'Block player', body: `Block ${name}? They will no longer be able to message you.`, confirmLabel: 'Block' }))) return;
           blockUser(otherId!).catch(fail);
         }}
       >

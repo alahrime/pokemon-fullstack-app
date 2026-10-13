@@ -27,6 +27,7 @@ import {
   type QueueEntry,
 } from '../lib/matchmaking';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 /**
  * The Matchmaking screen: three answers to one question — who do I play next
@@ -461,7 +462,7 @@ export function MatchmakingScreen() {
     if (!entry) return;
     // Irreversible the moment it lands — the same confirm idiom
     // `TeamBuilderScreen` uses before `deleteTeam`.
-    if (!window.confirm('Leave the queue? You will stop being matched until you join again.')) return;
+    if (!(await confirmDialog({ title: 'Leave queue', body: 'Leave the queue? You will stop being matched until you join again.', confirmLabel: 'Leave queue' }))) return;
     setBusy(true);
     setNotice(null);
     try {

@@ -15,6 +15,9 @@ export interface StoredMember {
   best_buddy?: boolean;
 }
 
+/** A roster member as another player sees it: species and moves, never the spread (see 20261013020000). */
+export type PublicMember = Pick<StoredMember, 'ref' | 'fast_move' | 'charge_moves'>;
+
 export interface DecodedMember {
   choice: AddPokemonChoice;
   /** The stored move id, when it no longer exists in the data. Null when fine. */

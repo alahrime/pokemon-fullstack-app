@@ -223,7 +223,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          verified_hash: 'vh1', team: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
+          verified_hash: 'vh1', team_public: [{ ref: 'azumarill' }, { ref: 'registeel' }, { ref: 'skarmory' }],
         },
       ],
     });
@@ -260,12 +260,12 @@ describe('offers', () => {
         {
           id: 'o-three', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
+          team_public: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
         },
         {
           id: 'o-six', proposer_id: 'p2', league: 'great', format_version_id: 'v2',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
+          team_public: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
         },
       ],
     });
@@ -291,7 +291,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          verified_hash: 'vh1', team,
+          verified_hash: 'vh1', team_public: team,
         },
       ],
     });
@@ -309,7 +309,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          verified_hash: 'vh1', team: null,
+          verified_hash: 'vh1', team_public: null,
         },
       ],
     });
@@ -332,12 +332,12 @@ describe('offers', () => {
         {
           id: 'o-fresh', proposer_id: 'p1', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          verified_hash: null, team: [{ ref: 'a' }],
+          verified_hash: null, team_public: [{ ref: 'a' }],
         },
         {
           id: 'o-ready', proposer_id: 'p2', league: 'great', format_version_id: 'v1',
           scheduled_for: null, expires_at: '2026-09-02T13:00:00Z', state: 'open', accepted_by: null,
-          verified_hash: 'vh9', team: [{ ref: 'a' }],
+          verified_hash: 'vh9', team_public: [{ ref: 'a' }],
         },
       ],
     });
@@ -379,7 +379,7 @@ describe('offers', () => {
     // dead for a reason nothing could name.
     expect(o.rosterSize).toBe(0);
     const select = calls.find((c) => c.table === 'match_offers' && c.op === 'select');
-    expect(select?.payload).toMatch(/\bteam\b/);
+    expect(select?.payload).toMatch(/\bteam_public\b/);
   });
 
   /**
@@ -407,7 +407,7 @@ describe('offers', () => {
           id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
           scheduled_for: '2026-09-05T18:00:00Z', expires_at: '2026-09-05T19:00:00Z',
           state: 'accepted', accepted_by: 'them', match_id: null, verified_hash: 'vh1',
-          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
+          team_public: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }],
         },
         {
           id: 'o2', proposer_id: 'them', league: 'great', format_version_id: 'fv1',
@@ -415,7 +415,7 @@ describe('offers', () => {
           state: 'converted', accepted_by: 'me', match_id: 'm9', verified_hash: 'vh1',
           // Six, deliberately differing from the three above: two rows mapped
           // from one function, and a constant would satisfy only one of them.
-          team: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
+          team_public: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }, { ref: 'd' }, { ref: 'e' }, { ref: 'f' }],
         },
       ],
     });
@@ -448,7 +448,7 @@ describe('offers', () => {
         {
           id: 'o1', proposer_id: 'me', league: 'great', format_version_id: 'fv1',
           scheduled_for: null, expires_at: '2026-09-05T19:00:00Z', state: 'open',
-          accepted_by: null, match_id: null, verified_hash: 'vh1', team,
+          accepted_by: null, match_id: null, verified_hash: 'vh1', team_public: team,
         },
       ],
     });

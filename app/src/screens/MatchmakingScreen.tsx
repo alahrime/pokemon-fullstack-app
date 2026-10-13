@@ -8,7 +8,7 @@ import { useSession } from '../state/SessionContext';
 import { MonTile } from '../components/MonTile';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
-import { decodeMember, encodeMember, type StoredMember } from '../lib/teamCodec';
+import { encodeMember, type PublicMember, type StoredMember } from '../lib/teamCodec';
 import type { LeagueId } from '../lib/types';
 import {
   acceptOffer,
@@ -86,11 +86,10 @@ function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
  * offer because one member cannot be resolved is worse than one that shows the
  * other two and says which one it could not read.
  *
- * Nothing in here is allowed to throw. `decodeMember` spreads
- * `stored.charge_moves`, `displayName` calls `endsWith` on `stored.ref` — both
- * are fine for a row this app wrote and neither is guaranteed for a row it did
- * not, and an exception raised while rendering a list item takes the entire
- * screen with it under React.
+ * Nothing in here is allowed to throw. `displayName` calls `endsWith` on
+ * `stored.ref`, which is fine for a row this app wrote and not guaranteed for
+ * a row it did not, and an exception raised while rendering a list item takes
+ * the entire screen with it under React.
  */
 interface ReadMember {
   /** What to call it: the species name, or the raw ref when there is no species. */
@@ -104,21 +103,19 @@ interface ReadMember {
   unreadable: boolean;
 }
 
-function readMember(stored: StoredMember): ReadMember {
+function readMember(stored: PublicMember): ReadMember {
   try {
     const species = speciesOf(stored.ref) ?? null;
-    // decodeMember REPORTS a move that no longer exists rather than quietly
-    // resolving to the first one — that report is carried to the row rather
-    // than discarded, which is the only place it could go.
-    const { unknownMove } = decodeMember(stored);
+    // A move that no longer exists is REPORTED rather than quietly resolved to
+    // the first one — that report is carried to the row rather than discarded.
+    // A ref with no species has no movepool to be missing from, so it reports
+    // only that it is unreadable, not the same absence twice.
+    const known = species?.fastMoves.some((m) => m.id === stored.fast_move) ?? true;
     return {
       name: displayName(stored.ref),
       species,
       shadow: parseRef(stored.ref).shadow,
-      // A ref with no species has no movepool to be missing from, so its
-      // `unknownMove` is an artefact of the lookup, not a fact about the move.
-      // Saying both would be saying the same absence twice.
-      unknownMove: species ? unknownMove : null,
+      unknownMove: known ? null : stored.fast_move,
       unreadable: species === null,
     };
   } catch {
@@ -144,7 +141,7 @@ function readMember(stored: StoredMember): ReadMember {
  * refuses such an offer in words; an empty list beside it would read as a
  * roster of nobody rather than as an offer posted without one.
  */
-function OfferRoster({ members }: { members: StoredMember[] }) {
+function OfferRoster({ members }: { members: PublicMember[] }) {
   if (members.length === 0) return null;
   return (
     <ul className="offer-roster" aria-label="Roster this offer was posted with">

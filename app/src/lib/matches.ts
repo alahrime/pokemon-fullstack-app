@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { StoredMember } from './teamCodec';
+import type { PublicMember } from './teamCodec';
 
 export type MatchState =
   | 'paired' | 'reported' | 'confirmed' | 'mismatch' | 'disputed' | 'unverified' | 'abandoned';
@@ -20,9 +20,9 @@ export interface Match {
   amendDeadline: string | null;
   source: 'queue' | 'offer';
   createdAt: string;
-  /** Both rosters, as the match row holds them (absent on rows built without them). */
-  myTeam?: StoredMember[];
-  oppTeam?: StoredMember[];
+  /** Both rosters, species and moves only: the server never sends either side's IVs (absent on rows built without them). */
+  myTeam?: PublicMember[];
+  oppTeam?: PublicMember[];
 }
 
 /**
@@ -41,7 +41,7 @@ export function toMyTerms(wins: Side[], mySide: Side): boolean[] {
 }
 
 const COLUMNS =
-  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at, team_a, team_b';
+  'id, player_a, player_b, format_version_id, rules_hash, data_rev, rounds, state, rating_counted, amend_deadline, source, created_at, team_a_public, team_b_public';
 
 interface Row {
   id: string;
@@ -56,8 +56,8 @@ interface Row {
   amend_deadline: string | null;
   source: 'queue' | 'offer';
   created_at: string;
-  team_a?: StoredMember[];
-  team_b?: StoredMember[];
+  team_a_public?: PublicMember[];
+  team_b_public?: PublicMember[];
 }
 
 function toMatch(r: Row, me: string | undefined): Match {
@@ -75,8 +75,8 @@ function toMatch(r: Row, me: string | undefined): Match {
     amendDeadline: r.amend_deadline,
     source: r.source,
     createdAt: r.created_at,
-    myTeam: mySide === 'a' ? r.team_a : r.team_b,
-    oppTeam: mySide === 'a' ? r.team_b : r.team_a,
+    myTeam: mySide === 'a' ? r.team_a_public : r.team_b_public,
+    oppTeam: mySide === 'a' ? r.team_b_public : r.team_a_public,
   };
 }
 

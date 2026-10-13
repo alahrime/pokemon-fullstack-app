@@ -91,7 +91,7 @@ export async function withdrawChallenge(id: string): Promise<void> {
 }
 
 const COLS =
-  'id, proposer_id, target_id, league, state, scheduled_for, expires_at, verified_hash, match_id, team, format_versions(formats(name))';
+  'id, proposer_id, target_id, league, state, scheduled_for, expires_at, verified_hash, match_id, team_public, format_versions(formats(name))';
 
 interface Row {
   id: string;
@@ -103,7 +103,7 @@ interface Row {
   expires_at: string;
   verified_hash: string | null;
   match_id: string | null;
-  team: unknown[] | null;
+  team_public: unknown[] | null;
   // PostgREST returns an embedded to-one as an object, but the generated
   // types say array; read both.
   format_versions?: { formats?: { name: string } | { name: string }[] | null } | { formats?: { name: string } | { name: string }[] | null }[] | null;
@@ -126,7 +126,7 @@ function toChallenge(r: Row): Challenge {
     expiresAt: r.expires_at,
     verifiedHash: r.verified_hash,
     matchId: r.match_id,
-    rosterSize: (r.team ?? []).length,
+    rosterSize: (r.team_public ?? []).length,
     formatName: nameOf(r.format_versions),
   };
 }

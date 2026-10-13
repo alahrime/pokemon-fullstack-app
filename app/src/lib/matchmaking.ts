@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { DATA_REV } from './data';
 import { rulesHash, type Format } from '../rules';
 import type { LeagueId } from './types';
-import type { StoredMember } from './teamCodec';
+import type { PublicMember, StoredMember } from './teamCodec';
 
 export interface QueueEntry {
   id: string;
@@ -85,7 +85,7 @@ export interface Offer {
    * the proposer's roster was always legible to anyone who could see the
    * offer; what changes is only whether this app looks at it.
    */
-  roster: StoredMember[];
+  roster: PublicMember[];
 }
 
 /**
@@ -182,7 +182,7 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
   const { data, error } = await supabase
     .from('match_offers')
     .select(
-      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, team',
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, team_public',
     )
     .eq('league', league)
     .eq('state', 'open')
@@ -201,12 +201,12 @@ export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
       state: OfferState;
       accepted_by: string | null;
       verified_hash: string | null;
-      team: StoredMember[] | null;
+      team_public: PublicMember[] | null;
     };
     // The count AND the members — see `Offer.roster` for why the members
     // stopped being dropped here. Coalesced once, so the size the accept gate
     // reads and the roster the row draws are the same list by construction.
-    const team = r.team ?? [];
+    const team = r.team_public ?? [];
     return {
       id: r.id,
       proposerId: r.proposer_id,
@@ -258,7 +258,7 @@ export async function myOffers(): Promise<MyOffer[]> {
   const { data, error } = await supabase
     .from('match_offers')
     .select(
-      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, match_id, team',
+      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, match_id, team_public',
     )
     .or(`proposer_id.eq.${me},accepted_by.eq.${me}`)
     // Aimed offers are challenges, read through lib/challenges.ts; they must never reach the board or the Matches screen's own lists.
@@ -277,11 +277,11 @@ export async function myOffers(): Promise<MyOffer[]> {
       accepted_by: string | null;
       verified_hash: string | null;
       match_id: string | null;
-      team: StoredMember[] | null;
+      team_public: PublicMember[] | null;
     };
     // Same coalesce as `listOpenOffers`. Two mappers is where a field gets
     // carried in one and forgotten in the other, and the tests hold both.
-    const team = r.team ?? [];
+    const team = r.team_public ?? [];
     return {
       id: r.id,
       proposerId: r.proposer_id,

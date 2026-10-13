@@ -8,7 +8,7 @@ import { useChatDockRequest } from '../state/ChatDockContext';
 import { MatchTeams } from '../components/MatchTeams';
 import { myFriendCode } from '../lib/friendCode';
 import { opponentFriendCode } from '../lib/matchmaking';
-import { getProfile, trainerUrl, type Profile } from '../lib/profile';
+import { getProfile, type Profile } from '../lib/profile';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
 
@@ -67,23 +67,6 @@ const HEADLINE: Record<Match['state'], string> = {
   abandoned: 'Abandoned — this match will not be played.',
 };
 
-/** One side of the versus header: the trainer's chosen sprite (or their initial) over their name. */
-function Trainer({ profile, label, onOpen }: { profile: Profile | null | undefined; label: string; onOpen: () => void }) {
-  const name = profile?.displayName ?? (profile === undefined ? '…' : 'Unknown trainer');
-  return (
-    <figure className="m-0 flex min-w-0 flex-col items-center gap-1 text-center">
-      {profile?.avatar
-        ? <img src={trainerUrl(profile.avatar)} alt="" width={96} height={96} className="size-16 object-contain [image-rendering:pixelated] sm:size-24" />
-        : <span aria-hidden="true" className="grid size-16 place-items-center text-3xl font-extrabold text-muted sm:size-24">{name.slice(0, 1).toUpperCase()}</span>}
-      <figcaption className="flex min-w-0 max-w-full flex-col">
-        <span className="hud-label">{label}</span>
-        {/* Both sides are links, so both captions share one box model and the two sprites stay level. */}
-        <button type="button" className="btn btn-ghost px-1 font-bold [overflow-wrap:anywhere]" onClick={onOpen}>{name}</button>
-      </figcaption>
-    </figure>
-  );
-}
-
 /**
  * Where a paired match goes: play the rounds in Pokémon GO, report who won
  * each one, and once both sides agree (or a dispute is adjudicated) see the
@@ -113,7 +96,6 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
   const [codes, setCodes] = useState<{ mine: string | null; theirs: string | null } | undefined>(undefined);
   // undefined = loading, null = no such profile.
   const [trainers, setTrainers] = useState<{ me: Profile | null; opp: Profile | null } | undefined>(undefined);
-  const oppName = trainers?.opp?.displayName ?? 'Their';
 
   useEffect(() => {
     let live = true;
@@ -235,15 +217,12 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
           </button>
         }
       />
-      <section className="panel grid grid-cols-[1fr_auto_1fr] items-center gap-3" aria-label="Versus">
-        <Trainer profile={trainers?.me} label="You" onOpen={() => user && patch({ screen: 'player', activePlayerId: user.id })} />
-        <span className="font-mono text-2xl font-extrabold tracking-widest text-accent" aria-hidden="true">VS</span>
-        <Trainer profile={trainers?.opp} label="Opponent" onOpen={() => patch({ screen: 'player', activePlayerId: match.opponentId })} />
-      </section>
+      <MatchTeams me={trainers?.me} opp={trainers?.opp} myTeam={match.myTeam} oppTeam={match.oppTeam}
+        myCode={codes && codes.mine} oppCode={codes && codes.theirs}
+        onOpenMe={() => user && patch({ screen: 'player', activePlayerId: user.id })}
+        onOpenOpp={() => patch({ screen: 'player', activePlayerId: match.opponentId })} />
       <div className="panel">
         <p role="status">{liveState === 'reported' && !iReported ? 'Your opponent has reported. Report your result.' : HEADLINE[liveState]}</p>
-
-        <MatchTeams myTeam={match.myTeam} oppTeam={match.oppTeam} myCode={codes && codes.mine} oppCode={codes && codes.theirs} oppName={oppName} />
 
         {open && (
           <ul className="match-list round-list">

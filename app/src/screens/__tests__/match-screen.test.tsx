@@ -190,7 +190,7 @@ describe('match screen', () => {
     const vs = await screen.findByRole('region', { name: 'Versus' });
     const opp = await within(vs).findByRole('button', { name: 'Brock' });
     expect(vs.querySelector('img')!.getAttribute('src')).toContain('/trainers/brock.png');
-    expect(within(vs).getByText('You')).toBeTruthy();
+    expect(within(vs).getByText('YOU')).toBeTruthy();
     fireEvent.click(opp);
     await waitFor(() => expect(window.location.hash).toBe('#/play/players/opp'));
   });

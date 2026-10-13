@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
@@ -10,6 +10,9 @@ vi.mock('../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import
 const C = vi.hoisted(() => ({ resolveDisplayNames: vi.fn() }));
 vi.mock('../../lib/channels', async (orig) => ({ ...(await orig<typeof import('../../lib/channels')>()), ...C }));
 
+// The profile is its own screen with its own tests; here it only matters which player Records hands it.
+vi.mock('../PlayerScreen', () => ({ PlayerScreen: ({ playerId, embedded }: { playerId: string; embedded: boolean }) => <p>{`profile:${playerId}:${embedded}`}</p> }));
+
 import { RecordsScreen } from '../RecordsScreen';
 import { AppStateProvider } from '../../state/AppState';
 
@@ -19,7 +22,9 @@ const row = (o = {}) => ({
   opponentId: 'o1', opponentName: 'Ash', myRounds: 2, oppRounds: 0, won: true,
   myTeam: [{ ref: 'medicham', fast: 'COUNTER', charges: ['ICE_PUNCH'] }], oppTeam: [{ ref: 'azumarill', fast: 'BUBBLE', charges: ['ICE_BEAM'] }], ...o,
 });
-const show = () => render(<AppStateProvider><RecordsScreen /></AppStateProvider>);
+const open = () => render(<AppStateProvider><RecordsScreen /></AppStateProvider>);
+/** Records opens on the profile; the history tests start from Match history. */
+const show = () => { const r = open(); fireEvent.click(screen.getByRole('button', { name: 'Match history' })); return r; };
 
 beforeEach(() => {
   user = { id: 'me' };
@@ -32,7 +37,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 describe('RecordsScreen', () => {
   it('asks a signed-out visitor to sign in and reads nothing', () => {
     user = null;
-    show();
+    open();
     expect(screen.getByText('Sign in to see your records.')).toBeTruthy();
     expect(R.listMyRecords).not.toHaveBeenCalled();
   });
@@ -60,12 +65,15 @@ describe('RecordsScreen', () => {
     expect(screen.getByText(/^Ultra.* · ranked$/)).toBeTruthy();
   });
 
-  it('opens your own profile from the Your profile button, even with no games', async () => {
-    R.listMyRecords.mockResolvedValue([]);
-    show();
-    await screen.findByText(/^No games here yet/);
-    fireEvent.click(screen.getByRole('button', { name: 'Your profile' }));
-    await waitFor(() => expect(window.location.hash).toBe('#/play/players/me'));
+  it('opens on your own profile, and switches between it and the match history', async () => {
+    open();
+    expect(screen.getByText('profile:me:true')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Profile' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Match history' }));
+    expect(await screen.findByRole('button', { name: 'Ash' })).toBeTruthy();
+    expect(screen.queryByText('profile:me:true')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+    expect(screen.getByText('profile:me:true')).toBeTruthy();
   });
 
   it('says so when there is nothing to show, and exports what is shown', async () => {

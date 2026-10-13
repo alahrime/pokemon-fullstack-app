@@ -6824,7 +6824,6 @@ th.bt-matrix-head { text-align: center; }
 
 /* Records */
 .records-screen { display: grid; gap: var(--space-3); }
-.records-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .records-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr)); gap: var(--space-3); margin: 0; }
 .records-tiles dt { color: var(--text-muted); font-size: var(--text-sm, 0.85rem); }
 .records-tiles dd { margin: 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -7119,39 +7118,19 @@ th.bt-matrix-head { text-align: center; }
 
 /* Left: the trainer as drawn, then who they are at the bottom left. Right: the six, broadcast-roster tiles. */
 .profile-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4); min-width: 0; }
-.profile-trainer-fig { position: relative; display: grid; justify-items: start; gap: var(--space-2); margin: 0; }
+.profile-trainer-fig { flex: 1; display: grid; place-items: center; min-height: 140px; margin: 0; }
 /* 120px is 1.5x the 80px sprite: an integer 3x on a 2x display, so pixelated scaling keeps every pixel square.
-   No frame — the drop shadow follows the sprite's own silhouette, and an ellipse grounds its feet. */
+   No frame — the drop shadow follows the sprite's own silhouette, and the contact shadow is the image's own
+   background (it shows only through the transparent pixels), so it stays under the feet wherever the sprite sits. */
 .profile-trainer-fig > img, .profile-trainer-initial {
   width: 120px;
   height: 120px;
   object-fit: contain;
   image-rendering: pixelated;
+  background: radial-gradient(ellipse 34% 5% at 50% 93%, color-mix(in srgb, var(--pc) 55%, transparent), transparent);
   filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--pc-deep) 70%, transparent));
 }
-.profile-trainer-fig::after {
-  content: '';
-  position: absolute;
-  left: 20px;
-  top: 104px;
-  width: 80px;
-  height: 10px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--pc) 55%, transparent), transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
 .profile-trainer-initial { display: grid; place-items: center; font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: var(--size-display); color: var(--text-faint); }
-.profile-trainer-tag {
-  padding: 2px 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border-left: 2px solid var(--pc-accent);
-  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-}
 .profile-roster-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); align-content: start; }
 /* The six left of the trainer on a wide card. Visual order only: the source keeps who-they-are first, which is
    also the order a phone stacks them in and a screen reader reads them in. */
@@ -7407,7 +7386,6 @@ th.bt-matrix-head { text-align: center; }
   .profile-card { grid-template-columns: minmax(0, 1fr); }
   .profile-card > .profile-roster-grid { order: 0; }
   .profile-trainer-fig > img, .profile-trainer-initial { width: 80px; height: 80px; }
-  .profile-trainer-fig::after { left: 12px; top: 70px; width: 56px; }
 }
 @media (max-width: 640px) {
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

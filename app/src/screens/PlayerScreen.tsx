@@ -123,10 +123,15 @@ function Roster({ profile, own, onAdd, onRemove }: {
  * from public tournament games — only formats whose roster is six count. For anyone but yourself, also your own
  * matches against them (free matches stay private to the two players, so this is the only place they show).
  */
-export function PlayerScreen() {
+export function PlayerScreen({ playerId, embedded = false }: {
+  /** Show this player instead of the route's; Records passes your own id. */
+  playerId?: string;
+  /** Inside Records' Profile view: no "← Records", since Records is where you already are. */
+  embedded?: boolean;
+} = {}) {
   const { state, patch } = useAppState();
   const { user } = useSession();
-  const id = state.activePlayerId;
+  const id = playerId ?? state.activePlayerId;
   const me = user?.id ?? null;
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -196,17 +201,16 @@ export function PlayerScreen() {
 
   return (
     <div className="records-screen profile-screen">
-      <div><button type="button" className="btn" onClick={toRecords}>← Records</button></div>
+      {!embedded && <div><button type="button" className="btn" onClick={toRecords}>← Records</button></div>}
       {failed && <p className="friend-notice" role="alert">Couldn't load this profile.</p>}
 
       <section className="profile-card" style={leagueVars(fav)} aria-label="Trainer card">
         <div className="profile-side">
-          {/* The sprite as drawn: no frame, its own silhouette standing on a contact shadow. */}
+          {/* The sprite as drawn, centred in the space above the name: no frame, its own silhouette on a contact shadow. */}
           <figure className="profile-trainer-fig">
             {profile?.avatar
               ? <img src={trainerUrl(profile.avatar)} alt={`${shownName}'s trainer`} width={80} height={80} />
               : <span className="profile-trainer-initial" aria-hidden="true">{shownName.slice(0, 1).toUpperCase()}</span>}
-            {profile && <figcaption className="profile-trainer-tag">{profile.goUsername}</figcaption>}
           </figure>
           <div className="profile-ident">
             <p className="profile-title">{sc.tier.name}{profile?.specialty ? ` · ${profile.specialty}` : ''}</p>
@@ -222,7 +226,7 @@ export function PlayerScreen() {
             {saveError && <p className="friend-notice" role="alert">{saveError}</p>}
             {id === me && (
               <div className="profile-own">
-                <p className="text-muted">This is you. Your full match history is on Records.</p>
+                <p className="text-muted">This is you. Your games are under Records → Match history.</p>
                 {profile && <button type="button" className="btn btn-primary" onClick={() => setEditing(true)}>Edit profile</button>}
               </div>
             )}

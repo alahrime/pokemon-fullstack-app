@@ -7,6 +7,7 @@ import { TeamGrid } from '../components/tournament/RosterCard';
 import { byDay, exportRecords, listMyRecords, mergeRecords, monthGrid, summarise, tournamentRows, wilson, type RecordRow } from '../lib/records';
 import { listPlayerGames } from '../lib/tournaments';
 import { resolveDisplayNames } from '../lib/channels';
+import { PlayerScreen } from './PlayerScreen';
 
 const SHOWN = 50;
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -18,6 +19,8 @@ export function RecordsScreen() {
   const uid = user?.id ?? null;
   const [rows, setRows] = useState<RecordRow[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Records opens on your profile; the match history is one switch away.
+  const [view, setView] = useState<'profile' | 'history'>('profile');
   const [ranked, setRanked] = useState(false);
   const [more, setMore] = useState(SHOWN);
   const [ym, setYm] = useState(() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1 }; });
@@ -53,9 +56,27 @@ export function RecordsScreen() {
   const title = new Date(ym.y, ym.m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const [lo, hi] = wilson(sum.wins, sum.games);
 
+  const views = (
+    <div className="seg-group" role="group" aria-label="Records view">
+      {([['profile', 'Profile'], ['history', 'Match history']] as const).map(([v, label]) => (
+        <button key={v} type="button" aria-pressed={view === v}
+          className={`btn seg-btn${view === v ? ' is-active' : ''}`} onClick={() => setView(v)}>{label}</button>
+      ))}
+    </div>
+  );
+  if (view === 'profile') {
+    return (
+      <div className="records-screen">
+        <div className="tournaments-bar">{views}</div>
+        <PlayerScreen playerId={user.id} embedded />
+      </div>
+    );
+  }
+
   return (
     <div className="records-screen">
       <div className="tournaments-bar">
+        {views}
         <div className="seg-group" role="group" aria-label="Which matches">
           {[[false, 'All'], [true, 'Ranked']].map(([v, label]) => (
             <button key={String(label)} type="button" aria-pressed={ranked === v}
@@ -64,10 +85,7 @@ export function RecordsScreen() {
             </button>
           ))}
         </div>
-        <div className="records-actions">
-          <button type="button" className="btn btn-primary" onClick={() => patch({ screen: 'player', activePlayerId: uid })}>Your profile</button>
-          <button type="button" className="btn" disabled={shown.length === 0} onClick={() => exportRecords(shown, tz)}>Export CSV</button>
-        </div>
+        <button type="button" className="btn" disabled={shown.length === 0} onClick={() => exportRecords(shown, tz)}>Export CSV</button>
       </div>
 
       {failed && rows === null && <p className="friend-notice" role="alert">Couldn't load your records.</p>}

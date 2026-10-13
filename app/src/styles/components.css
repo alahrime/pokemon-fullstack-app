@@ -7136,36 +7136,49 @@ th.bt-matrix-head { text-align: center; }
    also the order a phone stacks them in and a screen reader reads them in. */
 .profile-card > .profile-roster-grid { order: -1; }
 .profile-tile {
+  /* Each tile is lit by its species' typing (set inline); an empty tile or unknown species falls back to the league. */
+  --tile-a: var(--t1, var(--pc));
+  --tile-b: var(--t2, var(--pc));
   position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
   min-width: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 62%, color-mix(in srgb, var(--pc) 32%, transparent), transparent 75%),
-    linear-gradient(180deg, var(--surface-2), var(--surface-1));
-  border: var(--border-hairline) solid color-mix(in srgb, var(--pc) 35%, var(--rule-hairline));
+    radial-gradient(ellipse 62% 52% at 50% 58%, color-mix(in srgb, var(--tile-a) 46%, transparent), transparent 74%),
+    linear-gradient(155deg, color-mix(in srgb, var(--tile-a) 30%, var(--surface-1)), color-mix(in srgb, var(--tile-b) 24%, var(--surface-1)) 80%);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--tile-a) 55%, var(--rule-hairline));
+  box-shadow: inset 0 -14px 22px -14px color-mix(in srgb, var(--tile-b) 70%, transparent);
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
   transition: border-color var(--dur-2) var(--ease-out);
 }
-.profile-tile:hover { border-color: color-mix(in srgb, var(--pc) 80%, transparent); }
+.profile-tile:hover { border-color: var(--tile-a); }
+/* Scales with the tile (Sprite sets a fixed inline size, hence !important), lifted clear of the name strip. */
+.profile-tile-sprite { width: 78% !important; height: 78% !important; margin-bottom: 18%; }
 .profile-tile.is-empty { background: none; border-style: dashed; }
 .profile-tile-blank { width: 100%; height: 100%; background: repeating-linear-gradient(135deg, var(--grid-line) 0 1px, transparent 1px 9px); }
 .profile-tile-add { width: 100%; height: 100%; min-height: 0; border: 0; clip-path: none; cursor: pointer; }
 .profile-tile-name {
   position: absolute;
   inset: auto 0 0 0;
-  padding: 3px var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
+  padding: 5px var(--space-2) 6px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-md);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   text-align: center;
-  color: var(--text-muted);
-  background: linear-gradient(0deg, color-mix(in srgb, var(--surface-1) 90%, transparent), transparent);
+  color: var(--color-text);
+  /* A solid band, not a fade: the name sits on a known ground whatever the type colours behind it. */
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border-top: var(--border-hairline) solid color-mix(in srgb, var(--tile-a) 70%, transparent);
+  /* A long form name ("Stunfisk (Galarian)") takes a second line rather than losing its form to an ellipsis. */
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .profile-tile-remove {
   position: absolute;
@@ -7384,6 +7397,8 @@ th.bt-matrix-head { text-align: center; }
 
 @media (max-width: 760px) {
   .profile-card { grid-template-columns: minmax(0, 1fr); }
+  .profile-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-tile-name { font-size: var(--text-sm); padding: 4px var(--space-1) 5px; }
   .profile-card > .profile-roster-grid { order: 0; }
   .profile-trainer-fig > img, .profile-trainer-initial { width: 80px; height: 80px; }
 }

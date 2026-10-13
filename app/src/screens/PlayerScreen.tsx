@@ -106,9 +106,11 @@ function Roster({ profile, own, onAdd, onRemove }: {
               </li>
             );
           }
+          // Lit by its own two types, the --t1/--t2 pair MonTile and PokemonCard use.
+          const tint = s ? { ['--t1' as string]: `var(--type-${s.types[0]})`, ['--t2' as string]: `var(--type-${s.types[1] ?? s.types[0]})` } : undefined;
           return (
-            <li key={ref} className="profile-tile">
-              {s && <Sprite sprite={s.sprite} dex={s.dex} size={92} />}
+            <li key={ref} className="profile-tile" style={tint}>
+              {s && <Sprite sprite={s.sprite} dex={s.dex} size={128} className="profile-tile-sprite" />}
               <span className="profile-tile-name">{displayName(ref)}</span>
               {own && <button type="button" className="profile-tile-remove" aria-label={`Remove ${displayName(ref)}`} onClick={() => onRemove(ref)}>✕</button>}
             </li>

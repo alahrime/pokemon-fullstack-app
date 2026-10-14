@@ -4620,6 +4620,45 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
     border-bottom: var(--border-strong) solid var(--rule-strong);
   }
 }
+/* The versus strip and the edit switch exist only where the sides stack. */
+.bt-versus, .bt-edit-switch { display: none; }
+@media (max-width: 680px) {
+  .bt-versus {
+    position: sticky; top: var(--nav-h); z-index: 40;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    padding: var(--space-2) 0;
+    background: var(--surface-1);
+    border-bottom: var(--border-hairline) solid var(--rule-hairline);
+  }
+  .bt-vs-mon {
+    display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-rows: auto auto;
+    align-items: center; column-gap: var(--space-2); row-gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: var(--border-hairline) solid var(--rule-hairline);
+    background: var(--surface-2); color: var(--color-text); text-align: left; cursor: pointer; min-width: 0;
+  }
+  /* Pokémon 2 mirrors Pokémon 1: sprite on the outside edge. */
+  .bt-vs-mon.is-p2 { grid-template-columns: minmax(0, 1fr) 44px; text-align: right; }
+  .bt-vs-mon.is-p2 > :first-child { grid-column: 2; grid-row: 1; }
+  .bt-vs-mon.is-p2 > .bt-vs-text { grid-column: 1; grid-row: 1; }
+  .bt-vs-mon[aria-pressed='true'] { border-color: var(--color-accent); }
+  .bt-vs-text { display: grid; min-width: 0; }
+  /* Two lines, not one: "Stunfisk (Galarian)" cut to "Stunfisk (Gala…" hides which Pokémon it is. */
+  .bt-vs-name { font-weight: 700; font-size: var(--text-sm); line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+  .bt-vs-meta { font-size: var(--text-2xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bt-vs-tag { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--color-accent); }
+  .bt-vs-hp { grid-column: 1 / -1; height: 6px; background: var(--color-neutral-300); }
+  .bt-vs-hp > span { display: block; height: 100%; background: var(--color-neutral-500); }
+  .bt-vs-mon.is-winner .bt-vs-hp > span { background: var(--color-accent); }
+  .bt-vs-mon.is-p2 .bt-vs-hp { direction: rtl; }
+  .bt-vs-mid { display: grid; place-content: center; justify-items: center; font-size: var(--text-xs); color: var(--text-muted); }
+  .bt-vs-vs { font-family: var(--font-heading); font-weight: var(--font-heading-weight); color: var(--color-text); }
+
+  .bt-edit-switch { display: flex; margin-bottom: var(--space-3); }
+  .bt-edit-switch > * { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bt-pair.is-editing-a > .bt-side, .bt-pair.is-editing-b > .bt-pair-left { display: none; }
+}
 .bt-result {
   border: var(--border-strong) solid var(--rule-strong);
   border-top: 0;

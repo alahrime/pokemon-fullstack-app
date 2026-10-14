@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, LEAGUE_BY_ID } from '../lib/data';
@@ -317,6 +317,26 @@ function HpBar({ label, hp, maxHp, color }: { label: string; hp: number; maxHp: 
   );
 }
 
+/** One side of the phone versus strip: who, at what roll, and the HP it ends the battle on. Tapping it edits that side. */
+function VersusMon({ side, refId, sprite, dex, cp, iv, hp, maxHp, won, editing, onEdit }: {
+  side: '1' | '2'; refId: string; sprite: string; dex: number; cp: number; iv: IV; hp: number; maxHp: number; won: boolean; editing: boolean; onEdit: () => void;
+}) {
+  const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+  return (
+    <button type="button" className={`bt-vs-mon is-p${side}${won ? ' is-winner' : ''}`} aria-pressed={editing} onClick={onEdit}
+      aria-label={`Edit Pokémon ${side}, ${displayName(refId)}: ${won ? 'wins' : 'loses'} with ${Math.round(pct)}% HP left`}>
+      <Sprite sprite={sprite} dex={dex} size={44} shadow={parseRef(refId).shadow} />
+      <span className="bt-vs-text">
+        <span className="bt-vs-name">{displayName(refId)}</span>
+        <span className="bt-vs-meta numeric">{cp} CP</span>
+        <span className="bt-vs-meta numeric">{iv.a}/{iv.d}/{iv.s}</span>
+        {won && <span className="bt-vs-tag">Wins</span>}
+      </span>
+      <span className="bt-vs-hp" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+    </button>
+  );
+}
+
 /** `+2`, `-1`, `0` — signed so a debuff is never mistaken for a buff. */
 const fmtStage = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
@@ -365,6 +385,20 @@ export function BattleScreen() {
   const setChargesA = (ids: string[]) => patch({ chargeIdsA: ids });
   const setChargesB = (ids: string[]) => patch({ chargeIdsB: ids });
 
+  // Phones show one side's controls at a time (CSS); desktop shows both.
+  const [editing, setEditing] = useState<'a' | 'b'>('a');
+  const edit = (side: 'a' | 'b') => {
+    setEditing(side);
+    // Bring the editor's top up under the strip, where the strip will be once
+    // pinned (its sticky offset plus its height), not where it is right now.
+    const sw = document.querySelector('.bt-edit-switch');
+    const vs = document.querySelector<HTMLElement>('.bt-versus');
+    if (sw && vs) {
+      const pinnedBottom = parseFloat(getComputedStyle(vs).top) + vs.offsetHeight;
+      window.scrollTo({ top: sw.getBoundingClientRect().top + window.scrollY - pinnedBottom - 8 });
+    }
+  };
+
   const winner = current.win ? nameA : nameB;
   const loser = current.win ? nameB : nameA;
   const margin = Math.abs(current.margin);
@@ -375,6 +409,21 @@ export function BattleScreen() {
         title="Battle"
         blurb="Head-to-head PvP simulation: independent movesets, starting energy and shield counts per side, with selective baiting when a mon carries two charge moves of different costs."
       />
+      {/* Phones only (CSS), pinned under the slim nav: both Pokémon and how
+          the battle ends stay in view while either side is edited below. It
+          reads the same simulation as the outcome panel. */}
+      <div className="bt-versus" role="group" aria-label="Matchup">
+        <VersusMon side="1" refId={battleA} sprite={speciesA.sprite} dex={speciesA.dex} cp={entryA.cp} iv={ivA}
+          hp={current.hpA} maxHp={current.maxHpA} won={current.win} editing={editing === 'a'} onEdit={() => edit('a')} />
+        <div className="bt-vs-mid">
+          <span className="bt-vs-vs">VS</span>
+          <span className="numeric">{Math.abs(current.margin).toFixed(0)}%</span>
+          <span className="bt-vs-shields numeric" title="Shields, Pokémon 1 v Pokémon 2">{shieldsA}v{shieldsB}</span>
+        </div>
+        <VersusMon side="2" refId={battleB} sprite={speciesB.sprite} dex={speciesB.dex} cp={entryB.cp} iv={ivB}
+          hp={current.hpB} maxHp={current.maxHpB} won={!current.win} editing={editing === 'b'} onEdit={() => edit('b')} />
+      </div>
+
       {/* One strip rather than a stacked column. Label, control and the
           consequence of the choice sit on a single baseline, so the setting
           costs one row instead of three and the horizontal space it was
@@ -408,7 +457,15 @@ export function BattleScreen() {
         </p>
       </div>
 
-      <div className="bt-pair">
+      <div className="seg-group bt-edit-switch" role="group" aria-label="Pokémon to edit">
+        {(['a', 'b'] as const).map((k, i) => (
+          <button key={k} type="button" className={`seg-btn${editing === k ? ' is-active' : ''}`} aria-pressed={editing === k} onClick={() => setEditing(k)}>
+            Pokémon {i + 1} · {i === 0 ? nameA : nameB}
+          </button>
+        ))}
+      </div>
+
+      <div className={`bt-pair is-editing-${editing}`}>
         <div className="bt-pair-left">
           <Side
             label="Pokémon 1"

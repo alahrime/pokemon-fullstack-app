@@ -313,3 +313,31 @@ describe('BattleScreen — the remaining controls', () => {
     expect(back.getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('BattleScreen — the phone versus strip', () => {
+  // The strip and the one-side-at-a-time switch exist for phones (CSS hides
+  // them on desktop; jsdom applies no stylesheet), so this covers wiring.
+  it('shows both Pokémon and tags the same winner as the outcome panel', async () => {
+    const { container } = renderApp(<BattleScreen />);
+    const [a, b] = sides(container);
+    await setSpecies(a, 'Azumarill');
+    await setSpecies(b, 'Registeel');
+    const mons = [...container.querySelectorAll('.bt-vs-mon')];
+    expect(mons.map((m) => m.querySelector('.bt-vs-name')!.textContent)).toEqual(['Azumarill', 'Registeel']);
+    const winner = container.querySelector('.bt-winner')!.textContent!.split(' beats ')[0];
+    expect(container.querySelector('.bt-vs-mon.is-winner .bt-vs-name')!.textContent).toBe(winner);
+    expect(container.querySelectorAll('.bt-vs-mon.is-winner')).toHaveLength(1);
+  });
+
+  it('edits one side at a time, from the switch or by tapping a Pokémon in the strip', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const pair = container.querySelector('.bt-pair')!;
+    expect(pair.className).toMatch(/is-editing-a/);
+    fireEvent.click(container.querySelectorAll('.bt-vs-mon')[1]);
+    expect(pair.className).toMatch(/is-editing-b/);
+    expect([...container.querySelectorAll('.bt-edit-switch button')].map((x) => x.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+    fireEvent.click(container.querySelectorAll('.bt-edit-switch button')[0]);
+    expect(pair.className).toMatch(/is-editing-a/);
+    expect(container.querySelectorAll('.bt-vs-mon')[0].getAttribute('aria-pressed')).toBe('true');
+  });
+});

@@ -457,6 +457,47 @@ input[type='range'] { accent-color: var(--color-accent); }
 .report-side > .hero { margin-bottom: var(--space-1); }
 .side-block { min-width: 0; }
 
+/* — one roll in every league — */
+.league-verdicts { display: grid; gap: var(--space-1); }
+.league-verdict {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) repeat(4, auto);
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  border-left: 3px solid color-mix(in srgb, var(--lg-accent) 45%, transparent);
+  background: var(--surface-1);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.league-verdict:hover { border-color: var(--lg-accent); }
+.league-verdict[aria-pressed='true'] {
+  border-color: var(--lg-accent);
+  border-left-color: var(--lg-accent);
+  background: color-mix(in srgb, var(--lg-accent) 12%, var(--surface-1));
+}
+.league-verdict-name { font-weight: 700; }
+.league-verdict-rank { font-weight: 700; justify-self: end; }
+.league-verdict-pct, .league-verdict-cp, .league-verdict-lvl { justify-self: end; color: var(--text-muted); }
+.league-verdict small { font-size: var(--text-2xs); }
+.league-verdict > span { white-space: nowrap; }
+
+/* Phones: the card, the roll and every league lead the column, so a catch can
+   be judged on the first screen; the rest keeps its order beneath. */
+@media (max-width: 820px) {
+  .report-side > .hero, .report-side > .rs-roll, .report-side > .rs-leagues { order: -1; }
+  /* A smaller subject, so the card, roll and leagues share one screen. Sprite
+     sizes itself inline (its img fills the box), hence !important. */
+  .report-side .hero-stage { padding: var(--space-2) var(--space-3); }
+  .report-side .hero-stage .sprite-holo { width: 88px !important; height: 88px !important; }
+  /* 253px of row at 375 wide cannot hold the names too; the emblem says which league. */
+  .league-verdict { grid-template-columns: 22px repeat(4, auto); justify-content: space-between; column-gap: var(--space-2); }
+  .league-verdict-name { display: none; }
+}
+
 /* — battle stat strip — */
 .stat-strip {
   display: grid;

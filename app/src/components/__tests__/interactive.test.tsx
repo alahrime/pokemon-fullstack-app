@@ -10,12 +10,13 @@ import { Sprite } from '../Sprite';
 import { ShinyStar } from '../ShinyStar';
 import { CupSelect } from '../CupSelect';
 import { LeagueTabs } from '../LeagueTabs';
+import { LeagueVerdicts } from '../LeagueVerdicts';
 import { SiteFooter } from '../SiteFooter';
 import { SearchHelp } from '../SearchHelp';
 import { ShieldMatrix } from '../ShieldMatrix';
 import { ThresholdTable } from '../../screens/detail/ThresholdTable';
 import { RulerView } from '../../screens/detail/RulerView';
-import { scenarioMatrix, rulersFor, bpRowsFor, opponentInfo } from '../../lib/engine';
+import { scenarioMatrix, rulersFor, bpRowsFor, opponentInfo, leagueVerdicts } from '../../lib/engine';
 
 beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
 
@@ -51,7 +52,7 @@ describe('App shell', () => {
     expect(search, 'the Report must carry the picker').toBeTruthy();
     expect(container.querySelector('.nav')!.contains(search!)).toBe(false);
   });
-  it('pins a phone copy of the picker on the Report that changes the Pokémon and returns to the top', async () => {
+  it('pins a phone copy of the picker on the Report that changes the Pokémon and scrolls to its card', async () => {
     // Phones get it pinned under the slim nav (CSS hides it on desktop and
     // jsdom applies no stylesheet, so this covers wiring, not layout).
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
@@ -69,7 +70,8 @@ describe('App shell', () => {
     });
     fireEvent.mouseDown(row);
     await waitFor(() => expect(container.querySelector('.report-side')!.textContent).toMatch(/Medicham/));
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+    // Where it lands is layout (measured in the browser); here, that it scrolls.
+    expect(scrollTo).toHaveBeenCalledTimes(1);
   });
   it('keeps the league tabs in the slim bar working, outside the full nav', () => {
     const { container } = renderApp(<App />);
@@ -93,6 +95,21 @@ describe('App shell', () => {
       expect(rail.length, s.id).toBeGreaterThan(0);
       expect(new Set(rail).size, s.id).toBe(rail.length);
     }
+  });
+});
+
+describe('LeagueVerdicts', () => {
+  it('shows one roll in every league, marks the current one, and switches on a tap', () => {
+    const onPick = vi.fn();
+    const rows = leagueVerdicts('azumarill', { a: 0, d: 14, s: 15 }, false);
+    const { container } = renderApp(<LeagueVerdicts rows={rows} current="great" onPick={onPick} />);
+    const buttons = [...container.querySelectorAll('.league-verdict')];
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+    expect(buttons[0].textContent).toContain(`#${rows[0].rank}`);
+    // The name is hidden on phones, so the accessible name carries it.
+    expect(buttons[2].getAttribute('aria-label')).toMatch(/^Master League: rank /);
+    fireEvent.click(buttons[1]);
+    expect(onPick).toHaveBeenCalledWith('ultra');
   });
 });
 

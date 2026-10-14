@@ -2,6 +2,7 @@ import { BB_MAX_LEVEL_IDX, CPM, LVL, MAX_LEVEL_IDX } from './cpm';
 import { typeEffectiveness } from './typeChart';
 import {
   LEAGUE_BY_ID,
+  LEAGUES,
   OPPONENT_POOL_BY_ID,
   SPECIES_BY_ID,
   movesFor,
@@ -2427,6 +2428,23 @@ export function mkBattleMon(
 }
 
 // ── Verdict copy ──
+export interface LeagueVerdict {
+  league: LeagueId;
+  rank: number;
+  /** Stat product as a percentage of the league's rank-1 spread. */
+  pct: number;
+  cp: number;
+  lvl: number;
+}
+
+/** One roll in every league at once, read from the same tables as the Report. */
+export function leagueVerdicts(ref: string, iv: IV, bestBuddy: boolean): LeagueVerdict[] {
+  return LEAGUES.map((l) => {
+    const { entry, table } = getEntry(ref, iv, l.id, bestBuddy);
+    return { league: l.id, rank: entry.rank, pct: (100 * entry.sp) / table.best.sp, cp: entry.cp, lvl: entry.lvl };
+  });
+}
+
 export function verdictLine(rank: number): string {
   if (rank === 1) return 'Rank 1 · maximum stat product at cap';
   if (rank <= 10) return 'Top 10 · elite spread, worth full investment';

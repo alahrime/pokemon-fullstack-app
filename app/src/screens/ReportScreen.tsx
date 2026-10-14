@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useAppState } from '../state/AppState';
+import { leaguePatch, useAppState } from '../state/AppState';
+import { LeagueVerdicts } from '../components/LeagueVerdicts';
 import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
   dmg,
@@ -15,6 +16,7 @@ import {
   rulersFor,
   scenarioMatrix,
   verdictLine,
+  leagueVerdicts,
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { OpponentGrid } from '../components/OpponentGrid';
@@ -53,6 +55,7 @@ export function ReportScreen() {
   const isShadow = shadow && species.shadowEligible;
   const ref = makeRef(speciesId, isShadow);
   const { entry, table } = getEntry(ref, iv, league, bestBuddy);
+  const verdicts = useMemo(() => leagueVerdicts(ref, iv, bestBuddy), [ref, iv, bestBuddy]);
   const bbEligible = useMemo(
     () => bestBuddyEligible(species, LEAGUE_BY_ID.get(league)!),
     [species, league],
@@ -214,15 +217,20 @@ export function ReportScreen() {
         <span className="report-wash" aria-hidden="true" />
         {/* Phones only (CSS): one column puts the search below the hero, the
             roll and its table, two screens down. This copy is pinned under the
-            slim nav instead, and picking returns to the top, where the new
-            Pokémon's card and IVs are. The column's own search hides there. */}
+            slim nav instead, and picking scrolls the new Pokémon's card, roll
+            and every-league panel up under it. The column's own search hides there. */}
         <div className="report-search-bar">
           <SpeciesSearch
             id="report-species-pinned"
             value={speciesId}
             onChange={(id) => {
               patch({ species: id, moveIdx: 0, chargeIds: [] });
-              window.scrollTo({ top: 0 });
+              // The card lands right under the pinned bars, with the roll and
+              // every league beneath it; measured, since the bars' height is
+              // the theme's.
+              const side = document.querySelector('.report-side > .hero');
+              const bar = document.querySelector('.report-search-bar');
+              if (side && bar) window.scrollTo({ top: side.getBoundingClientRect().top + window.scrollY - bar.getBoundingClientRect().bottom });
             }}
             placeholder="Search a Pokémon…"
             className="report-search"
@@ -282,7 +290,7 @@ export function ReportScreen() {
             </div>
           </div>
 
-          <div className="side-block">
+          <div className="side-block rs-roll">
             <div className="hud-label mb-[7px] flex items-center">
               <span className="flex-1">Adjust roll</span>
               {/* Rank 1 is a specific spread, not 15/15/15 — under a cap a low
@@ -305,6 +313,11 @@ export function ReportScreen() {
               </button>
             </div>
             <IVAdjuster iv={iv} onBump={bumpIv} />
+          </div>
+
+          <div className="side-block rs-leagues">
+            <div className="hud-label mb-[7px]">Every league</div>
+            <LeagueVerdicts rows={verdicts} current={league} onPick={(id) => patch(leaguePatch(id, null))} />
           </div>
 
           {/* The ranking window reads the roll above it, so it sits with the

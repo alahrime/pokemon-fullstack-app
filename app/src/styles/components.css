@@ -7346,6 +7346,10 @@ th.bt-matrix-head { text-align: center; }
 .profile-trophy-title, .profile-bout-title { justify-self: start; padding: 0; min-height: 0; font-weight: 700; color: var(--color-text); text-align: left; overflow-wrap: anywhere; }
 .profile-trophy-title:hover, .profile-bout-title:hover { color: var(--color-accent); background: none; }
 .profile-trophy-place { font-size: var(--text-xs); color: var(--text-muted); }
+.profile-trophy-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.profile-trophy-pin { padding: 0; min-height: 0; font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--text-muted); }
+.profile-trophy-pin[aria-pressed='true'], span.profile-trophy-pin { color: var(--medal); }
+.profile-trophy.is-pinned { border-color: var(--medal); }
 
 .profile-bouts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
 .profile-bout {

@@ -19,6 +19,7 @@ export function ProfileEditor({ id, profile, onSaved, onClose }: {
   const [draft, setDraft] = useState<ProfileEdit>({
     avatar: profile.avatar, region: profile.region, trainerLevel: profile.trainerLevel, xp: profile.xp,
     favoritePokemon: profile.favoritePokemon, favoriteLeague: profile.favoriteLeague, faction: profile.faction, specialty: profile.specialty,
+    pinnedTrophies: profile.pinnedTrophies,
   });
   const [level, setLevel] = useState(profile.trainerLevel?.toString() ?? '');
   const [xp, setXp] = useState(profile.xp?.toString() ?? '');

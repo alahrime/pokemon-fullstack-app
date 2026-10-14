@@ -10,17 +10,20 @@ export interface Profile {
   displayName: string; goUsername: string; createdAt: string;
   avatar: string | null; region: string | null; trainerLevel: number | null; xp: number | null;
   favoritePokemon: string[]; favoriteLeague: LeagueId | null; faction: string | null; specialty: string | null;
+  /** Tournament ids whose trophies lead the case, in pin order. */
+  pinnedTrophies: string[];
 }
 export type ProfileEdit = Omit<Profile, 'displayName' | 'goUsername' | 'createdAt'>;
 
 export const FAVORITES = 6;
+export const PINS = 3;
 export const MAX_LEVEL = 80;
 export const SPECIALTIES = ['Great League Specialist', 'Ultra League Specialist', 'Master League Specialist', 'Limited Cup Specialist', 'Captain', 'Alternate'];
 export const trainerUrl = (slug: string) => `https://play.pokemonshowdown.com/sprites/trainers/${slug}.png`;
 /** The 1,500 slugs at play.pokemonshowdown.com/sprites/trainers/, loaded only when the picker opens. */
 export const loadTrainers = async (): Promise<string[]> => (await import('../data/trainers.json')).default;
 
-const COLS = 'display_name, go_username, created_at, avatar, region, trainer_level, xp, favorite_pokemon, favorite_league, faction, specialty';
+const COLS = 'display_name, go_username, created_at, avatar, region, trainer_level, xp, favorite_pokemon, favorite_league, faction, specialty, pinned_trophies';
 
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select(COLS).eq('id', id).maybeSingle();
@@ -33,6 +36,7 @@ export async function getProfile(id: string): Promise<Profile | null> {
     trainerLevel: (r.trainer_level as number | null) ?? null, xp: r.xp == null ? null : Number(r.xp),
     favoritePokemon: speciesOnly((r.favorite_pokemon as string[] | null) ?? []), favoriteLeague: (r.favorite_league as LeagueId | null) ?? null,
     faction: (r.faction as string | null) ?? null, specialty: (r.specialty as string | null) ?? null,
+    pinnedTrophies: (r.pinned_trophies as string[] | null) ?? [],
   };
 }
 
@@ -55,7 +59,7 @@ export async function saveProfile(id: string, e: ProfileEdit): Promise<void> {
   const { data, error } = await supabase.from('profiles').update({
     avatar: e.avatar, region: blank(e.region), trainer_level: e.trainerLevel, xp: e.xp,
     favorite_pokemon: speciesOnly(e.favoritePokemon).slice(0, FAVORITES), favorite_league: e.favoriteLeague,
-    faction: blank(e.faction), specialty: blank(e.specialty),
+    faction: blank(e.faction), specialty: blank(e.specialty), pinned_trophies: e.pinnedTrophies.slice(0, PINS),
   }).eq('id', id).select('id');
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error('This profile is not yours to edit.');
@@ -119,4 +123,10 @@ export function showcase(all: readonly PlayerGame[], placements: ReadonlyMap<str
     tournaments: list.length, tier: tierFor(wins, games.length), byLeague, bouts: list,
     trophies: list.filter((b) => b.placement && b.placement.place <= 3).sort((a, b) => a.placement!.place - b.placement!.place),
   };
+}
+
+/** Pinned trophies first, in pin order; the rest keep their podium order. */
+export function pinFirst(trophies: readonly Bout[], pinned: readonly string[]): Bout[] {
+  const at = (b: Bout) => { const i = pinned.indexOf(b.tournamentId); return i < 0 ? pinned.length : i; };
+  return [...trophies].sort((a, b) => at(a) - at(b));
 }

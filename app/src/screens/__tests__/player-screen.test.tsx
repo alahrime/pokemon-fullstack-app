@@ -100,6 +100,38 @@ describe('PlayerScreen', () => {
     expect(screen.getByText('Brock: not shown.')).toBeTruthy();
   });
 
+  describe('pinned trophies', () => {
+    // A second podium, so order can move: t1 won (1st), t3 runner-up (2nd).
+    beforeEach(() => {
+      const t3 = { tournamentId: 't3', title: 'Vermilion Open', league: 'great', formatName: 'Open Great', teamSize: 6, complete: true };
+      L.listPlayerGames.mockResolvedValue([
+        { tournamentId: 't1', title: 'Cerulean Cup', league: 'ultra', formatName: 'Open Ultra', teamSize: 6, complete: true, round: 1, opponentId: OPP, myRounds: 2, oppRounds: 0, won: true, myRoster: null, oppRoster: null },
+        { ...t3, round: 1, opponentId: OPP, myRounds: 2, oppRounds: 1, won: true, myRoster: null, oppRoster: null },
+      ]);
+      L.listPlacements.mockResolvedValue(new Map([['t1', { place: 1, field: 8 }], ['t3', { place: 2, field: 8 }]]));
+    });
+    const titles = () => [...document.querySelectorAll('.profile-trophy .profile-trophy-title')].map((b) => b.textContent);
+
+    it('lets you pin a trophy to the front, and saves it at once', async () => {
+      user = { id: ID };
+      show();
+      await waitFor(() => expect(titles()).toEqual(['Cerulean Cup', 'Vermilion Open']));
+      fireEvent.click(screen.getByRole('button', { name: 'Pin Vermilion Open' }));
+      await waitFor(() => expect(P.saveProfile).toHaveBeenCalled());
+      expect(P.saveProfile.mock.calls[0][1]).toMatchObject({ pinnedTrophies: ['t3'] });
+      await waitFor(() => expect(titles()).toEqual(['Vermilion Open', 'Cerulean Cup']));
+      expect(screen.getByRole('button', { name: 'Unpin Vermilion Open' }).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it("shows a visitor someone's pins, with nothing to press", async () => {
+      P.getProfile.mockResolvedValue({ ...(await P.getProfile()), pinnedTrophies: ['t3'] });
+      show();
+      await waitFor(() => expect(titles()).toEqual(['Vermilion Open', 'Cerulean Cup']));
+      expect(screen.getByText('★ Pinned')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^(Pin|Unpin) / })).toBeNull();
+    });
+  });
+
   it('lets you edit your own card, and saves what you changed', async () => {
     user = { id: ID };
     show();

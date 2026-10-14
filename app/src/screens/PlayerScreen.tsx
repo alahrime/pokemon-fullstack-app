@@ -5,7 +5,7 @@ import { useSession } from '../state/SessionContext';
 import { resolveDisplayNames } from '../lib/channels';
 import { listMyRecords, summarise, type RecordRow } from '../lib/records';
 import { listPlacements, listPlayerGames, type PlayerGame } from '../lib/tournaments';
-import { FAVORITES, friendRecord, getProfile, saveProfile, showcase, trainerUrl, type Bout, type FreeRecord, type Profile } from '../lib/profile';
+import { FAVORITES, PINS, friendRecord, getProfile, pinFirst, saveProfile, showcase, trainerUrl, type Bout, type FreeRecord, type Profile } from '../lib/profile';
 import { liveChallengesWith, type Challenge } from '../lib/challenges';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { ChallengeCard } from '../components/ChallengeCard';
@@ -183,6 +183,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
   }, [me, id]);
 
   const sc = useMemo(() => showcase(games ?? [], places), [games, places]);
+  const pins = profile?.pinnedTrophies ?? [];
   const h2h = useMemo(() => summarise(mine ?? []), [mine]);
   const name = (uid: string) => names.get(uid) ?? 'Unknown player';
   const toRecords = () => patch({ screen: 'records', activePlayerId: null });
@@ -190,10 +191,10 @@ export function PlayerScreen({ playerId, embedded = false }: {
   const back = () => (history.length > 1 ? history.back() : toRecords());
   const refreshChallenges = () => { if (id) void liveChallengesWith(id).then(setChallenges).catch(() => {}); };
   const open = (uid: string) => patch({ screen: 'player', activePlayerId: uid });
-  /** "+" and "✕" save straight away: a tile that looks added must be added. */
-  const setFavorites = async (favoritePokemon: string[]) => {
+  /** "+", "✕" and a pin save straight away: a tile that looks added must be added. */
+  const saveNow = async (edit: Partial<Profile>) => {
     if (!profile || !me) return;
-    const next = { ...profile, favoritePokemon };
+    const next = { ...profile, ...edit };
     setSaveError('');
     try { await saveProfile(me, next); setProfile(next); }
     catch (e) { setSaveError(e instanceof Error ? e.message : String(e)); }
@@ -265,7 +266,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
         </div>
         <Roster profile={profile} own={id === me && !!profile}
           onAdd={() => setAdding(true)}
-          onRemove={(ref) => void setFavorites((profile?.favoritePokemon ?? []).filter((r) => r !== ref))} />
+          onRemove={(ref) => void saveNow({ favoritePokemon: (profile?.favoritePokemon ?? []).filter((r) => r !== ref) })} />
       </section>
 
       {friend && challenges.length > 0 && (
@@ -316,14 +317,27 @@ export function PlayerScreen({ playerId, embedded = false }: {
           <h3 className="hud-label">Trophy case</h3>
           {sc.trophies.length === 0 ? <p className="text-muted">No podium finishes in a Show 6 tournament yet.</p> : (
             <ul className="profile-trophies">
-              {sc.trophies.map((t) => (
-                <li key={t.tournamentId} className={`profile-trophy is-p${t.placement!.place}`} style={leagueVars(t.league)}>
-                  <span className="profile-trophy-medal" aria-hidden="true">{t.placement!.place}</span>
-                  <span className="profile-trophy-format">{t.formatName}</span>
-                  <button type="button" className="btn btn-ghost profile-trophy-title" onClick={() => patch({ screen: 'tournaments', activeTournamentId: t.tournamentId })}>{t.title}</button>
-                  <span className="profile-trophy-place">{PLACE[t.placement!.place]} of {t.placement!.field}</span>
-                </li>
-              ))}
+              {pinFirst(sc.trophies, pins).map((t) => {
+                const pinned = pins.includes(t.tournamentId);
+                return (
+                  <li key={t.tournamentId} className={`profile-trophy is-p${t.placement!.place}${pinned ? ' is-pinned' : ''}`} style={leagueVars(t.league)}>
+                    <span className="profile-trophy-medal" aria-hidden="true">{t.placement!.place}</span>
+                    <span className="profile-trophy-format">{t.formatName}</span>
+                    <button type="button" className="btn btn-ghost profile-trophy-title" onClick={() => patch({ screen: 'tournaments', activeTournamentId: t.tournamentId })}>{t.title}</button>
+                    <span className="profile-trophy-foot">
+                      <span className="profile-trophy-place">{PLACE[t.placement!.place]} of {t.placement!.field}</span>
+                      {id === me && profile ? (
+                        <button type="button" className="btn btn-ghost profile-trophy-pin" aria-pressed={pinned}
+                          aria-label={`${pinned ? 'Unpin' : 'Pin'} ${t.title}`}
+                          disabled={!pinned && pins.length >= PINS} title={!pinned && pins.length >= PINS ? `At most ${PINS} pinned; unpin one first` : undefined}
+                          onClick={() => void saveNow({ pinnedTrophies: pinned ? pins.filter((x) => x !== t.tournamentId) : [...pins, t.tournamentId] })}>
+                          {pinned ? '★ Pinned' : '☆ Pin'}
+                        </button>
+                      ) : pinned && <span className="profile-trophy-pin">★ Pinned</span>}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -384,7 +398,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
       )}
       {adding && profile && (
         <FavoritePicker taken={profile.favoritePokemon} onClose={() => setAdding(false)}
-          onPick={(ref) => void setFavorites([...profile.favoritePokemon, ref].slice(0, FAVORITES))} />
+          onPick={(ref) => void saveNow({ favoritePokemon: [...profile.favoritePokemon, ref].slice(0, FAVORITES) })} />
       )}
       {editing && profile && me && (
         <ProfileEditor id={me} profile={profile} onClose={() => setEditing(false)}

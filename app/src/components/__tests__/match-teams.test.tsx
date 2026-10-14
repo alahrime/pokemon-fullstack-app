@@ -11,7 +11,7 @@ const member = (ref: string): PublicMember => {
 };
 const profile = (displayName: string, avatar: string | null): Profile => ({
   displayName, avatar, goUsername: 'x', createdAt: '2026-01-01', region: null, trainerLevel: null, xp: null,
-  favoritePokemon: [], favoriteLeague: null, faction: null, specialty: null,
+  favoritePokemon: [], favoriteLeague: null, faction: null, specialty: null, pinnedTrophies: [],
 });
 const SIX = ['medicham', 'azumarill', 'registeel', 'politoed', 'lickilicky', 'walrein'];
 

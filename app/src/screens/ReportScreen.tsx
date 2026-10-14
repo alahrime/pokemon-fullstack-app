@@ -212,6 +212,22 @@ export function ReportScreen() {
         }}
       >
         <span className="report-wash" aria-hidden="true" />
+        {/* Phones only (CSS): one column puts the search below the hero, the
+            roll and its table, two screens down. This copy is pinned under the
+            slim nav instead, and picking returns to the top, where the new
+            Pokémon's card and IVs are. The column's own search hides there. */}
+        <div className="report-search-bar">
+          <SpeciesSearch
+            id="report-species-pinned"
+            value={speciesId}
+            onChange={(id) => {
+              patch({ species: id, moveIdx: 0, chargeIds: [] });
+              window.scrollTo({ top: 0 });
+            }}
+            placeholder="Search a Pokémon…"
+            className="report-search"
+          />
+        </div>
       {/* Widened from 340px to fit the larger sprite frame without crowding the
           name beside it. */}
       <div className="rs-split">

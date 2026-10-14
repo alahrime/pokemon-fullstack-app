@@ -1267,10 +1267,29 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 /* — navigation — */
 .nav {
+  position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border-bottom: var(--border-strong) solid var(--rule-strong);
   background: var(--surface-1);
+}
+/* Phones: only this bar stays pinned (the league tabs); the full nav scrolls
+   away. Same breakpoint as the Report screen's single column. */
+.nav-slim { display: none; }
+@media (max-width: 820px) {
+  .nav-slim {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    /* Its own height is the offset anything pinned beneath it uses. */
+    box-sizing: border-box; height: var(--nav-h);
+    padding: 0 var(--space-4);
+    border-bottom: var(--border-strong) solid var(--rule-strong);
+    background: var(--surface-1);
+  }
+  .nav { position: relative; } /* scrolls away, keeps its z-index for the menus */
+  .nav-right > .league-tabs { display: none; }
+  /* The league tabs measure 48px; 8px either side. */
+  :root { --nav-h: 64px; }
 }
 .nav-brand {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
@@ -1800,6 +1819,18 @@ textarea.input { min-height: 90px; resize: vertical; }
    `flex: 0 1` because auto margins take the free space before flex-grow would
    see it: a growing item with auto margins never grows, and the two together
    read as a bug later. It still shrinks, down to the floor below. */
+.report-search-bar { display: none; }
+@media (max-width: 820px) {
+  .report-search-bar {
+    position: sticky; top: var(--nav-h); z-index: 40;
+    display: block;
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-1);
+    border-bottom: var(--border-hairline) solid var(--rule-hairline);
+  }
+  .report-search-bar .report-search { margin: 0; }
+  .rs-split .report-search { display: none; }
+}
 .report-search {
   flex: 0 1 620px;
   min-width: min(220px, 100%);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { goTo } from '../../test/nav';
 import { SECTIONS, SCREEN_DEFS } from '../../lib/screens';
@@ -50,6 +50,33 @@ describe('App shell', () => {
     const search = container.querySelector('.report-search');
     expect(search, 'the Report must carry the picker').toBeTruthy();
     expect(container.querySelector('.nav')!.contains(search!)).toBe(false);
+  });
+  it('pins a phone copy of the picker on the Report that changes the Pokémon and returns to the top', async () => {
+    // Phones get it pinned under the slim nav (CSS hides it on desktop and
+    // jsdom applies no stylesheet, so this covers wiring, not layout).
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { container } = renderApp(<App />);
+    goTo(container, 'Report');
+    const input = container.querySelector('.report-search-bar input') as HTMLInputElement;
+    expect(input, 'the pinned picker must exist').toBeTruthy();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'medicham' } });
+    const row = await waitFor(() => {
+      const hit = [...container.querySelectorAll('.report-search-bar .search-row')].find((r) =>
+        /^Medicham$/i.test(r.querySelector('.search-row-name')?.textContent?.trim() ?? ''));
+      if (!hit) throw new Error('no Medicham row yet');
+      return hit;
+    });
+    fireEvent.mouseDown(row);
+    await waitFor(() => expect(container.querySelector('.report-side')!.textContent).toMatch(/Medicham/));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+  });
+  it('keeps the league tabs in the slim bar working, outside the full nav', () => {
+    const { container } = renderApp(<App />);
+    const slim = container.querySelector('.nav-slim')!;
+    expect(container.querySelector('.nav')!.contains(slim)).toBe(false);
+    fireEvent.click(slim.querySelectorAll('.league-tab')[1]);
+    expect(container.querySelector('.nav .league-tab.is-active')!.textContent).toMatch(/Ultra/i);
   });
   it('gives every nav tab its own hue', () => {
     const { container } = renderApp(<App />);

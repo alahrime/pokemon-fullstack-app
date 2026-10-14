@@ -61,8 +61,14 @@ const FriendsScreen = lazy(() =>
 );
 function Nav() {
   const { state, set, patch } = useAppState();
+  const leagues = <LeagueTabs value={state.league} onChange={(id) => patch(leaguePatch(id, null))} />;
   return (
-    <div className="nav sticky top-0 z-50 flex-wrap">
+    <>
+    {/* Phones only (CSS): the full nav is 231px there, too much to keep on
+        screen, so only the league tabs stay pinned and the rest scrolls away.
+        The nav hides its own league tabs at that width. */}
+    <div className="nav-slim">{leagues}</div>
+    <div className="nav flex-wrap">
       <button
         className="nav-brand"
         onClick={() => set('screen', 'landing')}
@@ -94,10 +100,7 @@ function Nav() {
           wrapping nav, the theme trigger was small enough to be the only item
           pushed onto a second row, where its panel then opened off-screen. */}
       <div className="nav-right">
-        <LeagueTabs
-          value={state.league}
-          onChange={(id) => patch(leaguePatch(id, null))}
-        />
+        {leagues}
         <button
           className={`nav-account${state.screen === 'account' ? ' is-active' : ''}`}
           aria-current={state.screen === 'account' ? 'page' : undefined}
@@ -110,6 +113,7 @@ function Nav() {
         <ThemeMenu />
       </div>
     </div>
+    </>
   );
 }
 

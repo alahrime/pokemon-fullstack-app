@@ -154,9 +154,7 @@ describe('the layouts that have to stack', () => {
   });
 
   it('the report splits into one column before its contents overflow', () => {
-    const at = components.indexOf('@media (max-width: 820px)');
-    expect(at).toBeGreaterThan(-1);
-    expect(components.slice(at, at + 200)).toMatch(/\.rs-split/);
+    expect(components).toMatch(/@media \(max-width: 820px\) \{\s*\.rs-split \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   });
 
   it('carries no rules for the detail row, which no screen renders any more', () => {

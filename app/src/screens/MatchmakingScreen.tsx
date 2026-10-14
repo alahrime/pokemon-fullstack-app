@@ -27,6 +27,9 @@ import {
   type QueueEntry,
 } from '../lib/matchmaking';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
+import { PRESET_FORMATS, versionFor } from '../lib/presetFormats';
+import { rulesHash, type Format } from '../rules';
+import { resolvePool } from '../rules/pool';
 import { confirmDialog } from '../components/ConfirmDialog';
 
 /**
@@ -45,6 +48,11 @@ import { confirmDialog } from '../components/ConfirmDialog';
  * ever have accepted. Someone with no saved format for this league is told
  * so and offered no control that could only fail.
  *
+ * The standard formats for the league (the plain league, then its limited
+ * cups) are offered too, the same list a challenge picks from. One is saved
+ * to your formats the first time you queue or post with it (`versionFor`), so
+ * two people who chose the same cup share a `rules_hash` and meet.
+ *
  * The roster is built right here rather than loaded from a saved team, and
  * scored under the league's own rated moveset — the same fallback `Slot` uses
  * on `TeamBuilderScreen` for a member that was never opened in a build
@@ -52,6 +60,14 @@ import { confirmDialog } from '../components/ConfirmDialog';
  * `composition.size`, not a constant: the format is the thing that says how
  * big a roster is.
  */
+
+/** A format the queue can run under: a saved one (with its version) or a standard one, saved on first use. */
+interface QueueFormat {
+  id: string;
+  name: string;
+  format: Format;
+  versionId?: string;
+}
 
 /** Only until a format is chosen — the empty slots have to be some number. */
 const DEFAULT_ROSTER_SIZE = 3;
@@ -320,14 +336,41 @@ export function MatchmakingScreen() {
   const [savedFormats, setSavedFormats] = useState<SavedFormat[] | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
 
-  const leagueFormats = useMemo(
-    () => (savedFormats ?? []).filter((f) => f.format.base === league),
-    [savedFormats, league],
-  );
+  const [presetHashes, setPresetHashes] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    let live = true;
+    void Promise.all(PRESET_FORMATS.map((p) => rulesHash(p.format))).then((hs) => live && setPresetHashes(new Set(hs)));
+    return () => {
+      live = false;
+    };
+  }, []);
   // Filtered to this league's own formats: `league` is what the queue and the
   // board are partitioned on, and offering a Master format while the screen
-  // says Great would queue someone under rules they are not looking at.
-  const chosen = leagueFormats.find((f) => f.id === chosenId) ?? leagueFormats[0] ?? null;
+  // says Great would queue someone under rules they are not looking at. Your
+  // saved copy of a standard format is not listed twice: choosing the
+  // standard one finds it by rules hash.
+  const leagueFormats = useMemo<QueueFormat[]>(
+    () => [
+      ...PRESET_FORMATS.filter((p) => p.base === league).map((p) => ({ id: `preset:${p.key}`, name: p.name, format: p.format })),
+      ...(savedFormats ?? [])
+        .filter((f) => f.format.base === league && !presetHashes.has(f.rulesHash))
+        .map((f) => ({ id: f.id, name: f.name, format: f.format, versionId: f.versionId })),
+    ],
+    [savedFormats, league, presetHashes],
+  );
+  // Your own format by default when you have one, otherwise the plain league.
+  const chosen =
+    leagueFormats.find((f) => f.id === chosenId) ?? leagueFormats.find((f) => f.versionId) ?? leagueFormats[0] ?? null;
+  // A cup's pool binds the roster; a plain league enforces none (as in a challenge).
+  const cupLegal = useMemo(() => {
+    const f = chosen?.format;
+    if (!f || (f.pool.length === 0 && (f.start ?? 'league') === 'league')) return null;
+    try {
+      return new Set(resolvePool(f).legal);
+    } catch {
+      return null;
+    }
+  }, [chosen?.format]);
   const rosterSize = chosen ? chosen.format.composition.size : DEFAULT_ROSTER_SIZE;
 
   // Declared here rather than with the board below because the roster's own
@@ -345,9 +388,17 @@ export function MatchmakingScreen() {
    */
   const rosterCapacity = Math.max(rosterSize, ...(offers ?? []).map((o) => o.rosterSize));
   const selectable = useMemo(
-    () => new Set(pickableFor(league).filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r)))),
-    [league, team],
+    () =>
+      new Set(
+        [...(cupLegal ?? pickableFor(league))].filter((r) => !team.some((m) => m === r || conflictsOnTeam(m, r))),
+      ),
+    [league, team, cupLegal],
   );
+  // Switching to a cup drops the members it does not allow, rather than
+  // queueing a roster the rules refuse.
+  useEffect(() => {
+    if (cupLegal) setTeam((t) => (t.every((r) => cupLegal.has(r)) ? t : t.filter((r) => cupLegal.has(r))));
+  }, [cupLegal]);
   const add = (ref: string) => {
     setTeam((t) =>
       t.includes(ref) || t.length >= rosterCapacity || t.some((m) => conflictsOnTeam(m, ref)) ? t : [...t, ref],
@@ -367,7 +418,16 @@ export function MatchmakingScreen() {
    * format, so both need one. Accepting is deliberately not this: see
    * `canAccept`.
    */
-  const rosterReady = !!chosen && team.length === rosterSize;
+  // `savedFormats` settled first, or a standard format would be saved a second
+  // time next to the copy still loading.
+  const rosterReady = !!chosen && savedFormats !== null && team.length === rosterSize;
+  /** The version to queue or post under: yours, or a standard format's copy, saved now if you have none. */
+  const versionOf = async (f: QueueFormat): Promise<string> => {
+    if (f.versionId) return f.versionId;
+    const id = await versionFor(f, savedFormats ?? []);
+    setSavedFormats(await listServerFormats());
+    return id;
+  };
 
   // Nothing may sit past the capacity: a member the slots do not render is a
   // member nobody can remove, and it still counts towards every length check
@@ -446,7 +506,7 @@ export function MatchmakingScreen() {
       // the rules of a match already queued under it.
       await joinQueue({
         league,
-        formatVersionId: chosen.versionId,
+        formatVersionId: await versionOf(chosen),
         format: chosen.format,
         team: buildTeam(),
       });
@@ -572,7 +632,7 @@ export function MatchmakingScreen() {
     try {
       await createOffer({
         league,
-        formatVersionId: chosen.versionId,
+        formatVersionId: await versionOf(chosen),
         format: chosen.format,
         team: buildTeam(),
         scheduledFor,
@@ -626,12 +686,6 @@ export function MatchmakingScreen() {
       <div className="panel panel-strong">
         <div className="hud-label">Format for {LEAGUE_BY_ID.get(league)?.label ?? league}</div>
         {savedFormats === null && <p className="text-faint">Reading your saved formats…</p>}
-        {savedFormats !== null && leagueFormats.length === 0 && (
-          <p className="text-muted no-formats">
-            You have no saved format for this league. Author one on the Formats screen and save it to your
-            account — a match is played under a saved format, so there is nothing to queue with until then.
-          </p>
-        )}
         {leagueFormats.length > 0 && (
           <div className="format-choices">
             {leagueFormats.map((f) => (

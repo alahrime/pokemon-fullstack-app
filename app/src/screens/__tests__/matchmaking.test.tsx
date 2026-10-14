@@ -43,7 +43,7 @@ vi.mock('../../components/ConfirmDialog', () => confirmApi);
  * into `format_versions`, so the screen has to get a real one from somewhere.
  * M2a's answer is a format the person saved to their account.
  */
-const savesApi = vi.hoisted(() => ({ listServerFormats: vi.fn() }));
+const savesApi = vi.hoisted(() => ({ listServerFormats: vi.fn(), saveServerFormat: vi.fn() }));
 vi.mock('../../lib/saves', () => savesApi);
 
 const pkg = vi.hoisted(() => ({ client: null as unknown }));
@@ -210,6 +210,7 @@ beforeEach(() => {
   mmApi.confirmOffer.mockReset().mockResolvedValue('m1');
   mmApi.opponentFriendCode.mockReset().mockResolvedValue(null);
   savesApi.listServerFormats.mockReset().mockResolvedValue([savedFormat()]);
+  savesApi.saveServerFormat.mockReset().mockResolvedValue(undefined);
 });
 afterEach(cleanup);
 
@@ -257,14 +258,50 @@ describe('signed in — the blind queue', () => {
     expect(arg.format).toEqual(savedFormat().format);
   });
 
-  it('offers no Join at all when there is no saved format to join under', async () => {
+  it('queues under the plain league when you have no saved format, saving it on first use', async () => {
     savesApi.listServerFormats.mockResolvedValue([]);
     const { container } = await mount(fakeSession('u1', 'ash@example.com'));
-    await waitFor(() => expect(container.querySelector('.no-formats')).toBeTruthy());
-    // `format_version_id` is NOT NULL and a foreign key: with nothing to put
-    // in it, joining could only fail. Same rule as Accept on one's own offer.
-    expect(container.querySelector('.queue-join')).toBeFalsy();
-    expect(container.textContent).toMatch(/no saved format/i);
+    const plain = await waitFor(() => {
+      const b = container.querySelector('[data-format-id="preset:great"]');
+      if (!b) throw new Error('format choices not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    expect(plain.getAttribute('aria-pressed')).toBe('true');
+    await pickThree(container);
+    // `versionFor` saves it, then reads your formats back to find the new version.
+    const { rulesHash } = await import('../../rules');
+    const { PRESET_FORMATS } = await import('../../lib/presetFormats');
+    const great = PRESET_FORMATS.find((p) => p.key === 'great')!;
+    savesApi.listServerFormats.mockResolvedValue([
+      savedFormat({ id: 'f-saved', name: great.name, versionId: 'fv-saved-1', rulesHash: await rulesHash(great.format), format: great.format }),
+    ]);
+    await act(async () => {
+      fireEvent.click(container.querySelector('.queue-join') as HTMLButtonElement);
+    });
+    await waitFor(() => expect(mmApi.joinQueue).toHaveBeenCalledTimes(1));
+    expect(savesApi.saveServerFormat).toHaveBeenCalledWith({ name: 'Great League', format: great.format });
+    expect((mmApi.joinQueue.mock.calls[0][0] as { formatVersionId: string }).formatVersionId).toBe('fv-saved-1');
+    // The saved copy is the standard format, so it is not listed a second time.
+    expect(container.querySelector('[data-format-id="f-saved"]')).toBeFalsy();
+  });
+
+  it('a limited cup binds the roster: illegal members leave, and the search stops offering them', async () => {
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    await pick(container, 'azumarill');
+    await pick(container, 'medicham');
+    const retro = await waitFor(() => {
+      const b = container.querySelector('[data-format-id="preset:retro"]');
+      if (!b) throw new Error('format choices not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    fireEvent.click(retro);
+    // Retro Cup bans Fairy: Azumarill goes, Medicham stays.
+    await waitFor(() => expect(container.querySelectorAll('.team-slots .pc').length).toBe(1));
+    const input = container.querySelector('.team-add input') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'registeel' } });
+    const rows = [...container.querySelectorAll('.search-dropdown .search-row-name')].map((r) => r.textContent?.trim());
+    expect(rows).not.toContain('Registeel');
   });
 
   it('queues under the format that was chosen, not the first one listed', async () => {
@@ -522,9 +559,6 @@ describe('signed in — accepting an offer', () => {
     });
     await waitFor(() => expect(mmApi.acceptOffer).toHaveBeenCalledTimes(1));
     expect((mmApi.acceptOffer.mock.calls[0][1] as unknown[]).length).toBe(3);
-    // Their own Join is still, correctly, not on offer — that one does need a
-    // format. The two gates are separate, which is the whole point.
-    expect(container.querySelector('.queue-join')).toBeFalsy();
   });
 
   it('sizes the roster it accepts with by the offer, not by your own format', async () => {

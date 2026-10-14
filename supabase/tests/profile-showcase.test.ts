@@ -38,6 +38,7 @@ describe('the profile showcase columns', () => {
     ['negative XP', 'xp = -1'],
     ['an unknown league', `favorite_league = 'little'`],
     ['a blank faction', `faction = '   '`],
+    ['a fourth pinned trophy', `pinned_trophies = array[gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid()]`],
   ])('refuses %s', async (_, set) => {
     const r = await refusal(() => as(a)(`update public.profiles set ${set} where id = '${a}'`));
     expect(r.code).toBe('23514');

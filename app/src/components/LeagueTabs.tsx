@@ -46,6 +46,7 @@ export function LeagueTabs({ value, onChange }: { value: LeagueId; onChange: (id
             }
             onClick={() => onChange(lg.id)}
             title={`${lg.name} — rankings, opponents and simulations all change`}
+            aria-label={lg.name}
           >
             <LeagueEmblem league={lg.id} size={30} />
             <span className="league-tab-text">

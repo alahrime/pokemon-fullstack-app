@@ -259,6 +259,13 @@
 
    Breakpoints are where this content stops fitting, not where a device is —
    the two tiers below are measured against the three tabs, nothing else. */
+/* 821-1023px, the header's league tabs only: with the names the signed-in header needs ~1000px and wrapped to two
+   rows (~130px tall). The emblems alone tell the leagues apart (the phone league rows already rely on that); the
+   button's aria-label and title keep the name. Below 821 the slim bar carries the tabs instead, names included. */
+@media (min-width: 821px) and (max-width: 1023px) {
+  .nav-right .league-tab-text { display: none; }
+  .nav-right .league-tab { padding: 7px 8px; gap: 0; }
+}
 @media (max-width: 560px) {
   .league-tab { padding: 6px 10px 6px 7px; gap: 6px; }
   .league-tab-cap { font-size: 8px; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../state/SessionContext';
@@ -97,6 +97,8 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
   const [terms, setTerms] = useState(false);
   const [message, setMessage] = useState('');
   const [notice, setNotice] = useState('');
+  /** The Discord failure read off the URL is the one message a session arriving must not wipe. */
+  const keepMessage = useRef(false);
   const [busy, setBusy] = useState(false);
 
   /**
@@ -121,8 +123,21 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
     const err = readOAuthUrlError();
     if (!err) return;
     clearOAuthUrlError();
+    keepMessage.current = true;
     setMessage(`${OAUTH_LABEL} sign-in didn't complete: ${err.description}${err.code ? ` (${err.code})` : ''}`);
   }, []);
+
+  /**
+   * A session arriving makes the signed-out messages untrue: "check your email
+   * for a link" and a refused sign-in ("Email not confirmed") stayed under
+   * "Signed in as" when the confirmation link was followed in another tab.
+   */
+  const uid = user?.id ?? null;
+  useEffect(() => {
+    if (!uid) return;
+    setNotice('');
+    if (!keepMessage.current) setMessage('');
+  }, [uid]);
 
   const loadProfile = useCallback(async (id: string) => {
     const { data, error } = await supabase

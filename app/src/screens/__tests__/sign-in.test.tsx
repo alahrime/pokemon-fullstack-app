@@ -342,6 +342,36 @@ describe('signing in', () => {
     });
   });
 
+  it('drops the sign-up and sign-in messages once a session arrives from the confirmation link', async () => {
+    // The reported state: signed up ("check your email"), tried to sign in
+    // before confirming ("Email not confirmed"), then confirmed in another tab.
+    // The session arrived and the page said "Signed in as" above both.
+    const { container, auth } = await mount({ profile: { display_name: 'polymathematics', go_username: 'polymathematics' } });
+    await passAgeGate(container);
+    fireEvent.change(container.querySelector('#display-name') as HTMLInputElement, { target: { value: 'polymathematics' } });
+    fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, { target: { value: 'polymathematics' } });
+    fireEvent.change(container.querySelector('#email') as HTMLInputElement, { target: { value: 'misty@example.com' } });
+    fireEvent.change(container.querySelector('#password') as HTMLInputElement, { target: { value: 'a-real-password' } });
+    fireEvent.change(container.querySelector('#friend-code') as HTMLInputElement, { target: { value: '1234 5678 9012' } });
+    fireEvent.click(container.querySelector('.account-terms input') as HTMLInputElement);
+    await act(async () => {
+      fireEvent.submit((container.querySelector('#email') as HTMLInputElement).closest('form')!);
+    });
+    expect(text(container)).toMatch(/for a link to confirm the account/);
+    fireEvent.click(button(container, 'Sign in')!);
+    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { message: 'Email not confirmed' } } as never);
+    await act(async () => {
+      fireEvent.submit((container.querySelector('#email') as HTMLInputElement).closest('form')!);
+    });
+    expect(text(container)).toMatch(/Email not confirmed/);
+
+    const onChange = (auth.onAuthStateChange.mock.calls as unknown as [(e: string, s: Session | null) => void][])[0][0];
+    await act(async () => { onChange('SIGNED_IN', fakeSession('misty@example.com')); });
+    expect(text(container)).toMatch(/Signed in as/);
+    expect(text(container)).not.toMatch(/Email not confirmed/);
+    expect(text(container)).not.toMatch(/for a link to confirm the account/);
+  });
+
   it('sends the provider button to signInWithOAuth', async () => {
     const { container, auth } = await mount();
     await passAgeGate(container);
@@ -634,6 +664,18 @@ describe('an OAuth error returned by the provider', () => {
     const { container } = await mount();
     expect(text(container)).toMatch(/user denied access/i);
     expect(text(container)).toMatch(/access_denied/);
+  });
+
+  it('keeps a provider error on screen when a session arrives after it', async () => {
+    // The one message a sign-in must not wipe: it is read once off the URL and
+    // has nowhere else to live.
+    localStorage.setItem('paragon.birth-date', '2000-05-04');
+    window.history.replaceState(null, '', '/#error=server_error&error_code=server_error&error_description=Unable+to+exchange+external+code');
+    const { container, auth } = await mount({ profile: { display_name: 'Misty', go_username: 'MistyW' } });
+    const onChange = (auth.onAuthStateChange.mock.calls as unknown as [(e: string, s: Session | null) => void][])[0][0];
+    await act(async () => { onChange('SIGNED_IN', fakeSession('misty@example.com')); });
+    expect(text(container)).toMatch(/Signed in as/);
+    expect(text(container)).toMatch(/unable to exchange external code/i);
   });
 
   it('clears the error from the URL once shown, so a refresh cannot resurrect it', async () => {

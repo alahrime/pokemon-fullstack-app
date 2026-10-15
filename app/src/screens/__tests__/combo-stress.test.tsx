@@ -172,7 +172,7 @@ describe('combined flows, signed in', () => {
     fireEvent.click(btn(c, /Saved teams/i)!);
     await settle();
     expect(c.textContent).toContain('Combo');
-  });
+  }, 30_000); // ~2s alone, 6.4s under CI load: the 5s default flaked
 
   it('a live message arriving while the pane is minimised, on another screen, does not crash or duplicate', async () => {
     const view = await mountApp();

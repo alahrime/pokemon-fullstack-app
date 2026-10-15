@@ -7559,7 +7559,8 @@ th.bt-matrix-head { text-align: center; }
 
 @media (max-width: 760px) {
   .profile-card { grid-template-columns: minmax(0, 1fr); }
-  .profile-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Three across, two rows: the tiles are square, so two across at full width made each one half the screen tall. */
+  .profile-roster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .profile-tile-name { font-size: var(--text-sm); padding: 4px var(--space-1) 5px; }
   .profile-card > .profile-roster-grid { order: 0; }
   .profile-trainer-fig > img, .profile-trainer-initial { width: 96px; height: 96px; }
@@ -7573,4 +7574,6 @@ th.bt-matrix-head { text-align: center; }
   .profile-bout-place { grid-column: 2; justify-self: start; }
   .profile-editor-grid { grid-template-columns: minmax(0, 1fr); }
 }
+/* A phone keeps two across: a third of 360px is too narrow for a name like Kilowattrel. */
+@media (max-width: 480px) { .profile-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .profile-meter > span { transition: none; } }

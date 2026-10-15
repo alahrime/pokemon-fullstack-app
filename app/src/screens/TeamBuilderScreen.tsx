@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
@@ -30,12 +30,29 @@ import { confirmDialog } from '../components/ConfirmDialog';
  * six by starting from a three they already trust.
  */
 
-function Slot({ ref: r, league, onClear, onAdd, build }: {
+/** Phones (the Report's one-column breakpoint): compact roster rows and a pinned add/analyse bar. */
+const PHONE = '(max-width: 820px)';
+function usePhone(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(PHONE);
+      m.addEventListener('change', cb);
+      return () => m.removeEventListener('change', cb);
+    },
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+}
+
+function Slot({ ref: r, league, onClear, onAdd, build, phone, expanded, onToggle }: {
   ref: string | null;
   league: LeagueId;
   onClear: () => void;
   onAdd: () => void;
   build?: AddPokemonChoice;
+  phone?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   // An empty slot was a decorative "＋" that did nothing; the only way to add
   // was the search box below. It is now the button it always looked like, and
@@ -54,6 +71,24 @@ function Slot({ ref: r, league, onClear, onAdd, build }: {
   // The card reports the build this slot actually carries, not the league's
   // rated set — otherwise it contradicts the analysis running behind it.
   const resolved = build ? movesForChoice(build, league) : null;
+  // Phones: a full card is ~263px, so a six ran ~1,600px. A compact row that
+  // opens into the full card instead; removing gets its own button, since a
+  // tap now means "show me more".
+  if (phone) {
+    return (
+      <div className="team-slot-phone">
+        <PokemonCard
+          refId={r}
+          league={league}
+          size={expanded ? 'full' : 'compact'}
+          onClick={onToggle}
+          title={expanded ? 'Show less' : 'Show the full card'}
+          build={resolved ? { ...resolved, iv: build!.iv } : null}
+        />
+        <button type="button" className="team-slot-remove" onClick={onClear} aria-label={`Remove ${displayName(r)}`} title="Remove">✕</button>
+      </div>
+    );
+  }
   return (
     <PokemonCard
       refId={r}
@@ -262,6 +297,8 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
   const league = state.league;
   const [team, setTeam] = useState<string[]>(() => takeHandedOffTeam(size) ?? []);
   const [adding, setAdding] = useState(false);
+  const phone = usePhone();
+  const [openSlot, setOpenSlot] = useState<number | null>(null);
   /**
    * Per-species build overrides chosen through the modal.
    *
@@ -543,6 +580,64 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
     [picks, team, league, size],
   );
 
+  const teamAdd = (
+    <div className="team-add">
+      <SpeciesSearch
+        // SpeciesSearch holds a selection: it syncs its text back from
+        // `value` whenever the dropdown closes. Here the field is a
+        // repeating picker with no selection to hold, so that sync fires
+        // after every pick and races whatever is typed next. Remounting on
+        // team size makes the clear deterministic instead.
+        key={team.length}
+        id="team-add"
+        value=""
+        onChange={add}
+        placeholder="Add a Pokémon — name, type, @move…"
+        // Shadows are separate *candidates* — the stat multipliers make
+        // one a different Pokemon to build around — but not separate
+        // species: picking one removes the other from the list, because
+        // GBL's duplicate rule goes by Pokedex number.
+        includeShadow
+        restrictTo={selectable}
+      />
+    </div>
+  );
+  const teamActions = (
+    <div className="team-actions">
+      {/* Two members, not a full roster. What beats a partial team and
+          which swap answers it are per-member measurements — they do not
+          need the empty slots filled, and the questions are at their most
+          useful while there are still slots to fill. Only the chain result
+          and the matrix game need a fieldable line; those say so
+          themselves rather than gating the whole button. */}
+      <button className="btn btn-primary" disabled={team.length < 2 || busy} onClick={run}>
+        {busy ? 'Simulating…' : full ? `Analyse ${size === 3 ? 'team' : 'six'}` : `Analyse ${team.length} of ${size}`}
+      </button>
+      <button
+        className="btn"
+        disabled={team.length >= size || busy || team.length === 0}
+        onClick={suggest}
+        aria-describedby={full ? 'suggest-full-hint' : undefined}
+      >
+        Suggest next pick
+      </button>
+      {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
+      {/* A disabled button says nothing about why. The swaps Analyse
+          already lists are the full-roster version of this question. */}
+      {full && (
+        <span id="suggest-full-hint" className="team-actions-hint text-faint">
+          Roster full: Analyse lists swaps, or clear a slot for next-pick suggestions.
+        </span>
+      )}
+      {/* The analysis used to leave by the back door: an "Export JSON" of
+          the headline numbers and a "Threats CSV" of a table nobody could
+          read without a spreadsheet. Both are gone — everything they
+          carried is on the page now, in "What beats this six" and the
+          swaps beside it, where it can be acted on rather than
+          downloaded. */}
+    </div>
+  );
+
   return (
     <div className="team-builder">
       <ScreenHeader
@@ -566,6 +661,9 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           )
         }
       />
+      {/* Phones: adding and analysing stay pinned under the league bar while the
+          roster and the matrix scroll beneath (the panel would carry them away). */}
+      {phone && <div className="team-dock">{teamAdd}{teamActions}</div>}
       <div className="panel panel-strong">
         <div className="hud-label">
           {size === 3 ? 'Your team of 3' : 'Your Show 6'}
@@ -583,32 +681,16 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
               key={i}
               ref={team[i] ?? null}
               league={league}
-              onClear={() => clear(i)}
+              onClear={() => { setOpenSlot(null); clear(i); }}
               onAdd={() => setAdding(true)}
               build={team[i] ? builds[team[i]] : undefined}
+              phone={phone}
+              expanded={openSlot === i}
+              onToggle={() => setOpenSlot(openSlot === i ? null : i)}
             />
           ))}
         </div>
-        <div className="team-add">
-          <SpeciesSearch
-            // SpeciesSearch holds a selection: it syncs its text back from
-            // `value` whenever the dropdown closes. Here the field is a
-            // repeating picker with no selection to hold, so that sync fires
-            // after every pick and races whatever is typed next. Remounting on
-            // team size makes the clear deterministic instead.
-            key={team.length}
-            id="team-add"
-            value=""
-            onChange={add}
-            placeholder="Add a Pokémon — name, type, @move…"
-            // Shadows are separate *candidates* — the stat multipliers make
-            // one a different Pokemon to build around — but not separate
-            // species: picking one removes the other from the list, because
-            // GBL's duplicate rule goes by Pokedex number.
-            includeShadow
-            restrictTo={selectable}
-          />
-        </div>
+        {!phone && teamAdd}
         {user && (
           <div className="team-saves">
             <div className="team-saves-row">
@@ -682,39 +764,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
             {savesError && <p className="team-load-notice" role="alert">{savesError}</p>}
           </div>
         )}
-        <div className="team-actions">
-          {/* Two members, not a full roster. What beats a partial team and
-              which swap answers it are per-member measurements — they do not
-              need the empty slots filled, and the questions are at their most
-              useful while there are still slots to fill. Only the chain result
-              and the matrix game need a fieldable line; those say so
-              themselves rather than gating the whole button. */}
-          <button className="btn btn-primary" disabled={team.length < 2 || busy} onClick={run}>
-            {busy ? 'Simulating…' : full ? `Analyse ${size === 3 ? 'team' : 'six'}` : `Analyse ${team.length} of ${size}`}
-          </button>
-          <button
-            className="btn"
-            disabled={team.length >= size || busy || team.length === 0}
-            onClick={suggest}
-            aria-describedby={full ? 'suggest-full-hint' : undefined}
-          >
-            Suggest next pick
-          </button>
-          {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
-          {/* A disabled button says nothing about why. The swaps Analyse
-              already lists are the full-roster version of this question. */}
-          {full && (
-            <span id="suggest-full-hint" className="team-actions-hint text-faint">
-              Roster full: Analyse lists swaps, or clear a slot for next-pick suggestions.
-            </span>
-          )}
-          {/* The analysis used to leave by the back door: an "Export JSON" of
-              the headline numbers and a "Threats CSV" of a table nobody could
-              read without a spreadsheet. Both are gone — everything they
-              carried is on the page now, in "What beats this six" and the
-              swaps beside it, where it can be acted on rather than
-              downloaded. */}
-        </div>
+        {!phone && teamActions}
       </div>
 
       <MatchupMatrix team={team} builds={builds} league={league} onAdd={add} full={team.length >= size} />

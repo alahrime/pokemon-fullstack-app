@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderApp } from '../../test/render';
 import { TeamBuilderScreen } from '../TeamBuilderScreen';
@@ -255,5 +255,44 @@ describe('TeamBuilderScreen — Show 6', () => {
     fireEvent.click(container.querySelector('.team-slot.is-empty')!);
     const modal = document.querySelector('.modal, .add-modal, [role="dialog"]');
     expect(modal).toBeTruthy();
+  });
+});
+
+describe('TeamBuilderScreen — on a phone', () => {
+  // jsdom applies no stylesheet; the phone layout is chosen in JS from the
+  // same media query, so reporting a match is enough to exercise it.
+  let original: typeof window.matchMedia;
+  beforeEach(() => {
+    original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: q === '(max-width: 820px)', media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => { window.matchMedia = original; });
+
+  it('pins one add/analyse bar outside the roster panel', () => {
+    const { container } = renderApp(<TeamBuilderScreen size={6} />);
+    const dock = container.querySelector('.team-dock')!;
+    expect(dock.querySelector('.team-add input')).toBeTruthy();
+    expect(dock.textContent).toMatch(/Analyse/);
+    expect(container.querySelector('.panel .team-add')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Suggest next pick/i })).toHaveLength(1);
+  });
+
+  it('shows members as compact rows that open into the full card, with their own remove button', async () => {
+    const { container } = renderApp(<TeamBuilderScreen size={6} />);
+    await pick(container, 'azumarill');
+    await pick(container, 'registeel');
+    const card = () => container.querySelector('.team-slot-phone .pc')!;
+    expect(card().className).toMatch(/pc-compact/);
+    fireEvent.click(card());
+    expect(card().className).toMatch(/pc-full/);
+    // A tap opens the card; it no longer removes the member.
+    expect(container.querySelectorAll('.team-slot-phone')).toHaveLength(2);
+    fireEvent.click(card());
+    expect(card().className).toMatch(/pc-compact/);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Azumarill' }));
+    expect(container.querySelectorAll('.team-slot-phone')).toHaveLength(1);
   });
 });

@@ -27,24 +27,25 @@ function Card({ member, mirror }: { member: PublicMember; mirror: boolean }) {
   const shadow = parseRef(member.ref).shadow;
   const tint = sp ? ({ '--t1': typeVar(sp.types[0]), '--t2': typeVar(sp.types[1] ?? sp.types[0]) } as CSSProperties) : undefined;
   return (
-    <li className="chamfer-9 flex flex-col gap-2 border border-[var(--rule-hairline)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--t1,var(--color-accent))_14%,var(--surface-1)),var(--surface-1)_60%)] p-2" style={tint}>
-      <div className={`flex items-center justify-between gap-2 border-b border-[var(--rule-hairline)] px-1 pb-1.5 ${mirror ? 'flex-row-reverse' : ''}`}>
-        <span className={`${NARROW} min-w-0 text-lg leading-tight [overflow-wrap:anywhere]`}>{displayName(member.ref)}</span>
-        <span className="flex shrink-0 gap-1">{sp?.types.map((t) => <TypeIcon key={t} type={t} size={22} />)}</span>
+    <li className="@container chamfer-9 flex min-w-0 flex-col gap-1.5 border border-[var(--rule-hairline)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--t1,var(--color-accent))_14%,var(--surface-1)),var(--surface-1)_60%)] p-2" style={tint}>
+      <div className={`flex items-center justify-between gap-2 border-b border-[var(--rule-hairline)] px-1 pb-1 ${mirror ? 'flex-row-reverse' : ''}`}>
+        <span className={`${NARROW} min-w-0 text-base leading-tight [overflow-wrap:anywhere] @max-[14rem]:text-sm`}>{displayName(member.ref)}</span>
+        <span className="flex shrink-0 gap-1">{sp?.types.map((t) => <TypeIcon key={t} type={t} size={20} />)}</span>
       </div>
       <div className={`flex items-stretch gap-2 ${mirror ? 'flex-row-reverse' : ''}`}>
-        <ul className="m-0 flex min-w-0 flex-1 list-none flex-col gap-1.5 p-0" aria-label={`${displayName(member.ref)}'s moves`}>
+        <ul className="m-0 flex min-w-0 flex-1 list-none flex-col gap-1 p-0" aria-label={`${displayName(member.ref)}'s moves`}>
           {moves.map((mv, i) => (
             <li key={`${mv.id}-${i}`}
-              className="flex min-h-8 items-center gap-2 rounded-md border border-[var(--rule-hairline)] bg-[color-mix(in_srgb,var(--mv,var(--surface-2))_22%,var(--surface-2))] px-2 py-1 text-sm font-semibold"
+              className="flex min-h-7 items-center gap-1.5 rounded-md border border-[var(--rule-hairline)] bg-[color-mix(in_srgb,var(--mv,var(--surface-2))_22%,var(--surface-2))] px-2 py-0.5 text-sm font-semibold @max-[14rem]:gap-1 @max-[14rem]:px-1 @max-[14rem]:text-[13px]"
               style={mv.type ? ({ '--mv': typeVar(mv.type) } as CSSProperties) : undefined}>
-              {mv.type ? <TypeIcon type={mv.type} size={20} /> : <span className="size-5" aria-hidden="true" />}
+              {mv.type ? <span className="flex shrink-0 @max-[14rem]:hidden"><TypeIcon type={mv.type} size={18} /></span> : <span className="size-[18px] @max-[14rem]:hidden" aria-hidden="true" />}
               <span className="min-w-0 [overflow-wrap:anywhere]">{mv.name}</span>
             </li>
           ))}
         </ul>
-        <div className="grid w-24 shrink-0 place-items-center rounded-md border-2 border-[color-mix(in_srgb,var(--t1,var(--color-accent))_55%,var(--rule-hairline))] bg-[var(--surface-2)] sm:w-28">
-          {sp ? <Sprite sprite={sp.sprite} dex={sp.dex} size={88} shadow={shadow} /> : <span className="text-faint">?</span>}
+        {/* Narrow cards (two columns on a ~1280px screen) take a smaller sprite; the move row's tint still says its type. */}
+        <div className="grid w-20 shrink-0 place-items-center rounded-md border-2 @max-[14rem]:w-14 @max-[14rem]:[&>div]:!size-12 border-[color-mix(in_srgb,var(--t1,var(--color-accent))_55%,var(--rule-hairline))] bg-[var(--surface-2)]">
+          {sp ? <Sprite sprite={sp.sprite} dex={sp.dex} size={72} shadow={shadow} /> : <span className="text-faint">?</span>}
         </div>
       </div>
     </li>
@@ -69,10 +70,11 @@ function Side({ title, label, profile, team, code, mirror, onOpen }: {
           <span className="font-mono text-[length:var(--text-2xs)] text-muted">Friend code: <span className="numeric">{code === undefined ? '…' : code ?? 'not set'}</span></span>
         </div>
       </header>
-      {/* Two columns once the side is wide enough to keep a card's moves on one line; one otherwise. The query
+      {/* Two columns from 24rem, so a Show 6 is two columns of three and both twelve fit one screen under their
+          banners (the user's ask; at one column only three per side showed). One column on a phone. The query
           container is this wrapper, not the section: containment would stop the section being a subgrid. */}
       <div className="@container">
-        <ol className="m-0 grid list-none grid-cols-1 gap-3 p-0 @[40rem]:grid-cols-2">
+        <ol className="m-0 grid list-none grid-cols-1 gap-2 p-0 @[24rem]:grid-cols-2">
           {team.map((m, i) => <Card key={`${m.ref}-${i}`} member={m} mirror={mirror} />)}
         </ol>
       </div>

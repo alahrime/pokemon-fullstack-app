@@ -72,7 +72,13 @@ export function ChatDock() {
     useChatDockRequest();
   const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
   const { channels, loadError, refresh, bumpActivity, bumpRead, totalUnread } = useChannelList();
-  const [railCollapsed, setRailCollapsed] = useState(false);
+  // Starts collapsed wherever the open list (17rem, up to 70vh) would sit on
+  // the page: the shell is 1640px at most, so only from ~2168px is there 288px
+  // of margin beside it. Open, it covered the right edge of Match and
+  // profiles. The collapsed bar keeps the unread badge; a tap opens it.
+  const [railCollapsed, setRailCollapsed] = useState(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 2167px)').matches,
+  );
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [minimizedIds, setMinimizedIds] = useState<Set<string>>(new Set());
 

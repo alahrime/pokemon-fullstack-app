@@ -174,6 +174,23 @@ describe('ChatDock, signed in', () => {
     expect(match.getAttribute('data-kind')).toBe('match');
   });
 
+  it('starts collapsed where the open list would cover the page, and a tap opens it', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: q === '(max-width: 2167px)', media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      await mount(fakeSession('me'));
+      const toggle = await screen.findByRole('button', { name: 'Expand chat list' });
+      expect(screen.queryByRole('button', { name: /open chat with ally/i })).toBeNull();
+      fireEvent.click(toggle);
+      expect(await screen.findByRole('button', { name: /open chat with ally/i })).toBeInTheDocument();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
   it('opens a conversation from the rail and shows its transcript', async () => {
     await mount(fakeSession('me'));
     fireEvent.click(await screen.findByRole('button', { name: /open chat with ally/i }));

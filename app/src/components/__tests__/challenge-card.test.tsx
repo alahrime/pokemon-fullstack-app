@@ -48,7 +48,7 @@ import { ChallengeCard } from '../ChallengeCard';
 const future = new Date(Date.now() + 3600_000).toISOString();
 const base: Challenge = {
   id: 'o', proposerId: 'them', targetId: 'me', league: 'great', state: 'open',
-  scheduledFor: null, expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: 'Cup',
+  scheduledFor: null, expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: 'Cup', counterOf: null, countered: false,
 };
 const serve = (c: Partial<Challenge>) => fetchChallenges.mockResolvedValue(new Map([['o', { ...base, ...c }]]));
 const flush = () => act(async () => { await Promise.resolve(); });
@@ -200,5 +200,21 @@ describe('ChallengeCard', () => {
     render(<ChallengeCard offerId="o" />);
     await screen.findByText('Waiting for them');
     expect(screen.queryByRole('button', { name: 'Counter' })).toBeNull();
+  });
+
+  it('a counter says whose counter it is; the original it answered says it was countered', async () => {
+    serve({ counterOf: 'orig' });
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Their counter to your challenge')).toBeTruthy();
+    expect(screen.getByText('Counter', { selector: '.hud-label' })).toBeTruthy();
+    cleanup();
+    serve({ counterOf: 'orig', proposerId: 'me', targetId: 'them' });
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Your counter to their challenge')).toBeTruthy();
+    cleanup();
+    serve({ state: 'declined', countered: true });
+    render(<ChallengeCard offerId="o" />);
+    expect(await screen.findByText('Declined — countered')).toBeTruthy();
+    expect(screen.queryByText(/counter to/)).toBeNull();
   });
 });

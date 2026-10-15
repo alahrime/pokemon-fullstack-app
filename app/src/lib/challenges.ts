@@ -21,6 +21,10 @@ export interface Challenge {
   /** Length of the proposer's team — what the accepter's roster must match. */
   rosterSize: number;
   formatName: string | null;
+  /** The challenge this one counters, if it is a counter. */
+  counterOf: string | null;
+  /** True once the other side answered this one with a counter. */
+  countered: boolean;
 }
 
 /**
@@ -46,7 +50,7 @@ export interface ChallengeView {
 export function challengeView(c: Challenge | null, me: string, now: Date): ChallengeView {
   if (!c) return { label: 'Withdrawn', tone: 'dead', actions: [] };
   if (c.state === 'converted') return { label: 'Match on — open it', tone: 'done', actions: [] };
-  if (c.state === 'declined') return { label: 'Declined', tone: 'dead', actions: [] };
+  if (c.state === 'declined') return { label: c.countered ? 'Declined — countered' : 'Declined', tone: 'dead', actions: [] };
   const live = c.state === 'open' || c.state === 'accepted';
   if (c.state === 'lapsed' || (live && new Date(c.expiresAt) <= now)) {
     return { label: 'Expired', tone: 'dead', actions: [] };
@@ -73,6 +77,8 @@ export async function createChallenge(a: {
   format: Format;
   team: StoredMember[];
   scheduledFor?: Date;
+  /** Makes it a counter: the server declines that challenge in the same call. */
+  counterOf?: string;
 }): Promise<string> {
   if (a.scheduledFor && a.scheduledFor <= new Date()) {
     throw new Error('a scheduled challenge cannot be in the past');
@@ -85,6 +91,7 @@ export async function createChallenge(a: {
     p_team: a.team,
     p_data_rev: DATA_REV,
     p_scheduled_for: a.scheduledFor ? a.scheduledFor.toISOString() : null,
+    ...(a.counterOf ? { p_counter_of: a.counterOf } : {}),
   });
   if (error) throw new Error(error.message);
   return data as string;
@@ -103,7 +110,7 @@ export async function withdrawChallenge(id: string): Promise<void> {
 }
 
 const COLS =
-  'id, proposer_id, target_id, league, state, scheduled_for, expires_at, verified_hash, match_id, team_public, format_versions(formats(name))';
+  'id, proposer_id, target_id, league, state, scheduled_for, expires_at, verified_hash, match_id, team_public, counter_of, countered:match_offers!counter_of(id), format_versions(formats(name))';
 
 interface Row {
   id: string;
@@ -116,6 +123,8 @@ interface Row {
   verified_hash: string | null;
   match_id: string | null;
   team_public: unknown[] | null;
+  counter_of?: string | null;
+  countered?: { id: string }[] | null;
   // PostgREST returns an embedded to-one as an object, but the generated
   // types say array; read both.
   format_versions?: { formats?: { name: string } | { name: string }[] | null } | { formats?: { name: string } | { name: string }[] | null }[] | null;
@@ -140,6 +149,8 @@ function toChallenge(r: Row): Challenge {
     matchId: r.match_id,
     rosterSize: (r.team_public ?? []).length,
     formatName: nameOf(r.format_versions),
+    counterOf: r.counter_of ?? null,
+    countered: (r.countered ?? []).length > 0,
   };
 }
 

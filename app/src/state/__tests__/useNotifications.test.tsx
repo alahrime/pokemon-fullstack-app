@@ -30,7 +30,7 @@ import type { Pairing, Tournament } from '../../lib/tournaments';
 const future = new Date(Date.now() + 3600_000).toISOString();
 const chal = (id: string): Challenge => ({
   id, proposerId: 'ann', targetId: 'me', league: 'great', state: 'open', scheduledFor: null,
-  expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: null,
+  expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: null, counterOf: null, countered: false,
 });
 const fr = (otherId: string): Friend => ({ otherId, status: 'pending', theyAsked: true, createdAt: '' });
 const unreadCh = { id: 'c1', displayTitle: 'Ann', otherId: 'ann', lastMessageAt: '2026-01-01T11:00:00Z', lastReadAt: null };

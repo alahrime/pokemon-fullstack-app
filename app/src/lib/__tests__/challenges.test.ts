@@ -25,7 +25,7 @@ const NOW = new Date('2026-09-29T12:00:00Z');
 const base: Challenge = {
   id: 'o', proposerId: 'ann', targetId: 'bob', league: 'great', state: 'open',
   scheduledFor: null, expiresAt: '2026-09-29T13:00:00Z', verifiedHash: 'h', matchId: null,
-  rosterSize: 3, formatName: 'Cup',
+  rosterSize: 3, formatName: 'Cup', counterOf: null, countered: false,
 };
 const v = (over: Partial<Challenge>, me: string) => challengeView({ ...base, ...over }, me, NOW);
 
@@ -53,6 +53,7 @@ describe('challengeView', () => {
   });
   it('declined and expired are dead, expiry judged by the clock as well as the state', () => {
     expect(v({ state: 'declined' }, 'ann')).toMatchObject({ label: 'Declined', tone: 'dead', actions: [] });
+    expect(v({ state: 'declined', countered: true }, 'ann')).toMatchObject({ label: 'Declined — countered', tone: 'dead' });
     expect(v({ state: 'lapsed' }, 'bob')).toMatchObject({ label: 'Expired', tone: 'dead', actions: [] });
     expect(v({ expiresAt: '2026-09-29T11:59:00Z' }, 'bob')).toMatchObject({ label: 'Expired', tone: 'dead' });
   });
@@ -71,6 +72,13 @@ describe('createChallenge', () => {
       p_target: 'bob', p_format_version: 'v1', p_claimed_hash: await rulesHash(FORMAT),
       p_league: 'great', p_team: [], p_data_rev: DATA_REV, p_scheduled_for: when.toISOString(),
     });
+  });
+  it('names the challenge a counter answers, and sends no p_counter_of otherwise', async () => {
+    rpc.mockResolvedValue({ data: 'o2', error: null });
+    await createChallenge({ ...a, counterOf: 'orig' });
+    expect(rpc.mock.calls.at(-1)![1]).toMatchObject({ p_counter_of: 'orig', p_scheduled_for: null });
+    await createChallenge(a);
+    expect(rpc.mock.calls.at(-1)![1]).not.toHaveProperty('p_counter_of');
   });
   it('refuses a past schedule before any network call', async () => {
     rpc.mockClear();
@@ -97,6 +105,11 @@ describe('live challenges between two people', () => {
     query.rows = [row('live', '2026-09-29T13:00:00Z'), row('stale', '2026-09-29T11:00:00Z')];
     const out = await liveChallengesWith('bob', NOW);
     expect(out.map((c) => c.id)).toEqual(['live']);
+    expect(out[0]).toMatchObject({ counterOf: null, countered: false });
+    query.rows = [{ ...row('c', '2026-09-29T13:00:00Z'), counter_of: 'orig', countered: [{ id: 'x' }] }];
+    expect((await liveChallengesWith('bob', NOW))[0]).toMatchObject({ counterOf: 'orig', countered: true });
+    query.filters.length = 0;
+    await liveChallengesWith('bob', NOW);
     const or = query.filters.find((f) => f[0] === 'or')![1] as string;
     expect(or).toBe('and(proposer_id.eq.ann,target_id.eq.bob),and(proposer_id.eq.bob,target_id.eq.ann)');
     expect(query.filters.find((f) => f[0] === 'in')).toEqual(['in', 'state', ['open', 'accepted']]);

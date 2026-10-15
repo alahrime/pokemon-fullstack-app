@@ -12,7 +12,7 @@ const ch = (o: Partial<ChannelDisplay>) =>
   ({ id: 'c1', displayTitle: 'Ann', otherId: 'ann', lastMessageAt: '2026-01-01T10:00:00Z', lastReadAt: '2026-01-01T10:00:00Z', ...o }) as ChannelDisplay;
 const chal = (o: Partial<Challenge>): Challenge => ({
   id: 'x', proposerId: 'ann', targetId: 'me', league: 'great', state: 'open', scheduledFor: null,
-  expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: null, ...o,
+  expiresAt: future, verifiedHash: 'h', matchId: null, rosterSize: 3, formatName: null, counterOf: null, countered: false, ...o,
 });
 const fr = (o: Partial<Friend>): Friend => ({ otherId: 'bob', status: 'pending', theyAsked: true, createdAt: '', ...o });
 const run = (i: Partial<Parameters<typeof buildNotices>[0]>) =>

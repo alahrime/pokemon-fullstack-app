@@ -95,7 +95,12 @@ export function ChallengeCard({ offerId }: { offerId: string }) {
 
   return (
     <div className={`challenge-card chamfer-9 tone-${view.tone}`}>
-      <span className="hud-label">Challenge</span>
+      <span className="hud-label">{challenge?.counterOf ? 'Counter' : 'Challenge'}</span>
+      {challenge?.counterOf && (
+        <p className="text-faint">
+          {challenge.proposerId === user.id ? 'Your counter to their challenge' : 'Their counter to your challenge'}
+        </p>
+      )}
       {challenge && (
         <p>
           {challengeFormatLabel(challenge.formatName, challenge.league)} ·{' '}

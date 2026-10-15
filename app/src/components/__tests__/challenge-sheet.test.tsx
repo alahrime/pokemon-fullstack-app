@@ -6,7 +6,6 @@ import { speciesOf } from '../../lib/data';
 import { PRESET_FORMATS } from '../../lib/presetFormats';
 
 const createChallenge = vi.fn();
-const declineChallenge = vi.fn();
 const openDm = vi.fn();
 const requestChannel = vi.fn();
 const listTeams = vi.fn();
@@ -27,7 +26,6 @@ vi.mock('../../lib/presetFormats', async (orig) => ({
 }));
 vi.mock('../../lib/challenges', () => ({
   createChallenge: (...a: unknown[]) => createChallenge(...a),
-  declineChallenge: (...a: unknown[]) => declineChallenge(...a),
 }));
 vi.mock('../../lib/channels', () => ({
   openDm: (...a: unknown[]) => openDm(...a),
@@ -77,7 +75,6 @@ const great = () => screen.findByRole('option', { name: 'Team t3' });
 
 beforeEach(() => {
   createChallenge.mockReset().mockResolvedValue('ch1');
-  declineChallenge.mockReset().mockResolvedValue(true);
   versionFor.mockReset().mockResolvedValue('v-preset');
   openDm.mockReset().mockResolvedValue('dm1');
   requestChannel.mockReset();
@@ -346,34 +343,30 @@ describe('ChallengeSheet', () => {
       expect(screen.queryByRole('button', { name: 'Send challenge' })).toBeNull();
     });
 
-    it('creates the new challenge first, then declines the original, then opens the DM', async () => {
-      const order: string[] = [];
-      createChallenge.mockImplementation(async () => { order.push('create'); return 'ch2'; });
-      declineChallenge.mockImplementation(async (id: string) => { order.push(`decline:${id}`); return true; });
-      openDm.mockImplementation(async () => { order.push('dm'); return 'dm1'; });
+    it('sends one call that names the original (the server declines it), then opens the DM', async () => {
       const onClose = counter();
       await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(order).toEqual(['create', 'decline:orig', 'dm']);
+      expect(createChallenge).toHaveBeenCalledWith(expect.objectContaining({ targetId: target.id, counterOf: 'orig' }));
+      expect(openDm).toHaveBeenCalled();
     });
 
-    it('leaves their challenge alone when your counter is refused', async () => {
-      createChallenge.mockRejectedValue(new Error('someone no longer challengeable'));
+    it('stays open with the reason when your counter is refused', async () => {
+      createChallenge.mockRejectedValue(new Error('that challenge can no longer be countered'));
       const onClose = counter();
       await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
-      expect((await screen.findByRole('alert')).textContent).toMatch(/no longer challengeable/);
-      expect(declineChallenge).not.toHaveBeenCalled();
+      expect((await screen.findByRole('alert')).textContent).toMatch(/can no longer be countered/);
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('says so when the counter went out but declining theirs failed, and cannot be sent twice', async () => {
-      declineChallenge.mockRejectedValue(new Error('network'));
+    it('says so when the counter went out but the chat would not open, and cannot be sent twice', async () => {
+      openDm.mockRejectedValue(new Error('network'));
       counter();
       await choose('Team tu');
       fireEvent.click(screen.getByRole('button', { name: 'Send counter' }));
-      expect((await screen.findByRole('alert')).textContent).toMatch(/Counter sent.*network/);
+      expect((await screen.findByRole('alert')).textContent).toMatch(/Counter sent — couldn't open the chat: network/);
       expect((screen.getByRole('button', { name: 'Send counter' }) as HTMLButtonElement).disabled).toBe(true);
       expect(createChallenge).toHaveBeenCalledTimes(1);
     });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
-import { createChallenge, declineChallenge } from '../lib/challenges';
+import { createChallenge } from '../lib/challenges';
 import { openDm } from '../lib/channels';
 import { listServerFormats, type SavedFormat } from '../lib/saves';
 import { pickableFor } from '../lib/data';
@@ -26,8 +26,8 @@ function messageOf(e: unknown): string {
  * time, someone no longer challengeable) is shown here and leaves the sheet open to fix.
  *
  * `counterOf` turns it into a counter: `target` is the person who challenged you, the league starts at theirs,
- * and once your challenge exists the one you are answering is declined. Create first, decline second, so a
- * refusal of your new terms leaves their challenge open to accept or decline as before.
+ * and the server declines the one you are answering in the same call that creates yours (so a refusal of your
+ * new terms leaves theirs open), and links the two so both cards can say so.
  */
 export function ChallengeSheet({
   target,
@@ -148,17 +148,17 @@ export function ChallengeSheet({
         format,
         team,
         scheduledFor: scheduled ? new Date(when) : undefined,
+        counterOf,
       });
       created = true;
       setSent(true);
-      if (counterOf) await declineChallenge(counterOf);
       const dmId = await openDm(target.id);
       requestChannel(dmId);
       onClose();
     } catch (e) {
       // Once the challenge exists, a retry would create a second one: keep
       // Send disabled and say so.
-      setError(created ? `${counterOf ? 'Counter' : 'Challenge'} sent — couldn't ${counterOf ? 'finish up (decline theirs or open the chat)' : 'open the chat'}: ${messageOf(e)}` : messageOf(e));
+      setError(created ? `${counterOf ? 'Counter' : 'Challenge'} sent — couldn't open the chat: ${messageOf(e)}` : messageOf(e));
       setBusy(created);
     }
   }

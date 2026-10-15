@@ -20,6 +20,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     /**
+     * Whole-app screen tests take 1-3s here but over 5s on the shared CI runner; vitest's 5s default failed 14 of 30
+     * CI runs (2026-10-13 to 10-15), each time a different screen test. A hang still fails, just later.
+     */
+    testTimeout: 30_000,
+    /**
      * The Supabase client reads its URL and key from the environment and
      * refuses to be constructed without them, so any test that transitively
      * imports it needs both present. They cannot come from `.env.local` — that

@@ -185,6 +185,53 @@ describe('challenges', () => {
     expect(r.message).toMatch(/no longer open/);
   });
 
+  describe('a counter', () => {
+    const counter = (as: string, target: string, of: string) =>
+      asUser({ sub: as })<{ create_challenge: string }>(
+        `select public.create_challenge('${target}', '${publicVersion}', 'bb', 'ultra', '[]'::jsonb, 'rev1', null, '${of}')`);
+
+    it('links to the challenge it answers and declines it in the same call; both sides read the link', async () => {
+      await befriend(ann, bob);
+      const [{ create_challenge: orig }] = await challenge(ann, bob);
+      const [{ create_challenge: ctr }] = await counter(bob, ann, orig);
+      const rows = await sql<{ id: string; state: string; counter_of: string | null }>(
+        `select id, state, counter_of from public.match_offers where id in ('${orig}','${ctr}')`);
+      expect(rows.find((r) => r.id === orig)).toMatchObject({ state: 'declined', counter_of: null });
+      expect(rows.find((r) => r.id === ctr)).toMatchObject({ state: 'open', counter_of: orig });
+      for (const who of [ann, bob]) {
+        expect(await asUser({ sub: who })(`select id from public.match_offers where counter_of = '${orig}'`)).toHaveLength(1);
+      }
+    });
+
+    it('refuses, and changes nothing, unless it answers an open challenge the target sent you', async () => {
+      await befriend(ann, bob);
+      await befriend(cal, bob);
+      const [{ create_challenge: orig }] = await challenge(ann, bob);
+      const tries = [
+        () => counter(cal, ann, orig), // not aimed at cal (and cal is not ann's friend either)
+        () => counter(bob, cal, orig), // aimed back at someone who did not send it
+        () => counter(ann, bob, orig), // the proposer countering their own
+        () => counter(bob, ann, randomUUID()),
+      ];
+      for (const t of tries) expect((await refusal(t)).message).toMatch(/cannot be challenged|can no longer be countered/);
+      await asUser({ sub: bob })(`select public.decline_challenge('${orig}')`);
+      expect((await refusal(() => counter(bob, ann, orig))).message).toMatch(/can no longer be countered/);
+      const [n] = await sql<{ n: number }>(
+        `select count(*)::int as n from public.match_offers where proposer_id in ('${ann}','${bob}','${cal}')`);
+      expect(n.n).toBe(1);
+    });
+
+    it('is never written by a client directly', async () => {
+      await befriend(ann, bob);
+      const [{ create_challenge: orig }] = await challenge(bob, ann);
+      const direct = await refusal(() =>
+        asUser({ sub: ann })(
+          `insert into public.match_offers (format_version_id, claimed_hash, league, team, data_rev, counter_of)
+           values ('${publicVersion}','bb','great','[]','rev1','${orig}')`));
+      expect(direct.message).toMatch(POLICY_DENIED);
+    });
+  });
+
   it('anonymous callers cannot reach either function', async () => {
     const create = await refusal(() =>
       asAnon()(`select public.create_challenge('${bob}','${publicVersion}','bb','great','[]'::jsonb,'rev1')`));

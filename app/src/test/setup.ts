@@ -2,6 +2,13 @@ import { vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 /**
+ * Realtime opens a websocket, and the providers that subscribe are mounted by most screen tests against a client
+ * pointed at a fake URL. Stubbed to a no-op here; `realtime.test.ts` tests the real one and the provider tests
+ * override this to fire changes by hand.
+ */
+vi.mock('../lib/realtime', () => ({ subscribeToTables: () => () => {} }));
+
+/**
  * jsdom does not implement layout, so anything that measures returns zeros.
  * Components here read `getBoundingClientRect` for tilt, drag edges and
  * marker placement; stubbing it to a plausible box keeps those paths

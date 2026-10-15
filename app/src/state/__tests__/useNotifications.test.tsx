@@ -18,6 +18,10 @@ vi.mock('../../lib/social', () => ({ listFriends: () => listFriends() }));
 vi.mock('../SessionContext', () => ({ useSession: () => ({ user }) }));
 vi.mock('../ChannelListContext', () => ({ useChannelList: () => ({ channels }) }));
 vi.mock('../AppState', () => ({ useAppState: () => ({ patch }) }));
+const live: { tables: readonly string[]; fire: () => void }[] = [];
+vi.mock('../../lib/realtime', () => ({
+  subscribeToTables: (tables: readonly string[], fire: () => void) => { live.push({ tables, fire }); return () => {}; },
+}));
 vi.mock('../ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: vi.fn() }) }));
 
 import { useNotifications, useOpenNotice } from '../useNotifications';
@@ -35,7 +39,8 @@ const chal = (id: string): Challenge => ({
 const fr = (otherId: string): Friend => ({ otherId, status: 'pending', theyAsked: true, createdAt: '' });
 const unreadCh = { id: 'c1', displayTitle: 'Ann', otherId: 'ann', lastMessageAt: '2026-01-01T11:00:00Z', lastReadAt: null };
 const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
-const poll = () => act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+// The fallback poll; Realtime is the fast path (tested below).
+const poll = () => act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 const ids = (n: { id: string }[]) => n.map((x) => x.id);
 
 beforeEach(() => {
@@ -71,6 +76,17 @@ describe('useNotifications', () => {
     myChallenges.mockResolvedValue([chal('a'), chal('b')]);
     await poll();
     expect(ids(result.current.fresh)).toEqual(['co:b']);
+  });
+
+  it('a Realtime change on offers, friendships or tournaments reloads at once, without waiting for the poll', async () => {
+    live.length = 0;
+    const { result } = renderHook(() => useNotifications());
+    await settle();
+    expect(live.at(-1)!.tables).toEqual(['match_offers', 'friendships', 'tournaments', 'tournament_pairings']);
+    myChallenges.mockResolvedValue([chal('a'), chal('c')]);
+    await act(async () => live.at(-1)!.fire());
+    await settle();
+    expect(ids(result.current.fresh)).toEqual(['co:c']);
   });
 
   it('channels arriving after challenges do not toast the backlog', async () => {

@@ -1,18 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSession } from './SessionContext';
 import { isChannelUnread, listChannelsWithActivity, withDisplayNames, type ChannelDisplay } from '../lib/channels';
+import { subscribeToTables } from '../lib/realtime';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
 /**
- * How long a closed conversation can sit before the rail notices a new
- * message in it. The list is polled (one `listChannelsWithActivity` plus
- * `withDisplayNames`, regardless of channel count) rather than subscribed
- * per channel; see `ChatDock`'s doc comment for why.
+ * The fallback for a dropped socket. A new message anywhere the viewer can read refreshes the list at once through
+ * one table-wide Realtime subscription (`subscribeToTables`), not one per channel; see `ChatDock`'s doc comment.
+ * Each refresh is still one `listChannelsWithActivity` plus `withDisplayNames`, regardless of channel count.
  */
-export const POLL_MS = 15_000;
+export const POLL_MS = 60_000;
 
 interface ChannelListValue {
   channels: ChannelDisplay[] | null;
@@ -26,7 +26,7 @@ interface ChannelListValue {
 const ChannelListContext = createContext<ChannelListValue | null>(null);
 
 /**
- * The one shared, polled channel list: the dock, the Chat screen and the bell
+ * The one shared, live channel list: the dock, the Chat screen and the bell
  * all read it, so they share one poll rather than each running the same three
  * queries. Mounted inside `SessionProvider` (it keys the poll on `user`).
  */
@@ -51,8 +51,9 @@ export function ChannelListProvider({ children }: { children: ReactNode }) {
       return;
     }
     refresh();
+    const stop = subscribeToTables(['messages'], refresh);
     const id = setInterval(refresh, POLL_MS);
-    return () => clearInterval(id);
+    return () => { stop(); clearInterval(id); };
   }, [user, refresh]);
 
   // Optimistic local bumps so a pane's own traffic moves the rail before the

@@ -11,6 +11,10 @@ vi.mock('../../lib/channels', async () => ({
   withDisplayNames: (...a: unknown[]) => names(...a),
 }));
 vi.mock('../SessionContext', () => ({ useSession: () => ({ user }) }));
+const live = { tables: [] as readonly string[], fire: () => {}, stop: vi.fn() };
+vi.mock('../../lib/realtime', () => ({
+  subscribeToTables: (tables: readonly string[], cb: () => void) => { live.tables = tables; live.fire = cb; return live.stop; },
+}));
 
 import { ChannelListProvider, useChannelList, POLL_MS } from '../ChannelListContext';
 
@@ -111,5 +115,16 @@ describe('ChannelListProvider', () => {
     view.unmount();
     await act(async () => void vi.advanceTimersByTime(POLL_MS * 3));
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('a Realtime change to messages refetches at once; unmounting unsubscribes', async () => {
+    let view!: ReturnType<typeof render>;
+    await act(async () => { view = render(<ChannelListProvider><Reader /></ChannelListProvider>); });
+    expect(live.tables).toEqual(['messages']);
+    expect(list).toHaveBeenCalledTimes(1);
+    await act(async () => live.fire());
+    expect(list).toHaveBeenCalledTimes(2);
+    view.unmount();
+    expect(live.stop).toHaveBeenCalled();
   });
 });

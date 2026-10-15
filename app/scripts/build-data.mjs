@@ -309,7 +309,8 @@ function formsOf(p) {
 }
 
 // ── build ──────────────────────────────────────────────────────────────────
-const released = pokemon.filter((p) => p.released);
+// Costume Pikachus (Libre, Pop Star, …) are dropped outright at the user's request: only the base form is kept.
+const released = pokemon.filter((p) => p.released && !/^pikachu_/.test(p.speciesId));
 const shadowIds = new Set(released.filter((p) => (p.tags ?? []).includes('shadow')).map((p) => p.speciesId));
 const bases = released.filter((p) => !(p.tags ?? []).includes('shadow'));
 

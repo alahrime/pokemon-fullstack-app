@@ -355,6 +355,22 @@ describe('signed in', () => {
     expect(container.textContent).toMatch(/MADE_UP_MOVE_ID/);
   });
 
+  it('leaves a removed species out of the loaded team and says so', async () => {
+    const good = savedTeam('t3', 'Costume Team', ['medicham', 'azumarill']);
+    const withGone: SavedTeam = { ...good, members: [good.members[0], { ...good.members[1], ref: 'pikachu_libre' }] };
+    savesApi.listTeams.mockResolvedValue([withGone]);
+    const { container } = await mount(3, fakeSession('ash@example.com'));
+    openSavedList(container);
+    const loadBtn = await waitFor(() => {
+      const b = [...container.querySelectorAll('.team-load-row button')].find((x) => /Costume Team/i.test(x.textContent ?? ''));
+      if (!b) throw new Error('saved team row not rendered yet');
+      return b as HTMLButtonElement;
+    });
+    fireEvent.click(loadBtn);
+    expect([...container.querySelectorAll('.team-slots .pc-name')].map((n) => n.textContent)).toEqual(['Medicham']);
+    expect(container.textContent).toMatch(/"pikachu_libre" is no longer in the data/);
+  });
+
   it("shows each saved team's league beside its name", async () => {
     savesApi.listTeams.mockResolvedValue([
       savedTeam('t1', 'GL Squad', ['medicham'], 'great'),

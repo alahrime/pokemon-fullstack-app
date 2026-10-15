@@ -5,11 +5,13 @@ import { useSession } from './SessionContext';
 import { listFriends, type Friend } from '../lib/social';
 import { myOffers, type MyOffer } from '../lib/matchmaking';
 import { computeBadges, type Badges } from '../lib/badges';
+import { subscribeToTables } from '../lib/realtime';
 
-const POLL_MS = 30_000;
+// Realtime does the work; this poll only covers a dropped socket.
+const POLL_MS = 60_000;
 
-/** Polled, like the chat dock's unread count — same cadence, same failure
- *  mode: a failed read leaves the last answer rather than clearing it. */
+/** Live, like the chat dock's unread count — same failure mode: a failed read leaves the last answer rather than
+ *  clearing it. */
 export function useBadges(): Badges {
   const { user } = useSession();
   const { totalUnread } = useChannelList();
@@ -28,9 +30,11 @@ export function useBadges(): Badges {
         .then(([f, o]) => live && setData({ f, o }))
         .catch(() => {});
     load();
+    const stop = subscribeToTables(['match_offers', 'friendships'], load);
     const id = setInterval(load, POLL_MS);
     return () => {
       live = false;
+      stop();
       clearInterval(id);
     };
   }, [user]);

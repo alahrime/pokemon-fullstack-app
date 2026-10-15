@@ -8,13 +8,16 @@ import { resolveDisplayNames } from '../lib/channels';
 import { myTournamentActivity, type Pairing, type Tournament } from '../lib/tournaments';
 import { listFriends, type Friend } from '../lib/social';
 import { buildNotices, type Notice } from '../lib/notifications';
+import { subscribeToTables } from '../lib/realtime';
 
 // A failing tournaments read (e.g. migrations not applied yet) must not blank challenges and friends.
 const NO_ACTIVITY = { tournaments: [] as Tournament[], pairings: [] as Pairing[], judgeOf: [] as string[] };
-const POLL_MS = 15_000;
+// Realtime does the work (see the subscription below); this poll only covers a dropped socket.
+const POLL_MS = 60_000;
+const LIVE_TABLES = ['match_offers', 'friendships', 'tournaments', 'tournament_pairings'] as const;
 const NONE: Notice[] = [];
 
-/** Polled like `useBadges`: a failed read keeps the last answer. `fresh` is
+/** Live like `useBadges`: a failed read keeps the last answer. `fresh` is
  *  what appeared since the previous evaluation, and only once everything has
  *  loaded once — so opening the app does not toast the backlog. */
 export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
@@ -44,9 +47,11 @@ export function useNotifications(): { notices: Notice[]; fresh: Notice[] } {
         })
         .catch(() => {});
     load();
+    const stop = subscribeToTables(LIVE_TABLES, load);
     const id = setInterval(load, POLL_MS);
     return () => {
       live = false;
+      stop();
       clearInterval(id);
     };
   }, [user]);

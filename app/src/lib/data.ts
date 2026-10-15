@@ -275,7 +275,19 @@ export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
 const goAsset = (file: string) =>
   `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/${file}.icon.png`;
 
+// Newer Megas (the Legends Z-A set and a few more) are only in the 256x256 folder, and pokemondb has no HOME render
+// for them, so without these they fell back to the base form's dex sprite.
+const goAsset256 = (file: string) =>
+  `https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon%20-%20256x256/Addressable%20Assets/${file}.icon.png`;
+const GO_MEGAS: [slug: string, file: string][] = [
+  ['raichu-mega-x', 'pm26.fMEGA_X'], ['raichu-mega-y', 'pm26.fMEGA_Y'], ['victreebel-mega', 'pm71.fMEGA'],
+  ['starmie-mega', 'pm121.fMEGA'], ['dragonite-mega', 'pm149.fMEGA'], ['skarmory-mega', 'pm227.fMEGA'],
+  ['staraptor-mega', 'pm398.fMEGA'], ['chesnaught-mega', 'pm652.fMEGA'], ['delphox-mega', 'pm655.fMEGA'],
+  ['greninja-mega', 'pm658.fMEGA'], ['malamar-mega', 'pm687.fMEGA'],
+];
+
 const GO_ONLY_SPRITES: Record<string, string> = {
+  ...Object.fromEntries(GO_MEGAS.flatMap(([slug, file]) => [[slug, goAsset256(file)], [`${slug}:shiny`, goAsset256(`${file}.s`)]])),
   'mewtwo-armored':
     'https://raw.githubusercontent.com/PokeMiners/pogo_assets/master/Images/Pokemon/Addressable%20Assets/pm150.fA.icon.png',
   ...Object.fromEntries(

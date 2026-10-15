@@ -46,18 +46,19 @@ import { ChallengeSheet } from './ChallengeSheet';
  * subscription per conversation this viewer is in, all the time, on every
  * screen, whether or not anyone is looking at any of them — a cost that
  * grows with the size of someone's friend list and match history rather than
- * with how many conversations are actually open. Instead the rail polls
- * `listChannelsWithActivity()` on a fixed interval (`POLL_MS`, in `ChannelListContext`), which costs
- * exactly one query regardless of how many channels exist. `ChatPane`
- * narrows that gap for anything already open: it reports every message it
- * sends or receives, and every successful `markRead`, back up through
- * `onActivity`/`onRead` below, so a conversation you have a pane open on
- * updates its badge immediately rather than waiting out the next poll — only
- * a channel with NO open pane ever waits the full `POLL_MS`.
+ * with how many conversations are actually open. Instead `ChannelListContext`
+ * holds ONE table-wide subscription to `messages` (`subscribeToTables`; RLS
+ * decides what reaches this viewer) and refetches the list on any insert, with
+ * a slow `POLL_MS` fallback for a dropped socket. A refetch is
+ * `listChannelsWithActivity()`, which costs exactly one query regardless of how
+ * many channels exist. `ChatPane` still reports every message it sends or
+ * receives, and every successful `markRead`, back up through
+ * `onActivity`/`onRead` below, so an open conversation's badge moves without
+ * waiting for that refetch.
  *
  * **Names, not uuids.** `withDisplayNames()` (`lib/channels.ts`) runs after
  * every `listChannelsWithActivity()` call — on the initial load and on every
- * `POLL_MS` refresh alike — and attaches a human `displayTitle` (a `dm`'s or
+ * refresh alike — and attaches a human `displayTitle` (a `dm`'s or
  * `match`'s other member, or a `group`'s own title) plus, for a `group`, a
  * `memberCount`. It costs exactly two more queries per refresh, same as
  * `listChannelsWithActivity`'s own extra query above: one `IN` query across

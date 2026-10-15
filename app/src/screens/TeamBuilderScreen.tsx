@@ -477,6 +477,12 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       notices.push(`"${t.name}" was saved for ${from}, not ${into} — its IVs and CP cap were built for the other league.`);
     }
     for (const stored of t.members) {
+      // A species the data dropped (the costume Pikachus, 2026-10-15) has no tables to build with: leave its slot
+      // empty and say so, rather than load a member every view of the team would fail on.
+      if (!speciesOf(stored.ref)) {
+        notices.push(`"${stored.ref}" is no longer in the data, so its slot was left empty.`);
+        continue;
+      }
       const { choice, unknownMove } = decodeMember(stored);
       nextTeam.push(choice.ref);
       nextBuilds[choice.ref] = choice;

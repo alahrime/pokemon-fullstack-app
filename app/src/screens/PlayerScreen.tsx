@@ -287,7 +287,7 @@ export function PlayerScreen({ playerId, embedded = false }: {
 
       {games && (<>
         <dl className="profile-stats" aria-label="Show 6 arena">
-          <div><dt>Unique opponents</dt><dd className="numeric">{sc.uniqueOpponents}</dd></div>
+          <div><dt>Show 6 opponents</dt><dd className="numeric">{sc.uniqueOpponents}</dd></div>
           <div><dt>Ranked tournaments</dt><dd className="numeric">{sc.tournaments}</dd></div>
           <div><dt>Record</dt><dd className="numeric">{sc.wins}–{sc.losses}<small>{pct(sc.wins, total)}</small></dd></div>
           <div><dt>Trophies</dt><dd className="numeric">{sc.trophies.length}</dd></div>

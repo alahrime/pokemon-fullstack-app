@@ -50,7 +50,7 @@ design authority; the plans argue from it.
 2. **Coordinator tick 401s in production** (`UNAUTHORIZED_INVALID_JWT_FORMAT`): the Vault secret `coordinator_service_role_key` is not the legacy `service_role` JWT. The user's fix, SQL below in the old list. Until then nothing on the offer board, queue, lapsing or message expiry is processed in production.
 3. **Scheduled challenges still need the proposer's confirm** — a decision the user has not given.
 4. **"Rankings crashes when changing pages after toggling shiny"** — never reproduced; needs steps or the error text. (The page-change freeze fixed this session is a different symptom; ask whether the crash still happens.)
-5. **Production check signed in** (profiles, challenges, Match across leagues, profile editor). Now possible: the user installed **Claude in Chrome** and is signed in there; drive their Chrome, never sign in for them.
+5. **Done 2026-10-15 (ninth session), read-only, in the user's Chrome signed in as HabibiEX:** Matches, Friends, Chat, Tournaments, Records, Account, a friend's profile (Azitis), the profile editor (opened, cancelled) and both open matches (Great Show 6 and Great 3v3) all render production data; no console errors, no 4xx/5xx resources. Only Great League matches existed, so Ultra/Master Match is unseen. One fix: the profile's Show 6 row said "Unique opponents" a second time, now "Show 6 opponents". Noted, not changed: the expanded chat dock covers the right edge of Match and profile at 1179px wide (it collapses).
 6. **Phone-width checks never done:** profile editor, confirm dialog, the profile at 640-760px.
 8. **A visible link between a counter-challenge and the original.**
 9. **Realtime instead of polls** for the bell, badges and chat list.

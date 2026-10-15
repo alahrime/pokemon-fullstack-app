@@ -88,7 +88,7 @@ describe('PlayerScreen', () => {
   it('counts Show 6 games only, and groups them by tournament with the six and the podium', async () => {
     show();
     const stats = await screen.findByLabelText('Show 6 arena');
-    expect(stats.textContent).toContain('Unique opponents1');
+    expect(stats.textContent).toContain('Show 6 opponents1');
     expect(stats.textContent).toContain('Ranked tournaments1');
     expect(stats.textContent).toContain('Record1–150.0%');
     expect(screen.queryByText('Pewter Trio')).toBeNull();

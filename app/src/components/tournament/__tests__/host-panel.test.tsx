@@ -157,8 +157,16 @@ describe('lifecycle', () => {
     expect(pairs.map(key).sort()).toEqual(['a-c', 'b-org']);
   });
 
-  it('unsettled pairings relabel the button and force after a confirm naming the count', async () => {
+  it('while the round timer runs, open games hold the next round and say why', () => {
     asOrg({ now: new Date('2026-09-29T10:00:00Z'), t: { roundEndsAt: FUTURE }, pairings: [...round1, pr({ id: 'u1' }), pr({ id: 'u2', playerA: 'org', playerB: 'c', tableNo: 2 })] });
+    const btn = screen.getByRole('button', { name: 'Progress bracket round' });
+    expect(btn).toBeDisabled();
+    expect(screen.getByText(/2 games are still open: the next round starts once they are settled or the timer ends/)).toBeInTheDocument();
+    expect(btn.getAttribute('aria-describedby')).toBe('round-wait-reason');
+  });
+
+  it('once the timer ends, unsettled pairings relabel the button and force after a confirm naming the count', async () => {
+    asOrg({ pairings: [...round1, pr({ id: 'u1' }), pr({ id: 'u2', playerA: 'org', playerB: 'c', tableNo: 2 })] });
     await click('Progress anyway (2 unsettled)');
     expect(T.startRound).not.toHaveBeenCalled();
     await click('Confirm round 3');

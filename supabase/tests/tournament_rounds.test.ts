@@ -154,7 +154,7 @@ describe('tournament rounds', () => {
     expect((await audit(id, 'start_round'))[1].detail).toMatchObject({ round: 2, override: true });
   });
 
-  it('3. round two waits for round one to count, unless forced', async () => {
+  it('3. round two waits for round one to count, unless forced after the round timer', async () => {
     const id = await setup();
     await start(host, id, round1);
     const r2 = [{ a: p1, b: p3 }, { a: p2, b: p4 }];
@@ -169,8 +169,11 @@ describe('tournament rounds', () => {
     await sql(`update public.tournament_pairings set final_at = now() - interval '1 second' where id = '${b}'`);
     expect(await start(host, id, r2)).toBe(2);
 
-    // Round 2 is all pending; forcing round 3 records it.
-    expect(await start(host, id, [{ a: p1, b: p4 }, { a: p2, b: p3 }], true)).toBe(3);
+    // Round 2 is all pending. Forcing waits for the round timer; once it has ended, forcing round 3 records it.
+    const r3 = [{ a: p1, b: p4 }, { a: p2, b: p3 }];
+    expect((await refusal(() => start(host, id, r3, true))).message).toMatch(/round timer has not ended: 2 pairings are unsettled/);
+    await sql(`update public.tournaments set round_ends_at = now() - interval '1 second' where id = '${id}'`);
+    expect(await start(host, id, r3, true)).toBe(3);
     expect((await audit(id, 'start_round'))[2].detail).toMatchObject({ round: 3, forced: true, unsettled: 2 });
   });
 
@@ -435,6 +438,7 @@ describe('tournament rounds', () => {
     expect(await reaches(p2, p1)).toEqual(no);
 
     expect(await reaches(p3, p4)).toEqual(yes); // still pending...
+    await sql(`update public.tournaments set round_ends_at = now() - interval '1 second' where id = '${id}'`);
     await start(host, id, [{ a: p1, b: p3 }, { a: p2, b: p4 }], true);
     expect(await reaches(p3, p4)).toEqual(no); // ...but the round moved on
     expect(await reaches(p1, p3)).toEqual(yes);

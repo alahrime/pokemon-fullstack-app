@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react';
 
 const T = vi.hoisted(() => ({ reportScore: vi.fn(), confirmScore: vi.fn(), disputeScore: vi.fn() }));
 vi.mock('../../../lib/tournaments', async (orig) => ({ ...(await orig<typeof import('../../../lib/tournaments')>()), ...T }));
@@ -11,6 +11,12 @@ const D = vi.hoisted(() => ({ requestChannel: vi.fn() }));
 const Q = vi.hoisted(() => ({ confirmDialog: vi.fn() }));
 vi.mock('../../ConfirmDialog', () => Q);
 vi.mock('../../../state/ChatDockContext', () => ({ useChatDockRequest: () => D }));
+// The versus banners: each trainer's name from their profile, and my own friend code.
+vi.mock('../../../lib/profile', () => ({
+  getProfile: vi.fn(async (id: string) => ({ displayName: ({ me: 'Me', rival: 'Gary', other: 'Brock' } as Record<string, string>)[id] ?? 'X', avatar: null })),
+  trainerUrl: (slug: string) => slug,
+}));
+vi.mock('../../../lib/friendCode', () => ({ myFriendCode: vi.fn(async () => '1111 2222 3333') }));
 
 import { MatchupPanel } from '../MatchupPanel';
 import type { Pairing, Tournament } from '../../../lib/tournaments';
@@ -210,11 +216,15 @@ describe('finality and small controls', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
   it('hideMine covers my six only; my absent roster says so', async () => {
-    const { container } = render(<MatchupPanel pairing={pr()} me="me" tournament={tour()} rosters={rosters}
+    render(<MatchupPanel pairing={pr()} me="me" tournament={tour()} rosters={rosters}
       names={names} now={NOW} hideMine onChanged={changed} />);
     await flush();
-    expect(container.querySelectorAll('.roster-card-hidden')).toHaveLength(6);
-    expect(new Set([...container.querySelectorAll('.roster-card .numeric')].map((n) => n.textContent))).toEqual(new Set(['CP 1222']));
+    const mine = screen.getByRole('region', { name: 'Your team' });
+    expect(within(mine).getAllByText('Hidden')).toHaveLength(6);
+    const theirs = screen.getByRole('region', { name: "Gary's team" });
+    expect(within(theirs).queryByText('Hidden')).toBeNull();
+    expect(within(theirs).getAllByRole('list', { name: /moves$/ })).toHaveLength(6);
+
     cleanup();
     mount(pr(), { rosters: new Map([['rival', roster(1222)]]) });
     await flush();
@@ -254,10 +264,11 @@ describe('other states', () => {
 
 describe('rosters', () => {
   it('yours and theirs, never anyone else; absent opponent roster does not crash', async () => {
-    const { container } = mount(pr());
+    mount(pr());
     await flush();
-    const cps = [...container.querySelectorAll('.roster-card .numeric')].map((n) => n.textContent);
-    expect(new Set(cps)).toEqual(new Set(['CP 1111', 'CP 1222']));
+    // All twelve in one versus panel: six a side, each card naming its moves.
+    expect(within(screen.getByRole('region', { name: 'Your team' })).getAllByRole('list', { name: /moves$/ })).toHaveLength(6);
+    expect(within(screen.getByRole('region', { name: "Gary's team" })).getAllByRole('list', { name: /moves$/ })).toHaveLength(6);
     cleanup();
     mount(pr(), { rosters: new Map([['me', roster(1111)], ['other', roster(1333)]]) });
     await flush();
@@ -326,7 +337,7 @@ describe('reaching your opponent', () => {
     expect(screen.getByText(/Brock's friend code/)).toBeTruthy();
     await act(async () => { d.res('OLD CODE'); await d.p; });
     expect(screen.queryByText(/OLD CODE/)).toBeNull();
-    expect(screen.getByText(/1234 5678 9012/)).toBeTruthy();
+    expect(screen.getAllByText(/1234 5678 9012/).length).toBeGreaterThan(0);
   });
   it('a DM opened for the previous opponent is not requested after the opponent changed', async () => {
     const d = deferred<string>();

@@ -73,7 +73,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
     const fresh = propose();
     if (JSON.stringify(fresh) !== JSON.stringify(preview)) { setPreview(fresh); setChanged(true); return; }
     const force = preview.unsettled > 0;
-    if (force && !(await confirmDialog({ title: 'Start round early', body: `${preview.unsettled} unsettled ${preview.unsettled === 1 ? 'game is' : 'games are'} still open in round ${t.currentRound}. Start round ${preview.round} anyway?`, confirmLabel: `Start round ${preview.round}` }))) return;
+    if (force && !(await confirmDialog({ title: 'Start the next round', body: `${preview.unsettled} unsettled ${preview.unsettled === 1 ? 'game is' : 'games are'} still open in round ${t.currentRound}. Start round ${preview.round} anyway?`, confirmLabel: `Start round ${preview.round}` }))) return;
     if (await run(() => startRound(t.id, preview.pairs, force, override))) setPreview(null);
   }
 
@@ -82,7 +82,7 @@ export function HostPanel({ tournament: t, state, entrants, pairings, names, jud
     <section className="panel chamfer-9 host-panel" aria-label="Host controls">
       <div className="hud-label">Host controls</div>
       <HostLifecycle tournament={t} state={state} entrants={entrants} unsettled={unsettled} isOrganiser={isOrganiser}
-        busy={busy} run={run} onPreview={openPreview} />
+        busy={busy} run={run} onPreview={openPreview} now={now} />
       {error && !preview && <p className="friend-notice" role="alert">{error}</p>}
       {attention && <NeedsAttention pairings={open} names={names} me={me} now={now} busy={busy} run={run} />}
       {isOrganiser && !over && (

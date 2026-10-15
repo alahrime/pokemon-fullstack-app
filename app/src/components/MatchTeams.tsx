@@ -53,9 +53,12 @@ function Card({ member, mirror }: { member: PublicMember; mirror: boolean }) {
   );
 }
 
-function Side({ title, label, profile, team, code, mirror, onOpen }: {
+/** A slot whose Pokémon its owner has hidden (a tournament's "Hide Pokémon"): it keeps its place, shows nothing. */
+const HIDDEN_SLOT = 'chamfer-9 grid place-items-center border border-dashed border-[var(--rule-hairline)] bg-[var(--surface-1)] text-sm text-muted';
+
+function Side({ title, label, profile, team, code, mirror, onOpen, hidden = false }: {
   title: string; label: string; profile: Profile | null | undefined; team: PublicMember[];
-  code: string | null | undefined; mirror: boolean; onOpen: () => void;
+  code: string | null | undefined; mirror: boolean; onOpen: () => void; hidden?: boolean;
 }) {
   const name = profile?.displayName ?? (profile === undefined ? '…' : 'Unknown trainer');
   return (
@@ -76,7 +79,9 @@ function Side({ title, label, profile, team, code, mirror, onOpen }: {
           container is this wrapper, not the section: containment would stop the section being a subgrid. */}
       <div className="@container">
         <ol className="m-0 grid list-none grid-cols-1 gap-2 p-0 @[24rem]:grid-cols-2">
-          {team.map((m, i) => <Card key={`${m.ref}-${i}`} member={m} mirror={mirror} />)}
+          {team.map((m, i) => hidden
+            ? <li key={i} className={`${HIDDEN_SLOT} min-h-28`}>Hidden</li>
+            : <Card key={`${m.ref}-${i}`} member={m} mirror={mirror} />)}
         </ol>
       </div>
     </section>
@@ -113,7 +118,7 @@ function PairCell({ member, mirror, open, onToggle }: { member: PublicMember | u
  * Phones and screens under 1280px: the two teams as six pairs, yours left and theirs right, so both sixes and every move fit one screen
  * (stacked, the opponent's started ~1,400px down). A tapped Pokémon opens its full card under its row.
  */
-function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format }: Parameters<typeof MatchTeams>[0]) {
+function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format, hideMine = false }: Parameters<typeof MatchTeams>[0]) {
   const [open, setOpen] = useState<string | null>(null);
   const mine = myTeam ?? [];
   const theirs = oppTeam ?? [];
@@ -149,7 +154,9 @@ function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOp
           return (
             <li key={i} className="flex flex-col gap-1.5">
               <div className="grid grid-cols-2 gap-1.5">
-                <PairCell member={mine[i]} mirror={false} open={open === a} onToggle={() => setOpen(open === a ? null : a)} />
+                {hideMine && mine[i]
+                  ? <div className={`${HIDDEN_SLOT} min-h-16`}>Hidden</div>
+                  : <PairCell member={mine[i]} mirror={false} open={open === a} onToggle={() => setOpen(open === a ? null : a)} />}
                 <PairCell member={theirs[i]} mirror open={open === b} onToggle={() => setOpen(open === b ? null : b)} />
               </div>
               {openMember && <ul className="m-0 list-none p-0"><Card member={openMember} mirror={open === b} /></ul>}
@@ -165,29 +172,31 @@ function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOp
  * Both sides of a match, facing each other: each trainer's banner over their team, the opponent's mirrored. Species
  * and moves only — the server never sends either side's IVs.
  */
-export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format }: {
+export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format, hideMine = false }: {
   me: Profile | null | undefined; opp: Profile | null | undefined;
   myTeam?: PublicMember[]; oppTeam?: PublicMember[];
   myCode: string | null | undefined; oppCode: string | null | undefined;
   onOpenMe: () => void; onOpenOpp: () => void;
   /** The league's emblem and the format's label, between the two banners. */
   league?: LeagueId; format?: string | null;
+  /** Your own side as hidden slots (a tournament's "Hide Pokémon"), so theirs keep their places. */
+  hideMine?: boolean;
 }) {
   // Below 1280px the three-column layout leaves each side ~280px (one card across, six deep), so the paired rows
   // phones use are the better fit there too: both sixes on one screen.
   const paired = useMedia('(max-width: 1279px)');
-  if (paired) return <PairedTeams me={me} opp={opp} myTeam={myTeam} oppTeam={oppTeam} myCode={myCode} oppCode={oppCode} onOpenMe={onOpenMe} onOpenOpp={onOpenOpp} league={league} format={format} />;
-  const oppName = opp?.displayName ?? 'Their';
+  if (paired) return <PairedTeams me={me} opp={opp} myTeam={myTeam} oppTeam={oppTeam} myCode={myCode} oppCode={oppCode} onOpenMe={onOpenMe} onOpenOpp={onOpenOpp} league={league} format={format} hideMine={hideMine} />;
+  const oppTitle = opp?.displayName ? `${opp.displayName}'s team` : 'Their team';
   return (
     <section className="panel grid grid-cols-1 items-start gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" aria-label="Versus">
       {/* Two rows, shared by both sides through subgrid: the banners, then the teams. VS sits in the banner row, centred on it. */}
-      <Side title="Your team" label="YOU" profile={me} team={myTeam ?? []} code={myCode} mirror={false} onOpen={onOpenMe} />
+      <Side title="Your team" label="YOU" profile={me} team={myTeam ?? []} code={myCode} mirror={false} onOpen={onOpenMe} hidden={hideMine} />
       <div className="flex flex-col items-center gap-1 self-center justify-self-center text-center lg:col-start-2 lg:row-start-1">
         {league && <LeagueEmblem league={league} size={34} />}
         <span className="font-mono text-3xl font-extrabold tracking-widest text-accent" aria-hidden="true">VS</span>
         {format && <span className="max-w-40 font-mono text-[length:var(--text-2xs)] uppercase tracking-wider text-muted">{format}</span>}
       </div>
-      <Side title={`${oppName}'s team`} label="OPPONENT" profile={opp} team={oppTeam ?? []} code={oppCode} mirror onOpen={onOpenOpp} />
+      <Side title={oppTitle} label="OPPONENT" profile={opp} team={oppTeam ?? []} code={oppCode} mirror onOpen={onOpenOpp} />
     </section>
   );
 }

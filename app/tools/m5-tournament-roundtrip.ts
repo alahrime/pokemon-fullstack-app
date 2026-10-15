@@ -454,11 +454,16 @@ async function main(): Promise<void> {
 
   // 6 ------------------------------------------------------------------------
   let r3: Pairing[] = [];
-  await check('6a. startRound is refused with an unsettled pairing, accepted with p_force, and the force is audited', async () => {
+  await check('6a. startRound is refused with an unsettled pairing, accepted with p_force once the timer ends, and the force is audited', async () => {
     const plan = await propose();
     const refused = await refusal(() => as(host, () => startRound(tid, plan.pairs)));
     assert(refused === '1 pairings are unsettled', `refused with ${show(refused)}`);
     const override = plan.rematches > 0 || plan.repeatBye;
+    // Forcing waits for the round timer (20261015030000): refused while it runs, then ended by admin.
+    const early = await refusal(() => as(host, () => startRound(tid, plan.pairs, true, override)));
+    assert(early === 'the round timer has not ended: 1 pairings are unsettled', `forced early refused with ${show(early)}`);
+    const ended = await admin.from('tournaments').update({ round_ends_at: new Date(Date.now() - 1000).toISOString() }).eq('id', tid);
+    if (ended.error) throw new Error(`ending the round timer failed: ${ended.error.message}`);
     assert((await as(host, () => startRound(tid, plan.pairs, true, override))) === 3, 'forced startRound did not return 3');
     const audit = await as(host, () => listAudit(tid));
     const row = audit.find((x) => x.action === 'start_round' && (x.detail as { round?: number }).round === 3);

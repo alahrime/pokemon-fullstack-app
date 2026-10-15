@@ -6,7 +6,10 @@ import {
 } from '../../lib/tournaments';
 import type { RosterMember } from '../../tournament/roster';
 import { useChatDockRequest } from '../../state/ChatDockContext';
-import { PlayerRoster } from './RosterCard';
+import { MatchTeams } from '../MatchTeams';
+import { getProfile, type Profile } from '../../lib/profile';
+import { myFriendCode } from '../../lib/friendCode';
+import type { PublicMember } from '../../lib/teamCodec';
 import { RoundClock } from './RoundClock';
 import { confirmDialog } from '../ConfirmDialog';
 
@@ -16,11 +19,16 @@ const CHOICES: readonly [string, number, number][] = [
   ['I won 2–0', 2, 0], ['I won 2–1', 2, 1], ['I lost 1–2', 1, 2], ['I lost 0–2', 0, 2],
 ];
 type Code = { for: string; code: string | null; failed: boolean };
+/** A tournament roster in the shape the Match screen's teams read: species and moves (CP and Best Buddy stay on the roster card). */
+const toPublic = (r: readonly RosterMember[] | undefined): PublicMember[] | undefined =>
+  r?.map((m) => ({ ref: m.ref, fast_move: m.fast, charge_moves: m.charges }));
 
 /** The viewer's own matchup this round: both teams, the opponent's friend code and DM, and the score control. */
-export function MatchupPanel({ pairing, me, tournament, rosters, names, now: nowProp, hideMine = false, onChanged }: {
+export function MatchupPanel({ pairing, me, tournament, rosters, names, now: nowProp, hideMine = false, onChanged, onProfile }: {
   pairing: Pairing; me: string; tournament: Tournament; rosters: ReadonlyMap<string, RosterMember[]>;
   names: ReadonlyMap<string, string>; now: Date; hideMine?: boolean; onChanged: () => void;
+  /** Opens a trainer's profile from their banner. */
+  onProfile?: (playerId: string) => void;
 }) {
   const { requestChannel } = useChatDockRequest();
   const isA = pairing.playerA === me;
@@ -43,6 +51,22 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now: now
     const t = setTimeout(() => setTickNow(new Date(Date.now() + 1)), ms + 50);
     return () => clearTimeout(t);
   }, [pairing.finalAt]);
+  // Both trainers' banners, as on the Match screen: avatars and names that open the profiles.
+  const [trainers, setTrainers] = useState<{ me: Profile | null; opp: Profile | null } | undefined>(undefined);
+  const [myCode, setMyCode] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let cur = true;
+    setTrainers(undefined);
+    void Promise.all([getProfile(me), opp ? getProfile(opp) : null])
+      .then(([a, b]) => cur && setTrainers({ me: a, opp: b }))
+      .catch(() => cur && setTrainers({ me: null, opp: null }));
+    return () => { cur = false; };
+  }, [me, opp]);
+  useEffect(() => {
+    let cur = true;
+    void myFriendCode().then((c) => cur && setMyCode(c), () => cur && setMyCode(null));
+    return () => { cur = false; };
+  }, []);
   const oppRef = useRef(opp);
   oppRef.current = opp;
 
@@ -176,10 +200,15 @@ export function MatchupPanel({ pairing, me, tournament, rosters, names, now: now
     <section className="panel chamfer-9 matchup" aria-label="Your matchup">
       <h3 className="matchup-head">Table {pairing.tableNo}: you vs {oppName}</h3>
       <RoundClock endsAt={tournament.roundEndsAt} />
-      <div className="matchup-rosters">
-        {mine ? <PlayerRoster name={name(me)} roster={mine} hidden={hideMine} /> : <p className="text-muted">Your team is not shown here</p>}
-        {theirs ? <PlayerRoster name={oppName} roster={theirs} /> : <p className="text-muted">Their team is not visible yet</p>}
-      </div>
+      {/* The Match screen's versus layout, so both sixes fit one screen at every width (two columns of three a
+          side on desktop, six paired rows below 1280px). */}
+      <MatchTeams me={trainers?.me} opp={trainers?.opp} myTeam={toPublic(mine)} oppTeam={toPublic(theirs)}
+        myCode={myCode} oppCode={shownCode ? (shownCode.failed ? null : shownCode.code) : live ? undefined : null}
+        onOpenMe={() => onProfile?.(me)}
+        onOpenOpp={() => opp && onProfile?.(opp)}
+        league={tournament.league} hideMine={hideMine} />
+      {!mine && <p className="text-muted">Your team is not shown here</p>}
+      {!theirs && <p className="text-muted">Their team is not visible yet</p>}
       <div className="matchup-contact">
         {!live ? <span className="text-muted">Friend code no longer shared</span>
           : !shownCode ? <span className="text-muted">Loading friend code…</span>

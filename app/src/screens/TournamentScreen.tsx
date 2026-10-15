@@ -225,7 +225,7 @@ export function TournamentScreen({ id }: { id: string }) {
 
       {showMatch && myPairing && me && (
         <div ref={matchRef}>
-          <MatchupPanel pairing={myPairing} me={me} tournament={t} rosters={v.rosters} names={v.names} now={now} hideMine={hideMine} onChanged={v.refresh} />
+          <MatchupPanel pairing={myPairing} me={me} tournament={t} rosters={v.rosters} names={v.names} now={now} hideMine={hideMine} onChanged={v.refresh} onProfile={(pid) => patch({ screen: 'player', activePlayerId: pid })} />
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
 export interface ConfirmOptions {
@@ -13,7 +13,9 @@ export interface ConfirmOptions {
 function ConfirmDialog({ title, body, confirmLabel, cancelLabel = 'Cancel', onDone }: ConfirmOptions & { onDone: (ok: boolean) => void }) {
   const cancel = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  // Layout effect: focus moves in the same commit that shows the dialog, so nothing (a test, a fast Enter) sees it
+  // open with focus still on the page behind.
+  useLayoutEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     // Focus lands on Cancel: Enter or a stray double-click must not destroy anything.
     cancel.current?.focus({ preventScroll: true });

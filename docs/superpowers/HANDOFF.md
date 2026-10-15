@@ -60,7 +60,7 @@ design authority; the plans argue from it.
 - Report at 360x780: the every-league panel's last row sits ~30px below the fold; on a fresh load the header fills the first screen (the panel fits once a species is picked from the pinned search).
 - Rankings: a 100-row page change is still ~300ms at 4x CPU — row layout, forced early by `useSlidingMarker`'s dependency-less `useLayoutEffect`; `content-visibility` does not apply to table rows.
 - Phone Teams and Matches docks hide the full-roster Suggest hint (aria still points at it).
-- Flaky under load: `combo-stress.test.tsx` ("save a team, chat…") failed CI on `9e5650d` (6.4s vs the 5s default; 2.2s alone) — now given 30s (ninth session). `confirm-dialog.test.tsx` failed once locally; re-run before blaming a change.
+- Flaky under load: `combo-stress.test.tsx` ("save a team, chat…") failed CI on `9e5650d` (6.4s vs the 5s default; 2.2s alone) — now given 30s (ninth session). `confirm-dialog.test.tsx` ("starts on Cancel") failed CI on `7c13c58`: a real race, not load — `ConfirmDialog` moved focus in a passive `useEffect`, so the dialog was in the DOM with focus still on `<body>` (proved with a MutationObserver probe, old code fails every time). Now `useLayoutEffect`, and the test reads focus at first sight of the dialog.
 
 **How to verify here (learned this session):**
 - The pane's dev server is stopped between turns: `preview_start` again. The pane may refuse localhost while a site check is pending; retry.

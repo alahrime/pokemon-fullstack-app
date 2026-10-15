@@ -18,9 +18,16 @@ describe('confirmDialog', () => {
   });
 
   it('starts on Cancel, so Enter or a double-click cannot destroy anything', async () => {
+    // Read focus the moment the dialog reaches the DOM, not after findByRole's polling: focus set in a passive
+    // effect lagged the commit, and this only failed under load.
+    const seen = new Promise<string | undefined>((res) => {
+      const mo = new MutationObserver(() => {
+        if (document.querySelector('[role=alertdialog]')) { mo.disconnect(); res(document.activeElement?.textContent ?? undefined); }
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+    });
     void ask();
-    await screen.findByRole('alertdialog');
-    expect(document.activeElement?.textContent).toBe('Cancel');
+    expect(await seen).toBe('Cancel');
   });
 
   it('traps Tab: focus cycles the two buttons both ways and never leaves the dialog', async () => {

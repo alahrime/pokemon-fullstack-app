@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePhone } from '../lib/usePhone';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { LEAGUE_BY_ID, conflictsOnTeam, displayName, movesFor, parseRef, pickableFor, speciesOf } from '../lib/data';
@@ -29,20 +30,6 @@ import { confirmDialog } from '../components/ConfirmDialog';
  * screen keeps the two comparable, which matters because most people build a
  * six by starting from a three they already trust.
  */
-
-/** Phones (the Report's one-column breakpoint): compact roster rows and a pinned add/analyse bar. */
-const PHONE = '(max-width: 820px)';
-function usePhone(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      const m = window.matchMedia(PHONE);
-      m.addEventListener('change', cb);
-      return () => m.removeEventListener('change', cb);
-    },
-    () => window.matchMedia(PHONE).matches,
-    () => false,
-  );
-}
 
 function Slot({ ref: r, league, onClear, onAdd, build, phone, expanded, onToggle }: {
   ref: string | null;

@@ -31,6 +31,8 @@ import { PRESET_FORMATS, versionFor } from '../lib/presetFormats';
 import { rulesHash, type Format } from '../rules';
 import { resolvePool } from '../rules/pool';
 import { confirmDialog } from '../components/ConfirmDialog';
+import { LeagueSelect } from '../components/LeagueSelect';
+import { usePhone } from '../lib/usePhone';
 
 /**
  * The Matchmaking screen: three answers to one question — who do I play next
@@ -328,6 +330,8 @@ export function MatchmakingScreen() {
   const { state, patch } = useAppState();
   const { user } = useSession();
   const league = state.league;
+  const phone = usePhone();
+  const [openSlot, setOpenSlot] = useState<number | null>(null);
 
   // --- the format being queued under --------------------------------------
   // Null while loading, [] once loaded and empty — a distinction the screen
@@ -676,6 +680,47 @@ export function MatchmakingScreen() {
     );
   }
 
+  const teamAdd = (
+    <div className="team-add">
+      <SpeciesSearch
+        key={team.length}
+        id="matchmaking-team-add"
+        value=""
+        onChange={add}
+        placeholder="Add a Pokémon to this roster"
+        includeShadow
+        restrictTo={selectable}
+      />
+    </div>
+  );
+  const queueActions = (
+    <div className="matchmaking-actions">
+      {/* No Join at all without a format to join under: `format_version_id`
+          is NOT NULL and a foreign key, so the call could only fail. Same
+          rule as the Accept control on one's own offer. */}
+      {chosen && (
+        <button
+          type="button"
+          className="btn btn-primary queue-join"
+          disabled={!rosterReady || !!entry || busy}
+          // Never "Add -3 more": the picker's cap is the largest thing on
+          // the board, so a roster built to accept a six-member offer is
+          // longer than a three-member format wants, and the shortfall is
+          // negative. Say which way to move it.
+          title={rosterReady ? undefined : rosterHint(rosterSize, team.length, 'queue')}
+          onClick={() => void join()}
+        >
+          {busy ? 'Working…' : 'Join queue'}
+        </button>
+      )}
+      {entry && (
+        <button type="button" className="btn" disabled={busy} onClick={() => void leave()}>
+          Leave queue
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="matchmaking-screen">
       <ScreenHeader
@@ -683,10 +728,28 @@ export function MatchmakingScreen() {
         blurb="Queue for a blind match, browse an open offer, or schedule one for later."
       />
 
+      {/* Phones: adding and joining stay pinned under the league bar. */}
+      {phone && <div className="team-dock">{teamAdd}{queueActions}</div>}
       <div className="panel panel-strong">
         <div className="hud-label">Format for {LEAGUE_BY_ID.get(league)?.label ?? league}</div>
         {savedFormats === null && <p className="text-faint">Reading your saved formats…</p>}
-        {leagueFormats.length > 0 && (
+        {/* Phones: one dropdown (the challenge sheet's picker) rather than six
+            wrapping buttons, ~48px instead of ~228. */}
+        {phone && chosen && leagueFormats.length > 0 && (
+          <div className="format-select">
+            <LeagueSelect
+              id="matchmaking-format"
+              label="Format"
+              value={chosen.id}
+              options={leagueFormats.map((f) => {
+                const p = PRESET_FORMATS.find((x) => `preset:${x.key}` === f.id);
+                return { value: f.id, label: f.name, league, types: p?.cup.include?.types, palette: p?.palette, group: p ? 'Standard' : 'Your formats' };
+              })}
+              onChange={setChosenId}
+            />
+          </div>
+        )}
+        {!phone && leagueFormats.length > 0 && (
           <div className="format-choices">
             {leagueFormats.map((f) => (
               <button
@@ -714,6 +777,23 @@ export function MatchmakingScreen() {
         <div className="team-slots">
           {Array.from({ length: Math.max(rosterSize, team.length) }, (_, i) => {
             const r = team[i] ?? null;
+            // Phones: compact rows that open into the full card, a ✕ to remove
+            // (as on Teams), and one "+ Add" row however many slots are empty.
+            if (phone) {
+              if (!r) return i === team.length ? (
+                <button key={i} type="button" className="team-slot is-empty team-slot-add-row" onClick={() => setAdding(true)} title="Add a Pokémon, with its moves and roll">
+                  <span className="team-slot-mark" aria-hidden="true">+</span>
+                  <span className="team-slot-hint">Add ({team.length} of {rosterSize})</span>
+                </button>
+              ) : null;
+              return (
+                <div key={i} className="team-slot-phone">
+                  <PokemonCard refId={r} league={league} size={openSlot === i ? 'full' : 'compact'}
+                    onClick={() => setOpenSlot(openSlot === i ? null : i)} title={openSlot === i ? 'Show less' : 'Show the full card'} />
+                  <button type="button" className="team-slot-remove" onClick={() => { setOpenSlot(null); clear(i); }} aria-label={`Remove ${displayName(r)}`} title="Remove">✕</button>
+                </div>
+              );
+            }
             return r ? (
               <PokemonCard key={i} refId={r} league={league} size="compact" onClick={() => clear(i)} title="Click to remove" />
             ) : (
@@ -724,17 +804,7 @@ export function MatchmakingScreen() {
             );
           })}
         </div>
-        <div className="team-add">
-          <SpeciesSearch
-            key={team.length}
-            id="matchmaking-team-add"
-            value=""
-            onChange={add}
-            placeholder="Add a Pokémon to this roster"
-            includeShadow
-            restrictTo={selectable}
-          />
-        </div>
+        {!phone && teamAdd}
       </div>
       {adding && <AddPokemonModal league={league} restrictTo={selectable} onCommit={addBuilt} onClose={() => setAdding(false)} />}
 
@@ -745,31 +815,7 @@ export function MatchmakingScreen() {
           opponent to pick.
         </p>
         {entry && <p className="queue-status">{queueStatusText(entry)}</p>}
-        <div className="matchmaking-actions">
-          {/* No Join at all without a format to join under: `format_version_id`
-              is NOT NULL and a foreign key, so the call could only fail. Same
-              rule as the Accept control on one's own offer. */}
-          {chosen && (
-            <button
-              type="button"
-              className="btn btn-primary queue-join"
-              disabled={!rosterReady || !!entry || busy}
-              // Never "Add -3 more": the picker's cap is the largest thing on
-              // the board, so a roster built to accept a six-member offer is
-              // longer than a three-member format wants, and the shortfall is
-              // negative. Say which way to move it.
-              title={rosterReady ? undefined : rosterHint(rosterSize, team.length, 'queue')}
-              onClick={() => void join()}
-            >
-              {busy ? 'Working…' : 'Join queue'}
-            </button>
-          )}
-          {entry && (
-            <button type="button" className="btn" disabled={busy} onClick={() => void leave()}>
-              Leave queue
-            </button>
-          )}
-        </div>
+        {!phone && queueActions}
         {matches && matches.length > 0 && (
           <ul className="match-list">
             {matches.map((m) => (

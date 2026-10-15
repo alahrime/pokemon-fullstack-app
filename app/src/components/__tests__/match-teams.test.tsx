@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MatchTeams } from '../MatchTeams';
 import { SPECIES, displayName } from '../../lib/data';
 import type { PublicMember } from '../../lib/teamCodec';
@@ -55,5 +55,39 @@ describe('MatchTeams', () => {
     render(<MatchTeams me={profile('Misty', null)} opp={profile('Ash', null)} myTeam={[member('medicham')]} oppTeam={[member('azumarill')]}
       myCode={null} oppCode={null} onOpenMe={vi.fn()} onOpenOpp={vi.fn()} league="ultra" format="Ultra League · 2500" />);
     expect(screen.getByRole('region', { name: 'Versus' }).textContent).toContain('Ultra League · 2500');
+  });
+});
+
+describe('MatchTeams — on a phone', () => {
+  // jsdom applies no stylesheet; the paired layout is chosen in JS from the media query.
+  const phone = (q: string) => ({ matches: q === '(max-width: 820px)', media: q, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false });
+  let original: typeof window.matchMedia;
+  beforeEach(() => { original = window.matchMedia; window.matchMedia = phone as unknown as typeof window.matchMedia; });
+  afterEach(() => { window.matchMedia = original; });
+
+  it('pairs the two sixes row by row, every Pokémon with all three moves', () => {
+    show();
+    const rows = screen.getByRole('region', { name: 'Versus' }).querySelectorAll('ol > li');
+    expect(rows).toHaveLength(6);
+    const reversed = [...SIX].reverse();
+    rows.forEach((row, i) => {
+      const [mine, theirs] = [...row.querySelectorAll(':scope > div > button')];
+      for (const [cell, ref] of [[mine, SIX[i]], [theirs, reversed[i]]] as const) {
+        const sp = SPECIES.find((s) => s.id === ref)!;
+        expect(cell.getAttribute('aria-label')).toBe(`${displayName(ref)}: ${[sp.fastMoves[0].name, ...sp.chargeMoves.slice(0, 2).map((m) => m.name)].join(', ')}`);
+      }
+    });
+    expect(screen.getByText('Misty')).toBeTruthy();
+    expect(screen.getByText('111122223333')).toBeTruthy();
+  });
+
+  it('opens a tapped Pokémon into its full card under its row', () => {
+    show();
+    const cell = screen.getAllByRole('button', { name: new RegExp(`^${displayName('medicham')}:`) })[0];
+    expect(cell.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(cell);
+    expect(cell.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('list', { name: `${displayName('medicham')}'s moves` })).toBeTruthy();
   });
 });

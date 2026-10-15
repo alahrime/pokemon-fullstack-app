@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { usePhone } from '../lib/usePhone';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { trainerUrl, type Profile } from '../lib/profile';
 import type { PublicMember } from '../lib/teamCodec';
@@ -82,6 +83,84 @@ function Side({ title, label, profile, team, code, mirror, onOpen }: {
   );
 }
 
+/** One side's Pokémon in a phone pair: sprite and name, then its three moves, mirrored for the opponent. */
+function PairCell({ member, mirror, open, onToggle }: { member: PublicMember | undefined; mirror: boolean; open: boolean; onToggle: () => void }) {
+  if (!member) return <div aria-hidden="true" />;
+  const { sp, moves } = movesOf(member);
+  const tint = sp ? ({ '--t1': typeVar(sp.types[0]) } as CSSProperties) : undefined;
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={open}
+      aria-label={`${displayName(member.ref)}: ${moves.map((m) => m.name).join(', ')}`}
+      className={`chamfer-9 flex min-w-0 flex-col gap-1 border bg-[linear-gradient(135deg,color-mix(in_srgb,var(--t1,var(--color-accent))_14%,var(--surface-1)),var(--surface-1)_60%)] p-1.5 text-left ${open ? 'border-[var(--color-accent)]' : 'border-[var(--rule-hairline)]'} ${mirror ? 'items-end text-right' : ''}`} style={tint}>
+      <span className={`flex w-full min-w-0 items-center gap-1.5 ${mirror ? 'flex-row-reverse' : ''}`}>
+        {sp && <span className="shrink-0"><Sprite sprite={sp.sprite} dex={sp.dex} size={28} shadow={parseRef(member.ref).shadow} /></span>}
+        <span className={`${NARROW} min-w-0 text-sm leading-tight [overflow-wrap:anywhere]`}>{displayName(member.ref)}</span>
+      </span>
+      <span className="flex w-full min-w-0 flex-col gap-0.5">
+        {moves.map((mv, i) => (
+          <span key={`${mv.id}-${i}`} className={`flex min-w-0 items-center gap-1 rounded-sm bg-[color-mix(in_srgb,var(--mv,var(--surface-2))_22%,var(--surface-2))] px-1 text-[11px] font-semibold leading-[15px] ${mirror ? 'flex-row-reverse' : ''}`}
+            style={mv.type ? ({ '--mv': typeVar(mv.type) } as CSSProperties) : undefined}>
+            {mv.type && <span className="flex shrink-0"><TypeIcon type={mv.type} size={12} /></span>}
+            <span className="min-w-0 [overflow-wrap:anywhere]">{mv.name}</span>
+          </span>
+        ))}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Phones: the two teams as six pairs, yours left and theirs right, so both sixes and every move fit one screen
+ * (stacked, the opponent's started ~1,400px down). A tapped Pokémon opens its full card under its row.
+ */
+function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format }: Parameters<typeof MatchTeams>[0]) {
+  const [open, setOpen] = useState<string | null>(null);
+  const mine = myTeam ?? [];
+  const theirs = oppTeam ?? [];
+  const rows = Math.max(mine.length, theirs.length);
+  const who = (p: Profile | null | undefined, code: string | null | undefined, onOpen: () => void, mirror: boolean, label: string) => {
+    const name = p?.displayName ?? (p === undefined ? '…' : 'Unknown trainer');
+    return (
+      <div className={`flex min-w-0 items-center gap-1.5 ${mirror ? 'flex-row-reverse text-right' : ''}`}>
+        {p?.avatar ? <img src={trainerUrl(p.avatar)} alt="" width={36} height={36} className="size-9 shrink-0 object-contain [image-rendering:pixelated]" /> : null}
+        <div className={`flex min-w-0 flex-col ${mirror ? 'items-end' : 'items-start'}`}>
+          <span className="font-mono text-[length:var(--text-2xs)] tracking-widest text-muted">{label}</span>
+          <button type="button" className={`btn btn-ghost min-h-0 px-0 py-0 text-base ${NARROW} [overflow-wrap:anywhere]`} onClick={onOpen}>{name}</button>
+          <span className="numeric font-mono text-[10px] text-muted">{code === undefined ? '…' : code ?? 'no code'}</span>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <section className="panel flex flex-col gap-1.5 p-2" aria-label="Versus">
+      <div className="grid grid-cols-2 gap-2">
+        {who(me, myCode, onOpenMe, false, 'YOU')}
+        {who(opp, oppCode, onOpenOpp, true, 'OPPONENT')}
+      </div>
+      <div className="flex items-center justify-center gap-2 font-mono text-[length:var(--text-2xs)] uppercase tracking-wider text-muted">
+        {league && <LeagueEmblem league={league} size={18} />}
+        <span className="font-extrabold text-accent">VS</span>
+        {format && <span>{format}</span>}
+      </div>
+      <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {Array.from({ length: rows }, (_, i) => {
+          const a = `a${i}`, b = `b${i}`;
+          const openMember = open === a ? mine[i] : open === b ? theirs[i] : undefined;
+          return (
+            <li key={i} className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                <PairCell member={mine[i]} mirror={false} open={open === a} onToggle={() => setOpen(open === a ? null : a)} />
+                <PairCell member={theirs[i]} mirror open={open === b} onToggle={() => setOpen(open === b ? null : b)} />
+              </div>
+              {openMember && <ul className="m-0 list-none p-0"><Card member={openMember} mirror={open === b} /></ul>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 /**
  * Both sides of a match, facing each other: each trainer's banner over their team, the opponent's mirrored. Species
  * and moves only — the server never sends either side's IVs.
@@ -94,6 +173,8 @@ export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe
   /** The league's emblem and the format's label, between the two banners. */
   league?: LeagueId; format?: string | null;
 }) {
+  const phone = usePhone();
+  if (phone) return <PairedTeams me={me} opp={opp} myTeam={myTeam} oppTeam={oppTeam} myCode={myCode} oppCode={oppCode} onOpenMe={onOpenMe} onOpenOpp={onOpenOpp} league={league} format={format} />;
   const oppName = opp?.displayName ?? 'Their';
   return (
     <section className="panel grid grid-cols-1 items-start gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" aria-label="Versus">

@@ -1230,3 +1230,28 @@ describe('the offer board is bounded, not expanding', () => {
     expect(blocked).toMatch(/display:\s*inline-flex/);
   });
 });
+
+describe('signed in — on a phone', () => {
+  // jsdom applies no stylesheet; the phone layout is chosen in JS from the media query.
+  let original: typeof window.matchMedia;
+  beforeEach(() => {
+    original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q === '(max-width: 820px)', media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => { window.matchMedia = original; });
+
+  it('pins the search and Join once, shows one add row, and picks the format from one dropdown', async () => {
+    const { container } = await mount(fakeSession('u1', 'ash@example.com'));
+    const dock = container.querySelector('.team-dock')!;
+    expect(dock.querySelector('.team-add input')).toBeTruthy();
+    expect(dock.querySelector('.queue-join')).toBeTruthy();
+    expect(container.querySelectorAll('.queue-join')).toHaveLength(1);
+    expect(container.querySelector('.format-choices')).toBeNull();
+    await waitFor(() => expect(container.querySelector('.format-select button')).toBeTruthy());
+    expect(container.querySelectorAll('.team-slot-add-row')).toHaveLength(1);
+    await pick(container, 'azumarill');
+    expect(container.querySelectorAll('.team-slot-phone')).toHaveLength(1);
+    expect(container.querySelector('.team-slot-add-row')!.textContent).toMatch(/1 of 3/);
+  });
+});

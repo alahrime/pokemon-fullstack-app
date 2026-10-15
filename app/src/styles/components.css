@@ -2991,6 +2991,8 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
 }
 .team-dock .team-add { margin: 0; }
+/* Matches on a phone: every empty slot collapses into one slim add row. */
+.team-slot.is-empty.team-slot-add-row { min-height: 0; padding: var(--space-2) var(--space-3); flex-direction: row; gap: var(--space-2); justify-content: center; }
 /* Two lines of explanation would ride along pinned the whole way down. */
 .team-dock .team-actions-hint { display: none; }
 

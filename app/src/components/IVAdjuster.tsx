@@ -8,8 +8,24 @@ const ROWS: [keyof IV, string][] = [
 ];
 
 const MAX_IV = 15;
-/** Segment boundaries, matching the game's appraisal bar. */
-const GROUP = 4;
+/** Segment boundaries, matching the game's appraisal bar: ticks at 5 and 10, three equal thirds. */
+const GROUP = 5;
+/** Each segment its own run of equal columns with a 1px spacer column between, so the wider gap adds space
+ *  instead of shrinking the tick before it (a margin did: ticks 5 and 10 were 2px narrow, the last third 2px wide). */
+/**
+ * The fill colour at position `t` along the bar (0.5-15.5, tick edges included): green through 5, yellow at 8, red from
+ * 12, hue blended in OKLCH so the steps read even. Chroma climbs and lightness falls as it goes, so a high roll reads
+ * hotter as well as redder.
+ */
+export function ivColor(t: number): string {
+  const x = Math.max(1, Math.min(MAX_IV, t));
+  const hue = x <= 5 ? 145 - (x - 1) * 2.5 : x <= 8 ? 135 - ((x - 5) * 35) / 3 : Math.max(25, 100 - (x - 8) * 18);
+  const chroma = 0.14 + ((x - 1) * 0.07) / 14;
+  const light = 0.8 - (x - 1) * 0.012;
+  return `oklch(${light.toFixed(3)} ${chroma.toFixed(3)} ${hue.toFixed(1)})`;
+}
+
+const TRACK_COLUMNS = Array.from({ length: MAX_IV / GROUP }, () => `repeat(${GROUP}, 1fr)`).join(' 1px ');
 
 /**
  * Flags a value as recently changed so it can flash. Deliberately a state
@@ -34,8 +50,8 @@ function useChanged(value: number, ms = 420): boolean {
 /**
  * One appraisal-style stat row.
  *
- * Modelled on the in-game appraisal bars: a labelled track split into segments
- * of four, filling warm as the value climbs and lighting up at 15. Unlike the
+ * Modelled on the in-game appraisal bars: a labelled track split into thirds
+ * (ticks at 5 and 10), filling warm as the value climbs and lighting up at 15. Unlike the
  * game's read-only display these ticks are the control — clicking tick n sets
  * the IV directly, which beats stepping from 0 to 15 one button press at a
  * time. The -/+ buttons stay for fine adjustment and keyboard use.
@@ -83,6 +99,7 @@ function StatRow({
       <div
         ref={trackRef}
         className="iv-track"
+        style={{ gridTemplateColumns: TRACK_COLUMNS }}
         role="slider"
         tabIndex={0}
         aria-label={label}
@@ -141,7 +158,10 @@ function StatRow({
             // onClick would fire a second time for the same press.
             <span
               key={tick}
-              className={`iv-tick${tick <= value ? ' is-on' : ''}${tick % GROUP === 0 && tick !== MAX_IV ? ' is-group-end' : ''}`}
+              className={`iv-tick${tick <= value ? ' is-on' : ''}`}
+              // Each tick runs from its left edge's colour to its right edge's, and neighbours share an edge colour, so the lit
+              // part of the bar is one continuous blend rather than fifteen flat steps.
+              style={{ gridColumn: tick + Math.floor(i / GROUP), ['--iv-tick-fill' as string]: `linear-gradient(90deg, ${ivColor(tick - 0.5)}, ${ivColor(tick + 0.5)})` }}
               title={`${label} ${tick}`}
               aria-hidden
             />

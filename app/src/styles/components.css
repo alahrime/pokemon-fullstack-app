@@ -564,10 +564,9 @@ input[type='range'] { accent-color: var(--color-accent); }
 }
 .iv-row.is-perfect .iv-label { color: var(--iv-fill-max); }
 
-/* Segmented track: 15 ticks, wider gaps every fourth, as the game groups them. */
+/* Segmented track: 15 ticks in thirds, as the game draws them. Columns come from IVAdjuster (GROUP). */
 .iv-track {
   display: grid;
-  grid-template-columns: repeat(15, 1fr);
   gap: 1px;
   height: 14px;
   padding: 2px;
@@ -587,12 +586,10 @@ input[type='range'] { accent-color: var(--color-accent); }
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .iv-tick:hover { background: color-mix(in srgb, var(--iv-fill) 35%, transparent); }
-.iv-tick.is-on { background: var(--iv-fill); }
+.iv-tick.is-on { background: var(--iv-tick-fill, var(--iv-fill)); }
 .iv-row.is-perfect .iv-tick.is-on {
-  background: var(--iv-fill-max);
   box-shadow: 0 0 6px color-mix(in srgb, var(--iv-fill-max) 55%, transparent);
 }
-.iv-tick.is-group-end { margin-right: 2px; }
 
 .iv-value {
   font-weight: 800;

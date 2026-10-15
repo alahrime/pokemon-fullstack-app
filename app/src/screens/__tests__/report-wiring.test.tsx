@@ -5,12 +5,40 @@ import { renderApp } from '../../test/render';
 import { goTo } from '../../test/nav';
 import { ReportScreen } from '../ReportScreen';
 import App from '../../App';
-import { IVAdjuster } from '../../components/IVAdjuster';
+import { IVAdjuster, ivColor } from '../../components/IVAdjuster';
 
 beforeEach(() => localStorage.clear());
 
 const tab = (c: HTMLElement, label: string) =>
   [...c.querySelectorAll('[role="tab"]')].find((t) => t.textContent?.includes(label))!;
+
+describe('IVAdjuster segments', () => {
+  it('splits each bar into thirds like the game: gaps after 5 and 10 only', () => {
+    const { container } = renderApp(<IVAdjuster iv={{ a: 0, d: 8, s: 15 }} onBump={vi.fn()} onSet={vi.fn()} />);
+    const track = container.querySelector('[role="slider"]')!;
+    expect((track as HTMLElement).style.gridTemplateColumns).toBe('repeat(5, 1fr) 1px repeat(5, 1fr) 1px repeat(5, 1fr)');
+    // Ticks 6-10 and 11-15 each step over one spacer column.
+    expect([...track.querySelectorAll<HTMLElement>('.iv-tick')].map((t) => parseInt(t.style.gridColumn, 10))).toEqual(
+      [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17]);
+  });
+});
+
+describe('IV fill colour', () => {
+  const hue = (t: number) => Number(ivColor(t).match(/ ([\d.]+)\)$/)![1]);
+  const chroma = (t: number) => Number(ivColor(t).split(' ')[1]);
+  const light = (t: number) => Number(ivColor(t).match(/oklch\(([\d.]+)/)![1]);
+  it('blends green (to 5) into yellow (8) into red (12 on), hotter as it climbs, with no jumps', () => {
+    for (const t of [1, 3, 5]) expect(hue(t), `tick ${t}`).toBeGreaterThan(110); // green side
+    expect(hue(8)).toBe(100); // yellow
+    for (const t of [12, 13, 15]) expect(hue(t), `tick ${t}`).toBeLessThanOrEqual(30); // red
+    for (let t = 1; t < 15; t += 0.5) {
+      expect(hue(t + 0.5)).toBeLessThanOrEqual(hue(t));
+      expect(light(t + 0.5)).toBeLessThan(light(t));
+      expect(chroma(t + 0.5)).toBeGreaterThan(chroma(t));
+      expect(hue(t) - hue(t + 0.5)).toBeLessThanOrEqual(9); // smooth: no step bigger than 9 degrees per half tick
+    }
+  });
+});
 
 describe('IVAdjuster dragging', () => {
   // The stubbed track is 200px wide over 15 ticks, so clientX maps to

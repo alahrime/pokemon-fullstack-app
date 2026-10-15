@@ -15,8 +15,8 @@ export interface TeamCheck {
  * caller is a builder UI: showing one problem, then another after it is fixed,
  * then a third, is a worse experience than showing all three at once.
  *
- * This is also the function the coordinator will call server-side once
- * matchmaking exists, and it is the trust boundary — a client's claim that its
+ * It is also the trust boundary for any future server-side check of a team
+ * (the coordinator that would have run it was removed 2026-10-15) — a client's claim that its
  * team is legal is worth nothing until this has said so somewhere the client
  * does not control. That is why it takes the team and the format and reads no
  * ambient state.

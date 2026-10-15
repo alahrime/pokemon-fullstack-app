@@ -57,9 +57,6 @@
   box-shadow: 0 0 16px -4px var(--color-accent);
 }
 
-/* offers: six tiles to a row where there is room, each one a recognisable face */
-.offer-roster { gap: var(--space-2); align-items: flex-start; }
-
 /* tournament and record rosters: a tile beside the details, with type-lit edges */
 .roster-grid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
 .roster-card {
@@ -71,16 +68,16 @@
 
 /* one-shot arrival for tiles; dropped under reduced motion by --motion-scale */
 @keyframes tile-in { from { opacity: 0; transform: translateY(6px) scale(0.96); } to { opacity: 1; transform: none; } }
-.offer-roster-mon, .roster-card { animation: tile-in var(--dur-4) var(--ease-out) backwards; }
-.offer-roster-mon:nth-child(2), .roster-card:nth-child(2) { animation-delay: 40ms; }
-.offer-roster-mon:nth-child(3), .roster-card:nth-child(3) { animation-delay: 80ms; }
-.offer-roster-mon:nth-child(4), .roster-card:nth-child(4) { animation-delay: 120ms; }
-.offer-roster-mon:nth-child(5), .roster-card:nth-child(5) { animation-delay: 160ms; }
-.offer-roster-mon:nth-child(6), .roster-card:nth-child(6) { animation-delay: 200ms; }
+.roster-card { animation: tile-in var(--dur-4) var(--ease-out) backwards; }
+.roster-card:nth-child(2) { animation-delay: 40ms; }
+.roster-card:nth-child(3) { animation-delay: 80ms; }
+.roster-card:nth-child(4) { animation-delay: 120ms; }
+.roster-card:nth-child(5) { animation-delay: 160ms; }
+.roster-card:nth-child(6) { animation-delay: 200ms; }
 
 @media (prefers-reduced-motion: reduce) {
   .panel, .roster-card, .btn-primary::after { transition: none; }
-  .offer-roster-mon, .roster-card { animation: none; }
+  .roster-card { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -88,14 +85,14 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* — list rows become instrument cells: hairline box, lit rail on approach — */
-.offer-row, .my-offer-row, .match-row, .friend-row {
+.match-row, .friend-row {
   padding: var(--space-2) var(--space-3);
   border: var(--border-hairline) solid var(--rule-hairline);
   border-left: 3px solid var(--rule-strong);
   background: linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 50%), var(--surface-1);
   transition: border-color var(--dur-2) var(--ease-out), background var(--dur-3) var(--ease-out);
 }
-.offer-row:hover, .my-offer-row:hover, .match-row:hover, .friend-row:hover {
+.match-row:hover, .friend-row:hover {
   border-color: color-mix(in srgb, var(--color-accent) 55%, var(--rule-hairline));
   border-left-color: var(--color-accent);
 }
@@ -103,29 +100,7 @@
 .friend-row[data-kind='incoming'] { border-left-color: var(--color-accent); }
 .friend-row[data-kind='accepted'] { border-left-color: var(--color-accent-2); }
 .friend-row[data-kind='blocked'] { border-left-color: var(--text-faint); }
-.offer-list, .my-offer-list, .match-list { gap: var(--space-2); }
-
-/* — queue status as a lit readout — */
-.queue-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border: var(--border-hairline) solid color-mix(in srgb, var(--color-accent) 50%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  font-family: var(--font-mono);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  font-size: var(--text-xs);
-}
-.queue-status::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  background: var(--color-accent);
-  box-shadow: 0 0 10px var(--color-accent);
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-}
+.match-list { gap: var(--space-2); }
 
 /* — section rail: a lit bar for the engaged destination — */
 .section-rail .nav-tab {

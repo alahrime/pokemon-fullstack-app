@@ -2,10 +2,9 @@
  * M4 challenges round trip: three real confirmed accounts driving challenges
  * (aimed match offers) through the SHIPPING `src/lib/challenges.ts`,
  * `src/lib/matchmaking.ts`, `src/lib/channels.ts`, `src/lib/saves.ts` and
- * `src/lib/social.ts` modules against the real local Postgres, PostgREST and
- * coordinator Edge Function. Structure, signup-through-Mailpit and the
- * PASS/FAIL harness are m3b-roundtrip.ts's; the coordinator tick is
- * m2a-roundtrip.ts's.
+ * `src/lib/social.ts` modules against the real local Postgres and PostgREST.
+ * Structure, signup-through-Mailpit and the PASS/FAIL harness are
+ * m3b-roundtrip.ts's.
  *
  * FORMATS: a challenge is played on the proposer's OWN format, private, saved
  * through `saveServerFormat` — no admin write stands in for a client here.
@@ -14,23 +13,8 @@
  * and nothing else of the proposer's, and check 2c that someone else's
  * private format is refused.
  *
- * THE COORDINATOR: the pg_cron job `coordinator-tick` runs every minute, but
- * locally `coordinator_tick()` is a no-op unless the vault secrets
- * `coordinator_url` / `coordinator_service_role_key` are set (they were not
- * when this was written). If they are, cron could verify a challenge between
- * two lines of this script, so check 3 reads `verifiedHash` through
- * `fetchChallenges` right before the refused accept and FAILS loudly (rerun)
- * rather than skipping, and after forcing a tick asserts on the offer's own
- * state, not on the tick's global `verified` count. The forced tick POSTs the function
- * URL with the service-role key, exactly as m2a does; before it, a guard
- * refuses to tick if any row the tick could CHANGE belongs to someone else
- * (a foreign queue entry, a foreign unverified or still-open offer, or a
- * foreign match). Foreign lapsed, verified offers are left alone by the tick
- * and do not stop it.
- *
  * ---------------------------------------------------------------------------
- * RUN IT (from `app/`, LOCAL stack only, edge runtime up — `npm run db:start`
- * brings `supabase_edge_runtime_*` up, which serves the coordinator):
+ * RUN IT (from `app/`, LOCAL stack only):
  *
  *   KEY=$(npx supabase status --workdir .. -o json 2>/dev/null | python3 -c \
  *     "import json,sys; print(json.load(sys.stdin)['SERVICE_ROLE_KEY'])")
@@ -42,7 +26,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY="$KEY" node node_modules/.cache/m4.mjs
  *
  * The service-role key comes from the environment and is never written into
- * this file. It is used for: the coordinator tick and its pre-tick scan, confirming a withdrawn offer's row
+ * this file. It is used for: confirming a withdrawn offer's row
  * is really gone, and cleanup (matches — no client DELETE policy — and the
  * three accounts).
  */
@@ -53,12 +37,11 @@ import type { Format } from '../src/rules';
 import { saveServerFormat, deleteServerFormat, listServerFormats } from '../src/lib/saves';
 import { listMessages, openDm } from '../src/lib/channels';
 import { requestFriendship, respondToFriendship, blockUser } from '../src/lib/social';
-import { acceptOffer, listOpenOffers } from '../src/lib/matchmaking';
+import { acceptOffer } from '../src/lib/matchmaking';
 import { createChallenge, declineChallenge, withdrawChallenge, fetchChallenges } from '../src/lib/challenges';
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
-const COORDINATOR_URL = process.env.COORDINATOR_URL ?? `${SUPABASE_URL}/functions/v1/coordinator`;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -225,41 +208,12 @@ async function as<T>(b: Bot, body: () => Promise<T>): Promise<T> {
   return body();
 }
 
-// --- the coordinator tick (m2a's, with a narrower guard; see header) ---------
-async function assertTickTouchesOnlyOurs(label: string): Promise<void> {
-  const ours = new Set(bots.map((b) => b.id));
-  const q = await admin.from('queue_entries').select('id, user_id');
-  const o = await admin.from('match_offers').select('id, proposer_id, state, verified_hash');
-  const m = await admin.from('matches').select('id, player_a, player_b, state');
-  if (q.error || o.error || m.error) throw new Error(`pre-tick scan failed: ${q.error?.message ?? o.error?.message ?? m.error?.message}`);
-  const fq = (q.data ?? []).filter((r) => !ours.has(r.user_id));
-  const fo = (o.data ?? []).filter(
-    (r) => !ours.has(r.proposer_id) && (r.verified_hash === null || r.state === 'open' || r.state === 'accepted'),
-  );
-  const fm = (m.data ?? []).filter((r) => !ours.has(r.player_a) || !ours.has(r.player_b));
-  if (fq.length || fo.length || fm.length) {
-    throw new Error(`REFUSING TO TICK before "${label}": foreign rows the tick could change — queue ${show(fq)}, offers ${show(fo)}, matches ${show(fm)}`);
-  }
-}
-
-async function tick(label: string): Promise<string> {
-  await assertTickTouchesOnlyOurs(label);
-  const res = await fetch(COORDINATOR_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`coordinator answered ${res.status}: ${text}`);
-  console.log(`      [tick "${label}"] ${text}`);
-  return text;
-}
-
 const challenge = (targetId: string) =>
   createChallenge({ targetId, league: 'great', formatVersionId: versionId, format: RULES, team: TEAM_A });
 
 // ---------------------------------------------------------------------------
 async function main(): Promise<void> {
-  console.log(`M4 challenges round trip — run ${stamp}\ncoordinator ${COORDINATOR_URL}\n`);
+  console.log(`M4 challenges round trip — run ${stamp}\n`);
   census0 = await census();
   console.log(`census before: ${show(census0)}\n`);
 
@@ -308,17 +262,13 @@ async function main(): Promise<void> {
   });
 
   // 2 ------------------------------------------------------------------------
-  await check('2. fetchChallenges: bot2 sees it open, bot3 sees nothing; listOpenOffers never shows it', async () => {
+  await check('2. fetchChallenges: bot2 sees it open, bot3 sees nothing', async () => {
     const seen = await as(bot2, () => fetchChallenges([c1]));
     assert(seen.get(c1)?.state === 'open', `bot2 reads ${show(seen.get(c1))}`);
     assert(seen.get(c1)?.targetId === bot2.id, `targetId ${seen.get(c1)?.targetId}`);
     const stranger = await as(bot3, () => fetchChallenges([c1]));
     assert(stranger.size === 0, `bot3 reads ${show([...stranger.values()])}`);
-    for (const b of bots) {
-      const board = await as(b, () => listOpenOffers('great'));
-      assert(!board.some((o) => o.id === c1), `${b.label}'s listOpenOffers shows the challenge`);
-    }
-    return `bot2: open (formatName ${show(seen.get(c1)?.formatName)}); bot3: 0 rows; absent from all three boards`;
+    return `bot2: open (formatName ${show(seen.get(c1)?.formatName)}); bot3: 0 rows`;
   });
 
   await check("2b. the target reads the challenge's private format name, and nothing else of the proposer's", async () => {

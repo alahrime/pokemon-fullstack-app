@@ -5,14 +5,7 @@
 # commit and that deploy. `npm run check` needs no Docker — the database suite
 # (`check:db`) does, and is deliberately not here; it stays the local gate that
 # is required before merging anything touching a migration or a policy.
-#
-# One check in here earns its place beyond the usual: `verify:coordinator-bundle`
-# rebuilds `app/src/rules` and byte-compares it against the bundle the
-# coordinator Edge Function ships. Without it running somewhere automatic, an
-# edit to the rules that forgets `npm run build:coordinator` leaves the
-# coordinator verifying hashes against a stale copy of the rules — the exact
-# "two implementations, two answers" the trust boundary forbids, reached by
-# drift instead of design.
+
 name: check
 
 on:

@@ -1,23 +1,13 @@
 import { supabase } from './supabase';
 import { DATA_REV } from './data';
-import { rulesHash, type Format } from '../rules';
 import type { LeagueId } from './types';
 import type { PublicMember, StoredMember } from './teamCodec';
-
-export interface QueueEntry {
-  id: string;
-  league: LeagueId;
-  formatVersionId: string;
-  /** Null until the coordinator has recomputed the hash. Render as "checking…". */
-  verifiedHash: string | null;
-  expiresAt: string;
-}
 
 /**
  * The row shape lives in `matches.ts` now, alongside everything else about
  * what happens inside a match (reporting, adjudication, the perspective
- * conversion). Re-exported here so `MatchmakingScreen.tsx` — which only cares
- * about getting INTO a match — keeps importing both from this module.
+ * conversion). Re-exported here so `MatchmakingScreen.tsx` — which only lists
+ * your matches — keeps importing both from this module.
  */
 export { myMatches, type Match } from './matches';
 
@@ -34,12 +24,9 @@ export interface Offer {
   state: OfferState;
   acceptedBy: string | null;
   /**
-   * Null until the coordinator has recomputed the hash — and `accept_offer`
-   * raises `'this offer has not been verified yet'` for exactly that. The
-   * coordinator ticks once a minute, so every offer spends its first minute
-   * here: this is the normal beginning of an offer's life, not an edge case,
-   * and a board that does not read this column offers an Accept button that
-   * can only fail for a minute after every post.
+   * Null unless something recomputed the hash. Nothing does since the
+   * coordinator was removed (2026-10-15): challenges skip the check in
+   * `accept_offer`, and the public board that needed it is gone.
    */
   verifiedHash: string | null;
   /**
@@ -96,131 +83,6 @@ export interface Offer {
  */
 export interface MyOffer extends Offer {
   matchId: string | null;
-}
-
-/**
- * `user_id` is never sent from here, same rule as `saves.ts`: it defaults to
- * `auth.uid()` in the database, so a client-supplied owner is never a second
- * source of truth the policy has to agree with.
- *
- * `claimed_hash` is computed here with `rulesHash`, never accepted as a
- * caller-supplied value — the coordinator recomputes it independently and
- * writes `verified_hash`, and only a verified entry is eligible to pair. A
- * hash this function trusted a caller for would be a hash the coordinator
- * could never have caught a lie in.
- */
-export async function joinQueue(a: {
-  league: LeagueId;
-  formatVersionId: string;
-  format: Format;
-  team: StoredMember[];
-}): Promise<string> {
-  const { data, error } = await supabase
-    .from('queue_entries')
-    .insert({
-      league: a.league,
-      format_version_id: a.formatVersionId,
-      claimed_hash: await rulesHash(a.format),
-      team: a.team,
-      data_rev: DATA_REV,
-    })
-    .select('id')
-    .single();
-  if (error) throw new Error(error.message);
-  return (data as { id: string }).id;
-}
-
-/**
- * Filtered by the caller's own `user_id`, read from the local session —
- * `saves.ts`'s `deleteTeam` filters its delete with `.eq('id', id)` even
- * though its RLS policy also scopes correctly on its own, and that is this
- * codebase's established discipline for a DELETE: a redundant predicate that
- * matches what RLS already computes is ordinary defence in depth, not a
- * second source of truth the way a client-supplied owner on INSERT would be.
- * Without it, this call is literally "delete every queue entry you can see",
- * and its safety would rest entirely on one RLS policy staying exactly as
- * written across every future migration.
- *
- * `getSession()`, not `getUser()`: a local read of the already-verified
- * session, not a network round trip that revalidates the JWT against the
- * Auth server on every call — the same choice `SessionContext.tsx` makes and
- * explains.
- */
-export async function leaveQueue(): Promise<void> {
-  const { data, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error(sessionError.message);
-  const userId = data.session?.user.id;
-  if (!userId) throw new Error('you must be signed in to leave the queue');
-  const { error } = await supabase.from('queue_entries').delete().eq('user_id', userId);
-  if (error) throw new Error(error.message);
-}
-
-export async function myQueueEntry(): Promise<QueueEntry | null> {
-  const { data, error } = await supabase
-    .from('queue_entries')
-    .select('id, league, format_version_id, verified_hash, expires_at');
-  if (error) throw new Error(error.message);
-  const rows = (data ?? []) as {
-    id: string;
-    league: LeagueId;
-    format_version_id: string;
-    verified_hash: string | null;
-    expires_at: string;
-  }[];
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    id: row.id,
-    league: row.league,
-    formatVersionId: row.format_version_id,
-    verifiedHash: row.verified_hash,
-    expiresAt: row.expires_at,
-  };
-}
-
-export async function listOpenOffers(league: LeagueId): Promise<Offer[]> {
-  const { data, error } = await supabase
-    .from('match_offers')
-    .select(
-      'id, proposer_id, league, format_version_id, scheduled_for, expires_at, state, accepted_by, verified_hash, team_public',
-    )
-    .eq('league', league)
-    .eq('state', 'open')
-    // Aimed offers are challenges, read through lib/challenges.ts; they must never reach the board or the Matches screen's own lists.
-    .is('target_id', null)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => {
-    const r = row as {
-      id: string;
-      proposer_id: string;
-      league: LeagueId;
-      format_version_id: string;
-      scheduled_for: string | null;
-      expires_at: string;
-      state: OfferState;
-      accepted_by: string | null;
-      verified_hash: string | null;
-      team_public: PublicMember[] | null;
-    };
-    // The count AND the members — see `Offer.roster` for why the members
-    // stopped being dropped here. Coalesced once, so the size the accept gate
-    // reads and the roster the row draws are the same list by construction.
-    const team = r.team_public ?? [];
-    return {
-      id: r.id,
-      proposerId: r.proposer_id,
-      league: r.league,
-      formatVersionId: r.format_version_id,
-      scheduledFor: r.scheduled_for,
-      expiresAt: r.expires_at,
-      state: r.state,
-      acceptedBy: r.accepted_by,
-      verifiedHash: r.verified_hash,
-      rosterSize: team.length,
-      roster: team,
-    };
-  });
 }
 
 /**
@@ -297,39 +159,6 @@ export async function myOffers(): Promise<MyOffer[]> {
       roster: team,
     };
   });
-}
-
-/**
- * `proposer_id` is never sent, same rule as `user_id` above. Checked BEFORE
- * any network call: a scheduled offer in the past is refused here so the
- * caller learns why without a round trip, and before the database's own
- * `match_offers_scheduled_future` constraint would say the same thing less
- * legibly.
- */
-export async function createOffer(a: {
-  league: LeagueId;
-  formatVersionId: string;
-  format: Format;
-  team: StoredMember[];
-  scheduledFor?: Date;
-}): Promise<string> {
-  if (a.scheduledFor && a.scheduledFor <= new Date()) {
-    throw new Error('a scheduled offer cannot be in the past');
-  }
-  const { data, error } = await supabase
-    .from('match_offers')
-    .insert({
-      league: a.league,
-      format_version_id: a.formatVersionId,
-      claimed_hash: await rulesHash(a.format),
-      team: a.team,
-      data_rev: DATA_REV,
-      scheduled_for: a.scheduledFor ? a.scheduledFor.toISOString() : null,
-    })
-    .select('id')
-    .single();
-  if (error) throw new Error(error.message);
-  return (data as { id: string }).id;
 }
 
 /**

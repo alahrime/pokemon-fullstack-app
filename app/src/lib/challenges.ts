@@ -15,7 +15,7 @@ export interface Challenge {
   state: ChallengeState;
   scheduledFor: string | null;
   expiresAt: string;
-  /** Null for the first minute: the coordinator has not recomputed the hash yet. */
+  /** Always null now: nothing recomputes hashes since the coordinator was removed, and challenges never needed it. */
   verifiedHash: string | null;
   matchId: string | null;
   /** Length of the proposer's team — what the accepter's roster must match. */

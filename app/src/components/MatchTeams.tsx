@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { usePhone } from '../lib/usePhone';
+import { useMedia } from '../lib/usePhone';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { trainerUrl, type Profile } from '../lib/profile';
 import type { PublicMember } from '../lib/teamCodec';
@@ -110,7 +110,7 @@ function PairCell({ member, mirror, open, onToggle }: { member: PublicMember | u
 }
 
 /**
- * Phones: the two teams as six pairs, yours left and theirs right, so both sixes and every move fit one screen
+ * Phones and screens under 1280px: the two teams as six pairs, yours left and theirs right, so both sixes and every move fit one screen
  * (stacked, the opponent's started ~1,400px down). A tapped Pokémon opens its full card under its row.
  */
 function PairedTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe, onOpenOpp, league, format }: Parameters<typeof MatchTeams>[0]) {
@@ -173,8 +173,10 @@ export function MatchTeams({ me, opp, myTeam, oppTeam, myCode, oppCode, onOpenMe
   /** The league's emblem and the format's label, between the two banners. */
   league?: LeagueId; format?: string | null;
 }) {
-  const phone = usePhone();
-  if (phone) return <PairedTeams me={me} opp={opp} myTeam={myTeam} oppTeam={oppTeam} myCode={myCode} oppCode={oppCode} onOpenMe={onOpenMe} onOpenOpp={onOpenOpp} league={league} format={format} />;
+  // Below 1280px the three-column layout leaves each side ~280px (one card across, six deep), so the paired rows
+  // phones use are the better fit there too: both sixes on one screen.
+  const paired = useMedia('(max-width: 1279px)');
+  if (paired) return <PairedTeams me={me} opp={opp} myTeam={myTeam} oppTeam={oppTeam} myCode={myCode} oppCode={oppCode} onOpenMe={onOpenMe} onOpenOpp={onOpenOpp} league={league} format={format} />;
   const oppName = opp?.displayName ?? 'Their';
   return (
     <section className="panel grid grid-cols-1 items-start gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" aria-label="Versus">

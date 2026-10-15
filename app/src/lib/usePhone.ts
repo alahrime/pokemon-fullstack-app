@@ -8,14 +8,17 @@ import { useSyncExternalStore } from 'react';
  */
 const PHONE = '(max-width: 820px)';
 
-export function usePhone(): boolean {
+/** Live `matchMedia(query).matches`; false where there is no window (and in jsdom's stub). */
+export function useMedia(query: string): boolean {
   return useSyncExternalStore(
     (cb) => {
-      const m = window.matchMedia(PHONE);
+      const m = window.matchMedia(query);
       m.addEventListener('change', cb);
       return () => m.removeEventListener('change', cb);
     },
-    () => window.matchMedia(PHONE).matches,
+    () => window.matchMedia(query).matches,
     () => false,
   );
 }
+
+export const usePhone = (): boolean => useMedia(PHONE);

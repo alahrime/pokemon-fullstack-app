@@ -58,9 +58,9 @@ describe('MatchTeams', () => {
   });
 });
 
-describe('MatchTeams — on a phone', () => {
+describe('MatchTeams — under 1280px (phones and laptops)', () => {
   // jsdom applies no stylesheet; the paired layout is chosen in JS from the media query.
-  const phone = (q: string) => ({ matches: q === '(max-width: 820px)', media: q, onchange: null,
+  const phone = (q: string) => ({ matches: q === '(max-width: 1279px)', media: q, onchange: null,
     addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false });
   let original: typeof window.matchMedia;
   beforeEach(() => { original = window.matchMedia; window.matchMedia = phone as unknown as typeof window.matchMedia; });

@@ -2327,6 +2327,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .team-actions { flex-wrap: wrap; }
 .team-actions > .btn { flex: none; }
 .team-actions > .team-actions-hint { flex: 1 1 16rem; }
+.team-slots + .team-actions-hint { display: block; margin-top: var(--space-2); }
 
 .threat-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .threat-list li {
@@ -2990,8 +2991,6 @@ textarea.input { min-height: 90px; resize: vertical; }
 .team-dock .team-add { margin: 0; }
 /* Matches on a phone: every empty slot collapses into one slim add row. */
 .team-slot.is-empty.team-slot-add-row { min-height: 0; padding: var(--space-2) var(--space-3); flex-direction: row; gap: var(--space-2); justify-content: center; }
-/* Two lines of explanation would ride along pinned the whole way down. */
-.team-dock .team-actions-hint { display: none; }
 
 .team-slot.is-empty {
   display: flex;
@@ -4255,6 +4254,8 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    overlay, since it can be asked from inside a sheet or the build picker. */
 .confirm-scrim { z-index: 130; }
 .confirm-panel { width: min(440px, 100%); min-height: 0; }
+/* Phones: a full 44px touch target (the default .btn is 35px). */
+@media (max-width: 820px) { .confirm-panel .modal-foot .btn { min-height: 44px; } }
 .confirm-body { margin: 0; padding: var(--space-4); font-size: var(--text-md); line-height: 1.5; color: var(--color-text); }
 
 .btn.is-primary:disabled { opacity: 0.4; }
@@ -7253,7 +7254,7 @@ th.bt-matrix-head { text-align: center; }
    --lg/--lg-deep/--lg-accent trio); with none chosen it falls back to the
    theme accent. Everything else is the house grammar: chamfers, hairlines that
    brighten on approach, mono micro-labels, numbers in the numeric face. */
-.profile-screen { gap: var(--space-4); }
+.profile-screen { gap: var(--space-4); container: profile / inline-size; }
 .profile-card {
   --pc: var(--lg, var(--color-accent));
   --pc-deep: var(--lg-deep, var(--color-accent));
@@ -7554,7 +7555,9 @@ th.bt-matrix-head { text-align: center; }
 .profile-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
 .profile-field { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 
-@media (max-width: 760px) {
+/* Stacks on the card's own width, not the viewport's: beside the Play rail a ~800px window left the six a ~194px
+   column next to the 300px trainer, tiles ~59px wide. Under 720px side by side the tiles drop below ~110px. */
+@container profile (max-width: 720px) {
   .profile-card { grid-template-columns: minmax(0, 1fr); }
   /* Three across, two rows: the tiles are square, so two across at full width made each one half the screen tall. */
   .profile-roster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

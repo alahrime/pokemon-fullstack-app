@@ -595,6 +595,14 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
       />
     </div>
   );
+  // A disabled button says nothing about why. The swaps Analyse already lists
+  // are the full-roster version of this question. On phones it sits under the
+  // roster, not in the pinned dock, where two lines would ride along all the way down.
+  const fullHint = full && (
+    <span id="suggest-full-hint" className="team-actions-hint text-faint">
+      Roster full: Analyse lists swaps, or clear a slot for next-pick suggestions.
+    </span>
+  );
   const teamActions = (
     <div className="team-actions">
       {/* Two members, not a full roster. What beats a partial team and
@@ -615,13 +623,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
         Suggest next pick
       </button>
       {elapsed > 0 && <span className="text-faint">{elapsed.toFixed(0)}ms</span>}
-      {/* A disabled button says nothing about why. The swaps Analyse
-          already lists are the full-roster version of this question. */}
-      {full && (
-        <span id="suggest-full-hint" className="team-actions-hint text-faint">
-          Roster full: Analyse lists swaps, or clear a slot for next-pick suggestions.
-        </span>
-      )}
+      {!phone && fullHint}
       {/* The analysis used to leave by the back door: an "Export JSON" of
           the headline numbers and a "Threats CSV" of a table nobody could
           read without a spreadsheet. Both are gone — everything they
@@ -684,6 +686,7 @@ export function TeamBuilderScreen({ size }: { size: 3 | 6 }) {
           ))}
         </div>
         {!phone && teamAdd}
+        {phone && fullHint}
         {user && (
           <div className="team-saves">
             <div className="team-saves-row">

@@ -53,12 +53,14 @@ design authority; the plans argue from it.
 **Candidates (none started, none promised):**
 - Report at 360x780: the every-league panel's last row sits ~30px below the fold; on a fresh load the header fills the first screen (the panel fits once a species is picked from the pinned search).
 - Rankings: a 100-row page change is still ~300ms at 4x CPU — row layout, forced early by `useSlidingMarker`'s dependency-less `useLayoutEffect`; `content-visibility` does not apply to table rows.
-- Phone Teams and Matches docks hide the full-roster Suggest hint (aria still points at it).
 - Match at 1024x768: the paired layout fits except the sixth pair, ~90px below the fold, because the nav wraps to two rows (~120px) at that width.
 - Realtime (item 9) has not been seen live between two accounts; only unit tests and the production deploy/migration checks.
-- Profile at 761-~900px: the six favourites sit in a ~194px column beside the trainer, so filled tiles are ~59px wide.
-- ConfirmDialog buttons are 35px tall on phones (under the 44px touch guideline).
 - The expanded chat dock covers the right edge of Match and profiles at ~1180px-wide windows (it collapses).
+
+**Tenth session, 2026-10-15 (three candidates closed, no migrations; `npm run check` 1961/1961):**
+- ConfirmDialog buttons are 44px tall at <=820px (were 35px); measured at 375.
+- Teams on a phone: the full-roster Suggest hint now renders under the roster in the panel instead of hidden inside the pinned dock (test in `team-builder.test.tsx` "on a phone", fails on the old placement).
+- Profile card stacks on its own width (`@container profile (max-width: 720px)` on `.profile-screen`), not the viewport's: beside the Play rail an 800px window gave a 552px card, the six in a 194px column with 59px tiles; now stacked there with 167px tiles. 1024: side by side, 418px + 300px, tiles 134px. 375: stacked, 2-across, 143px. Measured with mock card markup in the pane (signed out), not on a real profile.
 
 **How to verify here (learned over the last two sessions):**
 - The pane's dev server is stopped between turns: `preview_start` again. The pane may refuse localhost while a site check is pending; retry.

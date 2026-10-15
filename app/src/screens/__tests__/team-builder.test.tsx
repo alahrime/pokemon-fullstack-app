@@ -280,6 +280,16 @@ describe('TeamBuilderScreen — on a phone', () => {
     expect(screen.getAllByRole('button', { name: /Suggest next pick/i })).toHaveLength(1);
   });
 
+  it('shows the full-roster hint under the roster, not hidden in the pinned dock', async () => {
+    const { container } = renderApp(<TeamBuilderScreen size={3} />);
+    for (const id of ['azumarill', 'registeel', 'medicham']) await pick(container, id);
+    const hint = container.querySelector('#suggest-full-hint')!;
+    expect(hint.textContent).toMatch(/Roster full/);
+    expect(hint.closest('.team-dock')).toBeNull();
+    expect(hint.closest('.panel')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Suggest next pick/i }).getAttribute('aria-describedby')).toBe('suggest-full-hint');
+  });
+
   it('shows members as compact rows that open into the full card, with their own remove button', async () => {
     const { container } = renderApp(<TeamBuilderScreen size={6} />);
     await pick(container, 'azumarill');

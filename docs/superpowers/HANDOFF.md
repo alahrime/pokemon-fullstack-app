@@ -46,13 +46,13 @@ design authority; the plans argue from it.
 **Done this session:** list items 4 (closed: no crash), 5 (signed-in production check), 6 (phone checks), 8 (counter-challenge link), 9 (Realtime for bell, badges, chat list); costume Pikachus removed; GO artwork for 11 Megas; Match paired layout below 1280px; IV bars in thirds (ticks at 5 and 10) with a green-yellow-red fill; two profile fixes (duplicate "Unique opponents" label, giant favourite tiles at 481-760px); a real ConfirmDialog focus race; CI's 5s test timeout raised to 30s.
 
 **Open — the list the user is working down (numbers kept from the original list). All three need the user:**
-1. **Sign-up email on the hosted project** reaches only team addresses (built-in SMTP), so outsiders cannot sign up. The user's fix: custom SMTP in the Supabase dashboard; offer exact steps.
 2. **Coordinator tick 401s in production** (`UNAUTHORIZED_INVALID_JWT_FORMAT`): the Vault secret `coordinator_service_role_key` is not the legacy `service_role` JWT. The user's fix, SQL below in the old list. Until then nothing on the offer board, queue, lapsing or message expiry is processed in production.
 3. **Scheduled challenges still need the proposer's confirm** — a decision the user has not given.
+1. **Sign-up email on the hosted project** (moved to the end of the list by the user, 2026-10-15) reaches only team addresses (built-in SMTP), so outsiders cannot sign up. The user's fix: custom SMTP in the Supabase dashboard. Steps were given in the tenth session: Resend (needs an owned domain; `workers.dev` cannot take DNS records) or a Gmail app password; Auth → SMTP Settings; raise the email rate limit; Site URL and redirect URLs on paragon2; test with an outside address.
 
 **Candidates (none started, none promised):**
 - Report at 360x780: the every-league panel's last row sits ~30px below the fold; on a fresh load the header fills the first screen (the panel fits once a species is picked from the pinned search).
-- Rankings: a 100-row page change is still ~300ms at 4x CPU — row layout, forced early by `useSlidingMarker`'s dependency-less `useLayoutEffect`; `content-visibility` does not apply to table rows.
+- ~~Rankings 100-row page change~~ **Measured and closed (tenth session):** 200-400ms at 4x CPU in headless Chrome (375x812, `vite build --base ./` served locally), almost all style/layout/paint of 100 rich rows; `useSlidingMarker` only moves that layout earlier, it does not add any. A/B by injected CSS, two runs each: `table-layout: fixed`, `contain: layout style` on cells, no animations, `content-visibility` on rows — none beat the run-to-run noise (baseline itself ranged 210-345ms). No fix worth the code; 25-row pages are ~85ms.
 - Match at 1024x768: the paired layout fits except the sixth pair, ~90px below the fold, because the nav wraps to two rows (~120px) at that width.
 - Realtime (item 9) has not been seen live between two accounts; only unit tests and the production deploy/migration checks.
 - The expanded chat dock covers the right edge of Match and profiles at ~1180px-wide windows (it collapses).

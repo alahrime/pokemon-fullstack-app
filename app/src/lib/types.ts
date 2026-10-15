@@ -87,6 +87,12 @@ export interface Species {
    */
   bestIvBB?: Partial<Record<LeagueId, number>>;
   /**
+   * defaultSpreadFor's pick per league as [roll key, its rank], so it needs one
+   * bestAt rather than a 4096-roll table. BB only where the boost changes it.
+   */
+  defaultIv?: Partial<Record<LeagueId, [number, number]>>;
+  defaultIvBB?: Partial<Record<LeagueId, [number, number]>>;
+  /**
    * CP at level 25, for purifiable species only: PvPoke teaches Return where
    * this fits under the league cap (a purified mon arrives at level 25).
    */

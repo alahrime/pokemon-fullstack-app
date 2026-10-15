@@ -24,7 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SPECIES, LEAGUES } from '../src/lib/data';
-import { bestAt, ivKey } from '../src/lib/engine';
+import { bestAt, buildTable, defaultFromTable, ivKey } from '../src/lib/engine';
 import { BB_MAX_LEVEL_IDX, MAX_LEVEL_IDX } from '../src/lib/cpm';
 import type { LeagueId, StatLine } from '../src/lib/types';
 
@@ -35,7 +35,7 @@ const OUT = path.resolve(process.cwd(), 'src/data/species.json');
 
 const raw = JSON.parse(fs.readFileSync(OUT, 'utf8')) as {
   moves: Record<string, unknown>;
-  species: { id: string; leagues: string[]; shadowLeagues: string[]; bestIv?: Record<string, number>; bestIvBB?: Record<string, number> }[];
+  species: { id: string; leagues: string[]; shadowLeagues: string[]; bestIv?: Record<string, number>; bestIvBB?: Record<string, number>; defaultIv?: Record<string, [number, number]>; defaultIvBB?: Record<string, [number, number]> }[];
 };
 const byId = new Map(SPECIES.map((s) => [s.id, s]));
 
@@ -79,6 +79,23 @@ for (const row of raw.species) {
   }
   row.bestIv = bestIv;
   if (Object.keys(bestIvBB).length) row.bestIvBB = bestIvBB;
+
+  // defaultSpreadFor's pick and its rank, read off the real (uncached) table so
+  // the runtime needs one bestAt instead of building it. Shadow shares it: the
+  // ranking is on unadjusted stats.
+  const defaultIv: Record<string, [number, number]> = {};
+  const defaultIvBB: Record<string, [number, number]> = {};
+  for (const lg of leagues) {
+    const pick = (bb: boolean): [number, number] => {
+      const e = defaultFromTable(buildTable(row.id, lg, bb));
+      return [ivKey(e), e.rank];
+    };
+    defaultIv[lg] = pick(false);
+    const bb = pick(true);
+    if (bb[0] !== defaultIv[lg][0] || bb[1] !== defaultIv[lg][1]) defaultIvBB[lg] = bb;
+  }
+  row.defaultIv = defaultIv;
+  if (Object.keys(defaultIvBB).length) row.defaultIvBB = defaultIvBB;
   written++;
 }
 

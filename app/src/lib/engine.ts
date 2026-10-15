@@ -267,7 +267,13 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
   const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
   const cached = tableCache.get(key);
   if (cached) return cached;
+  const out = buildTable(ref, leagueId, bestBuddy);
+  tableCache.set(key, out);
+  return out;
+}
 
+/** getTable without the cache, for a generator walking every species (thousands of 4096-entry tables). */
+export function buildTable(ref: string, leagueId: LeagueId, bestBuddy = false): SpeciesTable {
   const { id, shadow } = parseRef(ref);
   const species = OPPONENT_POOL_BY_ID.get(id)!;
   const league = LEAGUE_BY_ID.get(leagueId)!;
@@ -343,7 +349,6 @@ export function getTable(ref: string, leagueId: LeagueId, bestBuddy = false): Sp
     defLo,
     defHi,
   };
-  tableCache.set(key, out);
   return out;
 }
 
@@ -783,7 +788,42 @@ const DEFAULT_CP_SLACK = 5;
  * roll rather than nothing.
  */
 export function defaultSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = false): RankedEntry {
-  const table = getTable(ref, leagueId, bestBuddy);
+  const key = `${ref}|${leagueId}|${bestBuddy ? 'bb' : ''}`;
+  const hit = defaultCache.get(key);
+  if (hit) return hit;
+  const { id, shadow } = parseRef(ref);
+  const species = OPPONENT_POOL_BY_ID.get(id)!;
+  const league = LEAGUE_BY_ID.get(leagueId)!;
+  const maxIdx = levelCapIdx(species, league, bestBuddy);
+  // The generator records the pick and its rank (scripts/build-best-spreads.ts),
+  // so the usual path is one bestAt, not a 4096-roll table: a Rankings page of
+  // 100 new species built 100 tables here and froze for ~1.5s on a phone.
+  const stored = maxIdx !== MAX_LEVEL_IDX
+    ? (species.defaultIvBB?.[leagueId] ?? species.defaultIv?.[leagueId])
+    : species.defaultIv?.[leagueId];
+  let out: RankedEntry;
+  if (stored) {
+    const [k, rank] = stored;
+    const iv = { a: (k >> 8) & 15, d: (k >> 4) & 15, s: k & 15 };
+    const r = bestAt(species, iv, league, maxIdx);
+    // Built exactly as getTable builds an entry.
+    out = {
+      ...iv, ...r,
+      atk: r.atk * (shadow ? SHADOW_ATK_MULT : 1), statAtk: r.atk,
+      def: r.def * (shadow ? SHADOW_DEF_MULT : 1), statDef: r.def,
+      rank,
+      forms: formsAt(species, iv, r, league),
+    };
+  } else {
+    out = defaultFromTable(getTable(ref, leagueId, bestBuddy));
+  }
+  defaultCache.set(key, out);
+  return out;
+}
+const defaultCache = new Map<string, RankedEntry>();
+
+/** The default pick read off a full table; the generator records what this returns. */
+export function defaultFromTable(table: SpeciesTable): RankedEntry {
   if (table.league.uncapped) return table.map.get(ivKey({ a: 15, d: 15, s: 15 }))!;
   const band = table.all.slice(0, DEFAULT_RANK_BAND);
   const near = band.find((e) => e.cp >= table.league.cap - DEFAULT_CP_SLACK);

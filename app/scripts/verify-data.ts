@@ -30,6 +30,9 @@ import {
   dmg,
   getEntry,
   PVP_BONUS,
+  buildTable,
+  defaultFromTable,
+  defaultSpreadFor,
 } from '../src/lib/engine';
 import { QUERY_FORMS, compileQuery } from '../src/lib/query';
 import { CATEGORIES, LOSS_CURVE, SHIELD_BONUS, SOFT_CAP, rating } from '../src/lib/scenarios';
@@ -41,7 +44,7 @@ import { LANDING_FEATURED_N, LANDING_STRATUM } from '../src/lib/summarySpec';
 import { relevanceWeights, typeCoverage, typePressure, worstSharedWeakness } from '../src/lib/synergy';
 import { DEFAULT_TIER, ENGINE_REV, btFitFor, fieldPool, overallOf, teamPool } from '../src/lib/rankings';
 import { toCsv } from '../src/lib/exportData';
-import type { BattleResult, LeagueId } from '../src/lib/types';
+import type { BattleResult, LeagueId, RankedEntry } from '../src/lib/types';
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = '') => {
@@ -703,6 +706,34 @@ console.log('\n── rank-1 spread index ────────────�
   const indexed = SPECIES.filter((sp) => sp.bestIv && Object.keys(sp.bestIv).length).length;
   check('species.json carries the bestIv index', indexed > 500,
     `${indexed} species indexed — if 0, run \`npm run best-spreads\` after build-data.mjs`);
+}
+
+// ── the default-spread index ───────────────────────────────────────────────
+// defaultSpreadFor reads its pick and rank from defaultIv instead of building a
+// 4096-roll table (a Rankings page of new species froze ~1.5s on a phone). The
+// stored pick must be what the table would pick: every 40th indexed species,
+// Shadow too, every league, with and without Best Buddy. Exhaustive at the
+// time it was written: 4,726 of 4,726 matched.
+console.log('\n── default-spread index ───────────────────────────────');
+{
+  const withIdx = SPECIES.filter((sp) => sp.defaultIv && Object.keys(sp.defaultIv).length);
+  check('species.json carries the defaultIv index', withIdx.length > 500,
+    `${withIdx.length} species indexed — if 0, run \`npm run best-spreads\``);
+  const key = (e: RankedEntry) => JSON.stringify([e.a, e.d, e.s, e.cp, e.lvl, e.atk, e.def, e.hp, e.rank, e.forms ?? null]);
+  let n = 0;
+  const bad: string[] = [];
+  withIdx.filter((_, i) => i % 40 === 0).forEach((sp) => {
+    for (const lg of Object.keys(sp.defaultIv!) as LeagueId[]) {
+      for (const ref of sp.shadowEligible ? [sp.id, `${sp.id}_shadow`] : [sp.id]) {
+        for (const bb of [false, true]) {
+          n++;
+          if (key(defaultSpreadFor(ref, lg, bb)) !== key(defaultFromTable(buildTable(ref, lg, bb)))) bad.push(`${ref} ${lg}${bb ? ' bb' : ''}`);
+        }
+      }
+    }
+  });
+  check('defaultSpreadFor\'s stored pick equals the table\'s pick', bad.length === 0,
+    bad.length ? `stale for ${bad.slice(0, 5).join(', ')} — run \`npm run best-spreads\`` : `${n} checked`);
 }
 
 // ── PvP damage bonus, and the guaranteed sneak ─────────────────────────────

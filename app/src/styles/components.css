@@ -6551,6 +6551,13 @@ th.bt-matrix-head { text-align: center; }
     border-color var(--dur-2) var(--ease-out),
     background var(--dur-2) var(--ease-out);
 }
+/* Signed in, the bell joins this row, and below ~1180px it no longer fits on one line: the nav wrapped to two rows
+   (~120px) at 1024, which pushed the Match screen's sixth pair under the fold. The word goes first, the glyph stays;
+   the button's aria-label keeps its name. */
+@media (max-width: 1180px) {
+  .nav-account-label { display: none; }
+  .nav-account { padding-inline: var(--space-2); }
+}
 .nav-section:hover,
 .nav-account:hover {
   color: var(--color-text);

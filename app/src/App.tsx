@@ -106,8 +106,9 @@ function Nav() {
           aria-current={state.screen === 'account' ? 'page' : undefined}
           onClick={() => set('screen', 'account')}
           title="Sign in, and choose the name Paragon knows you by"
+          aria-label="Account"
         >
-          <span aria-hidden="true">◉</span> Account
+          <span aria-hidden="true">◉</span><span className="nav-account-label"> Account</span>
         </button>
         <NotificationBell />
         <ThemeMenu />

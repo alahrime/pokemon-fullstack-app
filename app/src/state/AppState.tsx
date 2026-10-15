@@ -187,6 +187,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // it points.
   const [state, setState] = useState<AppStateShape>(() => ({
     ...INITIAL_STATE,
+    // Analyze opens on a random Pokémon each visit (the battle screen's opening
+    // left side), not the same fixed one; a species the user picks then stays.
+    species: openingA,
     screen: typeof window === 'undefined' ? 'landing' : screenFromHash(window.location.hash),
     activeTournamentId: typeof window === 'undefined' ? null : tournamentIdFromHash(window.location.hash),
     activePlayerId: typeof window === 'undefined' ? null : playerIdFromHash(window.location.hash),

@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { leaguePatch, useAppState } from '../state/AppState';
 import { LeagueVerdicts } from '../components/LeagueVerdicts';
@@ -224,13 +225,22 @@ export function ReportScreen() {
             id="report-species-pinned"
             value={speciesId}
             onChange={(id) => {
-              patch({ species: id, moveIdx: 0, chargeIds: [] });
+              // Rendered now, so the new species' card is the one measured below.
+              flushSync(() => patch({ species: id, moveIdx: 0, chargeIds: [] }));
               // The card lands right under the pinned bars, with the roll and
               // every league beneath it; measured, since the bars' height is
-              // the theme's.
-              const side = document.querySelector('.report-side > .hero');
-              const bar = document.querySelector('.report-search-bar');
-              if (side && bar) window.scrollTo({ top: side.getBoundingClientRect().top + window.scrollY - bar.getBoundingClientRect().bottom });
+              // the theme's. On a short screen (or a two-line form name) the
+              // leagues win: scroll on until the last row is in view, letting
+              // the top of the card go under the bar.
+              {
+                const side = document.querySelector('.report-side > .hero');
+                const bar = document.querySelector('.report-search-bar');
+                const leagues = document.querySelector('.report-side .league-verdicts');
+                if (!side || !bar) return;
+                const toCard = side.getBoundingClientRect().top - bar.getBoundingClientRect().bottom;
+                const toLeagues = leagues ? leagues.getBoundingClientRect().bottom - window.innerHeight : -Infinity;
+                window.scrollTo({ top: window.scrollY + Math.max(toCard, Math.min(toLeagues, toCard + side.getBoundingClientRect().height)) });
+              }
             }}
             placeholder="Search a Pokémon…"
             className="report-search"

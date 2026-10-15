@@ -340,12 +340,14 @@ describe('opponent list ordering and the fight jump', () => {
     const { container } = renderApp(<App />);
     goTo(container, 'Report');
     await waitFor(() => expect(container.querySelector('.opp-fight')).toBeTruthy());
+    // The report opens on a random species each visit; the fight must carry whichever it is.
+    const mine = container.querySelector('.hero-name')!.textContent!;
     const wrap = container.querySelector('.opp-cell-wrap')!;
     const opponent = wrap.querySelector('.opp-name')!.textContent!;
     fireEvent.click(wrap.querySelector('.opp-fight')!);
     await waitFor(() => expect(container.querySelectorAll('.bt-side').length).toBe(2));
     const [a, b] = [...container.querySelectorAll('.bt-side')];
-    expect(a.querySelector('.battle-mon-name')!.textContent).toMatch(/Azumarill/);
+    expect(a.querySelector('.battle-mon-name')!.textContent).toContain(mine);
     // Shadow opponents keep their form across the jump.
     expect(b.querySelector('.battle-mon-name')!.textContent!.replace(/[^A-Za-z ]/g, '').trim())
       .toBe(opponent.replace(/\s*\(Shadow\)/, '').trim());

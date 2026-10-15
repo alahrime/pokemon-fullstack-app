@@ -493,6 +493,10 @@ input[type='range'] { accent-color: var(--color-accent); }
      sizes itself inline (its img fills the box), hence !important. */
   .report-side .hero-stage { padding: var(--space-2) var(--space-3); }
   .report-side .hero-stage .sprite-holo { width: 88px !important; height: 88px !important; }
+  /* Tighter seams between them: at 360x780 the last league row sat ~15-30px under the fold. */
+  .report-side { gap: var(--space-3); }
+  .report-side .hero-body { padding-bottom: var(--space-2); }
+  .report-side .hero-verdict { margin-bottom: var(--space-1); }
   /* 253px of row at 375 wide cannot hold the names too; the emblem says which league. */
   .league-verdict { grid-template-columns: 22px repeat(4, auto); justify-content: space-between; column-gap: var(--space-2); }
   .league-verdict-name { display: none; }

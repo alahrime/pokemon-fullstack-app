@@ -6,6 +6,7 @@ import {
 } from '../../lib/data';
 import { SpeciesSearch } from '../../components/SpeciesSearch';
 import { ReportScreen } from '../ReportScreen';
+import { LandingScreen } from '../LandingScreen';
 
 /**
  * Shedinja is in the data only to be shown (GO bars it from Trainer Battles): a profile favourite and a Report card
@@ -66,5 +67,10 @@ describe('a showcase-only species', () => {
     expect(await screen.findByRole('note')).toHaveTextContent(/can't be used in Trainer Battles or GO Battle League/);
     expect(container.querySelector('.league-verdicts')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Shedinja' })).toBeInTheDocument();
+  });
+
+  it('is offered by the home page search', async () => {
+    const { container } = renderApp(<LandingScreen />);
+    expect(await offered(container, 'shedinja')).toContain('Shedinja');
   });
 });

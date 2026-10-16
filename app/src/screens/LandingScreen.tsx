@@ -151,6 +151,7 @@ export function LandingScreen() {
           />
           <SpeciesSearch
             id="landing-species"
+            includeShowcase
             value={state.species}
             onChange={(id) =>
               // Same reset the nav search does — a carried-over chargeIds names

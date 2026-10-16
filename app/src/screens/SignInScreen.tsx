@@ -63,7 +63,10 @@ const OAUTH_LABEL = 'Discord';
 const BIRTH_DATE_KEY = 'paragon.birth-date';
 
 /** The placeholder terms. A real document at a real URL, from the first signup. */
-export const TERMS_URL = `${import.meta.env.BASE_URL}terms.html`;
+const SESSION_LAPSED =
+  "Your sign-in couldn't be confirmed. Check your connection and try again; if it keeps happening, sign out and back in.";
+
+export const TERMS_URL =`${import.meta.env.BASE_URL}terms.html`;
 
 function storedBirthDate(): string | null {
   try {
@@ -269,6 +272,16 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
 
     setBusy(true);
     setMessage('');
+    // A phone that suspended this tab (to copy the friend code out of the game)
+    // can come back unable to refresh its token, and supabase-js then sends the
+    // insert with the anon key, which the owner-only policy refuses as a raw
+    // RLS violation. Refreshing first means the insert carries a live token or
+    // is not sent; a revoked refresh token signs out, which shows sign-in.
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error || !refreshed.data.session) {
+      setBusy(false);
+      return setMessage(SESSION_LAPSED);
+    }
     const { error } = await supabase.from('profiles').insert({
       id: user.id,
       display_name: displayName.trim(),
@@ -279,11 +292,14 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
     setBusy(false);
     if (error) {
       // 23505 is a unique violation, and display_name is the only unique column
-      // anyone can collide with here.
+      // anyone can collide with here. 42501 is the policy refusing a request
+      // that arrived without this user's token.
       setMessage(
         error.code === '23505'
           ? 'That display name is taken. Choose another.'
-          : error.message,
+          : error.code === '42501'
+            ? SESSION_LAPSED
+            : error.message,
       );
       return;
     }

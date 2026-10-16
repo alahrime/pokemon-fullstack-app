@@ -30,6 +30,8 @@ interface HarnessOptions {
   session?: Session | null;
   /** What `profiles` returns for this user: a row, or null for "no profile". */
   profile?: { display_name: string; go_username: string } | null;
+  /** Forced error from refreshing the session before the profile insert. */
+  refreshError?: { message: string } | null;
   /** Forced error from the profile insert. */
   insertError?: { code?: string; message: string } | null;
   /** What `friend_codes` holds for this user; null for "none on file". */
@@ -41,6 +43,7 @@ interface HarnessOptions {
 function fakeClient({
   session = null,
   profile = null,
+  refreshError = null,
   insertError = null,
   friendCode = null,
   codeError = null,
@@ -52,6 +55,9 @@ function fakeClient({
     signInWithPassword: vi.fn(async (_args: unknown) => ({ data: { session }, error: null })),
     signInWithOAuth: vi.fn(async (_args: unknown) => ({ data: { url: 'https://discord/auth' }, error: null })),
     signOut: vi.fn(async () => ({ error: null })),
+    refreshSession: vi.fn(async () =>
+      refreshError ? { data: { session: null }, error: refreshError } : { data: { session }, error: null },
+    ),
   };
   const insert = vi.fn(async (_row: unknown) => ({ error: insertError }));
   const table = {
@@ -509,6 +515,28 @@ describe('an account with no profile yet', () => {
     await completeIt(container);
     expect(text(container)).toMatch(/taken/i);
     expect(text(container)).not.toMatch(/duplicate key/i);
+  });
+
+  /**
+   * A phone that suspends the tab (to copy the friend code out of the game) can
+   * come back with a token it cannot refresh, and supabase-js then sends the
+   * insert with the anon key: Postgres answers with a raw RLS violation. The
+   * screen refreshes first and says what to do instead.
+   */
+  it('does not insert with a session it could not refresh', async () => {
+    const { container, insert } = await ready({ refreshError: { message: 'Failed to fetch' } });
+    await completeIt(container);
+    expect(insert).not.toHaveBeenCalled();
+    expect(text(container)).toMatch(/sign-in/i);
+  });
+
+  it('explains an RLS refusal instead of showing a database error', async () => {
+    const { container } = await ready({
+      insertError: { code: '42501', message: 'new row violates row-level security policy for table "profiles"' },
+    });
+    await completeIt(container);
+    expect(text(container)).not.toMatch(/row-level security/i);
+    expect(text(container)).toMatch(/sign out and back in/i);
   });
 });
 

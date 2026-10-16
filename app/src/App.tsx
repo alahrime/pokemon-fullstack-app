@@ -8,6 +8,7 @@ import { ChatDockRequestProvider } from './state/ChatDockContext';
 import { ThemeMenu } from './components/ThemeMenu';
 import { NotificationBell } from './components/NotificationBell';
 import { NotificationsProvider } from './state/NotificationsContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/Toaster';
 import { HudGround } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
@@ -235,7 +236,16 @@ function Shell() {
             key={state.screen}
             className={`screen-enter relative z-[2] min-w-0 ${wide ? 'max-w-none p-0' : ''}`}
           >
-            <Screens />
+            {/* Inside the keyed div, so going to another screen clears it. */}
+            <ErrorBoundary fallback={(e, reset) => (
+              <div className="panel" role="alert">
+                <div className="hud-label">This screen hit an error</div>
+                <p className="text-muted">Pick another screen above, or try this one again. ({e.message})</p>
+                <button type="button" className="btn" onClick={reset}>Try again</button>
+              </div>
+            )}>
+              <Screens />
+            </ErrorBoundary>
           </div>
         </div>
         <SiteFooter />
@@ -263,7 +273,15 @@ export default function App() {
           <NotificationsProvider>
             <AppStateProvider>
               <ChatDockRequestProvider>
-                <Shell />
+                <ErrorBoundary fallback={(e) => (
+                  <div className="panel" role="alert" style={{ margin: '2rem auto', maxWidth: '32rem' }}>
+                    <div className="hud-label">Something went wrong</div>
+                    <p className="text-muted">{e.message}</p>
+                    <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>Reload</button>
+                  </div>
+                )}>
+                  <Shell />
+                </ErrorBoundary>
               </ChatDockRequestProvider>
             </AppStateProvider>
           </NotificationsProvider>

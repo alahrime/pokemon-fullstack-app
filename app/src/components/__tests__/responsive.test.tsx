@@ -242,3 +242,17 @@ describe('what scrolls instead of stacking', () => {
     }
   });
 });
+
+describe('overlays scroll as one piece on a phone', () => {
+  // A fixed overlay that only scrolled an inner box let phone swipes scroll the page behind it instead, so the
+  // bottom of the challenge team picker (and Accept) could not be reached.
+  const block = (sel: string) => components.slice(components.indexOf(`${sel} {`), components.indexOf('}', components.indexOf(`${sel} {`)));
+  it('the sheet backdrop is the scroll container, the sheet is not', () => {
+    expect(block('.challenge-sheet-backdrop')).toMatch(/overflow-y:\s*auto/);
+    expect(block('.challenge-sheet-backdrop')).toMatch(/overscroll-behavior:\s*contain/);
+    expect(block('.challenge-sheet')).not.toMatch(/overflow-y|max-height/);
+  });
+  it('locks the page behind an open sheet or modal', () => {
+    expect(components).toMatch(/:root:has\(\.challenge-sheet-backdrop, \.modal-scrim\) \{ overflow: hidden; \}/);
+  });
+});

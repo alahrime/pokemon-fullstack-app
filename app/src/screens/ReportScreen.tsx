@@ -29,6 +29,8 @@ import { VizTabs } from '../components/VizTabs';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { Switch } from '../components/Switch';
 import { SpeciesHero } from '../components/SpeciesHero';
+import { Sprite } from '../components/Sprite';
+import { TypeBadge } from '../components/TypeBadge';
 import { HeatmapKey, HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
@@ -46,7 +48,7 @@ const OPPONENT_WINDOW = 16;
 /** Storage key for the right column's panel order. */
 const REPORT_BOARD = 'report-analysis';
 
-export function ReportScreen() {
+function FullReport() {
   const { state, set, patch, bumpIv } = useAppState();
   const { league, species: speciesId, shadow, bestBuddy, chargeIds, iv, viz, colorBy, oppId, moveIdx } = state;
 
@@ -223,6 +225,7 @@ export function ReportScreen() {
         <div className="report-search-bar">
           <SpeciesSearch
             id="report-species-pinned"
+            includeShowcase
             value={speciesId}
             onChange={(id) => {
               // Rendered now, so the new species' card is the one measured below.
@@ -427,6 +430,7 @@ export function ReportScreen() {
             </span>
             <SpeciesSearch
               id="report-species"
+            includeShowcase
               value={speciesId}
               onChange={(id) =>
                 // chargeIds must clear with the species. Held across a change
@@ -550,5 +554,60 @@ export function ReportScreen() {
       </p>
       </div>
     </>
+  );
+}
+
+/**
+ * The Report. A showcase-only species (Shedinja, which GO bars from Trainer Battles) gets a card and a notice
+ * instead: it has no league, so ranks, matchups and breakpoints would describe battles it cannot be in. Keyed on the
+ * species so switching between the two remounts rather than changing which hooks run.
+ */
+export function ReportScreen() {
+  const { state } = useAppState();
+  const showcase = !!SPECIES_BY_ID.get(state.species)?.showcaseOnly;
+  return showcase ? <ShowcaseReport key={state.species} /> : <FullReport key="full" />;
+}
+
+function ShowcaseReport() {
+  const { state, patch } = useAppState();
+  const species = SPECIES_BY_ID.get(state.species)!;
+  const pick = (id: string) => patch({ species: id, moveIdx: 0, chargeIds: [] });
+  const search = (id: string) => (
+    <SpeciesSearch id={id} value={species.id} includeShowcase onChange={pick} placeholder="Search a Pokémon…" className="report-search" />
+  );
+  return (
+    <div
+      className="report-frame"
+      style={{
+        ['--t1' as string]: `var(--type-${species.types[0]})`,
+        ['--t2' as string]: `var(--type-${species.types[1] ?? species.types[0]})`,
+      }}
+    >
+      <span className="report-wash" aria-hidden="true" />
+      <div className="report-search-bar">{search('report-species-pinned')}</div>
+      <section className="panel showcase-report" aria-label={species.name}>
+        <div className="showcase-report-search">{search('report-species')}</div>
+        <div className="showcase-report-id">
+          <Sprite sprite={species.sprite} dex={species.dex} size={120} />
+          <div>
+            <h2 className="hero-name">{species.name}</h2>
+            <div className="hero-types">{species.types.map((t) => <TypeBadge key={t} type={t} />)}</div>
+            <p className="numeric text-muted">
+              #{species.dex} · Atk {species.atk} · Def {species.def} · HP {species.hp}
+            </p>
+          </div>
+        </div>
+        <p className="showcase-report-notice" role="note">
+          {species.name} can&apos;t be used in Trainer Battles or GO Battle League right now, so there are no league
+          ranks or matchups for it.
+        </p>
+        <div className="hud-label">Moves</div>
+        <ul className="showcase-report-moves">
+          {[...species.fastMoves, ...species.chargeMoves].map((m) => (
+            <li key={m.id}><TypeBadge type={m.type} /> <span>{m.name}</span></li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }

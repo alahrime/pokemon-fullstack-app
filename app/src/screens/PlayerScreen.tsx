@@ -79,7 +79,7 @@ function FavoritePicker({ taken, onPick, onClose }: { taken: readonly string[]; 
         </div>
         <div className="modal-body">
           <div className="modal-search">
-            <SpeciesSearch id="favorite-species" value="" startEmpty placeholder="Search any Pokémon…"
+            <SpeciesSearch id="favorite-species" value="" startEmpty includeShowcase placeholder="Search any Pokémon…"
               onChange={(ref) => { if (ref && !taken.includes(ref)) onPick(ref); onClose(); }} />
           </div>
         </div>

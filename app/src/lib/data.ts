@@ -187,9 +187,17 @@ export function teamIsLegal(refs: readonly string[]): boolean {
  */
 export const UNSIMULATED_IDS: ReadonlySet<string> = new Set<string>([]);
 
-/** False for a ref whose species the engine cannot model. Shadow-aware. */
+/**
+ * Species GO bars from Trainer Battles (Shedinja), in the data only to be shown: a profile favourite, a Report card
+ * with a notice. Held out of every picker and pool through `isSimulated`, like UNSIMULATED_IDS, but searchable
+ * where a search opts in (`SpeciesSearch includeShowcase`) and never named in the held-out note.
+ */
+export const SHOWCASE_IDS: ReadonlySet<string> = new Set(SPECIES.filter((s) => s.showcaseOnly).map((s) => s.id));
+
+/** False for a ref whose species the engine cannot model, or that GO bars from battle. Shadow-aware. */
 export function isSimulated(ref: string): boolean {
-  return !UNSIMULATED_IDS.has(parseRef(ref).id);
+  const id = parseRef(ref).id;
+  return !UNSIMULATED_IDS.has(id) && !SHOWCASE_IDS.has(id);
 }
 
 /**
@@ -261,6 +269,9 @@ export const ROSTER: RosterEntry[] = SPECIES.filter((s) => isSimulated(s.id)).fl
 });
 
 export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
+
+/** The showcase-only species as search rows, for the searches that offer them. */
+export const SHOWCASE_ROSTER: RosterEntry[] = SPECIES.filter((s) => s.showcaseOnly).map((s) => ({ ref: s.id, species: s, shadow: false, name: s.name }));
 
 /**
  * Forms that exist only in Pokemon GO, which the primary source has no artwork

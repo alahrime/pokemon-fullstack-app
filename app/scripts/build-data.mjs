@@ -310,7 +310,11 @@ function formsOf(p) {
 
 // ── build ──────────────────────────────────────────────────────────────────
 // Costume Pikachus (Libre, Pop Star, …) are dropped outright at the user's request: only the base form is kept.
-const released = pokemon.filter((p) => p.released && !/^pikachu_/.test(p.speciesId));
+// Species PvPoke leaves unreleased because GO bars them from Trainer Battles, kept anyway so they can be shown
+// (a profile favourite, a Report card with a notice). They join no league: membership is presence in a league's
+// rankings, which they never have, and the app holds them out of every picker and pool by `showcaseOnly`.
+const SHOWCASE_ONLY = new Set(['shedinja']);
+const released = pokemon.filter((p) => (p.released || SHOWCASE_ONLY.has(p.speciesId)) && !/^pikachu_/.test(p.speciesId));
 const shadowIds = new Set(released.filter((p) => (p.tags ?? []).includes('shadow')).map((p) => p.speciesId));
 const bases = released.filter((p) => !(p.tags ?? []).includes('shadow'));
 
@@ -449,6 +453,7 @@ for (const p of bases) {
     leagueRank,
     shadowLeagueRank: shadowRank,
     ...(formRule(p.formChange) ? { forms: formsOf(p) } : {}),
+    ...(SHOWCASE_ONLY.has(p.speciesId) ? { showcaseOnly: true } : {}),
   });
 }
 

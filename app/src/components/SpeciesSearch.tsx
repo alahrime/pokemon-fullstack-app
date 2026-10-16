@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import {
   BASE_ROSTER,
   ROSTER,
+  SHOWCASE_ROSTER,
   SPECIES,
   SPECIES_BY_ID,
   UNSIMULATED_IDS,
@@ -94,6 +95,7 @@ export function SpeciesSearch({
   style,
   /** Include Shadow variants as their own rows (battle screen picks sides). */
   includeShadow = false,
+  includeShowcase = false,
   /**
    * Limit selectable refs. The team builders pass their league's candidate
    * pool: offering Zacian in Great is not a filter preference, it is an answer
@@ -131,11 +133,16 @@ export function SpeciesSearch({
   style?: CSSProperties;
   className?: string;
   includeShadow?: boolean;
+  /** Also offer the showcase-only species (Shedinja): the Report and profile favourites, never a team. */
+  includeShowcase?: boolean;
   restrictTo?: ReadonlySet<string>;
   startEmpty?: boolean;
   listHeight?: number;
 }) {
-  const base = includeShadow ? ROSTER : BASE_ROSTER;
+  const base = useMemo(
+    () => [...(includeShadow ? ROSTER : BASE_ROSTER), ...(includeShowcase ? SHOWCASE_ROSTER : [])],
+    [includeShadow, includeShowcase],
+  );
   const pool = useMemo(
     () => (restrictTo ? base.filter((r) => restrictTo.has(r.ref)) : base),
     [base, restrictTo],

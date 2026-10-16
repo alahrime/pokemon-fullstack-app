@@ -457,6 +457,20 @@ input[type='range'] { accent-color: var(--color-accent); }
 .report-side > .hero { margin-bottom: var(--space-1); }
 .side-block { min-width: 0; }
 
+/* — a showcase-only species (Shedinja): a card and a notice in place of the report — */
+.showcase-report { display: grid; gap: var(--space-3); max-width: 44rem; }
+.showcase-report-id { display: flex; align-items: center; gap: var(--space-4); }
+.showcase-report-id .hero-name { margin: 0; }
+.showcase-report-notice {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: var(--border-strong) solid var(--color-accent-2-700);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.showcase-report-moves { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.showcase-report-moves li { display: inline-flex; align-items: center; gap: var(--space-1); }
+
 /* — one roll in every league — */
 .league-verdicts { display: grid; gap: var(--space-1); }
 .league-verdict {
@@ -1872,6 +1886,7 @@ textarea.input { min-height: 90px; resize: vertical; }
   }
   .report-search-bar .report-search { margin: 0; }
   .rs-split .report-search { display: none; }
+  .showcase-report-search { display: none; }
 }
 .report-search {
   flex: 0 1 620px;

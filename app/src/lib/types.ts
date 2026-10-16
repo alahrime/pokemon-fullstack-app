@@ -67,6 +67,8 @@ export interface Species {
    */
   leagueMoves?: Partial<Record<LeagueId, { fast: FastMove; charge: ChargeMove; charge2: ChargeMove | null }>>;
   leagues: string[];
+  /** GO bars it from Trainer Battles (Shedinja): kept only to be shown, held out of every picker and pool. */
+  showcaseOnly?: true;
   /** Leagues this form's Shadow qualifies for — tracked apart from `leagues`
    *  because a Shadow's shifted stats make it a distinct opponent. */
   shadowLeagues: string[];

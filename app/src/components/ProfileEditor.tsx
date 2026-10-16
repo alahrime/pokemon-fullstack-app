@@ -138,7 +138,7 @@ export function ProfileEditor({ id, profile, onSaved, onClose }: {
             </ol>
             {draft.favoritePokemon.length < FAVORITES && (
               <div className="modal-search">
-                <SpeciesSearch id="profile-favorite" value="" startEmpty onChange={addFavorite} placeholder="Add a favourite…" />
+                <SpeciesSearch id="profile-favorite" value="" startEmpty includeShowcase onChange={addFavorite} placeholder="Add a favourite…" />
               </div>
             )}
           </section>

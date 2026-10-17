@@ -32,7 +32,17 @@ export function hashForView(screen: Screen, tournamentId: string | null, playerI
   return screen === 'tournaments' && tournamentId ? hashForTournament(tournamentId) : hashFor(screen);
 }
 
+/**
+ * Supabase's return trip: a Discord sign-in or an email link comes back to the
+ * bare origin with the result in the hash (`#access_token=…` or `#error=…`).
+ * It belongs on Account, the only screen that reads a failure or asks a new
+ * provider account for its profile, and it is not ours to rewrite until
+ * supabase-js and `lib/oauthError` have read it.
+ */
+export const isAuthCallback = (hash: string): boolean => /^#(.*&)?(access_token|error|error_description)=/.test(hash);
+
 export function screenFromHash(hash: string): Screen {
+  if (isAuthCallback(hash)) return 'account';
   if (tournamentIdFromHash(hash)) return 'tournaments';
   if (playerIdFromHash(hash)) return 'player';
   const m = /^#\/([a-z]+)\/([a-z0-9]+)$/.exec(hash);

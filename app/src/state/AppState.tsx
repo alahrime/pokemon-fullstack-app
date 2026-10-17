@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
 import { defaultSpreadFor } from '../lib/engine';
 import type { Match } from '../lib/matches';
-import { hashForView, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
+import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
 export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
@@ -197,20 +197,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   // State → URL. An empty hash is the landing page, so a fresh visit writes
   // nothing and adds no history entry.
+  const wanted = useRef('#/');
   useEffect(() => {
     const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId);
+    wanted.current = want;
     const have = window.location.hash || '#/';
     if (have === want) return;
-    // An unknown route or an auth callback (#access_token...) is not ours to
-    // keep: replace it so Back does not land on it again. replaceState fires no
-    // hashchange, and state already says `want`, so nothing else to sync.
+    // An auth callback is left for its readers, which clear it themselves;
+    // replacing it here wiped a Discord error before the screen could show it.
+    if (isAuthCallback(have)) return;
+    // An unknown route is not ours to keep: replace it so Back does not land on
+    // it again. replaceState fires no hashchange, and state already says
+    // `want`, so nothing else to sync.
     if (hashForView(screenFromHash(have), tournamentIdFromHash(have), playerIdFromHash(have)) !== have) history.replaceState(null, '', want);
     else window.location.hash = want;
   }, [state.screen, state.activeTournamentId, state.activePlayerId]);
 
   // URL → state, for back/forward and hand-edited addresses.
   useEffect(() => {
-    const onHash = () => {
+    const onHash = (e: HashChangeEvent) => {
+      // supabase-js clears a token it has read with `location.hash = ''`, which
+      // is a hashchange to nowhere: followed, it sent every Discord sign-in to
+      // landing instead of the Account screen the callback opened.
+      if (isAuthCallback(e.oldURL.slice(e.oldURL.indexOf('#')))) {
+        history.replaceState(null, '', wanted.current);
+        return;
+      }
       const next = screenFromHash(window.location.hash);
       const nextId = tournamentIdFromHash(window.location.hash);
       const nextPlayer = playerIdFromHash(window.location.hash);

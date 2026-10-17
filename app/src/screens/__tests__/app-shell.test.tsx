@@ -31,6 +31,20 @@ describe('App shell', () => {
     expect(history.length).toBe(before);
   });
 
+  it('a Discord callback opens Account and stays there when supabase-js clears the token', async () => {
+    window.location.hash = '#access_token=a&refresh_token=b&expires_in=3600&token_type=bearer';
+    const { container } = renderApp(<App />);
+    await waitFor(() => expect(container.querySelector('h1,h2')?.textContent).toBe('Account'));
+    // What supabase-js does once it has read the token: a hashchange to nothing.
+    const oldURL = window.location.href;
+    act(() => {
+      window.location.hash = '';
+      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL, newURL: window.location.href }));
+    });
+    expect(window.location.hash).toBe('#/account');
+    expect(container.querySelector('h1,h2')?.textContent).toBe('Account');
+  });
+
   it('the Tournaments rail item always lands on Browse, even from an open tournament', async () => {
     window.location.hash = '#/play/tournaments/3f2b8a10-5c4d-4e6f-9a1b-0c2d3e4f5a6b';
     const { container } = renderApp(<App />);

@@ -12,6 +12,7 @@ import { getProfile, type Profile } from '../lib/profile';
 import { challengeFormatLabel } from '../lib/challenges';
 import { useSession } from '../state/SessionContext';
 import { useAppState } from '../state/AppState';
+import { holdMatchPresence } from '../lib/presence';
 
 /** A best-of-N ends the moment one side reaches this many wins, not before. */
 const needed = (bestOf: number) => Math.floor(bestOf / 2) + 1;
@@ -92,6 +93,9 @@ export function MatchScreen({ match, onChanged }: { match: Match; onChanged: () 
   // The state actually rendered from. Seeded from the `match` prop, but not
   // trusted to stay current on its own — see the effect below.
   const [liveState, setLiveState] = useState<MatchState>(match.state);
+  // Friends see "in a match" while this is open and still being played or reported.
+  const playing = liveState === 'paired' || liveState === 'reported' || liveState === 'mismatch';
+  useEffect(() => (playing ? holdMatchPresence() : undefined), [playing]);
   // `reported` means ONE side has reported; which one decides whether this player is waiting or being waited on.
   const [iReported, setIReported] = useState(false);
   const [codes, setCodes] = useState<{ mine: string | null; theirs: string | null } | undefined>(undefined);

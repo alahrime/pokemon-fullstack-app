@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useSession } from './SessionContext';
 import { isChannelUnread, listChannelsWithActivity, withDisplayNames, type ChannelDisplay } from '../lib/channels';
 import { subscribeToTables } from '../lib/realtime';
+import { joinPresence } from '../lib/presence';
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -52,8 +53,10 @@ export function ChannelListProvider({ children }: { children: ReactNode }) {
     }
     refresh();
     const stop = subscribeToTables(['messages'], refresh);
+    // Presence rides along with the list: both live exactly as long as a session does.
+    const leave = joinPresence(user.id);
     const id = setInterval(refresh, POLL_MS);
-    return () => { stop(); clearInterval(id); };
+    return () => { stop(); leave(); clearInterval(id); };
   }, [user, refresh]);
 
   // Optimistic local bumps so a pane's own traffic moves the rail before the
@@ -61,13 +64,19 @@ export function ChannelListProvider({ children }: { children: ReactNode }) {
   const bumpActivity = useCallback((id: string, at: string, preview?: { body: string; authorId: string }) => {
     setChannels((prev) =>
       prev
-        ? prev.map((c) => (c.id === id && (!c.lastMessageAt || at > c.lastMessageAt) ? { ...c, lastMessageAt: at, lastPreview: preview ?? null } : c))
+        // Every bump counts as unread until a `bumpRead` covers it — a pane's own send and an open pane's receipt both
+        // follow with one at once; the next refresh recounts from the server either way.
+        ? prev.map((c) => (c.id === id && (!c.lastMessageAt || at > c.lastMessageAt) ? { ...c, lastMessageAt: at, lastPreview: preview ?? null, unreadCount: (c.unreadCount ?? 0) + 1 } : c))
         : prev,
     );
   }, []);
   const bumpRead = useCallback((id: string, at: string) => {
     setChannels((prev) =>
-      prev ? prev.map((c) => (c.id === id && (!c.lastReadAt || at > c.lastReadAt) ? { ...c, lastReadAt: at } : c)) : prev,
+      prev
+        ? prev.map((c) => (c.id === id && (!c.lastReadAt || at > c.lastReadAt)
+          ? { ...c, lastReadAt: at, unreadCount: c.lastMessageAt && c.lastMessageAt > at ? c.unreadCount : 0 }
+          : c))
+        : prev,
     );
   }, []);
 

@@ -14,6 +14,8 @@ import {
   reportMessage,
   sendMessage,
   subscribeToChannel,
+  joinSignals,
+  othersLastReadAt,
   type ChannelDisplay,
   type Message,
 } from '../lib/channels';
@@ -78,6 +80,28 @@ export function layoutMessages(messages: readonly Message[], me: string | undefi
     if (unread) dividerPlaced = true;
     return { m, newDay, unread, first: newDay || unread || !joins(prev, m), last: !joins(m, next) };
   });
+}
+
+/** How long a typing ping keeps "is typing…" up, and how often the composer re-sends one while you type. */
+export const TYPING_TTL_MS = 4000;
+const TYPING_EVERY_MS = 2000;
+
+/** The typing line for whoever is typing now, or null. */
+export function typingLine(names: readonly string[]): string | null {
+  if (names.length === 0) return null;
+  if (names.length === 1) return `${names[0]} is typing…`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
+  return 'Several people are typing…';
+}
+
+/**
+ * The message "Seen" goes under: your own last message, when it is the last
+ * in the conversation and the other member's read mark covers it. Null otherwise.
+ */
+export function seenMessageId(messages: readonly Message[], me: string | undefined, otherReadAt: string | null): string | null {
+  const last = messages[messages.length - 1];
+  if (!last || !me || !otherReadAt || last.authorId !== me || last.deletedAt) return null;
+  return otherReadAt >= last.createdAt ? last.id : null;
 }
 
 function kindLabel(kind: ChannelDisplay['kind']): string {
@@ -191,6 +215,49 @@ export function ChatPane({
     }
   }
   const [sendError, setSendError] = useState<string | null>(null);
+  // Who is typing (id → when their last ping lands stale), and the other DM member's read mark.
+  const [typing, setTyping] = useState<ReadonlyMap<string, number>>(new Map());
+  const [otherReadAt, setOtherReadAt] = useState<string | null>(null);
+  const signals = useRef<ReturnType<typeof joinSignals> | null>(null);
+  const lastTypingSent = useRef(0);
+  const me = user?.id;
+  useEffect(() => {
+    if (!me) return;
+    let live = true;
+    const dm = channel.kind === 'dm';
+    const refreshSeen = () => {
+      if (dm) othersLastReadAt(channel.id).then((t) => live && setOtherReadAt(t)).catch(() => {});
+    };
+    refreshSeen();
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const sig = joinSignals(channel.id, me, (signal, userId) => {
+      if (signal === 'read') return refreshSeen();
+      const until = Date.now() + TYPING_TTL_MS;
+      setTyping((prev) => new Map(prev).set(userId, until));
+      const t = setTimeout(() => {
+        timers.delete(t);
+        setTyping((prev) => {
+          if ((prev.get(userId) ?? 0) > Date.now()) return prev;
+          const next = new Map(prev);
+          next.delete(userId);
+          return next;
+        });
+      }, TYPING_TTL_MS);
+      timers.add(t);
+    });
+    signals.current = sig;
+    return () => {
+      live = false;
+      for (const t of timers) clearTimeout(t);
+      sig.leave();
+      if (signals.current === sig) signals.current = null;
+    };
+  }, [channel.id, channel.kind, me]);
+  // Marks the channel read, tells the list, and pings the other side so their "Seen" refreshes.
+  const readNow = () => void markRead(channel.id).then(() => {
+    onRead(channel.id, new Date().toISOString());
+    signals.current?.send('read');
+  });
   // Newest message in view: on open, and whenever one arrives or is sent.
   const endRef = useRef<HTMLLIElement>(null);
   const logRef = useRef<HTMLUListElement>(null);
@@ -235,7 +302,7 @@ export function ChatPane({
   const wasMinimized = useRef(minimized);
   useEffect(() => {
     if (wasMinimized.current && !minimized) {
-      void markRead(channel.id).then(() => onRead(channel.id, new Date().toISOString()));
+      readNow();
     }
     wasMinimized.current = minimized;
     // `onRead` is a fresh closure from `ChatDock` every render; only the pane
@@ -259,10 +326,19 @@ export function ChatPane({
       })
       .finally(() => live && setLoaded(true));
     void markRead(channel.id).then(() => {
-      if (live) onRead(channel.id, new Date().toISOString());
+      if (!live) return;
+      onRead(channel.id, new Date().toISOString());
+      signals.current?.send('read');
     });
     const stop = subscribeToChannel(channel.id, (m) => {
       if (!live) return;
+      // A message from someone ends their typing line; one from you means they may have read up to it.
+      setTyping((prev) => {
+        if (!prev.has(m.authorId)) return prev;
+        const next = new Map(prev);
+        next.delete(m.authorId);
+        return next;
+      });
       setMessages((prev) => {
         if (prev.some((x) => x.id === m.id)) return prev;
         onActivity(channel.id, m.createdAt, { body: m.body, authorId: m.authorId });
@@ -274,7 +350,7 @@ export function ChatPane({
           // resolve leaves the channel "unread" for a network round trip, and
           // the notification toaster would announce a message being read.
           onRead(channel.id, m.createdAt);
-          void markRead(channel.id).then(() => onRead(channel.id, new Date().toISOString()));
+          readNow();
         }
         return [...prev, m];
       });
@@ -303,7 +379,8 @@ export function ChatPane({
       // without this, sending bumps `lastMessageAt` past whatever
       // `lastReadAt` this pane last recorded, and the rail would light up a
       // badge for a message you just wrote yourself.
-      void markRead(channel.id).then(() => onRead(channel.id, new Date().toISOString()));
+      readNow();
+      lastTypingSent.current = 0;
       setDraft('');
       setAnnounce(false);
     } catch (e) {
@@ -331,11 +408,13 @@ export function ChatPane({
   }
 
   const label = channel.displayTitle;
+  const seenId = channel.kind === 'dm' ? seenMessageId(messages, me, otherReadAt) : null;
+  const typingNow = typingLine([...typing.keys()].map(authorName));
 
   return (
     <section className={`chat-pane chamfer-9 panel${minimized ? ' is-minimized' : ''}${embedded ? ' is-embedded' : ''}`}>
       <div className="chat-pane-header">
-        {channel.otherId && <TrainerAvatar profile={profiles.get(channel.otherId)} name={label} size={32} />}
+        {channel.otherId && <TrainerAvatar profile={profiles.get(channel.otherId)} name={label} size={32} userId={channel.otherId} />}
         <span className="chat-pane-heading">
           <span className="chat-pane-title">{label}</span>
           <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
@@ -429,6 +508,7 @@ export function ChatPane({
                   {!flat && last && (
                     <time className="chat-message-time text-faint numeric" dateTime={m.createdAt}>{clock(m.createdAt)}</time>
                   )}
+                  {m.id === seenId && <span className="chat-message-seen text-faint">Seen</span>}
                   {mayAnnounce && !m.deletedAt && (
                     <button type="button" className="btn btn-ghost" aria-label={`${pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'} message “${snippetOf(m.body)}”`} onClick={() => void togglePin(m)}>
                       {pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'}
@@ -494,6 +574,8 @@ export function ChatPane({
             })}
             <li ref={endRef} aria-hidden="true" className="chat-end" />
           </ul>
+          {/* Outside the log so a typing ping is not read out as a message; status, so it is announced once. */}
+          <p className="chat-typing text-faint" role="status">{typingNow ?? ''}</p>
           {unseen > 0 && (
             <button type="button" className="btn chamfer-5 chat-jump" onClick={() => { endRef.current?.scrollIntoView?.({ block: 'nearest' }); setUnseen(0); }}>
               {unseen} new {unseen === 1 ? 'message' : 'messages'} ↓
@@ -520,7 +602,13 @@ export function ChatPane({
               className="input"
               aria-label={`Message to ${label}`}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (e.target.value.trim() && Date.now() - lastTypingSent.current > TYPING_EVERY_MS) {
+                  lastTypingSent.current = Date.now();
+                  signals.current?.send('typing');
+                }
+              }}
               // Enter sends, Shift+Enter is a new line.
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); }

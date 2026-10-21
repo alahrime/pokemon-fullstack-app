@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { joinShared } from './realtime';
 
 export type ChannelKind = 'dm' | 'group' | 'match' | 'tournament';
 
@@ -258,6 +259,59 @@ export async function markRead(channelId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * The newest read position among this channel's OTHER members — what a DM's
+ * "Seen" is built from. Fellow members' `channel_members` rows are readable
+ * (see `listChannels`), so this is one query and no new policy.
+ */
+export async function othersLastReadAt(channelId: string): Promise<string | null> {
+  const { data: session } = await supabase.auth.getSession();
+  const me = session.session?.user.id;
+  if (!me) return null;
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select('last_read_at')
+    .eq('channel_id', channelId)
+    .neq('user_id', me);
+  if (error) throw new Error(error.message);
+  const marks = ((data ?? []) as { last_read_at: string | null }[]).map((r) => r.last_read_at).filter((t): t is string => !!t);
+  return marks.length ? marks.reduce((a, b) => (a > b ? a : b)) : null;
+}
+
+export type Signal = 'typing' | 'read';
+
+/**
+ * Typing and "I just read this" pings for one conversation, over Realtime
+ * Broadcast — ephemeral, never stored. A ping only says *that* something
+ * happened; "Seen" still reads the real `last_read_at` when one arrives.
+ * Sending before the join completes is dropped, not queued: a stale typing
+ * ping is worse than none.
+ *
+ * ponytail: the topic is public, so anyone holding the channel uuid could listen; private channels with realtime RLS if that matters.
+ */
+export function joinSignals(channelId: string, me: string, on: (signal: Signal, userId: string) => void): { send: (signal: Signal) => void; leave: () => void } {
+  const { ch, leave } = joinShared(
+    `signals:${channelId}`,
+    (emit) => {
+      const c = supabase.channel(`signals:${channelId}`);
+      for (const event of ['typing', 'read'] as const) {
+        c.on('broadcast', { event }, (msg: { payload?: { user_id?: unknown } }) => emit(event, msg.payload?.user_id));
+      }
+      c.subscribe();
+      return c;
+    },
+    (event, userId) => {
+      if (typeof userId === 'string' && userId !== me) on(event as Signal, userId);
+    },
+  );
+  return {
+    send: (signal) => {
+      if (ch.state === 'joined') void ch.send({ type: 'broadcast', event: signal, payload: { user_id: me } });
+    },
+    leave,
+  };
+}
+
 /** A channel plus the one extra fact the dock's rail needs that `listChannels`
  * does not already carry: when the last message in it landed. */
 export interface ChannelActivity extends Channel {
@@ -265,6 +319,8 @@ export interface ChannelActivity extends Channel {
   lastMessageAt: string | null;
   /** The latest message itself, for the inbox preview; absent when nothing is posted or it was deleted. */
   lastPreview?: { body: string; authorId: string } | null;
+  /** Other people's undeleted messages newer than this viewer's `lastReadAt`; absent when not counted. */
+  unreadCount?: number;
 }
 
 /**
@@ -464,14 +520,22 @@ export async function listChannelsWithActivity(): Promise<ChannelActivity[]> {
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   type Row = { channel_id: string; created_at: string; body?: string; author_id?: string; deleted_at?: string | null };
+  const { data: session } = await supabase.auth.getSession();
+  const me = session.session?.user.id;
+  const readAt = new Map(channels.map((c) => [c.id, c.lastReadAt]));
   const latest = new Map<string, Row>();
+  const unread = new Map<string, number>();
   for (const row of (data ?? []) as Row[]) {
     if (!latest.has(row.channel_id)) latest.set(row.channel_id, row);
+    const mark = readAt.get(row.channel_id);
+    if (row.author_id !== me && !row.deleted_at && (!mark || row.created_at > mark)) {
+      unread.set(row.channel_id, (unread.get(row.channel_id) ?? 0) + 1);
+    }
   }
   return channels.map((c) => {
     const row = latest.get(c.id);
     const lastPreview = row && row.body != null && row.author_id && !row.deleted_at ? { body: row.body, authorId: row.author_id } : null;
-    return { ...c, lastMessageAt: row?.created_at ?? null, lastPreview };
+    return { ...c, lastMessageAt: row?.created_at ?? null, lastPreview, unreadCount: unread.get(c.id) ?? 0 };
   });
 }
 

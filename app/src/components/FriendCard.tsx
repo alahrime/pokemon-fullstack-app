@@ -37,7 +37,7 @@ export function FriendCard({
   return (
     <article className="friend-card panel" aria-label={name}>
       <header className="friend-card-head">
-        <TrainerAvatar profile={profile} name={name} size={80} />
+        <TrainerAvatar profile={profile} name={name} size={80} userId={id} />
         <div className="friend-card-id">
           <button type="button" className="btn btn-ghost friend-card-name" aria-label={`View ${name}'s profile`} onClick={onOpenProfile}>
             {name}

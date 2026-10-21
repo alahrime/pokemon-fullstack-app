@@ -33,5 +33,11 @@ export function subLine(c: ChannelDisplay): string {
  * otherwise expose to a screen reader's rotor).
  */
 export function railAriaLabel(c: ChannelDisplay, unread: boolean): string {
-  return `Open chat with ${c.displayTitle}${unread ? ', 1 unread' : ''}`;
+  const n = c.unreadCount ?? 0;
+  return `Open chat with ${c.displayTitle}${unread ? `, ${n > 0 ? capCount(n) : 1} unread` : ''}`;
+}
+
+/** An unread count as a badge shows it: exact up to 99, then "99+". */
+export function capCount(n: number): string {
+  return n > 99 ? '99+' : String(n);
 }

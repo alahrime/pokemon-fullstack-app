@@ -6,7 +6,8 @@ import '@testing-library/jest-dom/vitest';
  * pointed at a fake URL. Stubbed to a no-op here; `realtime.test.ts` tests the real one and the provider tests
  * override this to fire changes by hand.
  */
-vi.mock('../lib/realtime', () => ({ subscribeToTables: () => () => {} }));
+// Shared channels never join in tests: no presence dots, no typing pings, unless a test wires its own.
+vi.mock('../lib/realtime', () => ({ subscribeToTables: () => () => {}, joinShared: () => ({ ch: { state: 'closed', presenceState: () => ({}) }, leave: () => {} }) }));
 
 /**
  * jsdom does not implement layout, so anything that measures returns zeros.

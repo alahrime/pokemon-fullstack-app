@@ -20,6 +20,7 @@ vi.mock('../ChannelListContext', () => ({ useChannelList: () => ({ channels }) }
 vi.mock('../AppState', () => ({ useAppState: () => ({ patch }) }));
 const live: { tables: readonly string[]; fire: () => void }[] = [];
 vi.mock('../../lib/realtime', () => ({
+  joinShared: () => ({ ch: { state: 'closed', presenceState: () => ({}) }, leave: () => {} }),
   subscribeToTables: (tables: readonly string[], fire: () => void) => { live.push({ tables, fire }); return () => {}; },
 }));
 vi.mock('../ChatDockContext', () => ({ useChatDockRequest: () => ({ requestChannel: vi.fn() }) }));

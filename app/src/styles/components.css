@@ -6308,6 +6308,17 @@ th.bt-matrix-head { text-align: center; }
   text-transform: uppercase;
   color: var(--color-accent);
 }
+/* A count reads as the dock header's badge does. */
+.chat-rail-unread-tag.is-count {
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-radius: 999px;
+  padding: 0 6px;
+  min-width: 1.4em;
+  text-align: center;
+}
 /* A pane sits above the rail's own header height so neither obscures the
    other when both are visible at once. */
 .chat-pane {
@@ -7024,9 +7035,11 @@ th.bt-matrix-head { text-align: center; }
 
 /* Limited-cup dropdown beside the league tabs. */
 .cup-select { width: min(280px, 100%); }
-.chat-message.is-own { border-inline-start: 2px solid var(--color-accent); }
 .chat-message-time { font-size: var(--text-xs, 11px); }
 .chat-end { list-style: none; height: 0; }
+.chat-message-seen { font-size: var(--text-xs, 11px); }
+/* A line kept even when empty, so someone starting to type never shoves the composer. */
+.chat-typing { margin: 0; line-height: 1.5; min-height: 1.5em; padding: 0 var(--space-3); font-size: var(--text-xs); font-style: italic; }
 
 /* Chat, from the reader's side: yours sit right in the theme accent, theirs sit left in a neutral slate, so who
    said what reads before a word does. The theme accent is the one colour every theme guarantees against its
@@ -7489,6 +7502,18 @@ th.bt-matrix-head { text-align: center; }
 /* Below 40px the 80px sprite is drawn 1:1 and cropped to the head (see TrainerAvatar). */
 .trainer-avatar[data-crop] img { width: 80px; height: 80px; flex: none; object-fit: none; object-position: 50% 14%; }
 .trainer-avatar-initial { font-family: var(--font-heading); font-weight: 800; color: var(--text-muted); }
+/* Presence: 8px with a 2px ring, inset by the ring so the avatar's overflow clip keeps all of it. No dot = unknown. Never animated. */
+.presence-dot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-2);
+  box-shadow: 0 0 0 2px var(--surface-2);
+}
+.presence-dot[data-status='match'] { background: var(--color-accent); }
 .mini-team { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
 .mini-team > li { display: grid; place-items: center; background: var(--surface-3); overflow: hidden; }
 /* HOME renders carry ~12% transparent padding; scale it off so a 40px tile shows a 40px Pokémon. */

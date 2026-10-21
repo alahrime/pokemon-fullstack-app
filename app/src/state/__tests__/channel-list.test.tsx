@@ -13,6 +13,7 @@ vi.mock('../../lib/channels', async () => ({
 vi.mock('../SessionContext', () => ({ useSession: () => ({ user }) }));
 const live = { tables: [] as readonly string[], fire: () => {}, stop: vi.fn() };
 vi.mock('../../lib/realtime', () => ({
+  joinShared: () => ({ ch: { state: 'closed', presenceState: () => ({}) }, leave: () => {} }),
   subscribeToTables: (tables: readonly string[], cb: () => void) => { live.tables = tables; live.fire = cb; return live.stop; },
 }));
 
@@ -98,6 +99,17 @@ describe('ChannelListProvider', () => {
     expect(cur().channels![0].lastReadAt).toBe('2026-01-05');
     await act(async () => cur().bumpRead('a', '2026-01-08'));
     expect(cur().channels![0].lastReadAt).toBe('2026-01-08');
+  });
+
+  it('a bump adds one to the unread count; a read covering the newest message clears it, one short of it does not', async () => {
+    list.mockResolvedValue([ch('a', { lastMessageAt: '2026-01-05', lastReadAt: '2026-01-01', unreadCount: 2 })]);
+    await mount();
+    await act(async () => cur().bumpActivity('a', '2026-01-09'));
+    expect(cur().channels![0].unreadCount).toBe(3);
+    await act(async () => cur().bumpRead('a', '2026-01-08'));
+    expect(cur().channels![0].unreadCount).toBe(3);
+    await act(async () => cur().bumpRead('a', '2026-01-09'));
+    expect(cur().channels![0].unreadCount).toBe(0);
   });
 
   it('clears the interval on unmount', async () => {

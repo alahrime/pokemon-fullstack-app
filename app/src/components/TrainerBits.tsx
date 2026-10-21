@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getProfiles, trainerUrl, type Profile } from '../lib/profile';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { Sprite } from './Sprite';
+import { usePresence, type PresenceStatus } from '../lib/presence';
 
 /**
  * The pieces every social surface shares — a trainer's avatar, a row of six, a
@@ -34,14 +35,24 @@ export function useProfiles(ids: readonly string[]): Map<string, Profile> {
  * anything smaller shows the 80px sprite unscaled, cropped to the head, rather
  * than smearing it at a fractional scale.
  */
-export function TrainerAvatar({ profile, name, size = 40 }: { profile: Profile | null | undefined; name: string; size?: 24 | 32 | 40 | 80 }) {
+export function TrainerAvatar({ profile, name, size = 40, userId }: {
+  profile: Profile | null | undefined; name: string; size?: 24 | 32 | 40 | 80;
+  /** Whose presence dot to show; omitted, or unknown to presence, means no dot. */
+  userId?: string | null;
+}) {
+  const status = usePresence(userId);
   return (
-    <span className="trainer-avatar" data-crop={size <= 32 || undefined} style={{ width: size, height: size }} aria-hidden="true">
+    <span className="trainer-avatar" data-crop={size <= 32 || undefined} style={{ width: size, height: size }}>
       {profile?.avatar
-        ? <img src={trainerUrl(profile.avatar)} alt="" width={80} height={80} loading="lazy" />
-        : <span className="trainer-avatar-initial" style={{ fontSize: Math.round(size * 0.45) }}>{name.trim().slice(0, 1).toUpperCase() || '?'}</span>}
+        ? <img src={trainerUrl(profile.avatar)} alt="" width={80} height={80} loading="lazy" aria-hidden="true" />
+        : <span className="trainer-avatar-initial" style={{ fontSize: Math.round(size * 0.45) }} aria-hidden="true">{name.trim().slice(0, 1).toUpperCase() || '?'}</span>}
+      {status && <span className="presence-dot" data-status={status} role="img" aria-label={presenceLabel(status)} />}
     </span>
   );
+}
+
+export function presenceLabel(status: PresenceStatus): string {
+  return status === 'match' ? 'In a match' : 'Online';
 }
 
 /** Up to six species as small sprites, named for a screen reader as one list. */

@@ -1,3 +1,4 @@
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 /**
@@ -26,5 +27,45 @@ export function subscribeToTables(tables: readonly string[], onChange: () => voi
     stopped = true;
     clearTimeout(timer);
     void supabase.removeChannel(sub);
+  };
+}
+
+type Emit = (event: string, payload: unknown) => void;
+interface Shared { ch: RealtimeChannel; listeners: Set<Emit>; timer?: ReturnType<typeof setTimeout> }
+const shared = new Map<string, Shared>();
+
+/**
+ * One Realtime channel per topic for this whole tab, for topics that must be shared by name (broadcast, presence).
+ * supabase-js hands back the existing instance for a topic it already holds, so two independent joins would subscribe
+ * one instance twice (which throws) and the first leave would cut the other off. Here `create` runs once, binds its
+ * events to `emit`, and every joiner's `listener` hears them; the last `leave` removes the channel.
+ *
+ * The removal waits a tick: StrictMode's unmount-and-remount would otherwise remove the channel the remount is about
+ * to reuse, while it is still closing.
+ */
+export function joinShared(topic: string, create: (emit: Emit) => RealtimeChannel, listener: Emit): { ch: RealtimeChannel; leave: () => void } {
+  let entry = shared.get(topic);
+  if (entry) clearTimeout(entry.timer);
+  else {
+    const listeners = new Set<Emit>();
+    entry = { ch: create((event, payload) => { for (const l of listeners) l(event, payload); }), listeners };
+    shared.set(topic, entry);
+  }
+  const e = entry;
+  e.listeners.add(listener);
+  let left = false;
+  return {
+    ch: e.ch,
+    leave: () => {
+      if (left) return;
+      left = true;
+      e.listeners.delete(listener);
+      if (e.listeners.size > 0) return;
+      e.timer = setTimeout(() => {
+        if (e.listeners.size > 0 || shared.get(topic) !== e) return;
+        shared.delete(topic);
+        void supabase.removeChannel(e.ch);
+      }, 0);
+    },
   };
 }

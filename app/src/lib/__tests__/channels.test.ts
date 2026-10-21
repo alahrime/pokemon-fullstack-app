@@ -293,8 +293,8 @@ describe('listChannelsWithActivity', () => {
     ];
     // The preview is the newest message; a deleted one previews as nothing rather than its old body.
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z', lastPreview: { body: 'gg', authorId: 'u2' } },
-      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z', lastPreview: null },
+      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z', lastPreview: { body: 'gg', authorId: 'u2' }, unreadCount: 1 },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z', lastPreview: null, unreadCount: 0 },
     ]);
     // Exactly one `messages` query for both channels together — an N+1 here
     // would show up as one `in` call per channel instead of one call
@@ -309,8 +309,22 @@ describe('listChannelsWithActivity', () => {
     ];
     rows.messages = [];
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'group', title: 'New', matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: null, lastPreview: null },
+      { id: 'c1', kind: 'group', title: 'New', matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: null, lastPreview: null, unreadCount: 0 },
     ]);
+  });
+
+  it("counts other people's undeleted messages past the viewer's read mark, never their own", async () => {
+    rows.channels = [
+      { id: 'c1', kind: 'dm', title: null, match_id: null, channel_members: [{ user_id: 'u2', last_read_at: '2026-01-09T00:00:00Z' }, { user_id: 'me', last_read_at: '2026-01-02T00:00:00Z' }] },
+    ];
+    rows.messages = [
+      { channel_id: 'c1', created_at: '2026-01-05T00:00:00Z', body: 'mine', author_id: 'me', deleted_at: null },
+      { channel_id: 'c1', created_at: '2026-01-04T00:00:00Z', body: 'b', author_id: 'u2', deleted_at: null },
+      { channel_id: 'c1', created_at: '2026-01-03T12:00:00Z', body: 'x', author_id: 'u2', deleted_at: '2026-01-04T00:00:00Z' },
+      { channel_id: 'c1', created_at: '2026-01-03T00:00:00Z', body: 'a', author_id: 'u2', deleted_at: null },
+      { channel_id: 'c1', created_at: '2026-01-02T00:00:00Z', body: 'read', author_id: 'u2', deleted_at: null },
+    ];
+    expect((await listChannelsWithActivity())[0].unreadCount).toBe(2);
   });
 
   it('returns no channels, and never queries messages, with no session', async () => {

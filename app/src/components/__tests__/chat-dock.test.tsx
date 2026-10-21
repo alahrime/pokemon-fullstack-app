@@ -27,6 +27,8 @@ const unsubscribe = vi.fn();
 let onMessageByChannel: Record<string, (m: unknown) => void> = {};
 
 vi.mock('../../lib/channels', () => ({
+  joinSignals: () => ({ send: () => {}, leave: () => {} }),
+  othersLastReadAt: async () => null,
   listChannelsWithActivity: (...a: unknown[]) => listChannelsWithActivity(...a),
   withDisplayNames: (...a: unknown[]) => withDisplayNames(...a),
   // The real four-bucket function, proven independently by its own table in

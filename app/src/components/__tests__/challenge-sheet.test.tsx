@@ -28,6 +28,8 @@ vi.mock('../../lib/challenges', () => ({
   createChallenge: (...a: unknown[]) => createChallenge(...a),
 }));
 vi.mock('../../lib/channels', () => ({
+  joinSignals: () => ({ send: () => {}, leave: () => {} }),
+  othersLastReadAt: async () => null,
   openDm: (...a: unknown[]) => openDm(...a),
   // Read by the ChannelListProvider `renderApp` mounts (signed out, never called with data).
   isChannelUnread: () => false,

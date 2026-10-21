@@ -17,6 +17,9 @@ const listPins = vi.fn();
 const pinMessage = vi.fn();
 const unpinMessage = vi.fn();
 let onMessage: ((m: unknown) => void) | null = null;
+let signalOn: ((signal: string, userId: string) => void) | null = null;
+const sent: string[] = [];
+const othersLastReadAt = vi.fn();
 
 // UUID-shaped on purpose: these ids are what used to leak into every Report
 // control's accessible name, and the guard test at the bottom of this file
@@ -32,6 +35,11 @@ const transcript = [
 ];
 
 vi.mock('../../lib/channels', () => ({
+  joinSignals: (_c: string, _me: string, on: (signal: string, userId: string) => void) => {
+    signalOn = on;
+    return { send: (sig: string) => sent.push(sig), leave: () => {} };
+  },
+  othersLastReadAt: (...a: unknown[]) => othersLastReadAt(...a),
   // Read by the ChannelListProvider `renderApp` mounts (signed out here, so never called with data).
   isChannelUnread: () => false,
   listChannelsWithActivity: async () => [],
@@ -68,6 +76,9 @@ beforeEach(() => {
   unpinMessage.mockReset().mockResolvedValue(undefined);
   extra = [];
   onMessage = null;
+  signalOn = null;
+  sent.length = 0;
+  othersLastReadAt.mockReset().mockResolvedValue(null);
 });
 
 // `displayTitle`/`memberCount` are what `ChatDock` actually passes down —
@@ -409,6 +420,35 @@ describe('ChatPane, signed in as the author of one message in the transcript', (
 
     const theirs = screen.getByText('hey').closest('li')!;
     expect(theirs.querySelector('button[aria-label="Report message “hey”"]')).not.toBeNull();
+  });
+});
+
+describe('ChatPane typing and Seen, signed in', () => {
+  beforeEach(() => cleanup());
+
+  it("shows Seen under your last message once the other member's read mark covers it, and re-reads it on a read ping", async () => {
+    await mountSignedIn('me');
+    await screen.findByText('my own message');
+    expect(screen.queryByText('Seen')).toBeNull();
+    othersLastReadAt.mockResolvedValue('t4');
+    await act(async () => { signalOn!('read', 'ally'); });
+    const seen = await screen.findByText('Seen');
+    expect(seen.closest('li')!.textContent).toContain('my own message');
+    expect(othersLastReadAt).toHaveBeenCalledTimes(2);
+  });
+
+  it('names who is typing until their message lands, and pings while you type (throttled)', async () => {
+    await mountSignedIn('me');
+    await screen.findByText('my own message');
+    act(() => signalOn!('typing', 'ally'));
+    expect(screen.getByRole('status', { name: '' }).textContent).toBe('Ally is typing…');
+    act(() => onMessage!({ id: 'm10', channelId: 'c1', authorId: 'ally', body: 'gg', createdAt: 't9', editedAt: null, deletedAt: null }));
+    expect(screen.queryByText('Ally is typing…')).toBeNull();
+
+    const box = screen.getByLabelText('Message to Ally');
+    fireEvent.change(box, { target: { value: 'h' } });
+    fireEvent.change(box, { target: { value: 'hi' } });
+    expect(sent.filter((x) => x === 'typing')).toHaveLength(1);
   });
 });
 

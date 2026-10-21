@@ -7514,8 +7514,14 @@ th.bt-matrix-head { text-align: center; }
   box-shadow: 0 0 0 2px var(--surface-2);
 }
 .presence-dot[data-status='match'] { background: var(--color-accent); }
-.mini-team { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
-.mini-team > li { display: grid; place-items: center; background: var(--surface-3); overflow: hidden; }
+/* A team only ever takes an even shape: six across, six across smaller, or three and three. Which one is decided by
+   the width the team's own column has (container query), not the window, so a card's left and right teams agree. */
+.mini-team { --tile: var(--size, 40px); list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, var(--tile)); gap: 2px; }
+.mini-team > li { width: var(--tile); aspect-ratio: 1; display: grid; place-items: center; background: var(--surface-3); overflow: hidden; }
+.match-card-teams > div, .friend-card-six, .opponent-panel-block { container-type: inline-size; }
+/* 6 × 40 + 5 × 2 = 250px; 6 × 32 + 5 × 2 = 202px. */
+@container (max-width: 249.98px) { .mini-team { --tile: 32px; } }
+@container (max-width: 201.98px) { .mini-team { --tile: 40px; grid-template-columns: repeat(3, var(--tile)); } }
 /* HOME renders carry ~12% transparent padding; scale it off so a 40px tile shows a 40px Pokémon. */
 .mini-team img { transform: scale(1.12); }
 .copy-code {
@@ -7612,7 +7618,7 @@ th.bt-matrix-head { text-align: center; }
 .match-card-score [data-won='false'] { color: var(--color-text); }
 .match-card-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-3); align-items: end; }
 .match-card-theirs { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
-.match-card-theirs .mini-team { justify-content: flex-end; }
+.match-card-theirs .mini-team { justify-content: end; }
 .match-card-side { display: block; font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: var(--space-1); overflow-wrap: anywhere; }
 .match-card-vs { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); color: var(--text-muted); padding-bottom: var(--space-3); }
 .match-card-act { flex: 1 1 220px; display: flex; flex-direction: column; justify-content: center; gap: var(--space-2); }
@@ -7627,7 +7633,7 @@ th.bt-matrix-head { text-align: center; }
   .match-card > * + * { border-top: var(--border-hairline) solid var(--rule-hairline); }
   .match-card-teams { grid-template-columns: minmax(0, 1fr); }
   .match-card-theirs { align-items: flex-start; text-align: left; }
-  .match-card-theirs .mini-team { justify-content: flex-start; }
+  .match-card-theirs .mini-team { justify-content: start; }
   .match-card-vs { display: none; }
 }
 

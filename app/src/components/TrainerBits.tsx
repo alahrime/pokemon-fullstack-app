@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { getProfiles, trainerUrl, type Profile } from '../lib/profile';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { Sprite } from './Sprite';
@@ -59,12 +59,14 @@ export function presenceLabel(status: PresenceStatus): string {
 export function MiniTeam({ refs, size = 40, label }: { refs: readonly string[]; size?: 32 | 40 | 56; label: string }) {
   if (refs.length === 0) return null;
   return (
-    <ul className="mini-team" aria-label={`${label}: ${refs.map(displayName).join(', ')}`}>
+    // The grid sets the tile size (`--size`, stepped down by the stylesheet), so a team only ever takes an even
+    // shape — six across, six smaller, three and three — instead of wrapping 5+1 or 4+2.
+    <ul className="mini-team" style={{ '--size': `${size}px` } as CSSProperties} aria-label={`${label}: ${refs.map(displayName).join(', ')}`}>
       {refs.slice(0, 6).map((ref, i) => {
         const sp = speciesOf(ref);
         return (
           <li key={`${ref}-${i}`} title={displayName(ref)}>
-            {sp ? <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(ref).shadow} /> : <span className="text-faint">?</span>}
+            {sp ? <Sprite sprite={sp.sprite} dex={sp.dex} size={size} shadow={parseRef(ref).shadow} style={{ width: '100%', height: '100%' }} /> : <span className="text-faint">?</span>}
           </li>
         );
       })}

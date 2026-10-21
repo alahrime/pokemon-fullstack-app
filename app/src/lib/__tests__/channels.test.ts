@@ -287,13 +287,14 @@ describe('listChannelsWithActivity', () => {
       },
     ];
     rows.messages = [
-      { channel_id: 'c1', created_at: '2026-01-03T00:00:00Z' },
-      { channel_id: 'c2', created_at: '2026-01-02T00:00:00Z' },
-      { channel_id: 'c1', created_at: '2026-01-01T00:00:00Z' },
+      { channel_id: 'c1', created_at: '2026-01-03T00:00:00Z', body: 'gg', author_id: 'u2', deleted_at: null },
+      { channel_id: 'c2', created_at: '2026-01-02T00:00:00Z', body: 'gone', author_id: 'u3', deleted_at: '2026-01-02T01:00:00Z' },
+      { channel_id: 'c1', created_at: '2026-01-01T00:00:00Z', body: 'older', author_id: 'me', deleted_at: null },
     ];
+    // The preview is the newest message; a deleted one previews as nothing rather than its old body.
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z' },
-      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z' },
+      { id: 'c1', kind: 'dm', title: null, matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: '2026-01-03T00:00:00Z', lastPreview: { body: 'gg', authorId: 'u2' } },
+      { id: 'c2', kind: 'group', title: 'Squad', matchId: null, announceOnly: false, lastReadAt: '2026-01-01T00:00:00Z', lastMessageAt: '2026-01-02T00:00:00Z', lastPreview: null },
     ]);
     // Exactly one `messages` query for both channels together — an N+1 here
     // would show up as one `in` call per channel instead of one call
@@ -308,7 +309,7 @@ describe('listChannelsWithActivity', () => {
     ];
     rows.messages = [];
     expect(await listChannelsWithActivity()).toEqual([
-      { id: 'c1', kind: 'group', title: 'New', matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: null },
+      { id: 'c1', kind: 'group', title: 'New', matchId: null, announceOnly: false, lastReadAt: null, lastMessageAt: null, lastPreview: null },
     ]);
   });
 

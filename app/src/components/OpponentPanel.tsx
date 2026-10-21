@@ -6,6 +6,9 @@ import { useSession } from '../state/SessionContext';
 import { challengeFormatLabel, challengeView, liveChallengesWith, type Challenge } from '../lib/challenges';
 import type { ChannelDisplay } from '../lib/channels';
 import { confirmDialog } from './ConfirmDialog';
+import { listMyRecords, type RecordRow } from '../lib/records';
+import { CopyCode, MiniTeam, TrainerAvatar, TrainerChips, useProfiles } from './TrainerBits';
+import { ResultPips, headToHead } from './FriendCard';
 
 const OPEN_POLL_MS = 15_000;
 
@@ -28,6 +31,14 @@ export function OpponentPanel({
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
   const { otherId, matchId } = channel;
   const isDm = channel.kind === 'dm' && !!otherId;
+  const profile = useProfiles(otherId ? [otherId] : []).get(otherId ?? '');
+  const [records, setRecords] = useState<RecordRow[] | null>(null);
+  useEffect(() => {
+    if (!isDm) return;
+    let live = true;
+    void listMyRecords().then((r) => live && setRecords(r), () => {});
+    return () => { live = false; };
+  }, [isDm]);
 
   useEffect(() => {
     let live = true;
@@ -77,14 +88,33 @@ export function OpponentPanel({
 
   const together = (matches ?? []).filter((m) => m.opponentId === otherId).length;
   const name = channel.displayTitle;
+  const vs = records ? headToHead(records, otherId!) : null;
   return (
     <aside className="opponent-panel panel chamfer-9" aria-label="Opponent">
-      <span className="hud-label">Opponent</span>
-      <h2 className="opponent-panel-name">{name}</h2>
-      <p className="opponent-panel-code text-faint">
-        {code === undefined ? '…' : code ?? 'No friend code shared'}
-      </p>
-      <p className="text-muted">{together} {together === 1 ? 'match' : 'matches'} together</p>
+      <header className="opponent-panel-head">
+        <TrainerAvatar profile={profile} name={name} size={80} />
+        <h2 className="opponent-panel-name">{name}</h2>
+        <TrainerChips profile={profile} />
+        {profile?.specialty && <span className="text-muted opponent-panel-sub">{profile.specialty}</span>}
+      </header>
+      <section className="opponent-panel-block" aria-label="Friend code">
+        <span className="hud-label">Friend code</span>
+        {code ? <CopyCode code={code} name={name} /> : <p className="opponent-panel-code text-faint">{code === undefined ? '…' : 'No friend code shared'}</p>}
+      </section>
+      <section className="opponent-panel-block" aria-label="Head to head">
+        <span className="hud-label">Head to head</span>
+        {vs && vs.wins + vs.losses > 0 && (
+          <span className="opponent-panel-h2h numeric"><span data-won="true">{vs.wins}</span>–{vs.losses}</span>
+        )}
+        {vs && <ResultPips results={vs.last5} />}
+        <p className="text-muted">{together} {together === 1 ? 'match' : 'matches'} together</p>
+      </section>
+      {profile && profile.favoritePokemon.length > 0 && (
+        <section className="opponent-panel-block" aria-label="Favorite six">
+          <span className="hud-label">Favorite six</span>
+          <MiniTeam refs={profile.favoritePokemon} label={`${name}'s favorites`} />
+        </section>
+      )}
       {open && open.length > 0 && (
         <section aria-label="Open challenges" className="opponent-panel-open">
           <span className="hud-label">Open challenges</span>
@@ -100,8 +130,11 @@ export function OpponentPanel({
           </ul>
         </section>
       )}
-      <button type="button" className="btn chamfer-5" onClick={() => onChallenge({ id: otherId!, name })}>
+      <button type="button" className="btn btn-primary chamfer-5" onClick={() => onChallenge({ id: otherId!, name })}>
         Challenge
+      </button>
+      <button type="button" className="btn btn-secondary chamfer-5" onClick={() => patch({ screen: 'player', activePlayerId: otherId! })}>
+        View profile
       </button>
       <button
         type="button"

@@ -263,6 +263,8 @@ export async function markRead(channelId: string): Promise<void> {
 export interface ChannelActivity extends Channel {
   /** `null` for a channel nobody has posted in yet. */
   lastMessageAt: string | null;
+  /** The latest message itself, for the inbox preview; absent when nothing is posted or it was deleted. */
+  lastPreview?: { body: string; authorId: string } | null;
 }
 
 /**
@@ -456,15 +458,21 @@ export async function listChannelsWithActivity(): Promise<ChannelActivity[]> {
   if (channels.length === 0) return [];
   const { data, error } = await supabase
     .from('messages')
-    .select('channel_id, created_at')
+    // ponytail: reads every message's row to find each channel's newest; a `distinct on` view when inboxes grow large.
+    .select('channel_id, created_at, body, author_id, deleted_at')
     .in('channel_id', channels.map((c) => c.id))
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  const latest = new Map<string, string>();
-  for (const row of (data ?? []) as { channel_id: string; created_at: string }[]) {
-    if (!latest.has(row.channel_id)) latest.set(row.channel_id, row.created_at);
+  type Row = { channel_id: string; created_at: string; body?: string; author_id?: string; deleted_at?: string | null };
+  const latest = new Map<string, Row>();
+  for (const row of (data ?? []) as Row[]) {
+    if (!latest.has(row.channel_id)) latest.set(row.channel_id, row);
   }
-  return channels.map((c) => ({ ...c, lastMessageAt: latest.get(c.id) ?? null }));
+  return channels.map((c) => {
+    const row = latest.get(c.id);
+    const lastPreview = row && row.body != null && row.author_id && !row.deleted_at ? { body: row.body, authorId: row.author_id } : null;
+    return { ...c, lastMessageAt: row?.created_at ?? null, lastPreview };
+  });
 }
 
 /**

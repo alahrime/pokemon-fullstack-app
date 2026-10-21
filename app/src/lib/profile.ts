@@ -28,8 +28,19 @@ const COLS = 'display_name, go_username, created_at, avatar, region, trainer_lev
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select(COLS).eq('id', id).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) return null;
-  const r = data as Record<string, unknown>;
+  return data ? fromRow(data as Record<string, unknown>) : null;
+}
+
+/** Many profiles in ONE `IN` query, keyed by id; an id with no row is simply absent. */
+export async function getProfiles(ids: readonly string[]): Promise<Map<string, Profile>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const { data, error } = await supabase.from('profiles').select(`id, ${COLS}`).in('id', unique);
+  if (error) throw new Error(error.message);
+  return new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [r.id as string, fromRow(r)]));
+}
+
+function fromRow(r: Record<string, unknown>): Profile {
   return {
     displayName: r.display_name as string, goUsername: r.go_username as string, createdAt: r.created_at as string,
     avatar: (r.avatar as string | null) ?? null, region: (r.region as string | null) ?? null,

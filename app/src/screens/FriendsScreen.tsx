@@ -4,7 +4,12 @@ import { ChallengeSheet } from '../components/ChallengeSheet';
 import { ChallengeCard } from '../components/ChallengeCard';
 import { isLiveChallenge, myChallenges, type Challenge } from '../lib/challenges';
 import { useAppState } from '../state/AppState';
-import { resolveDisplayNames, searchProfilesByName } from '../lib/channels';
+import { openDm, resolveDisplayNames, searchProfilesByName } from '../lib/channels';
+import { listMyRecords, type RecordRow } from '../lib/records';
+import { useChatDockRequest } from '../state/ChatDockContext';
+import { FriendCard } from '../components/FriendCard';
+import { MiniTeam, TrainerAvatar, TrainerChips, useProfiles } from '../components/TrainerBits';
+import { confirmDialog } from '../components/ConfirmDialog';
 import { opponentFriendCode } from '../lib/matchmaking';
 import { useSession } from '../state/SessionContext';
 import {
@@ -92,6 +97,8 @@ export function FriendsScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [records, setRecords] = useState<RecordRow[] | null>(null);
+  const { requestChannel } = useChatDockRequest();
 
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<ProfileHit[] | null>(null);
@@ -102,6 +109,8 @@ export function FriendsScreen() {
     setLoadError(null);
     try {
       // A failing challenges read must not blank the friends list; the poll below retries it.
+      // Records only feed the cards' head-to-head; a failed read leaves that strip out rather than the screen.
+      void listMyRecords().then(setRecords, () => setRecords(null));
       const [f, b, c] = await Promise.all([listFriends(), listBlocks(), myChallenges().catch(() => [] as Challenge[])]);
       const now = new Date();
       setFriends(f);
@@ -159,6 +168,16 @@ export function FriendsScreen() {
   const incoming = (friends ?? []).filter((f) => f.status === 'pending' && f.theyAsked);
   const outgoing = (friends ?? []).filter((f) => f.status === 'pending' && !f.theyAsked);
   const accepted = (friends ?? []).filter((f) => f.status === 'accepted');
+  const profiles = useProfiles((friends ?? []).map((f) => f.otherId));
+
+  async function message(id: string) {
+    setActionError(null);
+    try {
+      requestChannel(await openDm(id));
+    } catch (e) {
+      setActionError(messageOf(e));
+    }
+  }
 
   /** A friend's name as the way into their profile. */
   function profileLink(id: string) {
@@ -307,8 +326,13 @@ export function FriendsScreen() {
         {incoming.length === 0 && <p className="text-muted">Nobody is waiting on you right now.</p>}
         <ul className="match-list">
           {incoming.map((f) => (
-            <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="incoming">
-              <span>{nameFor(f.otherId)}</span>
+            <li key={f.otherId} className="friend-row friend-request [overflow-wrap:anywhere]" data-kind="incoming">
+              <TrainerAvatar profile={profiles.get(f.otherId)} name={nameFor(f.otherId)} />
+              <span className="friend-request-id">
+                <strong>{nameFor(f.otherId)}</strong>
+                <TrainerChips profile={profiles.get(f.otherId)} />
+              </span>
+              <MiniTeam refs={profiles.get(f.otherId)?.favoritePokemon ?? []} size={32} label={`${nameFor(f.otherId)}'s favorites`} />
               <button
                 type="button"
                 className="btn btn-primary"
@@ -354,38 +378,29 @@ export function FriendsScreen() {
       <section className="panel">
         <div className="hud-label">Friends</div>
         {accepted.length === 0 && <p className="text-muted">No friends yet.</p>}
-        <ul className="match-list">
+        <div className="friend-grid">
           {accepted.map((f) => (
-            <li key={f.otherId} className="friend-row [overflow-wrap:anywhere]" data-kind="accepted">
-              {profileLink(f.otherId)}
-              {codes[f.otherId] && <span className="friend-code">{codes[f.otherId]}</span>}
-              <button
-                type="button"
-                className="btn"
-                aria-label={`Challenge ${nameFor(f.otherId)}`}
-                onClick={() => setChallengeTarget({ id: f.otherId, name: nameFor(f.otherId) })}
-              >
-                Challenge
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={busyId === f.otherId}
-                onClick={() => void act(f.otherId, () => removeFriendship(f.otherId))}
-              >
-                Remove {nameFor(f.otherId)}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={busyId === f.otherId}
-                onClick={() => void act(f.otherId, () => blockUser(f.otherId))}
-              >
-                Block {nameFor(f.otherId)}
-              </button>
-            </li>
+            <FriendCard
+              key={f.otherId}
+              id={f.otherId}
+              name={nameFor(f.otherId)}
+              profile={profiles.get(f.otherId)}
+              code={codes[f.otherId]}
+              since={f.createdAt}
+              records={records}
+              busy={busyId === f.otherId}
+              onOpenProfile={() => patch({ screen: 'player', activePlayerId: f.otherId })}
+              onMessage={() => void message(f.otherId)}
+              onChallenge={() => setChallengeTarget({ id: f.otherId, name: nameFor(f.otherId) })}
+              onRemove={() => void act(f.otherId, () => removeFriendship(f.otherId))}
+              onBlock={async () => {
+                const name = nameFor(f.otherId);
+                if (!(await confirmDialog({ title: 'Block player', body: `Block ${name}? They will no longer be able to message you.`, confirmLabel: 'Block' }))) return;
+                void act(f.otherId, () => blockUser(f.otherId));
+              }}
+            />
           ))}
-        </ul>
+        </div>
       </section>
 
       <section className="panel">

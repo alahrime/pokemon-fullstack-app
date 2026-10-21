@@ -4,7 +4,8 @@ import { useAppState } from '../state/AppState';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { useChannelList } from '../state/ChannelListContext';
 import { isChannelUnread } from '../lib/channels';
-import { railAriaLabel, subLine } from './chatRow';
+import { ChatRailRow } from './ChatRailRow';
+import { useProfiles } from './TrainerBits';
 import { ChatPane } from './ChatPane';
 import { ChallengeSheet } from './ChallengeSheet';
 
@@ -72,6 +73,7 @@ export function ChatDock() {
     useChatDockRequest();
   const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
   const { channels, loadError, refresh, bumpActivity, bumpRead, totalUnread } = useChannelList();
+  const profiles = useProfiles((channels ?? []).flatMap((c) => (c.otherId ? [c.otherId] : [])));
   // Starts collapsed wherever the open list (17rem, up to 70vh) would sit on
   // the page: the shell is 1640px at most, so only from ~2168px is there 288px
   // of margin beside it. Open, it covered the right edge of Match and
@@ -200,29 +202,13 @@ export function ChatDock() {
 
         {!railCollapsed && (
           <ul className="chat-rail-list">
-            {(channels ?? []).length === 0 && <li className="text-muted">No conversations yet.</li>}
-            {(channels ?? []).map((c) => {
-              const unread = isChannelUnread(c);
-              return (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    className={`chat-rail-row${openIds.includes(c.id) ? ' is-open' : ''}`}
-                    data-kind={c.kind}
-                    aria-label={railAriaLabel(c, unread)}
-                    onClick={() => openChannel(c.id)}
-                  >
-                    <span className="chat-rail-title max-w-full [overflow-wrap:anywhere]">{c.displayTitle}</span>
-                    <span className="chat-rail-sub max-w-full text-faint [overflow-wrap:anywhere]">{subLine(c)}</span>
-                    {unread && (
-                      <span className="chat-rail-unread-tag" aria-hidden="true">
-                        Unread
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {channels === null && !loadError && <li className="text-muted" role="status">Loading conversations…</li>}
+            {channels?.length === 0 && <li className="text-muted">No conversations yet.</li>}
+            {(channels ?? []).map((c) => (
+              <li key={c.id}>
+                <ChatRailRow c={c} unread={isChannelUnread(c)} open={openIds.includes(c.id)} profile={c.otherId ? profiles.get(c.otherId) : undefined} me={user?.id} onOpen={() => openChannel(c.id)} />
+              </li>
+            ))}
           </ul>
         )}
       </section>

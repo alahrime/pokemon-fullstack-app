@@ -45,13 +45,16 @@ async function mount(session: Session | null) {
   const { AppStateProvider } = await import('../../state/AppState');
   const { SessionProvider } = await import('../../state/SessionContext');
   const { MatchmakingScreen } = await import('../MatchmakingScreen');
+  const { ChatDockRequestProvider } = await import('../../state/ChatDockContext');
   let view!: RenderResult;
   await act(async () => {
     view = render(
       <ThemeProvider>
         <AppStateProvider>
           <SessionProvider>
-            <MatchmakingScreen />
+            <ChatDockRequestProvider>
+              <MatchmakingScreen />
+            </ChatDockRequestProvider>
           </SessionProvider>
         </AppStateProvider>
       </ThemeProvider>,

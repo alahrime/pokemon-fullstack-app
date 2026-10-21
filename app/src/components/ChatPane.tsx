@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { TrainerAvatar, useProfiles } from './TrainerBits';
 import { ChallengeCard } from './ChallengeCard';
 import { useSession } from '../state/SessionContext';
 import {
@@ -46,6 +47,39 @@ function snippetOf(body: string): string {
  * runs). `dm`/`group` already equal their own uppercased kind, so only
  * `match` needs the extra word.
  */
+/** Consecutive messages by one author within this gap read as one group. */
+const GROUP_GAP_MS = 5 * 60_000;
+const dayOf = (iso: string) => new Date(iso).toDateString();
+const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86_400_000);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/**
+ * Where each message sits in its run: a new day, the first or last of an
+ * author's group, and whether the "New" divider goes above it (the first
+ * message from someone else after the read mark this pane opened with).
+ */
+export function layoutMessages(messages: readonly Message[], me: string | undefined, readMark: string | null) {
+  let dividerPlaced = false;
+  return messages.map((m, i) => {
+    const prev = messages[i - 1];
+    const next = messages[i + 1];
+    const joins = (a: Message | undefined, b: Message | undefined) =>
+      !!a && !!b && a.authorId === b.authorId && a.kind !== 'challenge' && b.kind !== 'challenge'
+      && dayOf(a.createdAt) === dayOf(b.createdAt) && Date.parse(b.createdAt) - Date.parse(a.createdAt) < GROUP_GAP_MS;
+    const newDay = !prev || dayOf(prev.createdAt) !== dayOf(m.createdAt);
+    const unread = !dividerPlaced && !!readMark && m.authorId !== me && m.createdAt > readMark;
+    if (unread) dividerPlaced = true;
+    return { m, newDay, unread, first: newDay || unread || !joins(prev, m), last: !joins(m, next) };
+  });
+}
+
 function kindLabel(kind: ChannelDisplay['kind']): string {
   if (kind === 'match') return 'match chat';
   return kind;
@@ -101,7 +135,7 @@ export function ChatPane({
   minimized: boolean;
   onToggleMinimize: () => void;
   onClose: () => void;
-  onActivity: (channelId: string, at: string) => void;
+  onActivity: (channelId: string, at: string, preview?: { body: string; authorId: string }) => void;
   onRead: (channelId: string, at: string) => void;
   onChallenge?: (target: { id: string; name: string }) => void;
   /** Fills its parent (the Chat screen): no minimize/close, never collapsed. */
@@ -110,6 +144,12 @@ export function ChatPane({
   const { user } = useSession();
   if (embedded) minimized = false;
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  // The read mark as it stood when the pane opened, before this pane's own markRead moves it.
+  const [readMark] = useState(channel.lastReadAt);
+  const flat = channel.kind === 'group' || channel.kind === 'tournament';
+  const profiles = useProfiles([...new Set(messages.map((m) => m.authorId)), ...(channel.otherId ? [channel.otherId] : [])]);
+  const authorName = (id: string) => (id === user?.id ? 'You' : profiles.get(id)?.displayName ?? (channel.kind === 'dm' ? channel.displayTitle : 'Unknown trainer'));
   const [threadError, setThreadError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -153,7 +193,26 @@ export function ChatPane({
   const [sendError, setSendError] = useState<string | null>(null);
   // Newest message in view: on open, and whenever one arrives or is sent.
   const endRef = useRef<HTMLLIElement>(null);
-  useEffect(() => { endRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [messages.length, minimized]);
+  const logRef = useRef<HTMLUListElement>(null);
+  // Follow new messages only while the reader is at the bottom; scrolled up, they pile into a "new" count instead.
+  const atBottom = useRef(true);
+  const [unseen, setUnseen] = useState(0);
+  const seenCount = useRef(0);
+  useEffect(() => {
+    const added = messages.length - seenCount.current;
+    seenCount.current = messages.length;
+    const mineLast = messages[messages.length - 1]?.authorId === user?.id;
+    if (atBottom.current || mineLast || added === messages.length) {
+      endRef.current?.scrollIntoView?.({ block: 'nearest' });
+      setUnseen(0);
+    } else if (added > 0) setUnseen((n) => n + added);
+  }, [messages.length, minimized]);
+  function onLogScroll() {
+    const el = logRef.current;
+    if (!el) return;
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    if (atBottom.current) setUnseen(0);
+  }
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [reportingId, setReportingId] = useState<string | null>(null);
   const [openReportId, setOpenReportId] = useState<string | null>(null);
@@ -197,7 +256,8 @@ export function ChatPane({
       })
       .catch((e) => {
         if (live) setThreadError(messageOf(e));
-      });
+      })
+      .finally(() => live && setLoaded(true));
     void markRead(channel.id).then(() => {
       if (live) onRead(channel.id, new Date().toISOString());
     });
@@ -205,7 +265,7 @@ export function ChatPane({
       if (!live) return;
       setMessages((prev) => {
         if (prev.some((x) => x.id === m.id)) return prev;
-        onActivity(channel.id, m.createdAt);
+        onActivity(channel.id, m.createdAt, { body: m.body, authorId: m.authorId });
         // "Focused" for a docked pane means visibly expanded — there is no
         // single OS-level focus target across several panes sitting side by
         // side, so an open, un-minimised pane is treated as being looked at.
@@ -237,7 +297,7 @@ export function ChatPane({
       // realtime delivery of the same insert both land here, and only the
       // first must stick.
       setMessages((prev) => (prev.some((x) => x.id === sent.id) ? prev : [...prev, sent]));
-      onActivity(channel.id, sent.createdAt);
+      onActivity(channel.id, sent.createdAt, { body: sent.body, authorId: sent.authorId });
       onRead(channel.id, sent.createdAt);
       // Your own message cannot leave your own conversation "unread" —
       // without this, sending bumps `lastMessageAt` past whatever
@@ -275,8 +335,11 @@ export function ChatPane({
   return (
     <section className={`chat-pane chamfer-9 panel${minimized ? ' is-minimized' : ''}${embedded ? ' is-embedded' : ''}`}>
       <div className="chat-pane-header">
-        <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
-        <span className="chat-pane-title">{label}</span>
+        {channel.otherId && <TrainerAvatar profile={profiles.get(channel.otherId)} name={label} size={32} />}
+        <span className="chat-pane-heading">
+          <span className="chat-pane-title">{label}</span>
+          <span className="hud-label chat-pane-kind">{kindLabel(channel.kind)}</span>
+        </span>
         <div className="chat-pane-controls">
           {onChallenge && channel.kind === 'dm' && channel.otherId && (
             <button
@@ -332,26 +395,40 @@ export function ChatPane({
             </section>
           )}
 
-          <ul className="chat-transcript">
-            {messages.map((m) => {
+          {!loaded && !threadError && <p className="text-muted chat-loading" role="status">Loading messages…</p>}
+          {loaded && messages.length === 0 && !threadError && <p className="text-muted chat-loading">No messages yet. Say hello.</p>}
+          <ul className="chat-transcript" ref={logRef} onScroll={onLogScroll} role="log" aria-live="polite" aria-label={`Messages with ${label}`} data-layout={flat ? 'flat' : 'bubbles'}>
+            {layoutMessages(messages, user?.id, readMark).map(({ m, newDay, unread, first, last }) => {
               const isOwn = !!user && m.authorId === user.id;
               const canReport = !isOwn && !m.deletedAt;
               return (
+                <Fragment key={m.id}>
+                {newDay && <li className="chat-divider" aria-hidden="true"><span>{dayLabel(m.createdAt)}</span></li>}
+                {unread && <li className="chat-divider is-unread"><span>New</span></li>}
                 <li
-                  key={m.id}
                   className={`chat-message${isOwn ? ' is-own' : ''}${m.deletedAt ? ' is-deleted' : ''}${m.kind === 'announcement' && !m.deletedAt ? ' is-announcement' : ''}`}
+                  data-first={first || undefined}
+                  data-last={last || undefined}
                 >
+                  {flat && first && (
+                    <div className="chat-message-head">
+                      <TrainerAvatar profile={profiles.get(m.authorId)} name={authorName(m.authorId)} size={32} />
+                      <strong>{authorName(m.authorId)}</strong>
+                      <time className="text-faint numeric" dateTime={m.createdAt}>{clock(m.createdAt)}</time>
+                    </div>
+                  )}
                   {m.kind === 'challenge' && m.offerId && !m.deletedAt ? (
                     <ChallengeCard offerId={m.offerId} />
                   ) : (
-                    <p className="chat-message-body">
+                    <p className="chat-message-body" title={clock(m.createdAt)}>
                       {m.kind === 'announcement' && !m.deletedAt && <strong className="hud-label chat-announcement-tag">Announcement </strong>}
                       {m.deletedAt ? 'Message deleted' : m.body}
                     </p>
                   )}
-                  <time className="chat-message-time text-faint numeric" dateTime={m.createdAt}>
-                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </time>
+                  <div className="chat-message-tools">
+                  {!flat && last && (
+                    <time className="chat-message-time text-faint numeric" dateTime={m.createdAt}>{clock(m.createdAt)}</time>
+                  )}
                   {mayAnnounce && !m.deletedAt && (
                     <button type="button" className="btn btn-ghost" aria-label={`${pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'} message “${snippetOf(m.body)}”`} onClick={() => void togglePin(m)}>
                       {pins.some((p) => p.id === m.id) ? 'Unpin' : 'Pin'}
@@ -410,11 +487,18 @@ export function ChatPane({
                       Report
                     </button>
                   )}
+                  </div>
                 </li>
+                </Fragment>
               );
             })}
             <li ref={endRef} aria-hidden="true" className="chat-end" />
           </ul>
+          {unseen > 0 && (
+            <button type="button" className="btn chamfer-5 chat-jump" onClick={() => { endRef.current?.scrollIntoView?.({ block: 'nearest' }); setUnseen(0); }}>
+              {unseen} new {unseen === 1 ? 'message' : 'messages'} ↓
+            </button>
+          )}
 
           {organiser && (
             <label className="chat-announce">

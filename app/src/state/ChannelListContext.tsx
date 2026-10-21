@@ -18,7 +18,7 @@ interface ChannelListValue {
   channels: ChannelDisplay[] | null;
   loadError: string | null;
   refresh: () => void;
-  bumpActivity: (id: string, at: string) => void;
+  bumpActivity: (id: string, at: string, preview?: { body: string; authorId: string }) => void;
   bumpRead: (id: string, at: string) => void;
   totalUnread: number;
 }
@@ -58,10 +58,10 @@ export function ChannelListProvider({ children }: { children: ReactNode }) {
 
   // Optimistic local bumps so a pane's own traffic moves the rail before the
   // next poll, rather than only ever changing what it shows once every `POLL_MS`.
-  const bumpActivity = useCallback((id: string, at: string) => {
+  const bumpActivity = useCallback((id: string, at: string, preview?: { body: string; authorId: string }) => {
     setChannels((prev) =>
       prev
-        ? prev.map((c) => (c.id === id && (!c.lastMessageAt || at > c.lastMessageAt) ? { ...c, lastMessageAt: at } : c))
+        ? prev.map((c) => (c.id === id && (!c.lastMessageAt || at > c.lastMessageAt) ? { ...c, lastMessageAt: at, lastPreview: preview ?? null } : c))
         : prev,
     );
   }, []);

@@ -220,7 +220,7 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     const { onActivity, onRead } = pane(group);
     fireEvent.change(screen.getByRole('textbox', { name: /message/i }), { target: { value: 'hi' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
-    await waitFor(() => expect(onActivity).toHaveBeenCalledWith('c2', 't9'));
+    await waitFor(() => expect(onActivity).toHaveBeenCalledWith('c2', 't9', expect.objectContaining({ body: expect.any(String) })));
     await waitFor(() => expect(onRead).toHaveBeenCalledWith('c2', expect.any(String)));
   });
 
@@ -239,7 +239,7 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     act(() => {
       onMessage?.({ id: 'm6', channelId: 'c1', authorId: 'them', body: 'yo', createdAt: 't6', editedAt: null, deletedAt: null });
     });
-    expect(onActivity).toHaveBeenCalledWith('c1', 't6');
+    expect(onActivity).toHaveBeenCalledWith('c1', 't6', expect.objectContaining({ body: expect.any(String) }));
     expect(onRead).toHaveBeenCalledWith('c1', 't6');
   });
 
@@ -250,7 +250,7 @@ describe('ChatPane, signed out (the suite-wide default)', () => {
     act(() => {
       onMessage?.({ id: 'm7', channelId: 'c1', authorId: 'them', body: 'yo', createdAt: 't7', editedAt: null, deletedAt: null });
     });
-    expect(onActivity).toHaveBeenCalledWith('c1', 't7');
+    expect(onActivity).toHaveBeenCalledWith('c1', 't7', expect.objectContaining({ body: expect.any(String) }));
     expect(onRead).not.toHaveBeenCalledWith('c1', 't7');
   });
 

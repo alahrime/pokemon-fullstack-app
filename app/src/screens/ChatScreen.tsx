@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useChannelList } from '../state/ChannelListContext';
 import { useChatDockRequest } from '../state/ChatDockContext';
 import { isChannelUnread } from '../lib/channels';
-import { railAriaLabel, subLine } from '../components/chatRow';
+import { ChatRailRow } from '../components/ChatRailRow';
+import { useProfiles } from '../components/TrainerBits';
+import { useSession } from '../state/SessionContext';
 import { ChatPane } from '../components/ChatPane';
 import { ChallengeSheet } from '../components/ChallengeSheet';
 import { OpponentPanel } from '../components/OpponentPanel';
@@ -23,6 +25,8 @@ export function ChatScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
+  const { user } = useSession();
+  const profiles = useProfiles((channels ?? []).flatMap((c) => (c.otherId ? [c.otherId] : [])));
 
   useEffect(() => {
     if (requestedChannelId) refresh();
@@ -40,12 +44,22 @@ export function ChatScreen() {
     if (selectedId && channels && !selected) setSelectedId(null);
   }, [selectedId, channels, selected]);
 
-  const shown = (channels ?? []).filter((c) => filter === 'all' || c.kind === filter);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const shown = (channels ?? []).filter((c) => (filter === 'all' || c.kind === filter) && (!q || c.displayTitle.toLowerCase().includes(q)));
   const showPanel = selected && (selected.kind === 'dm' || selected.kind === 'match');
 
   return (
     <div className={`chat-screen${showPanel ? ' has-panel' : ''}`}>
       <section className="chat-inbox panel chamfer-9" aria-label="Conversations">
+        <input
+          className="input"
+          type="search"
+          placeholder="Search conversations"
+          aria-label="Search conversations"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
         <div className="seg-group" role="group" aria-label="Filter conversations">
           {FILTERS.map(([id, label]) => (
             <button
@@ -61,29 +75,13 @@ export function ChatScreen() {
         </div>
         {loadError && <p className="friend-notice" role="alert">{loadError}</p>}
         <ul className="chat-rail-list">
-          {shown.length === 0 && <li className="text-muted">No conversations yet.</li>}
-          {shown.map((c) => {
-            const unread = isChannelUnread(c);
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className={`chat-rail-row${c.id === selectedId ? ' is-open' : ''}`}
-                  data-kind={c.kind}
-                  aria-label={railAriaLabel(c, unread)}
-                  onClick={() => setSelectedId(c.id)}
-                >
-                  <span className="chat-rail-title max-w-full [overflow-wrap:anywhere]">{c.displayTitle}</span>
-                  <span className="chat-rail-sub max-w-full text-faint [overflow-wrap:anywhere]">{subLine(c)}</span>
-                  {unread && (
-                    <span className="chat-rail-unread-tag" aria-hidden="true">
-                      Unread
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
+          {channels === null && !loadError && <li className="text-muted" role="status">Loading conversations…</li>}
+          {channels && shown.length === 0 && <li className="text-muted">{query ? 'No conversations match.' : 'No conversations yet.'}</li>}
+          {shown.map((c) => (
+            <li key={c.id}>
+              <ChatRailRow c={c} unread={isChannelUnread(c)} open={c.id === selectedId} profile={c.otherId ? profiles.get(c.otherId) : undefined} me={user?.id} onOpen={() => setSelectedId(c.id)} />
+            </li>
+          ))}
         </ul>
       </section>
 

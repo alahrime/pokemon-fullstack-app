@@ -7470,3 +7470,240 @@ th.bt-matrix-head { text-align: center; }
 /* A phone keeps two across: a third of 360px is too narrow for a name like Kilowattrel. */
 @media (max-width: 480px) { .profile-roster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .profile-meter > span { transition: none; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOCIAL — trainer avatar, mini team, friend code, chips. Shared by Friends,
+   Matches and chat so a person reads the same everywhere. GO team hues are
+   fixed like type colours: they name a team, not a theme role.
+   ═══════════════════════════════════════════════════════════════════════ */
+.trainer-avatar {
+  flex: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--rule-hairline);
+}
+.trainer-avatar img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+/* Below 40px the 80px sprite is drawn 1:1 and cropped to the head (see TrainerAvatar). */
+.trainer-avatar[data-crop] img { width: 80px; height: 80px; flex: none; object-fit: none; object-position: 50% 14%; }
+.trainer-avatar-initial { font-family: var(--font-heading); font-weight: 800; color: var(--text-muted); }
+.mini-team { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
+.mini-team > li { display: grid; place-items: center; background: var(--surface-3); overflow: hidden; }
+/* HOME renders carry ~12% transparent padding; scale it off so a 40px tile shows a 40px Pokémon. */
+.mini-team img { transform: scale(1.12); }
+.copy-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding-left: var(--space-3);
+  border: var(--border-hairline) solid var(--rule-strong);
+  background: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+}
+.copy-code .btn { font-size: var(--text-xs); color: var(--color-accent-2-700); min-height: 36px; }
+.trainer-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.trainer-chips > li {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+/* W filled in the accent (the records screen's win colour), L hollow: told apart by fill and lightness, not hue. */
+.result-pips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.result-pips > span {
+  width: 20px; height: 20px; display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 700;
+  border: var(--border-hairline) solid var(--rule-strong); color: var(--text-muted);
+}
+.result-pips > span[data-won='true'] { background: var(--color-accent-100); border-color: var(--color-accent-400); color: var(--color-accent-800); }
+
+/* — friend cards — */
+.friend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.friend-card { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.friend-card-head { display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
+.friend-card-id { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); min-width: 0; }
+.friend-card-name {
+  padding: 0;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--size-h5);
+  color: var(--color-text);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.friend-card-sub { font-size: var(--text-xs); overflow-wrap: anywhere; }
+.friend-card-six { display: flex; flex-direction: column; gap: var(--space-1); }
+.friend-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-block: var(--border-hairline) solid var(--rule-hairline);
+}
+.friend-card-stats > div { padding: var(--space-2) var(--space-3); min-width: 0; }
+.friend-card-stats > div + div { border-left: var(--border-hairline) solid var(--rule-hairline); }
+.friend-card-stats dd { margin: var(--space-1) 0 0; font-size: var(--text-md); font-weight: 600; }
+.friend-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.friend-card-actions .copy-code { flex: 1 1 11rem; }
+.friend-card-buttons { display: flex; gap: var(--space-2); }
+.friend-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+.friend-card-foot .btn { font-size: var(--text-xs); color: var(--text-muted); }
+.friend-request { align-items: center; gap: var(--space-3); padding-block: var(--space-2); }
+.friend-request-id { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 10rem; min-width: 0; }
+
+/* — match cards: who · the matchup · what next — */
+.match-groups { display: flex; flex-direction: column; gap: var(--space-6); }
+.match-group { display: flex; flex-direction: column; gap: var(--space-3); }
+.match-group > h2 { margin: 0; }
+.match-group > h2[data-urgent='true'] { color: var(--color-accent-700); }
+.match-card { display: flex; flex-wrap: wrap; align-items: stretch; padding: 0; min-width: 0; }
+.match-card[data-tone='action'] { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--rule-strong)); }
+.match-card > * { padding: var(--space-4); min-width: 0; }
+.match-card-who { flex: 1 1 260px; display: flex; gap: var(--space-3); align-items: center; }
+.match-card-id { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); min-width: 0; }
+.match-card-name { font-family: var(--font-heading); font-size: var(--size-h5); overflow-wrap: anywhere; }
+.match-card-sub { font-size: var(--text-xs); }
+.match-card-body { flex: 3 1 440px; display: flex; flex-direction: column; justify-content: center; gap: var(--space-2); }
+.match-card-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.match-card-score { font-size: var(--size-h4); font-weight: 700; color: var(--text-muted); }
+.match-card-score [data-won='true'] { color: var(--color-accent-700); }
+.match-card-score [data-won='false'] { color: var(--color-text); }
+.match-card-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-3); align-items: end; }
+.match-card-theirs { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.match-card-theirs .mini-team { justify-content: flex-end; }
+.match-card-side { display: block; font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: var(--space-1); overflow-wrap: anywhere; }
+.match-card-vs { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); color: var(--text-muted); padding-bottom: var(--space-3); }
+.match-card-act { flex: 1 1 220px; display: flex; flex-direction: column; justify-content: center; gap: var(--space-2); }
+.match-card-buttons { display: flex; gap: var(--space-2); }
+.match-card-buttons > :last-child { flex: 1; }
+.match-card-note { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted); }
+.match-card-note[data-tone='dispute'] { color: var(--color-accent-700); font-size: var(--text-sm); font-weight: 600; }
+@media (min-width: 900px) {
+  .match-card > * + * { border-left: var(--border-hairline) solid var(--rule-hairline); }
+}
+@media (max-width: 899px) {
+  .match-card > * + * { border-top: var(--border-hairline) solid var(--rule-hairline); }
+  .match-card-teams { grid-template-columns: minmax(0, 1fr); }
+  .match-card-theirs { align-items: flex-start; text-align: left; }
+  .match-card-theirs .mini-team { justify-content: flex-start; }
+  .match-card-vs { display: none; }
+}
+
+/* Status chip on the ramp contract: quiet fill, loud text. A dispute adds the hatch so it never reads as "to do". */
+.status-chip {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  padding: 3px var(--space-2);
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+.status-chip[data-tone='action'] { background: var(--color-accent-100); color: var(--color-accent-800); }
+.status-chip[data-tone='info'] { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+.status-chip[data-tone='dispute'] {
+  color: var(--color-accent-800);
+  background: repeating-linear-gradient(135deg, var(--color-accent-100) 0 4px, var(--color-accent-200) 4px 8px);
+  box-shadow: inset 0 0 0 1px var(--color-accent-500);
+}
+
+/* — conversation: bubbles for two people, flat rows for many —
+   Grouped runs sit 4px apart and runs 16px apart; only a run's last bubble
+   takes the corner cut, on the speaker's side. */
+.chat-pane-header { min-height: 44px; }
+.chat-pane-heading { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-pane-heading .chat-pane-title { font-weight: 700; font-size: var(--text-md); }
+.chat-pane-controls .btn { min-width: 36px; min-height: 36px; }
+.chat-loading { margin: var(--space-2) 0; font-size: var(--text-sm); text-align: center; }
+.chat-transcript { gap: var(--space-1); position: relative; }
+.chat-transcript .chat-message[data-first] { margin-top: var(--space-3); }
+.chat-transcript .chat-message { max-width: min(86%, 60ch); clip-path: none; }
+.chat-transcript[data-layout='bubbles'] .chat-message[data-last] {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+.chat-transcript[data-layout='bubbles'] .chat-message.is-own[data-last] {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+.chat-transcript[data-layout='bubbles'] .chat-message { border-left: 0; border-right: 0; }
+.chat-transcript[data-layout='bubbles'] .chat-message.is-own { background: color-mix(in srgb, var(--color-accent) 16%, var(--surface-2)); }
+.chat-transcript[data-layout='flat'] .chat-message,
+.chat-transcript[data-layout='flat'] .chat-message.is-own {
+  align-self: stretch;
+  max-width: none;
+  background: transparent;
+  border: 0;
+  padding: 0 var(--space-2) 0 calc(32px + var(--space-3));
+}
+.chat-transcript[data-layout='flat'] .chat-message:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.chat-transcript[data-layout='flat'] .chat-message.is-announcement { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--color-accent); }
+.chat-message-head {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: calc(-32px - var(--space-3));
+  font-size: var(--text-sm);
+}
+.chat-message-head time { font-size: var(--text-2xs); }
+.chat-message-tools { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.chat-message-tools:empty { display: none; }
+.chat-message-tools .btn { font-size: var(--text-2xs); min-height: 28px; opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.chat-message:hover .chat-message-tools .btn,
+.chat-message:focus-within .chat-message-tools .btn,
+.chat-report-form .btn { opacity: 1; }
+@media (hover: none) { .chat-message-tools .btn { opacity: 1; } }
+.chat-divider { list-style: none; display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-1); }
+.chat-divider::before, .chat-divider::after { content: ''; flex: 1; height: 1px; background: var(--rule-hairline); }
+.chat-divider > span { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--text-muted); }
+.chat-divider.is-unread::before, .chat-divider.is-unread::after { background: var(--color-accent); }
+.chat-divider.is-unread > span { color: var(--color-accent-700); }
+.chat-jump { align-self: center; margin-top: calc(-1 * var(--space-8)); position: relative; box-shadow: var(--shadow-md); font-size: var(--text-xs); }
+.chat-compose { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+.chat-compose .input { flex: 1 1 12rem; width: auto; min-height: 40px; max-height: 8rem; resize: vertical; }
+.chat-compose > .btn-primary { min-height: 40px; }
+.chat-compose > .chat-announce, .chat-compose > .friend-notice { flex-basis: 100%; }
+
+/* — inbox rows: avatar, name, preview, kind · time — */
+.chat-rail-row {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-left-width: 2px;
+  min-height: 56px;
+}
+.chat-rail-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.chat-rail-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-rail-title { font-size: var(--text-md); font-weight: 600; }
+.chat-rail-preview { font-size: var(--text-sm); color: var(--text-muted); }
+.chat-rail-row.is-unread .chat-rail-title,
+.chat-rail-row.is-unread .chat-rail-preview { font-weight: 800; color: var(--color-text); }
+.chat-rail-row .chat-rail-unread-tag { flex: none; align-self: flex-start; }
+.chat-rail-row.is-open { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent); }
+.opponent-panel { gap: var(--space-4); }
+.opponent-panel-head { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; padding-bottom: var(--space-3); border-bottom: var(--border-hairline) solid var(--rule-hairline); }
+.opponent-panel-head .trainer-chips { justify-content: center; }
+.opponent-panel-head .opponent-panel-name { font-size: var(--size-h5); font-weight: 800; }
+.opponent-panel-sub { font-size: var(--text-xs); }
+.opponent-panel-block { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.opponent-panel-block p { margin: 0; font-size: var(--text-sm); }
+.opponent-panel-h2h { font-size: var(--size-h3); font-weight: 700; color: var(--text-muted); }
+.opponent-panel-h2h [data-won='true'] { color: var(--color-accent-700); }
+.friend-card-buttons .btn, .match-card-buttons .btn, .opponent-panel > .btn { min-height: 44px; }

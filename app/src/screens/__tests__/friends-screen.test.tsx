@@ -42,6 +42,12 @@ vi.mock('../../lib/social', () => ({
   unblockUser: (...a: unknown[]) => unblockUser(...a),
 }));
 
+const openDm = vi.fn();
+vi.mock('../../lib/channels', async (orig) => ({
+  ...(await orig<typeof import('../../lib/channels')>()),
+  openDm: (...a: unknown[]) => openDm(...a),
+}));
+
 const opponentFriendCode = vi.fn();
 vi.mock('../../lib/matchmaking', () => ({
   opponentFriendCode: (...a: unknown[]) => opponentFriendCode(...a),
@@ -136,6 +142,7 @@ beforeEach(() => {
   blockUser.mockReset().mockResolvedValue(true);
   unblockUser.mockReset().mockResolvedValue(undefined);
   opponentFriendCode.mockReset().mockResolvedValue(null);
+  openDm.mockReset().mockResolvedValue('dm-1');
   CH.myChallenges.mockReset().mockResolvedValue([]);
   searchRows.length = 0;
   profileNames = {};
@@ -197,7 +204,23 @@ describe('friends screen', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^remove mate$/i }));
     await waitFor(() => expect(removeFriendship).toHaveBeenCalledWith('mate'));
     fireEvent.click(await screen.findByRole('button', { name: /^block mate$/i }));
+    // Blocking cuts off messages, so it asks first.
+    fireEvent.click(await screen.findByRole('button', { name: /^block$/i }));
     await waitFor(() => expect(blockUser).toHaveBeenCalledWith('mate'));
+  });
+
+  it('does not block when the confirmation is cancelled', async () => {
+    renderApp(<FriendsScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: /^block mate$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^cancel$/i }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^block$/i })).not.toBeInTheDocument());
+    expect(blockUser).not.toHaveBeenCalled();
+  });
+
+  it('opens a direct message from a friend card', async () => {
+    renderApp(<FriendsScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Message mate' }));
+    await waitFor(() => expect(openDm).toHaveBeenCalledWith('mate'));
   });
 
   /**

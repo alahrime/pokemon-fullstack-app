@@ -34,18 +34,6 @@ if (!window.matchMedia) {
 }
 
 /**
- * jsdom implements no SVG geometry, so a path cannot report its own length.
- * BattleTimeline uses it to set up the line-drawing animation. Stubbed rather
- * than guarded in the component: the component is correct, the environment is
- * the thing missing a feature, and adding a runtime check there would be
- * carrying test scaffolding in shipped code.
- */
-// @ts-expect-error — jsdom's SVGElement lacks the geometry interface entirely.
-SVGElement.prototype.getTotalLength = SVGElement.prototype.getTotalLength ?? (() => 100);
-// @ts-expect-error — same.
-SVGElement.prototype.getPointAtLength = SVGElement.prototype.getPointAtLength ?? (() => ({ x: 0, y: 0 }));
-
-/**
  * jsdom implements no pointer capture. The IV track uses it so a drag survives
  * leaving the element, which is correct behaviour — the environment simply has
  * no such concept, so it is stubbed rather than removed from the component.

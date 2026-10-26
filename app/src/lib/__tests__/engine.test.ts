@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   PVP_BONUS, ENERGY_CAP, HP_WEIGHT, SHADOW_ATK_MULT, SHADOW_DEF_MULT,
   STAGE_MIN, STAGE_MAX, buffMultiplier, dmg, battle, mkBattleMon, chargesOf, fastMoveCounts,
-  rankedOpponents,
+  rankedOpponents, getEntry,
 } from '../engine';
 import { SPECIES_BY_ID, parseRef } from '../data';
 import type { ChargeMove, FastMove } from '../types';
@@ -216,5 +216,35 @@ describe('opponent relevance is weighted by who you actually meet', () => {
     const rel = rankedOpponents('azumarill', 'great', 0, 'either', 40);
     const ranks = rel.map((r) => rankOf(r.info.id));
     expect(ranks).not.toEqual([...ranks].sort((a, b) => a - b));
+  });
+});
+
+describe('battle options: bait mode and starting stages', () => {
+  // PvPoke ground truth (its own Battle class on pvpoke.com, 1v1 shields):
+  // Medicham 7/15/14 Counter / Ice Punch + Psychic v Registeel 8/15/14 Lock-On /
+  // Focus Blast + Flash Cannon. Selective baiting spends Ice Punch into the
+  // shield and finishes with Psychic for 21; with baiting off PvPoke spends
+  // Psychic into the shield and lands Ice Punch for 14.
+  const pick = (id: string, iv: { a: number; d: number; s: number }, fast: string, charges: string[]) => {
+    const s = SPECIES_BY_ID.get(id)!;
+    return mkBattleMon(getEntry(id, iv, 'great').entry, s.fastMoves.find((m) => m.id === fast)!,
+      charges.map((c) => s.chargeMoves.find((m) => m.id === c)!), s.types);
+  };
+  const medicham = pick('medicham', { a: 7, d: 15, s: 14 }, 'COUNTER', ['ICE_PUNCH', 'PSYCHIC']);
+  const registeel = pick('registeel', { a: 8, d: 15, s: 14 }, 'LOCK_ON', ['FOCUS_BLAST', 'FLASH_CANNON']);
+  const throws = (bait: 0 | 1 | 2) =>
+    battle(medicham, registeel, 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always', { baitA: bait })
+      .log.filter((e) => e.kind === 'charge' && e.actor === 'A').map((e) => `${e.moveName}:${e.damage}`);
+
+  it('matches PvPoke with selective baiting, the default', () => {
+    expect(throws(1)).toEqual(['Ice Punch:1', 'Psychic:21']);
+    expect(battle(medicham, registeel, 1, 1, 0, 0, true, true).log).toEqual(
+      battle(medicham, registeel, 1, 1, 0, 0, true, true, undefined, undefined, 'always', 'always', { baitA: 1 }).log);
+  });
+  it('matches PvPoke with baiting off', () => expect(throws(0)).toEqual(['Psychic:1', 'Ice Punch:14']));
+  it('starts from the given stat stages', () => {
+    const plain = battle(mon(), mon({ hp: 400 }), 0, 0, 0, 0, true, false).log[0].damage;
+    const buffed = battle(mon(), mon({ hp: 400 }), 0, 0, 0, 0, true, false, undefined, undefined, 'always', 'always', { stagesA: { atk: 2, def: 0 } }).log[0].damage;
+    expect(buffed).toBeGreaterThan(plain);
   });
 });

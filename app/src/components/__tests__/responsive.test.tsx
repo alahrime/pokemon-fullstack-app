@@ -54,8 +54,9 @@ describe('no fixed length can outgrow its container', () => {
     // flex-shrink: 0 makes that min-width unreachable — the block sized to its
     // content instead, 629px of verdict in a 327px column. A floor only works
     // if the box is allowed to descend to it.
+    // Its floor is now 0 (a grid item beside the matrix); either form is one it can reach.
     const rule = ruleBody(components, '.bt-verdict');
-    expect(rule).toMatch(/min-width:\s*min\(/);
+    expect(rule).toMatch(/min-width:\s*(0|min\()/);
     expect(rule, 'flex: none would pin it to its content width').not.toMatch(/flex:\s*none/);
   });
 

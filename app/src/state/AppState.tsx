@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup } from '../lib/data';
-import { defaultSpreadFor } from '../lib/engine';
+import { defaultSpreadFor, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
 import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
@@ -73,6 +73,15 @@ export interface AppStateShape {
   shieldsB: number;
   energyA: number;
   energyB: number;
+  /** Starting HP per battle side; null is full. Species-specific, so it resets with the species. */
+  startHpA: number | null;
+  startHpB: number | null;
+  /** PvPoke's baitShields per battle side. */
+  baitA: BaitMode;
+  baitB: BaitMode;
+  /** Starting attack/defence stages per battle side, PvPoke's stat modifiers. */
+  stagesA: Stages;
+  stagesB: Stages;
   /**
    * The match the `match` screen is open on. A whole `Match`, not just an
    * id, because whoever navigates here (a row on the Matchmaking screen)
@@ -167,6 +176,12 @@ export const INITIAL_STATE: AppStateShape = {
   shieldsB: 1,
   energyA: 0,
   energyB: 0,
+  startHpA: null,
+  startHpB: null,
+  baitA: 1,
+  baitB: 1,
+  stagesA: { atk: 0, def: 0 },
+  stagesB: { atk: 0, def: 0 },
   activeMatch: null,
   activeTournamentId: null,
   activePlayerId: null,

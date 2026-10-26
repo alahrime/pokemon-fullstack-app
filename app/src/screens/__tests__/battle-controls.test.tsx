@@ -33,11 +33,11 @@ describe('BattleScreen — per-side controls', () => {
   it('sets each side\'s shield count independently', () => {
     const { container } = renderApp(<BattleScreen />);
     const [a, b] = sides(container);
-    const zeroA = within(a).getAllByText('0 shields')[0].closest('button')!;
+    const zeroA = within(a).getByRole('button', { name: '0 shields' });
     fireEvent.click(zeroA);
     expect(zeroA.className).toMatch(/is-active/);
     // The other side is untouched — the two counts are separate settings.
-    const zeroB = within(b).getAllByText('0 shields')[0].closest('button')!;
+    const zeroB = within(b).getByRole('button', { name: '0 shields' });
     expect(zeroB.className).not.toMatch(/is-active/);
     fireEvent.click(zeroB);
     expect(zeroB.className).toMatch(/is-active/);
@@ -175,11 +175,11 @@ describe('BattleScreen — the fight itself', () => {
     // Optimised is the default because it is what PvPoke's engine does
     // (optimizeMoveTiming = true in its Pokemon.js).
     expect(optimised.getAttribute('aria-pressed')).toBe('true');
-    expect(container.textContent).toMatch(/PvPoke’s engine times its throws this way/);
+    expect(optimised.title).toMatch(/PvPoke’s engine times its throws this way/);
     const immediate = container.querySelector('.battle-timing .form-opt-normal') as HTMLButtonElement;
+    expect(immediate.title).toMatch(/not how PvPoke’s engine plays/);
     fireEvent.click(immediate);
     expect(immediate.getAttribute('aria-pressed')).toBe('true');
-    expect(container.textContent).toMatch(/not how PvPoke’s engine plays/);
     fireEvent.click(optimised);
     expect(optimised.getAttribute('aria-pressed')).toBe('true');
   });
@@ -196,7 +196,7 @@ describe('BattleScreen — the fight itself', () => {
   it('reports a winner and counts the combinations they take', () => {
     const { container } = renderApp(<BattleScreen />);
     expect(container.querySelector('.bt-winner')!.textContent).toMatch(/ beats /);
-    expect(container.textContent).toMatch(/wins \d of 9 shield-count combinations/);
+    expect(container.textContent).toMatch(/wins \d of 9/);
   });
 });
 
@@ -206,7 +206,7 @@ describe('BattleScreen — the second side is wired the same as the first', () =
     const b = sides(container)[1];
 
     // Shields
-    const twoShields = within(b).getAllByText('2 shields')[0].closest('button')!;
+    const twoShields = within(b).getByRole('button', { name: '2 shields' });
     fireEvent.click(twoShields);
     expect(twoShields.className).toMatch(/is-active/);
 
@@ -339,5 +339,41 @@ describe('BattleScreen — the phone versus strip', () => {
     fireEvent.click(container.querySelectorAll('.bt-edit-switch button')[0]);
     expect(pair.className).toMatch(/is-editing-a/);
     expect(container.querySelectorAll('.bt-vs-mon')[0].getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('BattleScreen — the console and its timeline', () => {
+  const hpText = (c: HTMLElement) => [...c.querySelectorAll('.bt-hp b')].map((b) => b.textContent);
+
+  it('shows the end of the fight, and both sides untouched at turn 0', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const tl = container.querySelector('.tl') as HTMLElement;
+    const end = hpText(container);
+    expect(end.some((t) => t!.startsWith('0 /'))).toBe(true);
+    fireEvent.keyDown(tl, { key: 'Home' });
+    expect(tl.getAttribute('aria-valuenow')).toBe('0');
+    // Full HP and starting energy before anything is thrown.
+    expect(hpText(container).every((t) => { const [a, b] = t!.split(' / '); return a === b; })).toBe(true);
+    expect([...container.querySelectorAll('.bt-status-energy')].map((e) => e.textContent)).toEqual(['0energy', '0energy']);
+    fireEvent.keyDown(tl, { key: 'End' });
+    expect(hpText(container)).toEqual(end);
+  });
+
+  it('starts a side below full HP from Options, and names the setting on the closed fold', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const a = sides(container)[0];
+    const hp = a.querySelector('.bt-hp-range') as HTMLInputElement;
+    fireEvent.change(hp, { target: { value: '40' } });
+    expect(a.querySelector('.bt-opts-set')!.textContent).toContain('40 HP');
+    fireEvent.keyDown(container.querySelector('.tl')!, { key: 'Home' });
+    expect(hpText(container)[0]).toMatch(/^40 \//);
+  });
+
+  it('sets baiting and stat stages per side', () => {
+    const { container } = renderApp(<BattleScreen />);
+    const b = sides(container)[1];
+    fireEvent.click(within(b).getByRole('button', { name: 'Off' }));
+    fireEvent.click(within(b).getByRole('button', { name: 'Raise Atk' }));
+    expect(b.querySelector('.bt-opts-set')!.textContent).toBe('bait off · +1/0');
   });
 });

@@ -1583,6 +1583,8 @@ interface MoveView {
   wouldShieldOppBest: () => boolean;
   /** ...and would the opponent shield this move of ours? */
   oppWouldShield: (c: ChargeMove) => boolean;
+  /** PvPoke's baitShields for this side (see BaitMode). */
+  bait: BaitMode;
 }
 
 /**
@@ -1602,15 +1604,14 @@ function refineChoice(chosen: ChargeMove, v: MoveView): ChargeMove | null {
   if (many && first.c.energy === m.c.energy && first.dpe > m.dpe && !selfDebuffing(first.c)) m = first;
   if (many && first.c.energy - 10 <= m.c.energy && first.dpe > m.dpe && selfDebuffing(m.c) && !selfDebuffing(first.c)) m = first;
   if (many && first.c.energy - m.c.energy <= 5 && first.dpe > m.dpe && selfBuffing(first.c)) m = first;
-  // PvPoke baits selectively by default (baitShields 1).
-  if (v.oppShields > 0 && many)
+  if (v.bait && v.oppShields > 0 && many)
     for (let i = 1; i < acm.length; i++)
       if (v.energy >= acm[i].c.energy && acm[i].dpe > m.dpe && selfDebuffing(m.c) && !selfDebuffing(acm[i].c)) m = acm[i];
   if (v.oppShields === 0 && many && selfDebuffing(m.c))
     for (let i = 1; i < acm.length; i++) if (acm[i].dpe > m.dpe && !selfDebuffing(acm[i].c)) m = acm[i];
   if (v.oppShields > 0 && many)
     for (let i = 1; i < acm.length; i++)
-      if (selfDebuffing(acm[0].c) && !selfDebuffing(acm[i].c) &&
+      if (selfDebuffing(acm[0].c) && !selfDebuffing(acm[i].c) && (v.bait || v.oppHp - acm[0].dmg > 10) &&
         acm[i].c.energy - acm[0].c.energy <= 10 && acm[i].dpe / acm[0].dpe > 0.7) m = acm[i];
   if (selfDebuffing(m.c) && v.shields === 0 && v.energy < 100 && v.oppBest &&
     v.oppEnergy >= v.oppBest.c.energy && !v.wouldShieldOppBest() && !selfBuffing(first.c)) return null;
@@ -1619,7 +1620,7 @@ function refineChoice(chosen: ChargeMove, v: MoveView): ChargeMove | null {
     if (v.energy < target) {
       if ((v.oppHp > m.dmg || v.oppShields !== 0) &&
         (v.hp > v.oppFastDmg * 2 || (v.oppFastTurns - v.fastTurns) * 500 > 500)) return null;
-    } else if (v.oppShields > 0 && first.c.energy - m.c.energy <= 10 && !selfDebuffing(first.c) &&
+    } else if (v.bait && v.oppShields > 0 && first.c.energy - m.c.energy <= 10 && !selfDebuffing(first.c) &&
       (selfBuffing(first.c) || v.oppWouldShield(m.c))) {
       // Bait with the cheaper move if it boosts, or if the bigger one would be shielded.
       m = first;
@@ -1739,6 +1740,24 @@ function shieldCall(policy: ShieldPolicy, incoming: number, hp: number, worst: n
   return incoming >= worst;
 }
 
+/**
+ * PvPoke's baitShields: 0 never baits (always builds to the hardest hitter),
+ * 1 baits selectively (PvPoke's default, and ours), 2 always baits — the
+ * defender then shields every charged move this side throws.
+ */
+export type BaitMode = 0 | 1 | 2;
+
+export interface Stages { atk: number; def: number }
+
+/** Options PvPoke exposes per side that most callers leave at their defaults. */
+export interface BattleOpts {
+  baitA?: BaitMode;
+  baitB?: BaitMode;
+  /** Starting stat stages, PvPoke's "stat modifiers". Clamped to ±4. */
+  stagesA?: Stages;
+  stagesB?: Stages;
+}
+
 export function battle(
   a: BattleMon,
   b: BattleMon,
@@ -1756,6 +1775,7 @@ export function battle(
   // caller was written against.
   policyA: ShieldPolicy = 'always',
   policyB: ShieldPolicy = 'always',
+  opts: BattleOpts = {},
 ): BattleResult {
   // A form change rewrites the mon in place, so a form-changing mon is copied
   // first: the caller's stays in its starting form, which is also what makes
@@ -1777,9 +1797,10 @@ export function battle(
 
   // Stat stages. Chance-gated buffs land whole, on PvPoke's meter - see
   // describeBuff's note and applyBuff.
-  const stA = { atk: 0, def: 0 };
+  const stA = { atk: clampStage(opts.stagesA?.atk ?? 0), def: clampStage(opts.stagesA?.def ?? 0) };
   const meters = new Map<string, number>();
-  const stB = { atk: 0, def: 0 };
+  const stB = { atk: clampStage(opts.stagesB?.atk ?? 0), def: clampStage(opts.stagesB?.def ?? 0) };
+  const baitOf = (side: 'A' | 'B'): BaitMode => (side === 'A' ? opts.baitA : opts.baitB) ?? 1;
 
   // Effective battle stats at the current stages. Every damage figure below is
   // derived from these rather than from a.atk/b.def directly.
@@ -1890,6 +1911,8 @@ export function battle(
       if (cd >= x.hpDef - cycle) use = true;
     }
     if (selfAttackDebuffing(move) && damage / x.hpDef > 0.55) use = true;
+    // An always-baiting attacker is always shielded (PvPoke, simulate mode).
+    if (baitOf(att) === 2) use = true;
     if (holdsShield(x.def, x.att, damage, x.hpDef)) use = false;
     // PvPoke's "moveID" typo makes this Dive only.
     if (cramorant(x.att) && move.id === 'DIVE' && damage > x.hpDef) use = false;
@@ -1988,8 +2011,12 @@ export function battle(
       }
       return pick;
     }
-    // A lethal charged move, if the opponent is not about to fall to a fast move.
-    if (x.sDef === 0 && e >= acm[0].c.energy && x.hpDef <= acm[0].dmg && !selfDebuffing(acm[0].c) && x.hpDef > fastDmg) return acm[0].c;
+    const bait = baitOf(me);
+    // A lethal charged move, if the opponent is not about to fall to a fast
+    // move. A non-baiting side may also finish with its second-cheapest.
+    if (x.sDef === 0 && x.hpDef > fastDmg)
+      for (let n = 0; n < (bait ? 1 : Math.min(2, acm.length)); n++)
+        if (e >= acm[n].c.energy && x.hpDef <= acm[n].dmg && !selfDebuffing(acm[n].c)) return acm[n].c;
     const broken = breaker(acm, e, o, x.sDef);
     if (broken) return broken;
     if (optimizeTiming && holdsForTiming(v, ttl)) return null;
@@ -2005,7 +2032,7 @@ export function battle(
       if (acm.length > 1)
         for (let i = 0; i < acm.length; i++) {
           if (selfDebuffing(best.c) && !selfDebuffing(acm[i].c) && sel.dpe / acm[i].dpe < 2) sel = acm[i];
-          if (x.sDef > 0 && !selfDebuffing(acm[0].c) && wouldShield(me, acm[i].c, e)) sel = acm[0];
+          if (bait && x.sDef > 0 && !selfDebuffing(acm[0].c) && wouldShield(me, acm[i].c, e)) sel = acm[0];
         }
       if (e < sel.c.energy) return null;
       if (selfDebuffing(sel.c) && e < e + Math.floor((100 - e) / m.fast.energyGain) * m.fast.energyGain) return null;
@@ -2115,23 +2142,24 @@ export function battle(
     }
     const rated = (c: ChargeMove) => acm.find((r) => r.c === c) ?? { c, dmg: 0, dpe: 0 };
     // Bait: build to a more efficient move the opponent would have to shield.
-    if (x.sDef > 0 && acm.length > 1)
+    if (bait && x.sDef > 0 && acm.length > 1)
       for (let i = 1; i < acm.length; i++)
         if (e < acm[i].c.energy && acm[i].dpe > rated(moves[0]).dpe &&
           !(acm[i].dpe / acm[0].dpe <= 1.5 && selfBuffing(acm[0].c))) return null;
     // Don't bait if the opponent won't shield.
-    if (x.sDef > 0 && acm.length > 1)
+    if (bait && x.sDef > 0 && acm.length > 1)
       for (let i = 1; i < acm.length; i++) {
         const ratio = (acm[i].dmg / acm[i].c.energy) / (rated(moves[0]).dmg / moves[0].energy);
         if (e >= acm[i].c.energy && ratio > 1.5 && !wouldShield(me, acm[i].c, e)) moves[0] = acm[i].c;
       }
-    if (x.sDef === 0 && !moves.some(selfDebuffing)) moves.sort((p, q) => rated(q).dmg - rated(p).dmg);
+    if (!bait || (x.sDef === 0 && !moves.some(selfDebuffing))) moves.sort((p, q) => rated(q).dmg - rated(p).dmg);
     const choice = refineChoice(moves[0], {
       hp: x.hpAtt, maxHp: m.hp, energy: e, shields: x.sAtt, fastTurns: m.fast.turns, acm,
       oppHp: x.hpDef, oppEnergy: x.eDef, oppShields: x.sDef, oppFastDmg, oppFastTurns: o.fast.turns,
       oppBest: oppAcm.length ? bestCharged(oppAcm) : null, oppLoaded: !!missileOf(o),
       wouldShieldOppBest: () => wouldShield(other, bestCharged(oppAcm).c, x.eDef),
       oppWouldShield: (c) => wouldShield(me, c, e),
+      bait,
     });
     if (choice && banking(m, e, best.dmg, x.hpDef)) return null;
     return choice;
@@ -2672,8 +2700,12 @@ export function shieldMatrix(
   energyA = 0,
   energyB = 0,
   optimizeTiming = false,
+  startHpA?: number,
+  startHpB?: number,
+  opts: BattleOpts = {},
 ): BattleResult[][] {
-  return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) => battle(a, b, sA, sB, energyA, energyB, true, optimizeTiming)));
+  return [0, 1, 2].map((sA) => [0, 1, 2].map((sB) =>
+    battle(a, b, sA, sB, energyA, energyB, true, optimizeTiming, startHpA, startHpB, 'always', 'always', opts)));
 }
 
 /** One outcome cell: everything the scenario picker needs to render. */

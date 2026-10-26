@@ -182,12 +182,15 @@ export function MovesPanel({
   onMoveIdx,
   chargeIds,
   onChargeIds,
+  compact = false,
 }: {
   species: Species;
   moveIdx: number;
   onMoveIdx: (i: number) => void;
   chargeIds: string[];
   onChargeIds: (ids: string[]) => void;
+  /** Equipped moves only, every list behind its picker: height no longer grows with the movepool. */
+  compact?: boolean;
 }) {
   const fast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
@@ -200,8 +203,8 @@ export function MovesPanel({
   // Over the threshold only the equipped moves get tiles; the rest live in the
   // picker. Panel height then depends on how many you have equipped, not on
   // how many the species happens to learn.
-  const fastMany = species.fastMoves.length > PICKER_THRESHOLD_FAST;
-  const chargeMany = species.chargeMoves.length > PICKER_THRESHOLD_CHARGE;
+  const fastMany = compact || species.fastMoves.length > PICKER_THRESHOLD_FAST;
+  const chargeMany = compact || species.chargeMoves.length > PICKER_THRESHOLD_CHARGE;
   const fastTiles = fastMany ? species.fastMoves.filter((m) => m.id === fast.id) : species.fastMoves;
   const chargeTiles = chargeMany ? species.chargeMoves.filter((m) => active.includes(m.id)) : species.chargeMoves;
 
@@ -217,7 +220,7 @@ export function MovesPanel({
   };
 
   return (
-    <div className="moves-panel">
+    <div className={`moves-panel${compact ? ' is-compact' : ''}`}>
       <section className="moves-col">
         <div className="moves-head">
           <span className="hud-label flex-1">

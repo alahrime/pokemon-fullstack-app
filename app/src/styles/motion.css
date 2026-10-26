@@ -32,17 +32,6 @@
   to { transform: scaleX(1); }
 }
 
-@keyframes draw-path {
-  from { stroke-dashoffset: var(--path-len, 1000); }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes pop-marker {
-  0% { opacity: 0; transform: scale(0); }
-  70% { opacity: 1; transform: scale(1.35); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
 @keyframes pulse-ring {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent); }
   70% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent) 0%, transparent); }
@@ -119,17 +108,6 @@
   animation-delay: calc(var(--i, 0) * 60ms * var(--motion-scale));
 }
 
-/* SVG line draw-on. --path-len is set inline from getTotalLength(). */
-.draw-path {
-  stroke-dasharray: var(--path-len, 1000);
-  animation: draw-path var(--dur-5) var(--ease-in-out) both;
-}
-.pop-marker {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: pop-marker var(--dur-3) var(--ease-spring) both;
-  animation-delay: calc(var(--marker-delay, 0ms) * var(--motion-scale));
-}
 
 /* ── matchup flip cards ────────────────────────────────────────────────────
    Real 3D rotation rather than a crossfade: the card carries a lost face and

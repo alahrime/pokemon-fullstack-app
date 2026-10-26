@@ -3673,7 +3673,7 @@ button:disabled,
 
 .battle-mon {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: flex-start;
 }
 
@@ -3682,8 +3682,8 @@ button:disabled,
   position: relative;
   display: grid;
   place-items: center;
-  width: 104px;
-  height: 104px;
+  width: 64px;
+  height: 64px;
   transition: transform var(--dur-3) var(--ease-spring);
 }
 /* Type-neutral ground: this screen already colours by side, so a second hue
@@ -3691,19 +3691,21 @@ button:disabled,
 .battle-mon-art::before {
   content: '';
   position: absolute;
-  inset: 8px;
+  inset: 4px;
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in oklab, var(--color-accent) 14%, transparent), transparent 72%);
 }
 .battle-mon:hover .battle-mon-art { transform: translateY(-3px) scale(1.04); }
 
+.battle-mon-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); }
 .battle-mon-name {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
-  font-size: var(--size-h4);
+  font-size: var(--text-md);
   line-height: 1.1;
   letter-spacing: var(--tracking-tight);
 }
+.battle-mon-bars { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-1); }
 
 .battle-mon-stats {
   display: flex;
@@ -3812,23 +3814,10 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .battle-timing {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--rule-hairline);
-  border-left: 3px solid var(--color-accent);
+  gap: var(--space-2);
+  margin-left: auto;
 }
 .battle-timing-label { flex: none; color: var(--text-faint); }
-/* Takes the leftover width instead of being capped at 34ch and leaving the
-   rest of the row empty. */
-.battle-timing-note {
-  flex: 1 1 32ch;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--text-xs);
-  line-height: 1.45;
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    HELD-OUT LEGEND
@@ -4520,19 +4509,13 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    BATTLE SCREEN — moved out of inline styles, values unchanged.
    ═══════════════════════════════════════════════════════════════════════ */
 .bt-side {
-  padding: var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 .bt-shadow-mark { color: var(--shadow-aura); }
-.bt-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-.bt-range { width: 100%; min-width: 0; }
+.bt-range, .bt-hp-range { width: 100%; min-width: 0; }
 
 /* ── The information mark, and what it folds away ──────────────────────────
    Several hundred words of methodology used to sit above the first Pokémon on
@@ -4714,52 +4697,17 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 
   .bt-edit-switch { display: flex; margin-bottom: var(--space-3); }
   .bt-edit-switch > * { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bt-pair.is-editing-a > .bt-side, .bt-pair.is-editing-b > .bt-pair-left { display: none; }
-}
-.bt-result {
-  border: var(--border-strong) solid var(--rule-strong);
-  border-top: 0;
-  padding: var(--space-5);
-  display: flex;
-  gap: var(--space-6);
-  flex-wrap: wrap;
-}
-.bt-verdict {
-  /* `flex: none` here meant flex-shrink: 0, so the block sized to its content
-     and the `min-width` below could never take effect — 629px of verdict in a
-     327px column on a phone. The responsive sweep missed it because the
-     verdict only exists once a matchup has been simulated. */
-  flex: 1 1 auto;
-  min-width: min(280px, 100%);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  .bt-pair.is-editing-a > .bt-pair-right, .bt-pair.is-editing-b > .bt-pair-left { display: none; }
 }
 .bt-winner {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 22px;
+  font-size: var(--text-md);
+  line-height: 1.15;
   color: var(--color-accent-700);
   margin-top: var(--space-1);
 }
-.bt-margin {
-  font-size: var(--text-base);
-  margin-top: 2px;
-}
-.bt-rank-note {
-  font-size: var(--text-xs);
-  max-width: 42ch;
-}
-.bt-matrix-col {
-  flex: 1;
-  min-width: min(280px, 100%);
-}
-.bt-matrix { width: auto; }
-/* Only the column headers, not the empty corner cell — a descendant selector
-   would have centred that too, which it never was. Qualified with `th` to
-   match the specificity of `.table th`, which sets text-align: left and would
-   otherwise win against a bare class no matter where this sits in the file. */
-th.bt-matrix-head { text-align: center; }
+.bt-margin { font-size: var(--text-xs); margin-top: 2px; }
 .bt-no-charge {
   font-size: var(--text-sm);
   margin: 0;
@@ -4767,6 +4715,191 @@ th.bt-matrix-head { text-align: center; }
 .bt-dmg {
   font-size: var(--text-sm);
   color: var(--color-accent-700);
+}
+
+/* ── Battle: everything a simulation needs in one view ─────────────────────
+   Both editors sit side by side over a console that shows the fight at one
+   turn — HP, energy, shields, charge bubbles — with the timeline that picks
+   the turn directly beneath it. Every control is one glance from its effect.
+   On a phone the console moves above the editor (see the 680px block), under
+   the pinned versus strip, so editing never scrolls the result away. */
+.bt-arena { display: flex; flex-direction: column; }
+.bt-side-head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.bt-iv { display: flex; flex-direction: column; gap: var(--space-1); }
+/* A side wide enough for two columns gets them: who and which roll on the
+   left, what it throws and how it is set up on the right. A container query,
+   because the side's own width decides this, not the window's. */
+.bt-pair-left, .bt-pair-right { container-type: inline-size; min-width: 0; }
+@container (min-width: 540px) {
+  .bt-side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'head head' 'mon moves' 'iv tog' 'opts tog';
+    align-items: start;
+    gap: var(--space-2) var(--space-4);
+  }
+  .bt-side-head { grid-area: head; }
+  .battle-mon { grid-area: mon; }
+  .bt-iv { grid-area: iv; }
+  .bt-side > .moves-panel { grid-area: moves; }
+  .bt-side-toggles { grid-area: tog; }
+  .bt-opts { grid-area: opts; }
+}
+
+/* The compact moves panel: equipped moves only, one line each, its picker in the heading row. */
+.moves-panel.is-compact { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.is-compact .moves-col { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); padding-top: 0; }
+.is-compact .moves-head { grid-area: 1 / 1; margin: 0; min-height: 0; }
+.is-compact .move-picker { grid-area: 1 / 2; margin: 0; }
+.is-compact .move-picker-btn { width: auto; padding: 2px 8px; }
+.is-compact .move-picker-panel { left: auto; width: min(280px, 80vw); }
+.is-compact .moves-grid { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-top: 4px; }
+.is-compact .move-slot-note { display: none; }
+.is-compact .move-tile { flex-direction: row; align-items: center; gap: var(--space-3); padding: 4px 10px; }
+.is-compact .move-head { flex: 1; min-width: 0; min-height: 0; }
+.is-compact .move-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-compact .move-stats { min-height: 0; gap: var(--space-3); }
+.is-compact .move-stats-ratio, .is-compact .move-counts { display: none; }
+/* Every tile shown is equipped, so the pick mark says nothing; the archetype is in the picker. */
+.is-compact .move-pick, .is-compact .move-arch, .is-compact .move-flag { display: none; }
+.is-compact .move-stat-value { font-size: var(--text-sm); }
+
+.bt-side-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.bt-side-toggles > .form-toggle { flex: 1 1 150px; }
+.bt-seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.bt-shields .chip-btn { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.bt-shield-glyph { color: var(--color-accent); font-size: 0.9em; }
+
+/* Options: overlays the panel below it rather than pushing it down. */
+.bt-opts { position: relative; }
+.bt-opts-sum {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  cursor: pointer; list-style: none;
+  font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  color: var(--color-accent);
+}
+.bt-opts-sum::-webkit-details-marker { display: none; }
+.bt-opts-sum::after { content: '▾'; }
+.bt-opts[open] > .bt-opts-sum::after { content: '▴'; }
+.bt-opts-set { color: var(--text-muted); text-transform: none; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bt-opts-panel {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0;
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: var(--border-hairline) solid var(--color-accent);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+}
+.bt-opt { display: flex; flex-direction: column; gap: var(--space-1); }
+.bt-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.bt-stepper i { font-style: normal; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-faint); margin-right: 2px; }
+.bt-stepper b { min-width: 3ch; text-align: center; font-weight: 600; }
+.bt-stepper .btn { width: 26px; min-height: 26px; padding: 0; }
+
+/* The console. */
+.bt-console {
+  border: var(--border-strong) solid var(--rule-strong);
+  border-top: 0;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.bt-console-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.bt-verdict { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+.bt-verdict-text { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 24ch; }
+.bt-status { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bt-status.is-b { align-items: stretch; text-align: right; }
+.bt-status-name { font-weight: 700; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-hp { position: relative; height: 20px; background: var(--color-neutral-300); overflow: hidden; }
+.bt-hp > span { position: absolute; inset: 0 auto 0 0; background: var(--type-grass); }
+.bt-status.is-b .bt-hp > span { inset: 0 0 0 auto; }
+.bt-hp.is-mid > span { background: var(--type-electric); }
+.bt-hp.is-low > span { background: var(--type-fire); }
+.bt-hp > b { position: relative; display: block; text-align: center; font-size: var(--text-xs); line-height: 20px; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.bt-status-row { display: flex; align-items: center; gap: var(--space-2); }
+.bt-status.is-b .bt-status-row { flex-direction: row-reverse; }
+.bt-status-energy { font-size: var(--text-md); font-weight: 700; line-height: 1; }
+.bt-status-energy i { display: block; font-style: normal; font-weight: 400; font-size: var(--text-2xs); color: var(--text-faint); }
+.bt-status-shields { color: var(--color-accent); letter-spacing: 2px; }
+
+/* A charged move's bubble fills from the bottom toward its cost and rings when it can be thrown. */
+.bt-bubble {
+  position: relative; flex: none;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: var(--text-xs); color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+  background:
+    linear-gradient(to top, var(--type, var(--color-accent)) var(--fill), transparent var(--fill)),
+    color-mix(in srgb, var(--type, var(--color-accent)) 22%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type, var(--color-accent)) 60%, transparent);
+  cursor: help;
+}
+.bt-bubble.is-ready { box-shadow: 0 0 0 2px var(--color-text), 0 0 10px var(--type, var(--color-accent)); }
+.bt-bubble[data-tip]:hover::after,
+.bt-bubble[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute; z-index: 40; bottom: calc(100% + 8px); left: 50%; translate: -50% 0;
+  width: max-content; max-width: 220px;
+  padding: 6px 9px;
+  white-space: pre-line; text-align: left; font-weight: 500; font-size: var(--text-xs); line-height: 1.4; text-shadow: none;
+  color: var(--color-text); background: var(--surface-1);
+  border: var(--border-hairline) solid var(--type, var(--color-accent));
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.5);
+  pointer-events: none;
+}
+
+/* Shield matrix, small enough to sit under the verdict. */
+.bt-matrix { border-collapse: collapse; font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+.bt-matrix th { padding: 1px 5px; color: var(--text-faint); font-weight: 500; }
+.bt-matrix td { width: 34px; padding: 2px 0; text-align: center; cursor: pointer; border: 1px solid var(--rule-hairline); }
+.bt-matrix td.is-win { color: var(--color-accent-700); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+.bt-matrix td.is-loss { color: var(--text-muted); }
+.bt-matrix td.is-active { outline: 2px solid var(--color-accent); outline-offset: -2px; font-weight: 700; }
+.bt-matrix abbr { text-decoration: none; }
+.bt-matrix-note { font-size: var(--text-2xs); color: var(--text-faint); margin-top: 2px; }
+
+/* The timeline lanes. Marks are positioned by turn as a share of the fight. */
+.tl { position: relative; padding: 4px 12px; background: var(--surface-2); border: var(--border-hairline) solid var(--rule-hairline); touch-action: pan-y; cursor: crosshair; user-select: none; }
+.tl:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.tl-track { position: relative; }
+.tl-lane { position: relative; height: 30px; }
+.tl-lane::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--rule-strong); }
+.tl-ev, .tl-shield { position: absolute; top: 50%; translate: -50% -50%; }
+.tl-ev.is-fast { width: 9px; height: 9px; background: var(--type, var(--color-neutral-500)); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
+.tl-ev.is-charge { width: 24px; height: 24px; border-radius: 50%; background: var(--type, var(--color-accent)); box-shadow: 0 0 0 2px var(--color-text); z-index: 1; }
+.tl-ev.is-charge.is-shielded { background: color-mix(in srgb, var(--type, var(--color-accent)) 35%, var(--surface-2)); }
+.tl-shield { width: 22px; height: 24px; background: var(--type-fairy); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); z-index: 1; }
+/* What has not happened yet at the turn shown recedes. */
+.tl-ev.is-future { opacity: 0.35; }
+.tl-cursor { position: absolute; top: -6px; bottom: -6px; width: 2px; translate: -1px 0; background: var(--color-text); pointer-events: none; z-index: 2; }
+.tl-tip {
+  position: absolute; z-index: 3; top: 100%; margin-top: 6px;
+  display: flex; flex-direction: column;
+  width: max-content; max-width: 220px;
+  padding: 6px 9px;
+  font-size: var(--text-xs); line-height: 1.4;
+  color: var(--color-text); background: var(--surface-1);
+  border: var(--border-hairline) solid var(--color-accent);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.5);
+  pointer-events: none;
+}
+.tl-tip.is-a { top: auto; bottom: 100%; margin: 0 0 6px; }
+.bt-console-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.bt-clock { font-size: var(--text-sm); }
+.bt-clock i { font-style: normal; color: var(--text-faint); }
+
+@media (max-width: 680px) {
+  .bt-console { order: -1; border-top: var(--border-strong) solid var(--rule-strong); margin-bottom: var(--space-3); padding: var(--space-2); }
+  /* The pinned strip already names both Pokémon. */
+  .bt-status-name { display: none; }
+  .bt-console-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'verdict verdict' 'a b'; gap: var(--space-2); }
+  .bt-verdict { grid-area: verdict; justify-content: center; }
+  .bt-status.is-a { grid-area: a; }
+  .bt-status.is-b { grid-area: b; }
+  .bt-bubble { width: 32px; height: 32px; }
+  .bt-matrix td { width: 26px; }
+  .battle-timing { margin-left: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -5357,21 +5490,6 @@ th.bt-matrix-head { text-align: center; }
   display: block;
   flex: none;
 }
-
-.tl-legend {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
-  margin-bottom: 6px;
-  font-size: var(--text-xs);
-}
-.tl-key {
-  width: 10px;
-  height: 10px;
-  display: inline-block;
-}
-.tl-key-a { background: var(--color-accent); }
-.tl-key-b { background: var(--color-neutral-700); }
 
 .sm-col {
   display: flex;

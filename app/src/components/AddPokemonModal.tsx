@@ -85,7 +85,7 @@ export function AddPokemonModal({
 
   const sp = ref ? speciesOf(ref) : null;
   const canShadow = !!sp?.shadowEligible;
-  const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const rated = useMemo(() => (sp ? movesFor(sp, league, isShadow) : null), [sp, league, isShadow]);
   const best = useMemo(() => (ref && sp ? bestSpreadFor(ref, league, true) : null), [ref, sp, league]);
   // What the slot opens on: the same roll the cards and the rankings show, so
   // adding without touching anything matches what the rest of the app said this
@@ -338,7 +338,7 @@ export function AddPokemonModal({
 export function movesForChoice(choice: AddPokemonChoice, league: LeagueId) {
   const sp = speciesOf(choice.ref);
   if (!sp) return null;
-  const rated = movesFor(sp, league);
+  const rated = movesFor(sp, league, parseRef(choice.ref).shadow);
   const fast = sp.fastMoves[Math.min(choice.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast;
   const charges = choice.chargeIds.length ? selectedCharges(sp, choice.chargeIds) : rated.charges;
   return { fast, charges };

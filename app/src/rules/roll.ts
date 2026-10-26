@@ -71,7 +71,7 @@ export function rollTeam(format: Format, seed: string, playerId: string): Build[
   return picked.map((ref) => {
     const s = SPECIES_BY_ID.get(parseRef(ref).id)!;
     if (!format.selection.rollMoves) {
-      const m = movesFor(s, format.base);
+      const m = movesFor(s, format.base, parseRef(ref).shadow);
       return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id) };
     }
     const fast = s.fastMoves[Math.floor(next() * s.fastMoves.length)];

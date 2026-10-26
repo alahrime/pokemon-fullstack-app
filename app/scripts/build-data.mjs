@@ -348,6 +348,7 @@ for (const p of bases) {
   const cap = maxCP(p.baseStats);
   const isShadowEligible = !isMegaForm && ((p.tags ?? []).includes('shadoweligible') || shadowIds.has(`${p.speciesId}_shadow`));
   let recommended = null;
+  const shadowByLeague = {};
   /**
    * PvPoke publishes a recommended set per league, and they genuinely differ:
    * of 787 species ranked in both Great and Ultra, 166 get different charged
@@ -377,6 +378,7 @@ for (const p of bases) {
     }
     const sHit = table.get(`${p.speciesId}_shadow`);
     if (sHit) shadowRank[lg.id] = sHit.rank;
+    if (sHit?.moveset) shadowByLeague[lg.id] = sHit.moveset;
     // A Shadow is a distinct opponent — ×6/5 attack and ×5/6 defense move its
     // breakpoints and bulkpoints away from the base form's, so it earns its own
     // membership rather than riding along on `leagues`, and its own exclusion
@@ -423,6 +425,22 @@ for (const p of bases) {
     };
   }
 
+  // A Shadow's recommended set is PvPoke's own row for `<id>_shadow`, and it
+  // is not always the base form's: Shadow Sableye runs Drain Punch where plain
+  // Sableye runs Power Gem, and 116 league rows differ like that. Stored only
+  // where it differs from what the base form runs in that league.
+  const shadowMoves = {};
+  for (const [lgId, set] of Object.entries(shadowByLeague)) {
+    const [rf, ...rc] = set;
+    const f = fasts.find((x) => x.id === rf) ?? defFast;
+    const cs = rc.map((id) => byId.get(id)).filter(Boolean).slice(0, 2);
+    if (!cs.length) continue;
+    const m = { fast: intern(f), charge: intern(cs[0]), charge2: intern(cs[1] ?? null) };
+    const base = leagueMoves[lgId] ?? { fast: intern(defFast), charge: intern(defCharges[0]), charge2: intern(defCharges[1] ?? null) };
+    if (m.fast === base.fast && m.charge === base.charge && m.charge2 === base.charge2) continue;
+    shadowMoves[lgId] = m;
+  }
+
   species.push({
     id: p.speciesId,
     dex: p.dex,
@@ -448,6 +466,7 @@ for (const p of bases) {
     chargeMove: intern(defCharges[0]),
     chargeMove2: intern(defCharges[1] ?? null),
     ...(Object.keys(leagueMoves).length ? { leagueMoves } : {}),
+    ...(Object.keys(shadowMoves).length ? { shadowMoves } : {}),
     leagues,
     shadowLeagues,
     leagueRank,

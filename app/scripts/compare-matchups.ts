@@ -26,7 +26,7 @@ const lg = 'great' as const;
 const overall = CATEGORIES.find((c) => c.id === 'overall')!;
 const mk = (r: string) => {
   const sp = speciesOf(r)!;
-  const m = movesFor(sp, lg);
+  const m = movesFor(sp, lg, r.endsWith('_shadow'));
   return mkBattleMon(bestSpreadFor(r, lg, true), m.fast, m.charges, sp.types);
 };
 

@@ -76,7 +76,7 @@ async function mount(size: 3 | 6, session: Session | null = null) {
 /** The rated build for a species in Great League — a real, decodable member. */
 function choiceFor(ref: string): AddPokemonChoice {
   const sp = speciesOf(ref)!;
-  const rated = movesFor(sp, 'great');
+  const rated = movesFor(sp, 'great', ref.endsWith('_shadow'));
   return {
     ref,
     fastIdx: Math.max(0, sp.fastMoves.findIndex((m) => m.id === rated.fast.id)),

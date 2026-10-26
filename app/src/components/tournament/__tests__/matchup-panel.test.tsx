@@ -23,7 +23,7 @@ import type { Pairing, Tournament } from '../../../lib/tournaments';
 import { movesFor, SPECIES_BY_ID } from '../../../lib/data';
 
 const NOW = new Date('2026-09-29T12:00:00Z');
-const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great');
+const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great', false);
 const roster = (cp: number) => Array.from({ length: 6 }, () => ({
   ref: 'azumarill', fast: mv.fast.id, charges: mv.charges.map((c) => c.id), cp, bestBuddy: false,
 }));

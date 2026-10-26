@@ -88,7 +88,7 @@ export function PokemonCard({
   const el = useRef<HTMLDivElement>(null);
   const sp = speciesOf(refId);
   const { shadow } = parseRef(refId);
-  const rated = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const rated = useMemo(() => (sp ? movesFor(sp, league, shadow) : null), [sp, league, shadow]);
   const moves = build ? { fast: build.fast, charges: build.charges } : rated;
   // Anything that shows moves at all shows their timing. Compact is what the
   // discovered-teams lists on both team screens render, so gating this to

@@ -1,5 +1,5 @@
 import { defaultSpreadFor, getEntry, mkBattleMon, selectedCharges } from './engine';
-import { movesFor, speciesOf } from './data';
+import { movesFor, parseRef, speciesOf } from './data';
 import type { BattleMon, IV, LeagueId } from './types';
 
 const monCache = new Map<string, BattleMon>();
@@ -27,7 +27,7 @@ export function monFor(ref: string, lg: LeagueId, build?: MonBuild): BattleMon {
     : `${ref}|${lg}`;
   const hit = monCache.get(key);
   if (hit) return hit;
-  const rated = movesFor(sp, lg);
+  const rated = movesFor(sp, lg, parseRef(ref).shadow);
   const fast = build ? (sp.fastMoves[Math.min(build.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast) : rated.fast;
   const charges = build && build.chargeIds.length ? selectedCharges(sp, build.chargeIds) : rated.charges;
   // The same roll the slot's card displays. These two disagreeing is the one

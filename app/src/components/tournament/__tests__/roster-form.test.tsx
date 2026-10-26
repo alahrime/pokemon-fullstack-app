@@ -26,11 +26,11 @@ const T = { id: 't1', league: 'great' } as Tournament;
 const SIX = ['azumarill', 'registeel', 'altaria', 'medicham', 'skarmory', 'stunfisk_galarian'];
 const choice = (ref: string): AddPokemonChoice => {
   const s = SPECIES_BY_ID.get(ref)!;
-  const m = movesFor(s, 'great');
+  const m = movesFor(s, 'great', ref.endsWith('_shadow'));
   return { ref, fastIdx: s.fastMoves.findIndex((f) => f.id === m.fast.id), chargeIds: m.charges.map((c) => c.id), iv: { a: 15, d: 15, s: 15 } };
 };
 const asMember = (ref: string, cp = 1500): RosterMember => {
-  const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great');
+  const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great', ref.endsWith('_shadow'));
   return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id), cp, bestBuddy: false };
 };
 const onSaved = vi.fn();

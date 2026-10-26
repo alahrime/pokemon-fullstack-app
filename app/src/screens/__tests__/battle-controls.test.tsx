@@ -379,9 +379,11 @@ describe('BattleScreen — the console and its timeline', () => {
 });
 
 describe('BattleScreen — a double knockout', () => {
-  // The rank-1 Shadow Sableye mirror (0/15/15, Shadow Claw / Foul Play +
-  // Power Gem) faints on the same turn at every equal shield count. PvPoke
-  // scores that a draw; the engine's `win` alone would hand it to Pokémon 1.
+  // The rank-1 Shadow Sableye mirror (0/15/15) faints on the same turn at
+  // every equal shield count and at 0v1 — PvPoke's own grid, cell for cell. PvPoke scores that a draw; the engine's `win`
+  // alone would hand it to Pokémon 1. It opens on PvPoke's Shadow set — Foul
+  // Play + Drain Punch, not plain Sableye's Power Gem — and Drain Punch's
+  // Defense boost is why the 1v1 ends on a Shadow Claw rather than a Foul Play.
   it('reports a tie, not a winner, and counts it apart from the wins', async () => {
     const { container } = renderApp(<BattleScreen />);
     for (const side of sides(container)) {
@@ -391,8 +393,14 @@ describe('BattleScreen — a double knockout', () => {
     expect(container.querySelector('.bt-winner')!.textContent).toBe('Simultaneous knockout');
     expect(container.querySelector('.bt-margin')!.textContent).toMatch(/Both faint on the same turn at 1v1 shields · CMP tie/);
     const cells = [...container.querySelectorAll('.bt-matrix tbody td')];
-    expect(cells.filter((c) => c.classList.contains('is-tie')).map((c) => cells.indexOf(c))).toEqual([0, 4, 8]);
-    expect(container.querySelector('.bt-matrix-note')!.textContent).toMatch(/wins 3 of 9 · 3 double KO/);
+    expect(cells.filter((c) => c.classList.contains('is-tie')).map((c) => cells.indexOf(c))).toEqual([0, 1, 4, 8]);
+    expect(container.querySelector('.bt-matrix-note')!.textContent).toMatch(/wins 3 of 9 · 4 double KO/);
     expect(container.querySelectorAll('.bt-vs-mon.is-winner')).toHaveLength(0);
+    for (const side of sides(container)) {
+      expect([...side.querySelectorAll('.moves-col')[1].querySelectorAll('.move-name')].map((n) => n.textContent)).toEqual(['Foul Play', 'Drain Punch']);
+    }
+    for (const lane of container.querySelectorAll('.tl-lane')) {
+      expect([...lane.querySelectorAll('.tl-ev')].at(-1)!.className).toMatch(/is-fast/);
+    }
   });
 });

@@ -14,7 +14,7 @@ const FORMAT: Format = {
 };
 
 function member(ref: string, cp = 1400): RosterMember {
-  const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great');
+  const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great', ref.endsWith('_shadow'));
   return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id), cp, bestBuddy: false };
 }
 const legal = resolvePool(FORMAT).legal;

@@ -107,7 +107,7 @@ describe('a mon and its Shadow are contested identically', () => {
 describe('what still counts toward priority', () => {
   it('mkBattleMon carries the stat, and falls back to atk when there is none', () => {
     const sp = speciesOf('murkrow')!;
-    const mv = movesFor(sp, 'great');
+    const mv = movesFor(sp, 'great', false);
     const withStat = mkBattleMon(bestSpreadFor('murkrow_shadow', 'great', true), mv.fast, mv.charges, sp.types);
     expect(withStat.cmpAtk).toBeCloseTo(withStat.atk / SHADOW_ATK_MULT, 10);
     // A hand-built entry with no Shadow component: the two are the same number.

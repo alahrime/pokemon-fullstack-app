@@ -7,7 +7,7 @@ import { SPECIES_BY_ID, makeRef, movesFor } from '../../lib/data';
 function build(ref: string, league: 'great' | 'ultra' | 'master' = 'great'): Build {
   const id = ref.replace(/_shadow$/, '');
   const s = SPECIES_BY_ID.get(id)!;
-  const m = movesFor(s, league);
+  const m = movesFor(s, league, ref.endsWith('_shadow'));
   return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id) };
 }
 

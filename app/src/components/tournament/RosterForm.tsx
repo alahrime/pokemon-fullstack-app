@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { displayName, movesFor, speciesOf } from '../../lib/data';
+import { displayName, movesFor, parseRef, speciesOf } from '../../lib/data';
 import { listTeams, type SavedTeam } from '../../lib/saves';
 import { registerRoster, type Tournament } from '../../lib/tournaments';
 import { resolvePool, type Format } from '../../rules';
@@ -249,7 +249,7 @@ export function RosterForm({ tournament, format, league, initial, onSaved, onCan
             const s = speciesOf(choice.ref);
             const withDefaults = choice.chargeIds.length || !s
               ? choice
-              : { ...choice, chargeIds: movesFor(s, league).charges.map((c) => c.id) };
+              : { ...choice, chargeIds: movesFor(s, league, parseRef(choice.ref).shadow).charges.map((c) => c.id) };
             startPending(picking, memberFromChoice(withDefaults, 0, false), slots[picking]);
           }}
         />

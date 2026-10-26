@@ -64,7 +64,7 @@ describe('rollTeam', () => {
   it('deals the rated loadout when rollMoves is off', () => {
     const b = rollTeam(fmt({ rollMoves: false }, 1), 's', 'p')[0];
     const s = SPECIES_BY_ID.get(parseRef(b.ref).id)!;
-    expect(b.fast).toBe(movesFor(s, 'great').fast.id);
+    expect(b.fast).toBe(movesFor(s, 'great', parseRef(b.ref).shadow).fast.id);
   });
 
   it('deals a legal loadout when rollMoves is on', () => {

@@ -53,12 +53,12 @@ describe('spread maths', () => {
 describe('thresholds', () => {
   it('hasBreakpoint compares the two attack extremes', () => {
     const t = getTable('registeel', LG);
-    const m = movesFor(SPECIES_BY_ID.get('registeel')!, LG);
+    const m = movesFor(SPECIES_BY_ID.get('registeel')!, LG, false);
     expect(typeof hasBreakpoint(t, m.fast, 120, ['water'])).toBe('boolean');
   });
   it('hasBulkpoint compares the two defence extremes', () => {
     const t = getTable('registeel', LG);
-    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, LG);
+    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, LG, false);
     expect(typeof hasBulkpoint(t, 120, m.fast, ['steel'])).toBe('boolean');
   });
   it('bpRowsFor and rulersFor produce rows for a real matchup', () => {
@@ -115,8 +115,8 @@ describe('grids', () => {
   it('shieldMatrix runs the nine states', () => {
     const m = shieldMatrix(
       // cmpAtk equals atk for anything that is not a Shadow, which these are not.
-      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['normal'], fast: movesFor(SPECIES_BY_ID.get('registeel')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('registeel')!, LG).charges },
-      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['water'], fast: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).fast, charges: movesFor(SPECIES_BY_ID.get('azumarill')!, LG).charges },
+      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['normal'], fast: movesFor(SPECIES_BY_ID.get('registeel')!, LG, false).fast, charges: movesFor(SPECIES_BY_ID.get('registeel')!, LG, false).charges },
+      { atk: 100, cmpAtk: 100, def: 100, hp: 150, types: ['water'], fast: movesFor(SPECIES_BY_ID.get('azumarill')!, LG, false).fast, charges: movesFor(SPECIES_BY_ID.get('azumarill')!, LG, false).charges },
     );
     expect(m).toHaveLength(3);
   });
@@ -135,7 +135,7 @@ describe('presentation helpers', () => {
     expect(typeof tierColor(0, 5, pal)).toBe('string');
   });
   it('move stats derive the ratios the UI shows', () => {
-    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, LG);
+    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, LG, false);
     expect(fastMoveStats(m.fast).turns).toBeGreaterThan(0);
     expect(chargeMoveStats(m.charges[0]).damage).toBeGreaterThan(0);
   });

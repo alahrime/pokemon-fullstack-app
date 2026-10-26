@@ -7,7 +7,7 @@ import { SPECIES_BY_ID, makeRef, movesFor } from '../../lib/data';
 function build(ref: string): Build {
   const id = ref.replace(/_shadow$/, '');
   const s = SPECIES_BY_ID.get(id)!;
-  const m = movesFor(s, 'great');
+  const m = movesFor(s, 'great', ref.endsWith('_shadow'));
   return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id) };
 }
 
@@ -24,7 +24,7 @@ function fmt(over: Partial<Format['composition']>): Format {
 describe('compileBuildSelector', () => {
   it('rebinds @move to mean *running* it, not merely able to learn it', () => {
     const s = SPECIES_BY_ID.get('azumarill')!;
-    const rated = movesFor(s, 'great');
+    const rated = movesFor(s, 'great', false);
     const running = compileBuildSelector(`@${rated.fast.name.toLowerCase().replace(/\s+/g, '')}`)!;
     const b = build('azumarill');
     expect(running(b)).toBe(true);

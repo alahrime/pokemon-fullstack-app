@@ -34,7 +34,7 @@ const countsOn = (container: HTMLElement) =>
 describe('a full card states how long each charged move takes', () => {
   it('matches fastMoveCounts for the rated set, move by move', () => {
     const sp = SPECIES_BY_ID.get('registeel')!;
-    const rated = movesFor(sp, 'great');
+    const rated = movesFor(sp, 'great', false);
     const { container } = renderApp(<PokemonCard refId="registeel" league="great" size="full" />);
     const rows = countsOn(container);
 
@@ -59,7 +59,7 @@ describe('a full card states how long each charged move takes', () => {
     // to follow it — the same charged move behind a different fast move is a
     // different wait.
     const sp = SPECIES_BY_ID.get('registeel')!;
-    const rated = movesFor(sp, 'great');
+    const rated = movesFor(sp, 'great', false);
     const other = sp.fastMoves.find((m) => m.energyGain !== rated.fast.energyGain);
     expect(other, 'need two fast moves of different gain').toBeTruthy();
 
@@ -81,7 +81,7 @@ describe('a full card states how long each charged move takes', () => {
     // so gating the counts to `full` left them off the very lists they are
     // wanted on. The chip wraps the run onto its own line when a column is too
     // narrow for the name and the run together.
-    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great');
+    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great', false);
     const compact = renderApp(<PokemonCard refId="registeel" league="great" size="compact" />).container;
     expect(compact.querySelectorAll('.move-counts-run')).toHaveLength(rated.charges.length);
 
@@ -93,7 +93,7 @@ describe('a full card states how long each charged move takes', () => {
 
   it('labels the run with both ends of the ratio', () => {
     const { container } = renderApp(<PokemonCard refId="registeel" league="great" size="full" />);
-    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great');
+    const rated = movesFor(SPECIES_BY_ID.get('registeel')!, 'great', false);
     const chip = [...container.querySelectorAll('.pc-move')].find((c) =>
       c.querySelector('.pc-move-name')?.textContent === rated.charges[0].name,
     )!;

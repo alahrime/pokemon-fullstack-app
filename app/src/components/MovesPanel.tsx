@@ -183,6 +183,7 @@ export function MovesPanel({
   chargeIds,
   onChargeIds,
   compact = false,
+  rated,
 }: {
   species: Species;
   moveIdx: number;
@@ -191,9 +192,11 @@ export function MovesPanel({
   onChargeIds: (ids: string[]) => void;
   /** Equipped moves only, every list behind its picker: height no longer grows with the movepool. */
   compact?: boolean;
+  /** The set an empty `chargeIds` stands for. Defaults to the species-wide pair; a league or a Shadow can rate another. */
+  rated?: ChargeMove[];
 }) {
   const fast = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
-  const recommended = [species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[];
+  const recommended = rated ? rated.map((c) => c.id) : ([species.chargeMove.id, species.chargeMove2?.id].filter(Boolean) as string[]);
   // Ignore ids the species cannot learn, then fall back to the recommendation
   // if nothing survives. Belt and braces against stale selections: the panel
   // should never be able to render zero moves for a species that has some.

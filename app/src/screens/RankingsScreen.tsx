@@ -46,7 +46,7 @@ function Row({ row, i, n, max, league, expanded, onToggle }: {
   // Read back from the same calls the build made, so the row cannot show a
   // spread or a set that did not earn the score beside it.
   const spread = useMemo(() => (sp ? defaultSpreadFor(row.ref, league, true) : null), [sp, row.ref, league]);
-  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const moves = useMemo(() => (sp ? movesFor(sp, league, shadow) : null), [sp, league, shadow]);
   return (
     <>
       <tr

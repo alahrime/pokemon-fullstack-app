@@ -205,12 +205,12 @@ function loadUsage(lg: LeagueId): Usage {
  * exist, and a deliberately empty second slot is a different strategy question
  * than this ranking is asking.
  */
-function loadoutsFor(sp: Species, lg: LeagueId, usage: Usage): Loadout[] {
+function loadoutsFor(sp: Species, lg: LeagueId, usage: Usage, shadow: boolean): Loadout[] {
   const u = usage.get(sp.id);
   const uf = (m: FastMove) => u?.fast.get(m.id.split('|')[0]) ?? 0;
   const uc = (m: ChargeMove) => u?.charge.get(m.id.split('|')[0]) ?? 0;
 
-  const rec = movesFor(sp, lg);
+  const rec = movesFor(sp, lg, shadow);
   // PvPoke teaches Return only where a purified mon (level 25) fits the cap.
   const cap = LEAGUES.find((l) => l.id === lg)!.cap;
   const learnable = sp.chargeMoves.filter((c) => c.id !== 'RETURN' || (sp.level25CP ?? Infinity) <= cap);
@@ -272,7 +272,7 @@ function buildPool(lg: LeagueId): { variants: Variant[]; foes: BattleMon[]; refs
     // Priced exactly as the rest of the app prices an opponent: the rank-1
     // roll at the Best Buddy ceiling, Shadow multipliers already applied.
     const best = bestSpreadFor(ref, lg, true);
-    const sets = loadoutsFor(sp, lg, usage);
+    const sets = loadoutsFor(sp, lg, usage, ref.endsWith('_shadow'));
     sets.forEach((l, i) => {
       variants.push({
         ref,
@@ -283,7 +283,7 @@ function buildPool(lg: LeagueId): { variants: Variant[]; foes: BattleMon[]; refs
         label: `${l.fast.name} · ${l.charges.map((c) => c.name).join(' / ')}`,
       });
     });
-    const rec = movesFor(sp, lg);
+    const rec = movesFor(sp, lg, ref.endsWith('_shadow'));
     foes.push(mkBattleMon(best, rec.fast, rec.charges, sp.types));
   }
   return { variants, foes, refs };
@@ -371,7 +371,7 @@ function buildPvPool(lg: LeagueId): PvPool {
   const refs = opponentCandidatesFor(lg);
   for (const ref of refs) {
     const sp = speciesOf(ref)!;
-    loadoutsFor(sp, lg, usage).forEach((l, set) =>
+    loadoutsFor(sp, lg, usage, ref.endsWith('_shadow')).forEach((l, set) =>
       variants.push({
         ref, set, recommended: l.recommended, ranked: true,
         mon: monAt(ref, l.fast, l.charges),

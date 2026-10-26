@@ -115,7 +115,7 @@ const FORMAT: Format = {
 const SIX = ['azumarill', 'registeel', 'altaria', 'medicham', 'skarmory', 'stunfisk_galarian'];
 function roster(cp: number): RosterMember[] {
   return SIX.map((ref) => {
-    const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great');
+    const m = movesFor(SPECIES_BY_ID.get(ref)!, 'great', false);
     return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id), cp, bestBuddy: false };
   });
 }

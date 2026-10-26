@@ -60,13 +60,13 @@ describe('roster', () => {
 
 describe('movesFor', () => {
   it('returns a fast move and at least one charge', () => {
-    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great');
+    const m = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great', false);
     expect(m.fast).toBeTruthy();
     expect(m.charges.length).toBeGreaterThan(0);
   });
   it('never exceeds two charged moves', () => {
     for (const sp of SPECIES.slice(0, 120)) {
-      expect(movesFor(sp, 'great').charges.length).toBeLessThanOrEqual(2);
+      expect(movesFor(sp, 'great', false).charges.length).toBeLessThanOrEqual(2);
     }
   });
 });

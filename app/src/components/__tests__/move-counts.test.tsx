@@ -62,7 +62,7 @@ describe('the sequence itself', () => {
 describe('every screen that lists a moveset uses it', () => {
   it('the team cards do', () => {
     const { container } = renderApp(<PokemonCard refId="florges" league="great" size="full" />);
-    const rated = movesFor(SPECIES_BY_ID.get('florges')!, 'great');
+    const rated = movesFor(SPECIES_BY_ID.get('florges')!, 'great', false);
     expect(runsIn(container)).toHaveLength(rated.charges.length);
   });
 

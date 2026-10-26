@@ -80,7 +80,7 @@ describe('the cores screen states a build the way the team screens do', () => {
       .filter((s) => who.startsWith(s.name))
       .sort((a, b) => b.name.length - a.name.length)[0];
     expect(sp, `no species for "${who}"`).toBeTruthy();
-    const rated = movesFor(sp!, 'great');
+    const rated = movesFor(sp!, 'great', /\(Shadow\)/.test(who));
     expect(card.querySelector('.core-timing-fast')!.textContent).toContain(rated.fast.name);
 
     const first = card.querySelector('.core-timing-row')!;

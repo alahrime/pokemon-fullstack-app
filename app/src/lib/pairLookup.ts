@@ -1,4 +1,4 @@
-import { movesFor, speciesOf } from './data';
+import { movesFor, parseRef, speciesOf } from './data';
 import { battle, bestSpreadFor, mkBattleMon } from './engine';
 import { fieldPool, overallOf } from './rankings';
 import {
@@ -50,7 +50,7 @@ function rowFor(ref: string, lg: LeagueId): Float64Array {
   if (hit) return hit;
 
   const sp = speciesOf(ref)!;
-  const { fast, charges } = movesFor(sp, lg);
+  const { fast, charges } = movesFor(sp, lg, parseRef(ref).shadow);
   const me = mkBattleMon(bestSpreadFor(ref, lg, true), fast, charges, sp.types);
   const field = fieldFor(lg);
   const out = new Float64Array(field.length);
@@ -62,7 +62,7 @@ function rowFor(ref: string, lg: LeagueId): Float64Array {
     // "covering" your own species means nothing.
     if (field[f] === ref) { out[f] = 500; continue; }
     const osp = speciesOf(field[f])!;
-    const om = movesFor(osp, lg);
+    const om = movesFor(osp, lg, parseRef(field[f]).shadow);
     const them = mkBattleMon(bestSpreadFor(field[f], lg, true), om.fast, om.charges, osp.types);
     for (const sc of SCENARIOS) {
       const r = battle(
@@ -146,7 +146,7 @@ function pressureFor(lg: LeagueId): Map<string, number> {
     field.map((r) => {
       const sp = speciesOf(r);
       if (!sp) return [] as string[];
-      const rec = movesFor(sp, lg);
+      const rec = movesFor(sp, lg, parseRef(r).shadow);
       return [...new Set([rec.fast.type, ...rec.charges.map((c) => c.type)])];
     }),
     relevanceWeights(field.map((r) => overallOf(lg, CORE_TIER, r)), 2),

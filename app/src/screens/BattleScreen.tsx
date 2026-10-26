@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
-import { SPECIES_BY_ID, displayName, parseRef, makeRef, LEAGUE_BY_ID } from '../lib/data';
+import { SPECIES_BY_ID, displayName, parseRef, makeRef, movesFor, ratedFastIdx, LEAGUE_BY_ID } from '../lib/data';
 import {
   ENERGY_CAP, STAGE_MAX, STAGE_MIN, bestBuddyEligible, bestSpreadFor, buffMultiplier, defaultSpreadFor, dmg, fastMoveCounts,
   getEntry, mkBattleMon, selectedCharges, shieldMatrix,
@@ -10,7 +10,7 @@ import {
 } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
-import type { BattleMon, ChargeMove, FastMove, IV, LeagueId, Species } from '../lib/types';
+import type { BattleMon, ChargeMove, FastMove, IV, LeagueId } from '../lib/types';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
@@ -291,6 +291,7 @@ function Side({
         chargeIds={chargeIds}
         onChargeIds={onChargeIds}
         compact
+        rated={movesFor(species, league, isShadow).charges}
       />
 
       <div className="bt-side-toggles">
@@ -499,10 +500,14 @@ const REPLAY_SPEED = 8;
  */
 const isTie = (r: { hpA: number; hpB: number }): boolean => r.hpA <= 0 && r.hpB <= 0;
 
-const monFor = (species: Species, entry: Parameters<typeof mkBattleMon>[0], fastIdx: number, chargeIds: string[]) => {
+// An empty selection is the set PvPoke rates for this league and form, not
+// the species-wide pair: Shadow Sableye runs Drain Punch, plain Sableye Power Gem.
+const monFor = (ref: string, league: LeagueId, entry: Parameters<typeof mkBattleMon>[0], fastIdx: number, chargeIds: string[]) => {
+  const { id, shadow } = parseRef(ref);
+  const species = SPECIES_BY_ID.get(id)!;
   const fast = species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)];
-  const charges = selectedCharges(species, chargeIds);
-  return mkBattleMon(entry, fast, charges.length ? charges : [species.chargeMove], species.types);
+  const charges = chargeIds.length ? selectedCharges(species, chargeIds) : movesFor(species, league, shadow).charges;
+  return mkBattleMon(entry, fast, charges, species.types);
 };
 
 export function BattleScreen() {
@@ -526,8 +531,8 @@ export function BattleScreen() {
   const { entry: entryA } = getEntry(battleA, ivA, league, bbA);
   const { entry: entryB } = getEntry(battleB, ivB, league, bbB);
 
-  const monA = useMemo(() => monFor(speciesA, entryA, fastA, chargeIdsA), [speciesA, entryA, fastA, chargeIdsA]);
-  const monB = useMemo(() => monFor(speciesB, entryB, fastB, chargeIdsB), [speciesB, entryB, fastB, chargeIdsB]);
+  const monA = useMemo(() => monFor(battleA, league, entryA, fastA, chargeIdsA), [battleA, league, entryA, fastA, chargeIdsA]);
+  const monB = useMemo(() => monFor(battleB, league, entryB, fastB, chargeIdsB), [battleB, league, entryB, fastB, chargeIdsB]);
   // A starting HP is clamped to the roll's, so an IV change that lowers HP cannot leave it above full.
   const hpA = startHpA === null ? undefined : Math.min(startHpA, entryA.hp);
   const hpB = startHpB === null ? undefined : Math.min(startHpB, entryB.hp);
@@ -573,6 +578,8 @@ export function BattleScreen() {
   const bumpB = (key: keyof IV, delta: number) => patch({ ivB: { ...ivB, [key]: Math.max(0, Math.min(15, ivB[key] + delta)) } });
   // Shadow cannot keep Return; the rest of the moveset carries across forms.
   const noReturn = (ids: string[]) => ids.filter((id) => id !== 'RETURN');
+  // A fast move still on the old form's rated default follows the form; one the user picked stays.
+  const formFast = (fast: number, from: string, to: string) => (fast === ratedFastIdx(from, league) ? ratedFastIdx(to, league) : fast);
 
   // Phones show one side's controls at a time (CSS); desktop shows both.
   const [editing, setEditing] = useState<'a' | 'b'>('a');
@@ -633,8 +640,8 @@ export function BattleScreen() {
               // The roll is species-specific, so it resets with the species —
               // the same rule the moves follow. Carried over, one species' rank-1
               // roll is an arbitrary mid-table one on the next.
-              onSpecies={(id) => patch({ battleA: id, fastA: 0, chargeIdsA: [], bestBuddyA: false, startHpA: null, ivA: ivOf(defaultSpreadFor(id, league)) })}
-              onForm={(ref) => patch({ battleA: ref, chargeIdsA: noReturn(chargeIdsA) })}
+              onSpecies={(id) => patch({ battleA: id, fastA: ratedFastIdx(id, league), chargeIdsA: [], bestBuddyA: false, startHpA: null, ivA: ivOf(defaultSpreadFor(id, league)) })}
+              onForm={(ref) => patch({ battleA: ref, fastA: formFast(fastA, battleA, ref), chargeIdsA: noReturn(chargeIdsA) })}
               iv={ivA}
               onBump={bumpA}
               onIv={(v) => patch({ ivA: v })}
@@ -661,8 +668,8 @@ export function BattleScreen() {
             <Side
               label="Pokémon 2"
               speciesId={battleB}
-              onSpecies={(id) => patch({ battleB: id, fastB: 0, chargeIdsB: [], bestBuddyB: false, startHpB: null, ivB: ivOf(defaultSpreadFor(id, league)) })}
-              onForm={(ref) => patch({ battleB: ref, chargeIdsB: noReturn(chargeIdsB) })}
+              onSpecies={(id) => patch({ battleB: id, fastB: ratedFastIdx(id, league), chargeIdsB: [], bestBuddyB: false, startHpB: null, ivB: ivOf(defaultSpreadFor(id, league)) })}
+              onForm={(ref) => patch({ battleB: ref, fastB: formFast(fastB, battleB, ref), chargeIdsB: noReturn(chargeIdsB) })}
               iv={ivB}
               onBump={bumpB}
               onIv={(v) => patch({ ivB: v })}

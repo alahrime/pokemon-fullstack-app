@@ -616,7 +616,7 @@ export function opponentInfo(ref: string, leagueId: LeagueId): OpponentInfo {
     // Resolved per league: an opponent runs the set that league rates, not
     // whichever one happened to be read first when the data was generated.
     ...(() => {
-      const { fast, charges } = movesFor(species, leagueId);
+      const { fast, charges } = movesFor(species, leagueId, shadow);
       return { fastMove: fast, chargeMove: charges[0], chargeMove2: charges[1] ?? null };
     })(),
   };

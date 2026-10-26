@@ -103,7 +103,7 @@ function main() {
     const field = ord.slice(0, FIELD_N).map((e) => e.ref);
     const fieldMons = field.map((r) => {
       const sp = speciesOf(r)!;
-      const m = movesFor(sp, lg);
+      const m = movesFor(sp, lg, r.endsWith('_shadow'));
       return mkBattleMon(bestSpreadFor(r, lg, true), m.fast, m.charges, sp.types);
     });
     const usage = usageFor(lg);
@@ -118,7 +118,7 @@ function main() {
       const tc = sp.chargeMoves.reduce((n, m) => n + uc(m), 0) || 1;
       const fasts = sp.fastMoves.filter((m) => uf(m) / tf >= USAGE_FLOOR);
       const chs = sp.chargeMoves.filter((m) => uc(m) / tc >= USAGE_FLOOR);
-      const rec = movesFor(sp, lg);
+      const rec = movesFor(sp, lg, ref.endsWith('_shadow'));
 
       const seen = new Set<string>();
       const combos: { fast: FastMove; charges: ChargeMove[] }[] = [];

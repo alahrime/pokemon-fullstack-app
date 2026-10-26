@@ -9,7 +9,7 @@ import type { Entrant, Pairing, TournamentState } from '../../../lib/tournaments
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const NOW = new Date('2026-09-29T12:00:00Z');
-const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great');
+const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great', false);
 const six = (ref: string) => Array.from({ length: 6 }, () => ({ ref, fast: mv.fast.id, charges: mv.charges.map((c) => c.id), cp: 1400, bestBuddy: false }));
 const ent = (playerId: string, dropped = false): Entrant => ({ playerId, seed: 1, dropped, registeredAt: 'x' });
 const names = new Map([['org', 'Ash'], ['me', 'Me'], ['r', 'Gary'], ['x', 'Xena']]);

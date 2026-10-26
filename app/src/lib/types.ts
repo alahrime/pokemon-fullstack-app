@@ -66,6 +66,8 @@ export interface Species {
    * Resolve through movesFor() rather than reading this directly.
    */
   leagueMoves?: Partial<Record<LeagueId, { fast: FastMove; charge: ChargeMove; charge2: ChargeMove | null }>>;
+  /** The Shadow form's set per league, where PvPoke rates it differently from the base form's. Also via movesFor(). */
+  shadowMoves?: Partial<Record<LeagueId, { fast: FastMove; charge: ChargeMove; charge2: ChargeMove | null }>>;
   leagues: string[];
   /** GO bars it from Trainer Battles (Shedinja): kept only to be shown, held out of every picker and pool. */
   showcaseOnly?: true;

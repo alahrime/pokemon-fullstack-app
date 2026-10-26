@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
-import { opponentsFor, randomMatchup } from '../lib/data';
+import { opponentsFor, randomMatchup, ratedFastIdx } from '../lib/data';
 import { defaultSpreadFor, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
 import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
@@ -124,8 +124,8 @@ export function leaguePatch(id: LeagueId, cup: string | null): Partial<AppStateS
     oppId: opponentsFor(id)[0]?.id ?? '',
     battleA: a,
     battleB: b,
-    fastA: 0,
-    fastB: 0,
+    fastA: ratedFastIdx(a, id),
+    fastB: ratedFastIdx(b, id),
     chargeIdsA: [],
     chargeIdsB: [],
     ivA: { a: spreadA.a, d: spreadA.d, s: spreadA.s },
@@ -166,8 +166,8 @@ export const INITIAL_STATE: AppStateShape = {
   // deliberately imperfect spread; this brings the battle screen in line.
   ivA: { a: openingIvA.a, d: openingIvA.d, s: openingIvA.s },
   ivB: { a: openingIvB.a, d: openingIvB.d, s: openingIvB.s },
-  fastA: 0,
-  fastB: 0,
+  fastA: ratedFastIdx(openingA, 'great'),
+  fastB: ratedFastIdx(openingB, 'great'),
   bestBuddyA: false,
   bestBuddyB: false,
   chargeIdsA: [],

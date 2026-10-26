@@ -11,6 +11,9 @@
 
 import { SPECIES, SPECIES_BY_ID, OPPONENTS, ROSTER, UNSIMULATED_IDS, conflictsOnTeam, isSimulated, makeRef, movesFor, opponentCandidatesFor, parseRef, pickableFor, speciesOf, teamIsLegal } from '../src/lib/data';
 import exclusions from '../../data-src/pool-exclusions.json';
+import rankingsGreat from '../../data-src/rankings-1500.json';
+import rankingsUltra from '../../data-src/rankings-2500.json';
+import rankingsMaster from '../../data-src/rankings-10000.json';
 import {
   SHADOW_ATK_MULT,
   SHADOW_DEF_MULT,
@@ -300,6 +303,31 @@ check('shadow-eligible population', shadowEligible.length > 400, `${shadowEligib
     ROSTER.length === sim.length + simShadow.length,
     `${ROSTER.length} rows, ${SPECIES.length - sim.length} species held out`,
   );
+}
+
+{
+  // A Shadow fields PvPoke's own row for `<id>_shadow`, not its base form's:
+  // Shadow Sableye runs Drain Punch where plain Sableye runs Power Gem. Every
+  // ranked Shadow whose moves we carry must resolve to exactly that set.
+  const tables = { great: rankingsGreat, ultra: rankingsUltra, master: rankingsMaster } as const;
+  let rows = 0;
+  const wrong: string[] = [];
+  for (const [lg, table] of Object.entries(tables) as [keyof typeof tables, { speciesId: string; moveset?: string[] }[]][]) {
+    for (const r of table) {
+      if (!r.speciesId.endsWith('_shadow') || !r.moveset) continue;
+      const sp = SPECIES_BY_ID.get(parseRef(r.speciesId).id);
+      if (!sp || !r.moveset.slice(1).every((id) => sp.chargeMoves.some((c) => c.id === id))) continue;
+      rows++;
+      const m = movesFor(sp, lg, true);
+      const got = [m.fast.id, ...m.charges.map((c) => c.id)].join(',');
+      if (got !== r.moveset.slice(0, 3).join(',')) wrong.push(`${lg}:${r.speciesId} ${got} ≠ ${r.moveset.join(',')}`);
+    }
+  }
+  check('every ranked Shadow fields its own PvPoke moveset', rows > 600 && wrong.length === 0, `${rows} rows${wrong.length ? `; ${wrong.slice(0, 4).join('; ')}` : ''}`);
+  const sab = SPECIES_BY_ID.get('sableye')!;
+  check('Shadow Sableye: Drain Punch, plain Sableye: Power Gem',
+    movesFor(sab, 'great', true).charges.map((c) => c.id).join() === 'FOUL_PLAY,DRAIN_PUNCH' &&
+    movesFor(sab, 'great', false).charges.map((c) => c.id).join() === 'FOUL_PLAY,POWER_GEM');
 }
 
 // The load-bearing claim: 1.2 x 5/6 === 1, so Shadow must not move rank or CP.
@@ -763,7 +791,7 @@ console.log('\n── PvP damage bonus and sneak ──────────�
   const azu = getEntry('azumarill', { a: 0, d: 15, s: 15 }, 'great').entry;
   const lick = getEntry('lickilicky', { a: 0, d: 15, s: 10 }, 'great').entry;
   const azuSp = speciesOf('azumarill')!, lickSp = speciesOf('lickilicky')!;
-  const azuM = movesFor(azuSp, 'great'), lickM = movesFor(lickSp, 'great');
+  const azuM = movesFor(azuSp, 'great', false), lickM = movesFor(lickSp, 'great', false);
   // The report predates the 2026 rebalance, so the fight replays Lickilicky's
   // moves as they were then: Body Slam 55/35, Shadow Ball 100/50. Current
   // stats would test the rebalance, not the two mechanics this block is for.
@@ -1054,7 +1082,7 @@ for (const lg of LEAGUES) {
     field.map((r) => {
       const sp = speciesOf(r);
       if (!sp) return [] as string[];
-      const rec = movesFor(sp, lg);
+      const rec = movesFor(sp, lg, parseRef(r).shadow);
       return [...new Set([rec.fast.type, ...rec.charges.map((c) => c.type)])];
     }),
     relevanceWeights(field.map((r) => overallOf(lg, '500', r)), 2),

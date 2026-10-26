@@ -29,7 +29,7 @@ import { LEAGUE_BY_ID, movesFor, SPECIES_BY_ID } from '../../lib/data';
 
 const ID = '3f2b8a10-5c4d-4e6f-9a1b-0c2d3e4f5a6b';
 const NOW = new Date('2026-09-29T12:00:00Z');
-const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great');
+const mv = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great', false);
 const roster = (ref: string) => Array.from({ length: 6 }, () => ({
   ref, fast: mv.fast.id, charges: mv.charges.map((c) => c.id), cp: 1400, bestBuddy: false,
 }));

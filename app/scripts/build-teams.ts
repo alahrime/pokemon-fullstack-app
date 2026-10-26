@@ -771,7 +771,7 @@ async function main() {
       pressureField.map((r) => {
         const sp = speciesOf(r);
         if (!sp) return [] as string[];
-        const rec = movesFor(sp, lg);
+        const rec = movesFor(sp, lg, r.endsWith('_shadow'));
         return [...new Set([rec.fast.type, ...rec.charges.map((c) => c.type)])];
       }),
       relevanceWeights(pressureField.map((r) => ovrPressure.get(r) ?? 0), 2),

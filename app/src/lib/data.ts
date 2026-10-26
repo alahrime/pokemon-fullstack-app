@@ -26,14 +26,16 @@ import { CPM } from './cpm';
  * are a bonus: identity comparison on moves now works.
  */
 interface RawSpecies
-  extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2' | 'leagueMoves' | 'forms'> {
+  extends Omit<Species, 'fastMoves' | 'chargeMoves' | 'chargeMove' | 'chargeMove2' | 'leagueMoves' | 'shadowMoves' | 'forms'> {
   forms?: Record<string, Omit<SpeciesForm, 'fastMoves' | 'chargeMoves'> & { fastMoves: string[]; chargeMoves: string[] }>;
   fastMoves: string[];
   chargeMoves: string[];
   chargeMove: string;
   chargeMove2: string | null;
-  leagueMoves?: Partial<Record<LeagueId, { fast: string; charge: string; charge2: string | null }>>;
+  leagueMoves?: RawLeagueMoves;
+  shadowMoves?: RawLeagueMoves;
 }
+type RawLeagueMoves = Partial<Record<LeagueId, { fast: string; charge: string; charge2: string | null }>>;
 const raw = artefact<{
   moves: Record<string, FastMove & ChargeMove>;
   species: RawSpecies[];
@@ -49,15 +51,10 @@ const raw = artefact<{
  */
 export const DATA_REV: string = raw.dataRev;
 
-export const SPECIES: Species[] = raw.species.map((s) => ({
-  ...s,
-  fastMoves: s.fastMoves.map((k) => raw.moves[k] as FastMove),
-  chargeMoves: s.chargeMoves.map((k) => raw.moves[k] as ChargeMove),
-  chargeMove: raw.moves[s.chargeMove] as ChargeMove,
-  chargeMove2: s.chargeMove2 ? (raw.moves[s.chargeMove2] as ChargeMove) : null,
-  leagueMoves: s.leagueMoves
+function hydrateLeagueMoves(lm: RawLeagueMoves | undefined): Species['leagueMoves'] {
+  return lm
     ? Object.fromEntries(
-        Object.entries(s.leagueMoves).map(([lg, m]) => [
+        Object.entries(lm).map(([lg, m]) => [
           lg,
           {
             fast: raw.moves[m.fast] as FastMove,
@@ -66,7 +63,17 @@ export const SPECIES: Species[] = raw.species.map((s) => ({
           },
         ]),
       )
-    : undefined,
+    : undefined;
+}
+
+export const SPECIES: Species[] = raw.species.map((s) => ({
+  ...s,
+  fastMoves: s.fastMoves.map((k) => raw.moves[k] as FastMove),
+  chargeMoves: s.chargeMoves.map((k) => raw.moves[k] as ChargeMove),
+  chargeMove: raw.moves[s.chargeMove] as ChargeMove,
+  chargeMove2: s.chargeMove2 ? (raw.moves[s.chargeMove2] as ChargeMove) : null,
+  leagueMoves: hydrateLeagueMoves(s.leagueMoves),
+  shadowMoves: hydrateLeagueMoves(s.shadowMoves),
   forms: s.forms
     ? Object.fromEntries(
         Object.entries(s.forms).map(([id, f]) => [
@@ -84,20 +91,38 @@ export const SPECIES: Species[] = raw.species.map((s) => ({
 /**
  * The loadout a species actually runs in a given league.
  *
- * Falls back to the default pair, which is what every species without a
- * league-specific entry uses. Everything that simulates a mon as an *opponent*
+ * The Shadow form's own set where PvPoke rates one, then the league's, then
+ * the default pair, which is what every species without a league-specific
+ * entry uses. Everything that simulates a mon as an *opponent*
  * should resolve through here: using one league's recommended set in another
  * is the difference between Registeel's Great and Ultra builds.
  */
 export function movesFor(
   species: Species,
   league: LeagueId,
+  // Required, not defaulted: a Shadow can run a different set from its base
+  // form (Shadow Sableye: Drain Punch, not Power Gem), and a caller that forgot
+  // to say which form it holds silently fielded the base form's moves.
+  shadow: boolean,
 ): { fast: FastMove; charges: ChargeMove[] } {
-  const m = species.leagueMoves?.[league];
+  const m = (shadow ? species.shadowMoves?.[league] : undefined) ?? species.leagueMoves?.[league];
   const fast = m?.fast ?? species.fastMoves[0];
   const c1 = m?.charge ?? species.chargeMove;
   const c2 = m ? m.charge2 : species.chargeMove2;
   return { fast, charges: c2 ? [c1, c2] : [c1] };
+}
+
+/**
+ * Index into `fastMoves` of the fast move a ref runs in a league — what a
+ * screen that stores the fast move as an index should open on. Index 0 is the
+ * species-wide default, which a league or a Shadow can rate differently.
+ */
+export function ratedFastIdx(ref: string, league: LeagueId): number {
+  const { id, shadow } = parseRef(ref);
+  const species = SPECIES_BY_ID.get(id);
+  if (!species) return 0;
+  const fast = movesFor(species, league, shadow).fast;
+  return Math.max(0, species.fastMoves.findIndex((f) => f.id === fast.id));
 }
 
 export const SPECIES_BY_ID: Map<string, Species> = new Map(SPECIES.map((s) => [s.id, s]));

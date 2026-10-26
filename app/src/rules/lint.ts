@@ -30,7 +30,7 @@ export const SEARCH_NODE_BUDGET = 20000;
 /** The rated loadout for a ref, which is what a satisfiability proof fields. */
 function ratedBuild(ref: string, format: Format): Build {
   const s = SPECIES_BY_ID.get(parseRef(ref).id)!;
-  const m = movesFor(s, format.base);
+  const m = movesFor(s, format.base, parseRef(ref).shadow);
   return { ref, fast: m.fast.id, charges: m.charges.map((c) => c.id) };
 }
 

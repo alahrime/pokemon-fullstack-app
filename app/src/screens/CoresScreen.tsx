@@ -76,7 +76,7 @@ function Direction({ from, to, covers, types }: {
 function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
   const sp = speciesOf(r);
   const spread = useMemo(() => (sp ? defaultSpreadFor(r, league, true) : null), [sp, r, league]);
-  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const moves = useMemo(() => (sp ? movesFor(sp, league, parseRef(r).shadow) : null), [sp, r, league]);
   if (!sp || !spread) return null;
   return (
     <span className="core-build">
@@ -125,7 +125,7 @@ function CoreBuild({ ref: r, league }: { ref: string; league: LeagueId }) {
  */
 function CoreTiming({ ref: r, league }: { ref: string; league: LeagueId }) {
   const sp = speciesOf(r);
-  const moves = useMemo(() => (sp ? movesFor(sp, league) : null), [sp, league]);
+  const moves = useMemo(() => (sp ? movesFor(sp, league, parseRef(r).shadow) : null), [sp, r, league]);
   if (!sp || !moves) return null;
   return (
     <div className="core-timing">

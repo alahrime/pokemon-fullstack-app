@@ -32,7 +32,7 @@ describe('a move chip takes its own type', () => {
 
   it('takes the move’s type even when the species does not have it', () => {
     const sp = SPECIES_BY_ID.get('registeel')!;
-    const rated = movesFor(sp, 'great');
+    const rated = movesFor(sp, 'great', false);
     expect(sp.types).toEqual(['steel']);
     const offType = [rated.fast, ...rated.charges].find((m) => !sp.types.includes(m.type));
     expect(offType, 'Registeel should rate a move off its own typing').toBeTruthy();

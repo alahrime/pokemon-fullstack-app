@@ -6,7 +6,7 @@ import type { RosterMember } from '../../../tournament/roster';
 
 afterEach(cleanup);
 const s = SPECIES_BY_ID.get('azumarill')!;
-const mv = movesFor(s, 'great');
+const mv = movesFor(s, 'great', false);
 const member = (over: Partial<RosterMember> = {}): RosterMember => ({
   ref: 'azumarill', fast: mv.fast.id, charges: mv.charges.map((c) => c.id), cp: 1487, bestBuddy: false, ...over,
 });

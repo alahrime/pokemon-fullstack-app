@@ -159,7 +159,7 @@ describe('FlipView', () => {
 });
 
 describe('MovePicker', () => {
-  const moves = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great').charges;
+  const moves = movesFor(SPECIES_BY_ID.get('azumarill')!, 'great', false).charges;
   it('opens, filters and picks', () => {
     const onPick = vi.fn();
     const { container } = renderApp(

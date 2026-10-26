@@ -219,7 +219,7 @@ function ThreatList({ threats }: { threats: { ref: string; lossRate: number; mea
 function defaultChoice(refId: string, leagueId: LeagueId): AddPokemonChoice {
   const sp = speciesOf(refId);
   if (!sp) return { ref: refId, chargeIds: [], fastIdx: 0, iv: { a: 0, d: 15, s: 15 } };
-  const rated = movesFor(sp, leagueId);
+  const rated = movesFor(sp, leagueId, parseRef(refId).shadow);
   const spread = defaultSpreadFor(refId, leagueId, true);
   return {
     ref: refId,

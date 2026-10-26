@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import { useAppState } from '../state/AppState';
 import { useSession } from '../state/SessionContext';
@@ -75,7 +76,8 @@ export function BattleTrackerScreen() {
   const { patch } = useAppState();
   const { user } = useSession();
   const [view, setView] = useState<View>('log');
-  const [season, setSeason] = useState(CURRENT_SEASON);
+  // The current season only: the tracker is a notebook for the season being played.
+  const season = CURRENT_SEASON;
   const [format, setFormatState] = useState(readFormat);
   const [sets, setSets] = useState<GblSet[] | null>(null);
   const [accounts, setAccounts] = useState<GblAccount[]>([]);
@@ -145,14 +147,6 @@ export function BattleTrackerScreen() {
             {PRESET_FORMATS.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
           </select>
         </label>
-        <div className="gt-field gt-season" role="group" aria-label="Season">
-          <span className="hud-label">Season</span>
-          <span className="gt-stepper">
-            <button type="button" className="btn btn-sm" aria-label="Previous season" disabled={season <= 1} onClick={() => setSeason(season - 1)}>‹</button>
-            <b className="numeric">{season}</b>
-            <button type="button" className="btn btn-sm" aria-label="Next season" onClick={() => setSeason(season + 1)}>›</button>
-          </span>
-        </div>
       </div>
       {view !== 'meta' && view !== 'ladder' && (
         <AccountBar mainName={mainName} accounts={accounts} active={active} onPick={setAccount} onAccounts={setAccounts}
@@ -289,6 +283,8 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
   const [team, setTeam] = useState<string[]>(() => [...lastTeam, '', '', ''].slice(0, 3));
   const [target, setTarget] = useState<Target>({ kind: 'opp', slot: 0 });
   const [busy, setBusy] = useState(false);
+  // The logging panel is a modal, opened from the table's + row.
+  const [adding, setAdding] = useState(false);
   const played = battlesToday(sets, day);
   const full = played >= DAILY_BATTLES;
   const picks = useMemo(() => topRefs(format, 12), [format]);
@@ -350,6 +346,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
       setMoves(NO_MOVES3);
       setNote('');
       setTarget({ kind: 'opp', slot: 0 });
+      setAdding(false);
     } catch (e) {
       onError((e as Error).message);
     } finally {
@@ -382,9 +379,11 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
     }
   };
 
-  // W, T and L log a battle from the keyboard, unless a field has focus.
+  // While the panel is open: W, T and L log a battle from the keyboard, unless a field has focus; Escape closes it.
   useEffect(() => {
+    if (!adding) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setAdding(false); return; }
       const typing = e.target instanceof Element && e.target.closest('input, select, textarea, [contenteditable]');
       if (e.metaKey || e.ctrlKey || e.altKey || typing) return;
       const r = ({ w: 'win', t: 'tie', l: 'loss' } as Record<string, GblResult>)[e.key.toLowerCase()];
@@ -392,7 +391,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [log]);
+  }, [log, adding]);
 
   const slot = (kind: Target['kind'], i: number, ref: string, label: string) => {
     const active = target.kind === kind && target.slot === i;
@@ -408,81 +407,14 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
     );
   };
 
+  const dayLabel = backlog ? day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Today';
+  // The battle the + row adds, as GO numbers it: set and place in the set.
+  const nextSet = open ? setNo : daySets.length + 1;
+  const nextInSet = open ? open.battles.length + 1 : 1;
+
   return (
     <div className="gt-log">
-      <DayPicker sets={sets} value={dayKey} onChange={(k) => { setDayKey(k); setSkipped(new Set()); }} />
-      <section className={`panel chamfer-9 gt-set${backlog ? ' is-backlog' : ''}`} aria-label="Current set">
-        <div className="gt-set-head">
-          <div>
-            <div className="gt-set-title">Set {setNo} <span className="numeric gt-set-record">{record(tally)}</span></div>
-            <div className="hud-label">
-              Battle {Math.min(battles.length + 1, SET_SIZE)} of {SET_SIZE} · {formatName(format)}
-              {backlog && <> · <span className="gt-backlog-tag">Backlog · {day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span></>}
-            </div>
-          </div>
-          <ol className="gt-pips" aria-label="This set's battles">
-            {Array.from({ length: SET_SIZE }, (_, i) => {
-              const b = battles[i];
-              const cls = b ? `is-${b.result ?? 'none'}` : i === battles.length ? 'is-next' : '';
-              return <li key={i} className={`gt-pip ${cls}`} aria-label={b ? `Battle ${i + 1}: ${b.result ?? 'no result'}` : `Battle ${i + 1}`} />;
-            })}
-          </ol>
-          <div className={`gt-today${full ? ' is-full' : ''}`} title="GO allows 25 battles a day">
-            <b className="numeric">{played}</b><i>/{DAILY_BATTLES} {backlog ? 'that day' : 'today'}</i>
-            <span className="gt-today-bar"><span style={{ width: `${Math.min(100, (played / DAILY_BATTLES) * 100)}%` }} /></span>
-          </div>
-        </div>
-
-        <div className="gt-slots-row">
-          <div className="gt-slots" role="group" aria-label="Your team">
-            <span className="hud-label">Your team</span>
-            <div className="gt-slot-grid">{team.map((r, i) => slot('team', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
-          </div>
-          <div className="gt-slots" role="group" aria-label="Opponent">
-            <span className="hud-label">Opponent</span>
-            <div className="gt-slot-grid">{opps.map((r, i) => slot('opp', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
-          </div>
-        </div>
-
-        {editing !== null && (
-          <MoveEditor refId={opps[editing]} format={format} value={moves[editing]}
-            onChange={(m) => setMoves(moves.map((x, i) => (i === editing ? m : x)))} />
-        )}
-
-        <div className="gt-pick">
-          <SpeciesSearch id="gt-search" value="" startEmpty includeShadow restrictTo={legal ?? undefined} onChange={place}
-            placeholder={`Search — fills ${target.kind === 'opp' ? "the opponent's" : 'your'} ${target.slot === 0 ? 'lead' : `slot ${target.slot + 1}`}`} />
-          <div className="gt-quick" aria-label={`Top ${picks.length} in ${formatName(format)}`}>
-            {picks.map((r, i) => (
-              <button key={r} type="button" className="gt-quick-mon" onClick={() => place(r)} title={`#${i + 1} ${displayName(r)}`}>
-                <span className="gt-quick-rank numeric">{i + 1}</span>
-                <Mon refId={r} size={56} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="gt-note">
-          <span className="hud-label">Note for this battle</span>
-          <textarea className="input" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="Optional — a read, a misplay, what they baited with. Only you can see it." />
-        </label>
-
-        {full && <p className="gt-full" role="status">{backlog ? 'That day' : 'Today'} already has {DAILY_BATTLES} battles — GO's daily limit.</p>}
-        <div className="gt-actions">
-          <button type="button" className="btn gt-undo" onClick={undo} disabled={busy || !last?.battles.length}>↶ Undo</button>
-          {(['win', 'tie', 'loss'] as const).map((r) => (
-            <button key={r} type="button" className={`gt-result is-${r}`} disabled={busy || !!awaitingElo || full} onClick={() => log(r)}
-              aria-keyshortcuts={r[0].toUpperCase()}>
-              {r === 'win' ? 'Win' : r === 'tie' ? 'Tie' : 'Loss'}
-            </button>
-          ))}
-          <button type="button" className="btn gt-skip" disabled={busy || !!awaitingElo || full} onClick={() => log(null)} title="Log the battle without a result">
-            Skip outcome
-          </button>
-        </div>
-        <p className="gt-hint gt-keys text-faint">Keys: <kbd>W</kbd> <kbd>T</kbd> <kbd>L</kbd>. Picks fill the highlighted slot; select a filled opponent to set its moves; double-click a slot to clear it.</p>
-      </section>
+      <DayPicker sets={sets} value={dayKey} onChange={(k) => { setDayKey(k); setSkipped(new Set()); setAdding(false); }} />
 
       {awaitingElo && (
         <EloEntry set={awaitingElo} index={daySets.indexOf(awaitingElo) + 1}
@@ -492,8 +424,92 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
           onSkip={() => setSkipped(new Set([...skipped, awaitingElo.id]))} />
       )}
 
-      <SetList sets={daySets} title={backlog ? day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Today'}
-        format={format} onSaved={(s) => replace(s)} onError={onError} />
+      <BattleTable sets={daySets} title={dayLabel} format={format} backlog={backlog}
+        played={played} next={{ set: nextSet, inSet: nextInSet }} blocked={awaitingElo ? `Write down Set ${daySets.indexOf(awaitingElo) + 1}'s Elo above first` : null}
+        busy={busy} onAdd={() => setAdding(true)} onUndo={undo} onSaved={replace} onError={onError} />
+
+      {adding && createPortal(
+        <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(false); }}>
+          <div className={`modal-panel gt-modal${backlog ? ' is-backlog' : ''}`} role="dialog" aria-modal="true" aria-label={`Log battle ${played + 1}`}
+            tabIndex={-1} ref={(el) => el?.focus({ preventScroll: true })}>
+            <div className="modal-head">
+              <span className="hud-label">Battle {played + 1} of {DAILY_BATTLES} · {dayLabel}</span>
+              <button type="button" className="btn btn-sm" onClick={() => setAdding(false)} aria-label="Close">✕</button>
+            </div>
+            <div className="modal-body gt-set">
+              <div className="gt-set-head">
+                <div>
+                  <div className="gt-set-title">Set {setNo} <span className="numeric gt-set-record">{record(tally)}</span></div>
+                  <div className="hud-label">
+                    Battle {Math.min(battles.length + 1, SET_SIZE)} of {SET_SIZE} · {formatName(format)}
+                    {backlog && <> · <span className="gt-backlog-tag">Backlog · {day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span></>}
+                  </div>
+                </div>
+                <ol className="gt-pips" aria-label="This set's battles">
+                  {Array.from({ length: SET_SIZE }, (_, i) => {
+                    const b = battles[i];
+                    const cls = b ? `is-${b.result ?? 'none'}` : i === battles.length ? 'is-next' : '';
+                    return <li key={i} className={`gt-pip ${cls}`} aria-label={b ? `Battle ${i + 1}: ${b.result ?? 'no result'}` : `Battle ${i + 1}`} />;
+                  })}
+                </ol>
+                <div className={`gt-today${full ? ' is-full' : ''}`} title="GO allows 25 battles a day">
+                  <b className="numeric">{played}</b><i>/{DAILY_BATTLES} {backlog ? 'that day' : 'today'}</i>
+                  <span className="gt-today-bar"><span style={{ width: `${Math.min(100, (played / DAILY_BATTLES) * 100)}%` }} /></span>
+                </div>
+              </div>
+
+              <div className="gt-slots-row">
+                <div className="gt-slots" role="group" aria-label="Your team">
+                  <span className="hud-label">Your team</span>
+                  <div className="gt-slot-grid">{team.map((r, i) => slot('team', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
+                </div>
+                <div className="gt-slots" role="group" aria-label="Opponent">
+                  <span className="hud-label">Opponent</span>
+                  <div className="gt-slot-grid">{opps.map((r, i) => slot('opp', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
+                </div>
+              </div>
+
+              {editing !== null && (
+                <MoveEditor refId={opps[editing]} format={format} value={moves[editing]}
+                  onChange={(m) => setMoves(moves.map((x, i) => (i === editing ? m : x)))} />
+              )}
+
+              <div className="gt-pick">
+                <SpeciesSearch id="gt-search" value="" startEmpty includeShadow restrictTo={legal ?? undefined} onChange={place}
+                  placeholder={`Search — fills ${target.kind === 'opp' ? "the opponent's" : 'your'} ${target.slot === 0 ? 'lead' : `slot ${target.slot + 1}`}`} />
+                <div className="gt-quick" aria-label={`Top ${picks.length} in ${formatName(format)}`}>
+                  {picks.map((r, i) => (
+                    <button key={r} type="button" className="gt-quick-mon" onClick={() => place(r)} title={`#${i + 1} ${displayName(r)}`}>
+                      <span className="gt-quick-rank numeric">{i + 1}</span>
+                      <Mon refId={r} size={56} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="gt-note">
+                <span className="hud-label">Note for this battle</span>
+                <textarea className="input" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)}
+                  placeholder="Optional — a read, a misplay, what they baited with. Only you can see it." />
+              </label>
+
+              <div className="gt-actions">
+                {(['win', 'tie', 'loss'] as const).map((r) => (
+                  <button key={r} type="button" className={`gt-result is-${r}`} disabled={busy || !!awaitingElo || full} onClick={() => log(r)}
+                    aria-keyshortcuts={r[0].toUpperCase()}>
+                    {r === 'win' ? 'Win' : r === 'tie' ? 'Tie' : 'Loss'}
+                  </button>
+                ))}
+                <button type="button" className="btn gt-skip" disabled={busy || !!awaitingElo || full} onClick={() => log(null)} title="Log the battle without a result">
+                  Skip outcome
+                </button>
+              </div>
+              <p className="gt-hint gt-keys text-faint">Keys: <kbd>W</kbd> <kbd>T</kbd> <kbd>L</kbd>, <kbd>Esc</kbd> to close. Picks fill the highlighted slot; select a filled opponent to set its moves; double-click a slot to clear it.</p>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -657,50 +673,82 @@ function EloEntry({ set, index, onDone, onSkip }: { set: GblSet; index: number; 
   );
 }
 
-/** A day's sets, newest first, battle by battle. A battle opens to its note and the moves seen. */
-function SetList({ sets, title, format, onSaved, onError }: {
-  sets: GblSet[]; title: string; format: string; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
+/**
+ * A day of GBL as a table of its 25 battles: the ones logged, in order, with
+ * their set, result, opponents, note and the Elo each set closed on; then a +
+ * row for the next one; then the rest of the day's places, empty. A row opens
+ * to its note and the moves seen; the last one can be undone.
+ */
+function BattleTable({ sets, title, format, backlog, played, next, blocked, busy, onAdd, onUndo, onSaved, onError }: {
+  sets: GblSet[]; title: string; format: string; backlog: boolean; played: number;
+  next: { set: number; inSet: number }; blocked: string | null; busy: boolean;
+  onAdd: () => void; onUndo: () => void; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  if (!sets.length) return null;
+  const rows = sets.flatMap((s, si) => s.battles.map((b) => ({ s, si, b })));
+  const lastId = rows.at(-1)?.b.id;
   return (
-    <section className="panel chamfer-9 gt-sets" aria-label={title}>
-      <HudLabel>{title}</HudLabel>
-      <ol className="gt-set-list">
-        {[...sets].reverse().map((s) => {
-          const t = tallyOf(s.battles);
-          const opened = s.battles.find((b) => b.id === openId);
+    <section className={`panel chamfer-9 gt-table-panel${backlog ? ' is-backlog' : ''}`} aria-label={title}>
+      <div className="gt-table-head">
+        <HudLabel>{title}</HudLabel>
+        <span className="numeric gt-table-count"><b>{played}</b>/{DAILY_BATTLES} battles</span>
+      </div>
+      <div className="gt-rows" role="table" aria-label={`${title}'s battles`}>
+        <div className="gt-row is-header" role="row">
+          {['#', 'Set', 'Result', 'Opponent', 'Note', 'Elo'].map((h) => <span key={h} role="columnheader">{h}</span>)}
+        </div>
+        {rows.map(({ s, si, b }, i) => {
+          const endOfSet = b.idx === s.battles.length && s.battles.length >= SET_SIZE;
+          const opened = openId === b.id;
           return (
-            <li key={s.id} className="gt-set-row">
-              <div className="gt-set-row-head">
-                <b>Set {sets.indexOf(s) + 1}</b>
-                <span className="text-muted">{formatName(s.format)}</span>
-                <span className="numeric">{record(t)}</span>
-                {s.eloEnd !== null && s.eloStart !== null && (
-                  <span className={`gt-delta numeric ${s.eloEnd >= s.eloStart ? 'is-up' : 'is-down'}`}>{signed(s.eloEnd - s.eloStart)} → {s.eloEnd.toLocaleString()}</span>
-                )}
+            <div key={b.id} role="rowgroup" className={`gt-rowgroup${b.idx === 1 ? ' is-set-start' : ''}`}>
+              <div role="row" className={`gt-row is-${b.result ?? 'none'}${opened ? ' is-open' : ''}`} tabIndex={0} aria-expanded={opened}
+                onClick={() => setOpenId(opened ? null : b.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(opened ? null : b.id); } }}>
+                <span role="cell" className="gt-row-n numeric">{i + 1}</span>
+                <span role="cell" className="gt-row-set">
+                  <b>Set {si + 1}</b> <i className="numeric">{b.idx}/{SET_SIZE}</i>
+                </span>
+                <span role="cell"><span className={`gt-result-badge is-${b.result ?? 'none'}`}>{b.result ?? 'no result'}</span></span>
+                <span role="cell" className="gt-row-opp" title={b.opponents.map((r, k) => {
+                  const m = b.opponentMoves[k];
+                  const seen = m && knowsAny(m) ? ` (${[m.fast, ...m.charges].filter(Boolean).map((id) => moveName(r, id!)).join(', ')})` : '';
+                  return displayName(r) + seen;
+                }).join('\n') || 'No opponents logged'}>
+                  {b.opponents.length ? b.opponents.map((r, k) => <Mon key={r + k} refId={r} size={32} label={false} />) : <span className="text-faint">—</span>}
+                </span>
+                <span role="cell" className="gt-row-note">{b.note ?? ''}</span>
+                <span role="cell" className="gt-row-elo numeric">
+                  {endOfSet && s.eloEnd !== null && (
+                    <>{s.eloStart !== null && <span className={s.eloEnd >= s.eloStart ? 'is-up' : 'is-down'}>{signed(s.eloEnd - s.eloStart)} </span>}→ {s.eloEnd.toLocaleString()}</>
+                  )}
+                  {b.id === lastId && (
+                    <button type="button" className="btn btn-sm gt-row-undo" disabled={busy} aria-label="Undo the last battle"
+                      onClick={(e) => { e.stopPropagation(); onUndo(); }}>↶</button>
+                  )}
+                </span>
               </div>
-              <ul className="gt-battles">
-                {s.battles.map((b) => (
-                  <li key={b.id}>
-                    <button type="button" className={`gt-battle is-${b.result ?? 'none'}${openId === b.id ? ' is-open' : ''}`} aria-expanded={openId === b.id}
-                      onClick={() => setOpenId(openId === b.id ? null : b.id)}
-                      title={`${b.opponents.map(displayName).join(', ') || 'No opponents logged'}${b.note ? `\n“${b.note}”` : ''}`}>
-                      <span className="gt-battle-result">{b.result ? b.result[0].toUpperCase() : '·'}</span>
-                      <span className="gt-battle-mons">{b.opponents.map((r) => <Mon key={r} refId={r} size={32} label={false} />)}</span>
-                      {b.note && <span className="gt-battle-note" aria-label="Has a note">✎</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
               {opened && (
-                <BattleEditor key={opened.id} battle={opened} format={format} onError={onError}
+                <BattleEditor key={b.id} battle={b} format={format} onError={onError}
                   onSaved={(nb) => onSaved({ ...s, battles: s.battles.map((x) => (x.id === nb.id ? nb : x)) })} />
               )}
-            </li>
+            </div>
           );
         })}
-      </ol>
+        {played < DAILY_BATTLES && (
+          <div role="row" className="gt-row is-add">
+            <button type="button" className="gt-add" onClick={onAdd} disabled={!!blocked} aria-label={`Add battle ${played + 1}`}>
+              <span className="gt-add-plus" aria-hidden="true">＋</span>
+              <span>{blocked ?? <>Add battle <b className="numeric">{played + 1}</b> <i>Set {next.set} · {next.inSet} of {SET_SIZE}</i></>}</span>
+            </button>
+          </div>
+        )}
+        {Array.from({ length: Math.max(0, DAILY_BATTLES - played - 1) }, (_, k) => (
+          <div key={k} role="row" className={`gt-row is-empty${(played + 1 + k) % SET_SIZE === 0 ? ' is-set-end' : ''}`} aria-hidden="true">
+            <span className="gt-row-n numeric">{played + 2 + k}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -41,7 +41,13 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-const pips = () => [...document.querySelectorAll('.gt-pip')].map((p) => p.className.replace('gt-pip', '').trim());
+/** The day's logged battles, as table rows. */
+const rows = () => [...document.querySelectorAll<HTMLElement>('.gt-rowgroup > .gt-row')];
+/** Open the logging modal from the table's + row. */
+async function openAdd() {
+  fireEvent.click(await screen.findByRole('button', { name: /^Add battle \d+$/ }));
+  await screen.findByRole('dialog');
+}
 
 describe('BattleTrackerScreen', () => {
   it('asks a signed-out visitor to sign in and reads nothing', () => {
@@ -51,37 +57,52 @@ describe('BattleTrackerScreen', () => {
     expect(G.listMySets).not.toHaveBeenCalled();
   });
 
-  it('logs a battle with the opponents picked, opening a set at the last Elo written down', async () => {
+  it('logs a battle from the + row, opening a set at the last Elo written down', async () => {
     open();
-    await waitFor(() => expect(document.querySelector('.gt-set-title')!.textContent).toMatch(/^Set 2/));
+    await openAdd();
+    expect(screen.getByRole('dialog', { name: 'Log battle 6' })).toBeTruthy();
+    expect(document.querySelector('.gt-set-title')!.textContent).toMatch(/^Set 2/);
     const quick = [...document.querySelectorAll<HTMLButtonElement>('.gt-quick-mon')];
     fireEvent.click(quick[0]);
     fireEvent.click(quick[1]);
-    const lead = quick[0].title.replace(/^#1 /, '');
     fireEvent.click(screen.getByRole('button', { name: 'Win' }));
     await waitFor(() => expect(G.addBattle).toHaveBeenCalled());
     expect(G.startSet).toHaveBeenCalledWith(expect.objectContaining({ season: 28, format: 'great', eloStart: 2612 }));
     const [, idx, result, opponents] = G.addBattle.mock.calls[0];
     expect([idx, result, opponents.length]).toEqual([1, 'win', 2]);
-    expect(opponents[0]).toBeTruthy();
-    expect(quick[0].textContent).toContain(lead);
-    await waitFor(() => expect(pips()[0]).toBe('is-win'));
-    // The slots clear for the next battle.
-    expect(document.querySelectorAll('.gt-slot.is-filled')).toHaveLength(0);
+    // The modal closes and the battle is appended as row 6, after the day's first five.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(rows()).toHaveLength(6);
+    expect(rows()[5].className).toMatch(/is-win/);
+    expect(rows()[5].querySelectorAll('.gt-row-opp .gt-mon')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Add battle 7' })).toBeTruthy();
+    // The rest of the day's 25 places stand empty below.
+    expect(document.querySelectorAll('.gt-row.is-empty')).toHaveLength(25 - 6 - 1);
+  });
+
+  it('closes the logging modal on Escape without logging', async () => {
+    open();
+    await openAdd();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(G.addBattle).not.toHaveBeenCalled();
   });
 
   it('logs from the keyboard, closes the set at five and asks for the Elo', async () => {
     open();
-    await waitFor(() => expect(document.querySelector('.gt-set-title')).toBeTruthy());
     // Each key waits for the battle before it to land: a result pressed mid-save is ignored, not queued.
     for (const [i, key] of ['w', 'l', 't', 'w'].entries()) {
+      await openAdd();
       fireEvent.keyDown(document.body, { key });
-      await waitFor(() => expect(pips()[i]).toMatch(/^is-(win|loss|tie)$/));
+      await waitFor(() => expect(rows()).toHaveLength(6 + i));
     }
+    await openAdd();
     fireEvent.click(screen.getByRole('button', { name: 'Skip outcome' }));
     const panel = await screen.findByRole('region', { name: 'Set 2 complete' });
-    expect(pips()).toEqual(['is-win', 'is-loss', 'is-tie', 'is-win', 'is-none']);
-    expect((screen.getByRole('button', { name: 'Win' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(rows().slice(5).map((r) => r.className.match(/is-(win|loss|tie|none)/)![1])).toEqual(['win', 'loss', 'tie', 'win', 'none']);
+    // The next battle waits for the Elo.
+    expect(screen.getByRole('button', { name: 'Add battle 11' }).textContent).toMatch(/Set 2's Elo/);
+    expect((screen.getByRole('button', { name: 'Add battle 11' }) as HTMLButtonElement).disabled).toBe(true);
     const input = within(panel).getByRole('textbox');
     fireEvent.change(input, { target: { value: '26a5x0' } });
     expect((input as HTMLInputElement).value).toBe('2650');
@@ -89,24 +110,29 @@ describe('BattleTrackerScreen', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(G.updateSet).toHaveBeenCalledWith('new', { eloEnd: 2650 }));
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Set 2 complete' })).toBeNull());
+    expect((screen.getByRole('button', { name: 'Add battle 11' }) as HTMLButtonElement).disabled).toBe(false);
+    // The set's last row carries the Elo it closed on.
+    expect(rows()[9].querySelector('.gt-row-elo')!.textContent).toMatch(/\+38 → 2,650/);
   });
 
-  it('undoes the last battle, and with it a set that is left empty', async () => {
+  it('undoes the last battle from the table, and with it a set that is left empty', async () => {
     open();
-    await waitFor(() => expect(document.querySelector('.gt-quick-mon')).toBeTruthy());
+    await openAdd();
     fireEvent.click(document.querySelector<HTMLButtonElement>('.gt-quick-mon')!);
     fireEvent.click(screen.getByRole('button', { name: 'Loss' }));
-    await waitFor(() => expect(pips()[0]).toBe('is-loss'));
-    fireEvent.click(screen.getByRole('button', { name: '↶ Undo' }));
+    await waitFor(() => expect(rows()).toHaveLength(6));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the last battle' }));
     await waitFor(() => expect(G.deleteSet).toHaveBeenCalledWith('new'));
     expect(G.deleteBattle).toHaveBeenCalledWith('nb0');
-    // The opponent comes back to the slot it was logged from.
-    await waitFor(() => expect(document.querySelectorAll('.gt-slot.is-filled')).toHaveLength(1));
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    // Its opponent is back in the slot, ready to log again.
+    await openAdd();
+    expect(document.querySelectorAll('.gt-slot.is-filled')).toHaveLength(1);
   });
 
   it('records the moves seen and a note with the battle', async () => {
     open();
-    await waitFor(() => expect(document.querySelector('.gt-quick-mon')).toBeTruthy());
+    await openAdd();
     fireEvent.click(document.querySelector<HTMLButtonElement>('.gt-quick-mon')!);
     // The pick moved the highlight on; selecting the filled lead opens its moves.
     fireEvent.click(document.querySelectorAll<HTMLButtonElement>('.gt-slot-grid')[1].querySelectorAll<HTMLButtonElement>('.gt-slot')[0]);
@@ -126,13 +152,16 @@ describe('BattleTrackerScreen', () => {
     const label = (b: HTMLElement) => b.textContent!.trim();
     expect(name(extra.moves[0].fast)).toBe(label(fast));
     expect(extra.moves[0].charges.map(name)).toEqual(charged.slice(1, 3).map(label));
-    await waitFor(() => expect((screen.getByPlaceholderText(/Optional — a read/) as HTMLTextAreaElement).value).toBe(''));
+    // The note shows on the row, and the next battle starts with a blank one.
+    await waitFor(() => expect(rows()[5].querySelector('.gt-row-note')!.textContent).toBe('  baited early  '));
+    await openAdd();
+    expect((screen.getByPlaceholderText(/Optional — a read/) as HTMLTextAreaElement).value).toBe('');
   });
 
-  it('opens a logged battle to edit its note and moves', async () => {
+  it('opens a logged battle\'s row to edit its note and moves', async () => {
     open();
-    await screen.findByRole('region', { name: 'Today' });
-    fireEvent.click(document.querySelector<HTMLButtonElement>('button.gt-battle')!);
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    fireEvent.click(rows()[0]);
     fireEvent.change(screen.getByPlaceholderText('Only you can see it.'), { target: { value: 'lag on the swap' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(G.updateBattle).toHaveBeenCalledWith('ob1', expect.objectContaining({ note: 'lag on the swap' })));
@@ -140,7 +169,7 @@ describe('BattleTrackerScreen', () => {
 
   it('backlogs a past day from the calendar, stamping the set and battle on that day', async () => {
     open();
-    await waitFor(() => expect(document.querySelector('.gt-quick-mon')).toBeTruthy());
+    await waitFor(() => expect(rows()).toHaveLength(5));
     fireEvent.click(screen.getByRole('button', { name: /Today/ }));
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -148,6 +177,9 @@ describe('BattleTrackerScreen', () => {
     // Yesterday may sit in last month's grid.
     if (!document.querySelector(`[aria-label^="${key}:"]`)) fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
     fireEvent.click(document.querySelector<HTMLButtonElement>(`[aria-label^="${key}:"]`)!);
+    // A new day's table: empty, starting at battle 1.
+    expect(rows()).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Add battle 1' }));
     expect(document.querySelector('.gt-set-title')!.textContent).toMatch(/^Set 1 /);
     fireEvent.click(screen.getByRole('button', { name: 'Loss' }));
     await waitFor(() => expect(G.addBattle).toHaveBeenCalled());
@@ -163,7 +195,7 @@ describe('BattleTrackerScreen', () => {
     if (tomorrow?.classList.contains('gt-cal-day')) expect(tomorrow.disabled).toBe(true);
   });
 
-  it('stops at GO\'s 25 battles a day', async () => {
+  it('stops at GO\'s 25 battles a day: no + row once the table is full', async () => {
     const at = now();
     const day = Array.from({ length: 5 }, (_, s): GblSet => ({
       id: `d${s}`, accountId: null, season: 28, format: 'great', team: [], eloStart: 2500, eloEnd: 2500, startedAt: at,
@@ -171,8 +203,9 @@ describe('BattleTrackerScreen', () => {
     }));
     G.listMySets.mockResolvedValue(day);
     open();
-    await screen.findByText(/already has 25 battles/);
-    expect((screen.getByRole('button', { name: 'Win' }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => expect(rows()).toHaveLength(25));
+    expect(screen.queryByRole('button', { name: /^Add battle/ })).toBeNull();
+    expect(document.querySelectorAll('.gt-row.is-empty')).toHaveLength(0);
   });
 
   it('shows the meta for the format and filters it by bracket', async () => {
@@ -196,15 +229,23 @@ describe('BattleTrackerScreen', () => {
   });
 
   it('logs on the account picked, which has its own sets and Elo', async () => {
-    const altSet: GblSet = { ...closed, id: 'alt-old', accountId: 'a1', eloStart: 1900, eloEnd: 1950 };
+    // The alt last played yesterday, so its today is empty.
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const altSet: GblSet = {
+      ...closed, id: 'alt-old', accountId: 'a1', eloStart: 1900, eloEnd: 1950, startedAt: yesterday,
+      battles: closed.battles.map((b) => ({ ...b, id: `alt-${b.id}`, playedAt: yesterday })),
+    };
     G.listMySets.mockResolvedValue([closed, altSet]);
     G.listAccounts.mockResolvedValue([{ id: 'a1', name: 'SideTrainer' }]);
     open();
     const alt = await screen.findByRole('button', { name: /SideTrainer/ });
     // The main account shows its own set only.
-    await waitFor(() => expect(document.querySelector('.gt-set-title')!.textContent).toMatch(/^Set 2/));
+    await waitFor(() => expect(rows()).toHaveLength(5));
     fireEvent.click(alt);
     await waitFor(() => expect(alt.getAttribute('aria-pressed')).toBe('true'));
+    // The alt's own day: none of the main account's battles.
+    await waitFor(() => expect(rows()).toHaveLength(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Add battle 1' }));
     fireEvent.click(document.querySelector<HTMLButtonElement>('.gt-quick-mon')!);
     fireEvent.click(screen.getByRole('button', { name: 'Win' }));
     await waitFor(() => expect(G.startSet).toHaveBeenCalled());

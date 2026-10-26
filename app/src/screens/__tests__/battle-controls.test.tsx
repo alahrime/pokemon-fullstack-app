@@ -377,3 +377,22 @@ describe('BattleScreen — the console and its timeline', () => {
     expect(b.querySelector('.bt-opts-set')!.textContent).toBe('bait off · +1/0');
   });
 });
+
+describe('BattleScreen — a double knockout', () => {
+  // The rank-1 Shadow Sableye mirror (0/15/15, Shadow Claw / Foul Play +
+  // Power Gem) faints on the same turn at every equal shield count. PvPoke
+  // scores that a draw; the engine's `win` alone would hand it to Pokémon 1.
+  it('reports a tie, not a winner, and counts it apart from the wins', async () => {
+    const { container } = renderApp(<BattleScreen />);
+    for (const side of sides(container)) {
+      await setSpecies(side, 'Sableye');
+      fireEvent.click(side.querySelector('.form-opt-shadow')!);
+    }
+    expect(container.querySelector('.bt-winner')!.textContent).toBe('Simultaneous knockout');
+    expect(container.querySelector('.bt-margin')!.textContent).toMatch(/Both faint on the same turn at 1v1 shields · CMP tie/);
+    const cells = [...container.querySelectorAll('.bt-matrix tbody td')];
+    expect(cells.filter((c) => c.classList.contains('is-tie')).map((c) => cells.indexOf(c))).toEqual([0, 4, 8]);
+    expect(container.querySelector('.bt-matrix-note')!.textContent).toMatch(/wins 3 of 9 · 3 double KO/);
+    expect(container.querySelectorAll('.bt-vs-mon.is-winner')).toHaveLength(0);
+  });
+});

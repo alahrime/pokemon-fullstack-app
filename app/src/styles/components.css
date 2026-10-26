@@ -4855,6 +4855,8 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .bt-matrix td { width: 34px; padding: 2px 0; text-align: center; cursor: pointer; border: 1px solid var(--rule-hairline); }
 .bt-matrix td.is-win { color: var(--color-accent-700); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .bt-matrix td.is-loss { color: var(--text-muted); }
+.bt-matrix td.is-tie { color: var(--color-text); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 12%, transparent) 0 3px, transparent 3px 6px); }
+.bt-winner.is-tie { color: var(--color-text); }
 .bt-matrix td.is-active { outline: 2px solid var(--color-accent); outline-offset: -2px; font-weight: 700; }
 .bt-matrix abbr { text-decoration: none; }
 .bt-matrix-note { font-size: var(--text-2xs); color: var(--text-faint); margin-top: 2px; }
@@ -4866,6 +4868,10 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .tl-lane { position: relative; height: 30px; }
 .tl-lane::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--rule-strong); }
 .tl-ev, .tl-shield { position: absolute; top: 50%; translate: -50% -50%; }
+/* A shield goes up before the hit lands, and on a CMP turn the defender's own
+   charge circle sits at the same turn — so the hexagon is drawn just ahead of
+   its turn, where it is never covered. */
+.tl-shield { translate: calc(-50% - 26px) -50%; }
 .tl-ev.is-fast { width: 9px; height: 9px; background: var(--type, var(--color-neutral-500)); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
 .tl-ev.is-charge { width: 24px; height: 24px; border-radius: 50%; background: var(--type, var(--color-accent)); box-shadow: 0 0 0 2px var(--color-text); z-index: 1; }
 .tl-ev.is-charge.is-shielded { background: color-mix(in srgb, var(--type, var(--color-accent)) 35%, var(--surface-2)); }

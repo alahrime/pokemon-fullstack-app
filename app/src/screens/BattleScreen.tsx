@@ -492,6 +492,13 @@ const ivOf = (e: { a: number; d: number; s: number }): IV => ({ a: e.a, d: e.d, 
 /** Replay speed against real time: PvPoke's default is 8x. */
 const REPLAY_SPEED = 8;
 
+/**
+ * Both faint on the same turn: PvPoke scores it a draw (no winner, rating 500
+ * each). The engine's `win` is `margin >= 0`, so on its own it hands every
+ * double KO to Pokémon 1.
+ */
+const isTie = (r: { hpA: number; hpB: number }): boolean => r.hpA <= 0 && r.hpB <= 0;
+
 const monFor = (species: Species, entry: Parameters<typeof mkBattleMon>[0], fastIdx: number, chargeIds: string[]) => {
   const fast = species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)];
   const charges = selectedCharges(species, chargeIds);
@@ -530,7 +537,8 @@ export function BattleScreen() {
     [monA, monB, energyA, energyB, state.optimizeTiming, hpA, hpB, baitA, baitB, stagesA, stagesB],
   );
   const current = matrix[shieldsA][shieldsB];
-  const winCount = matrix.flat().filter((r) => r.win).length;
+  const winCount = matrix.flat().filter((r) => r.win && !isTie(r)).length;
+  const tieCount = matrix.flat().filter(isTie).length;
   const total = current.log.length ? current.log[current.log.length - 1].turn : 0;
 
   // The turn on show. A pin belongs to the fight it was set on, so any change
@@ -580,6 +588,9 @@ export function BattleScreen() {
     }
   };
 
+  const tie = isTie(current);
+  // Equal Attack stats mean neither side has charge priority: both moves resolve.
+  const cmpTie = monA.cmpAtk === monB.cmpAtk;
   const winner = current.win ? nameA : nameB;
   const loser = current.win ? nameB : nameA;
   const margin = Math.abs(current.margin);
@@ -595,14 +606,14 @@ export function BattleScreen() {
           edited below. */}
       <div className="bt-versus" role="group" aria-label="Matchup">
         <VersusMon side="1" refId={battleA} sprite={speciesA.sprite} dex={speciesA.dex} cp={entryA.cp} iv={ivA}
-          hp={frame.hpA} maxHp={current.maxHpA} won={current.win} editing={editing === 'a'} onEdit={() => edit('a')} />
+          hp={frame.hpA} maxHp={current.maxHpA} won={!tie && current.win} editing={editing === 'a'} onEdit={() => edit('a')} />
         <div className="bt-vs-mid">
           <span className="bt-vs-vs">VS</span>
           <span className="numeric">{margin.toFixed(0)}%</span>
           <span className="bt-vs-shields numeric" title="Shields, Pokémon 1 v Pokémon 2">{shieldsA}v{shieldsB}</span>
         </div>
         <VersusMon side="2" refId={battleB} sprite={speciesB.sprite} dex={speciesB.dex} cp={entryB.cp} iv={ivB}
-          hp={frame.hpB} maxHp={current.maxHpB} won={!current.win} editing={editing === 'b'} onEdit={() => edit('b')} />
+          hp={frame.hpB} maxHp={current.maxHpB} won={!tie && !current.win} editing={editing === 'b'} onEdit={() => edit('b')} />
       </div>
 
       <div className="bt-arena">
@@ -684,14 +695,16 @@ export function BattleScreen() {
             <div className="bt-verdict">
               <div className="bt-verdict-text">
                 <HudLabel live>Outcome</HudLabel>
-                <div className="anim-rise bt-winner">
-                  {winner} beats {loser}
+                <div className={`anim-rise bt-winner${tie ? ' is-tie' : ''}`}>
+                  {tie ? 'Simultaneous knockout' : `${winner} beats ${loser}`}
                 </div>
                 <div className="text-muted bt-margin">
-                  {margin.toFixed(0)}% HP margin at {shieldsA}v{shieldsB} shields
-                  {current.cmpDecided ? ' · CMP decided' : ''}
+                  {tie ? 'Both faint on the same turn' : `${margin.toFixed(0)}% HP margin`} at {shieldsA}v{shieldsB} shields
+                  {current.cmpDecided ? (cmpTie ? ' · CMP tie' : ' · CMP decided') : ''}
                 </div>
-                <div className="bt-matrix-note">{nameA} wins {winCount} of 9</div>
+                <div className="bt-matrix-note">
+                  {nameA} wins {winCount} of 9{tieCount ? ` · ${tieCount} double KO` : ''}
+                </div>
               </div>
               <div className="table-scroll">
                 <table className="bt-matrix" aria-label="Every shield combination: rows are Pokémon 1's shields, columns Pokémon 2's">
@@ -706,10 +719,10 @@ export function BattleScreen() {
                       <tr key={sA}>
                         <th scope="row">{sA}</th>
                         {row.map((r, sB) => (
-                          <td key={sB} className={`${r.win ? 'is-win' : 'is-loss'}${sA === shieldsA && sB === shieldsB ? ' is-active' : ''}`}
+                          <td key={sB} className={`${isTie(r) ? 'is-tie' : r.win ? 'is-win' : 'is-loss'}${sA === shieldsA && sB === shieldsB ? ' is-active' : ''}`}
                             onClick={() => patch({ shieldsA: sA, shieldsB: sB })}
-                            title={`${SHIELD_LABELS[sA]} v ${SHIELD_LABELS[sB]}: ${r.win ? nameA : nameB} by ${Math.abs(r.margin).toFixed(0)}%`}>
-                            {Math.abs(r.margin).toFixed(0)}
+                            title={`${SHIELD_LABELS[sA]} v ${SHIELD_LABELS[sB]}: ${isTie(r) ? 'simultaneous knockout' : `${r.win ? nameA : nameB} by ${Math.abs(r.margin).toFixed(0)}%`}`}>
+                            {isTie(r) ? 'KO' : Math.abs(r.margin).toFixed(0)}
                           </td>
                         ))}
                       </tr>

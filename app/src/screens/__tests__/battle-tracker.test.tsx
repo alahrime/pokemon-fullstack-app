@@ -8,6 +8,7 @@ vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
 const G = vi.hoisted(() => ({
   listMySets: vi.fn(), startSet: vi.fn(), addBattle: vi.fn(), deleteBattle: vi.fn(), deleteSet: vi.fn(), updateSet: vi.fn(),
   meta: vi.fn(), leaderboard: vi.fn(), seasonSets: vi.fn(), getPublic: vi.fn(), setPublic: vi.fn(), updateBattle: vi.fn(),
+  listAccounts: vi.fn(), addAccount: vi.fn(), renameAccount: vi.fn(), deleteAccount: vi.fn(),
 }));
 vi.mock('../../lib/gbl', async (orig) => ({ ...(await orig<typeof import('../../lib/gbl')>()), ...G }));
 
@@ -17,7 +18,7 @@ import { AppStateProvider } from '../../state/AppState';
 const open = () => render(<AppStateProvider><BattleTrackerScreen /></AppStateProvider>);
 const now = () => new Date().toISOString();
 const closed: GblSet = {
-  id: 'old', season: 28, format: 'great', team: [], eloStart: 2580, eloEnd: 2612, startedAt: now(),
+  id: 'old', accountId: null, season: 28, format: 'great', team: [], eloStart: 2580, eloEnd: 2612, startedAt: now(),
   battles: [1, 2, 3, 4, 5].map((i) => ({
     id: `ob${i}`, idx: i, result: i < 5 ? 'win' as const : 'loss' as const, opponents: ['azumarill'],
     opponentMoves: [{ fast: null, charges: [] }], note: null, playedAt: now(),
@@ -29,8 +30,9 @@ beforeEach(() => {
   try { localStorage.clear(); } catch { /* jsdom */ }
   G.listMySets.mockResolvedValue([closed]);
   G.updateBattle.mockResolvedValue(undefined);
-  G.startSet.mockImplementation(async (p: { season: number; format: string; team: string[]; eloStart: number | null }) =>
-    ({ id: 'new', season: p.season, format: p.format, team: p.team, eloStart: p.eloStart, eloEnd: null, startedAt: now(), battles: [] }));
+  G.listAccounts.mockResolvedValue([]);
+  G.startSet.mockImplementation(async (p: { season: number; format: string; team: string[]; eloStart: number | null; accountId?: string | null }) =>
+    ({ id: 'new', accountId: p.accountId ?? null, season: p.season, format: p.format, team: p.team, eloStart: p.eloStart, eloEnd: null, startedAt: now(), battles: [] }));
   let k = 0;
   G.addBattle.mockImplementation(async (_set: string, idx: number, result: string | null, opponents: string[],
     extra: { moves?: unknown[]; note?: string | null; playedAt?: string } = {}) =>
@@ -164,7 +166,7 @@ describe('BattleTrackerScreen', () => {
   it('stops at GO\'s 25 battles a day', async () => {
     const at = now();
     const day = Array.from({ length: 5 }, (_, s): GblSet => ({
-      id: `d${s}`, season: 28, format: 'great', team: [], eloStart: 2500, eloEnd: 2500, startedAt: at,
+      id: `d${s}`, accountId: null, season: 28, format: 'great', team: [], eloStart: 2500, eloEnd: 2500, startedAt: at,
       battles: Array.from({ length: 5 }, (_, i) => ({ id: `d${s}b${i}`, idx: i + 1, result: 'win' as const, opponents: [], opponentMoves: [], note: null, playedAt: at })),
     }));
     G.listMySets.mockResolvedValue(day);
@@ -193,19 +195,53 @@ describe('BattleTrackerScreen', () => {
     await waitFor(() => expect(G.meta).toHaveBeenLastCalledWith('great', expect.any(Date), expect.objectContaining({ id: 'expert', lo: 2750 })));
   });
 
+  it('logs on the account picked, which has its own sets and Elo', async () => {
+    const altSet: GblSet = { ...closed, id: 'alt-old', accountId: 'a1', eloStart: 1900, eloEnd: 1950 };
+    G.listMySets.mockResolvedValue([closed, altSet]);
+    G.listAccounts.mockResolvedValue([{ id: 'a1', name: 'SideTrainer' }]);
+    open();
+    const alt = await screen.findByRole('button', { name: /SideTrainer/ });
+    // The main account shows its own set only.
+    await waitFor(() => expect(document.querySelector('.gt-set-title')!.textContent).toMatch(/^Set 2/));
+    fireEvent.click(alt);
+    await waitFor(() => expect(alt.getAttribute('aria-pressed')).toBe('true'));
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.gt-quick-mon')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Win' }));
+    await waitFor(() => expect(G.startSet).toHaveBeenCalled());
+    // The alt's set starts from the alt's own last Elo, not the main account's 2612.
+    expect(G.startSet.mock.calls[0][0]).toMatchObject({ accountId: 'a1', eloStart: 1950 });
+    expect(localStorage.getItem('gbl-tracker-account')).toBe('a1');
+  });
+
+  it('adds an alt, and says plainly when the server refuses one', async () => {
+    G.addAccount.mockRejectedValueOnce(new Error("An alt can't use your main account's trainer name."));
+    G.addAccount.mockResolvedValueOnce({ id: 'a2', name: 'Second' });
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: '＋ Alt account' }));
+    const input = screen.getByRole('textbox', { name: "New alt's trainer name" });
+    fireEvent.change(input, { target: { value: 'Me' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add alt' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', "An alt can't use your main account's trainer name.");
+    fireEvent.change(input, { target: { value: '  Second ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add alt' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Second/, pressed: true })).toBeTruthy());
+    expect(G.addAccount).toHaveBeenLastCalledWith('  Second ');
+  });
+
   it('ranks the ladder and opens a player\'s season from it', async () => {
     G.leaderboard.mockResolvedValue([
-      { userId: 'p1', name: 'Ash', avatar: null, elo: 3010, peak: 3050, wins: 30, losses: 10, ties: 0, battles: 40, isFriend: true },
-      { userId: 'p2', name: 'Gary', avatar: null, elo: 2800, peak: 2800, wins: 5, losses: 5, ties: 0, battles: 10, isFriend: false },
+      { userId: 'p1', accountId: null, accountName: null, name: 'Ash', avatar: null, elo: 3010, peak: 3050, wins: 30, losses: 10, ties: 0, battles: 40, isFriend: true },
+      { userId: 'p2', accountId: null, accountName: null, name: 'Gary', avatar: null, elo: 2800, peak: 2800, wins: 5, losses: 5, ties: 0, battles: 10, isFriend: false },
     ]);
     G.seasonSets.mockResolvedValue([{ id: 'x', format: 'great', eloStart: 2990, eloEnd: 3010, startedAt: now(), wins: 3, losses: 2, ties: 0, battles: 5 }]);
     open();
     fireEvent.click(screen.getByRole('tab', { name: 'Ladder' }));
     await screen.findByText('Ash');
+    expect(screen.queryByText(/alt of/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Friends' }));
     expect(screen.queryByText('Gary')).toBeNull();
     fireEvent.click(screen.getByText('Ash').closest('button')!);
-    await waitFor(() => expect(G.seasonSets).toHaveBeenCalledWith('p1', 28));
+    await waitFor(() => expect(G.seasonSets).toHaveBeenCalledWith('p1', 28, null));
     await waitFor(() => expect(document.querySelector('.gt-hero-elo')!.textContent).toBe('3,010'));
     expect(screen.queryByRole('switch')).toBeNull();
   });

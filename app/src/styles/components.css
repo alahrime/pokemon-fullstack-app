@@ -8232,3 +8232,14 @@ button.gt-battle:hover, button.gt-battle.is-open { background: color-mix(in srgb
   .gt-recap > div { grid-template-columns: 110px minmax(0, 1fr); }
   .gt-select { min-width: 0; width: 100%; }
 }
+
+/* Battle Tracker: which GO account is being logged. */
+.gt-accounts { display: flex; flex-direction: column; gap: var(--space-2); }
+.gt-accounts-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.gt-accounts-bar .seg-group { flex-wrap: wrap; }
+.gt-acct-kind { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; opacity: 0.7; margin-right: 4px; }
+.gt-accounts-panel { display: flex; flex-direction: column; gap: var(--space-2); max-width: 560px; padding: var(--space-3) var(--space-4); }
+.gt-acct-row { display: flex; gap: var(--space-2); align-items: center; }
+.gt-acct-row .input { flex: 1; min-width: 0; height: 34px; }
+.gt-danger { color: var(--type-fire); }
+.gt-acct-of { font-size: var(--text-xs); color: var(--text-faint); white-space: nowrap; }

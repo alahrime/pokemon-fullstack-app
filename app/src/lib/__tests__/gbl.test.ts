@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  backdatedAt, battlesByDay, battlesToday, byFormat, eloSeries, fromLocalDay, lastElo, localDay, nextTier, recap, seasonTotals, summaryOf,
+  backdatedAt, battlesByDay, onAccount, battlesToday, byFormat, eloSeries, fromLocalDay, lastElo, localDay, nextTier, recap, seasonTotals, summaryOf,
   tallyOf, tierOf, todaysSets, type GblBattle, type GblSet,
 } from '../gbl';
 
@@ -8,7 +8,7 @@ let n = 0;
 const battle = (result: GblBattle['result'], opponents: string[], playedAt = new Date().toISOString()): GblBattle =>
   ({ id: `b${n++}`, idx: 1, result, opponents, opponentMoves: opponents.map(() => ({ fast: null, charges: [] })), note: null, playedAt });
 const set = (o: Partial<GblSet> & { battles: GblBattle[] }): GblSet =>
-  ({ id: `s${n++}`, season: 28, format: 'great', team: [], eloStart: null, eloEnd: null, startedAt: new Date().toISOString(), ...o });
+  ({ id: `s${n++}`, accountId: null, season: 28, format: 'great', team: [], eloStart: null, eloEnd: null, startedAt: new Date().toISOString(), ...o });
 
 describe('tiers', () => {
   it('puts each band edge in the tier it opens', () => {
@@ -84,5 +84,13 @@ describe('the backlog', () => {
     const late = new Date(2026, 9, 3, 23, 58).toISOString();
     const stamped = new Date(backdatedAt([set({ battles: [battle('win', [], late)] })], day));
     expect([stamped.getDate(), stamped.getHours(), stamped.getMinutes()]).toEqual([3, 23, 59]);
+  });
+});
+
+describe('accounts', () => {
+  it('keeps each account\'s sets apart, null being the main account', () => {
+    const main = set({ battles: [] }), alt = set({ accountId: 'a1', battles: [] });
+    expect(onAccount([main, alt], null)).toEqual([main]);
+    expect(onAccount([main, alt], 'a1')).toEqual([alt]);
   });
 });

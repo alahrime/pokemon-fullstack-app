@@ -120,6 +120,48 @@ describe('battle tracker', () => {
     expect(r.code).toBe('42501');
   });
 
+  describe('alternate accounts', () => {
+    const goName = async (id: string) => (await sql<{ g: string }>(`select go_username g from public.profiles where id = '${id}'`))[0].g;
+    const alt = (who: string, name: string) => as(who)<{ id: string }>(`insert into public.gbl_accounts (name) values ('${name}') returning id`);
+
+    it('allows two alts besides the main account, and no third', async () => {
+      await alt(me, 'AltOne');
+      await alt(me, 'AltTwo');
+      expect((await refusal(() => alt(me, 'AltThree'))).message).toMatch(/two alternate accounts at most/);
+    });
+
+    it('refuses an alt named like the main account, or like the other alt', async () => {
+      expect((await refusal(() => alt(friend, '   '))).code).toBe('23514');
+      const main = await goName(friend);
+      expect((await refusal(() => alt(friend, main.toUpperCase()))).message).toMatch(/main account's trainer name/);
+      await alt(friend, 'Second');
+      expect((await refusal(() => alt(friend, 'SECOND'))).code).toBe('23505');
+      // Another player's main name is fine.
+      await alt(priv, await goName(friend));
+    });
+
+    it('keeps each account to its own set, season and ladder row', async () => {
+      const [a] = await as(me)<{ id: string }>(`select id from public.gbl_accounts where name = 'AltOne'`);
+      const [s] = await as(me)<{ id: string }>(
+        `insert into public.gbl_sets (season, format, account_id, elo_start, elo_end) values (28, '${fmt}', '${a.id}', 1800, 1850) returning id`);
+      await as(me)(`insert into public.gbl_battles (set_id, idx, result) values ('${s.id}', 1, 'win')`);
+      // The main account's season is untouched; the alt's is its own.
+      expect(await as(me)<{ battles: number }>(`select battles from public.gbl_season_sets('${me}', 28::smallint)`)).toEqual([{ battles: 5 }]);
+      expect(await as(friend)<{ battles: number }>(`select battles from public.gbl_season_sets('${me}', 28::smallint, '${a.id}')`)).toEqual([{ battles: 1 }]);
+      const rows = await as(me)<{ account_name: string | null; elo: number }>(
+        `select account_name, elo from public.gbl_leaderboard(28::smallint) where user_id = '${me}' order by elo desc`);
+      expect(rows).toEqual([{ account_name: null, elo: 2540 }, { account_name: 'AltOne', elo: 1850 }]);
+    });
+
+    it('refuses a set on someone else\'s alt, and takes an alt\'s sets with it when deleted', async () => {
+      const [a] = await as(me)<{ id: string }>(`select id from public.gbl_accounts where name = 'AltOne'`);
+      expect((await refusal(() => as(friend)(`insert into public.gbl_sets (season, format, account_id) values (28, 'great', '${a.id}')`))).message)
+        .toMatch(POLICY_DENIED);
+      await as(me)(`delete from public.gbl_accounts where id = '${a.id}'`);
+      expect(await sql(`select 1 from public.gbl_sets where account_id = '${a.id}'`)).toEqual([]);
+    });
+  });
+
   it('refuses anonymous callers', async () => {
     expect((await refusal(() => asAnon()(`select * from public.gbl_leaderboard(28::smallint)`))).code).toBe('42501');
     expect((await refusal(() => asAnon()(`select * from public.gbl_sets`))).code).toBe('42501');

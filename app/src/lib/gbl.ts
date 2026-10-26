@@ -37,6 +37,8 @@ export interface GblBattle {
 
 export interface GblSet {
   id: string;
+  /** The alt it was played on; null for the main account. */
+  accountId: string | null;
   season: number;
   /** A preset format key: a league, or a cup such as `retro`. */
   format: string;
@@ -105,7 +107,7 @@ interface RawBattle {
   id: string; idx: number; result: GblResult | null; opponents: string[]; opponent_moves?: OppMoves[] | null; note?: string | null; played_at: string;
 }
 interface RawSet {
-  id: string; season: number; format: string; team: string[]; elo_start: number | null; elo_end: number | null;
+  id: string; account_id?: string | null; season: number; format: string; team: string[]; elo_start: number | null; elo_end: number | null;
   started_at: string; gbl_battles?: RawBattle[];
 }
 
@@ -115,7 +117,7 @@ const toBattle = (b: RawBattle): GblBattle => ({
   opponentMoves: (b.opponents ?? []).map((_, i) => toMoves(b.opponent_moves?.[i])), note: b.note ?? null, playedAt: b.played_at,
 });
 const toSet = (s: RawSet): GblSet => ({
-  id: s.id, season: s.season, format: s.format, team: s.team ?? [], eloStart: s.elo_start, eloEnd: s.elo_end, startedAt: s.started_at,
+  id: s.id, accountId: s.account_id ?? null, season: s.season, format: s.format, team: s.team ?? [], eloStart: s.elo_start, eloEnd: s.elo_end, startedAt: s.started_at,
   battles: (s.gbl_battles ?? []).map(toBattle).sort((a, b) => a.idx - b.idx),
 });
 
@@ -124,16 +126,56 @@ function check(r: { data: unknown; error: { message: string } | null }): unknown
   return r.data;
 }
 
-/** The caller's own sets in a season, oldest first, with their battles. */
+// ── Alternate accounts ──────────────────────────────────────────────────────
+
+/** An alt GO account: up to two besides the main one, each with its own Elo and its own 25 a day. */
+export interface GblAccount { id: string; name: string }
+export const MAX_ALTS = 2;
+
+export async function listAccounts(): Promise<GblAccount[]> {
+  const data = check(await supabase.from('gbl_accounts').select('id, name').order('created_at'));
+  return (data ?? []) as GblAccount[];
+}
+
+/** The server enforces the limit and the name rules; these messages say so in the player's terms. */
+function accountError(message: string): Error {
+  if (/two alternate/.test(message)) return new Error(`You can keep ${MAX_ALTS} alternate accounts at most.`);
+  if (/main account/.test(message)) return new Error("An alt can't use your main account's trainer name.");
+  if (/duplicate|unique/i.test(message)) return new Error('You already have an alt with that name.');
+  return new Error(message);
+}
+
+export async function addAccount(name: string): Promise<GblAccount> {
+  const r = await supabase.from('gbl_accounts').insert({ name: name.trim() }).select('id, name').single();
+  if (r.error) throw accountError(r.error.message);
+  return r.data as GblAccount;
+}
+
+export async function renameAccount(id: string, name: string): Promise<void> {
+  const r = await supabase.from('gbl_accounts').update({ name: name.trim() }).eq('id', id);
+  if (r.error) throw accountError(r.error.message);
+}
+
+/** Deletes the alt and every set and battle logged on it. */
+export async function deleteAccount(id: string): Promise<void> {
+  check(await supabase.from('gbl_accounts').delete().eq('id', id));
+}
+
+/** The caller's own sets in a season, oldest first, with their battles — every account's; filter with `onAccount`. */
 export async function listMySets(season: number): Promise<GblSet[]> {
   const data = check(await supabase.from('gbl_sets').select('*, gbl_battles(*)').eq('season', season).order('started_at'));
   return (data as RawSet[]).map(toSet);
 }
 
 /** `startedAt` only when backlogging a past day; a live set is stamped by the server. */
-export async function startSet(p: { season: number; format: string; team: string[]; eloStart: number | null; startedAt?: string }): Promise<GblSet> {
+export async function startSet(p: {
+  season: number; format: string; team: string[]; eloStart: number | null; startedAt?: string; accountId?: string | null;
+}): Promise<GblSet> {
   const data = check(await supabase.from('gbl_sets')
-    .insert({ season: p.season, format: p.format, team: p.team, elo_start: p.eloStart, ...(p.startedAt ? { started_at: p.startedAt } : {}) })
+    .insert({
+      season: p.season, format: p.format, team: p.team, elo_start: p.eloStart, account_id: p.accountId ?? null,
+      ...(p.startedAt ? { started_at: p.startedAt } : {}),
+    })
     .select('*').single());
   return toSet(data as RawSet);
 }
@@ -175,9 +217,9 @@ export async function deleteBattle(id: string): Promise<void> {
   check(await supabase.from('gbl_battles').delete().eq('id', id));
 }
 
-/** Any player's season as the caller may see it; empty when they may not. */
-export async function seasonSets(userId: string, season: number): Promise<GblSetSummary[]> {
-  const data = check(await supabase.rpc('gbl_season_sets', { p_user: userId, p_season: season }));
+/** One of any player's accounts' season as the caller may see it (null: their main); empty when they may not. */
+export async function seasonSets(userId: string, season: number, accountId: string | null = null): Promise<GblSetSummary[]> {
+  const data = check(await supabase.rpc('gbl_season_sets', { p_user: userId, p_season: season, p_account: accountId }));
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     id: r.id as string, format: r.format as string, eloStart: r.elo_start as number | null, eloEnd: r.elo_end as number | null,
     startedAt: r.started_at as string, wins: r.wins as number, losses: r.losses as number, ties: r.ties as number, battles: r.battles as number,
@@ -185,14 +227,20 @@ export async function seasonSets(userId: string, season: number): Promise<GblSet
 }
 
 export interface LadderRow {
-  userId: string; name: string; avatar: string | null; elo: number | null; peak: number | null;
+  userId: string;
+  /** Null for the main account. */
+  accountId: string | null;
+  /** The alt's trainer name; null for the main account. */
+  accountName: string | null;
+  name: string; avatar: string | null; elo: number | null; peak: number | null;
   wins: number; losses: number; ties: number; battles: number; isFriend: boolean;
 }
 
 export async function leaderboard(season: number): Promise<LadderRow[]> {
   const data = check(await supabase.rpc('gbl_leaderboard', { p_season: season }));
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
-    userId: r.user_id as string, name: r.display_name as string, avatar: r.avatar as string | null, elo: r.elo as number | null,
+    userId: r.user_id as string, accountId: (r.account_id as string | null) ?? null, accountName: (r.account_name as string | null) ?? null,
+    name: r.display_name as string, avatar: r.avatar as string | null, elo: r.elo as number | null,
     peak: r.peak as number | null, wins: r.wins as number, losses: r.losses as number, ties: r.ties as number,
     battles: r.battles as number, isFriend: r.is_friend as boolean,
   }));
@@ -231,6 +279,10 @@ export async function setPublic(userId: string, on: boolean): Promise<void> {
 }
 
 // ── The season, worked out ──────────────────────────────────────────────────
+
+/** One account's sets: null is the main account. */
+export const onAccount = (sets: readonly GblSet[], accountId: string | null): GblSet[] =>
+  sets.filter((s) => s.accountId === accountId);
 
 export interface Tally { wins: number; losses: number; ties: number; battles: number }
 

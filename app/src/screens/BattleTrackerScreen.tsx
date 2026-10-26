@@ -6,7 +6,8 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { TypeBadge } from '../components/TypeBadge';
-import { TrainerAvatar } from '../components/TrainerBits';
+import { TrainerAvatar, useProfiles } from '../components/TrainerBits';
+import { confirmDialog } from '../components/ConfirmDialog';
 import { HudLabel } from '../components/Hud';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
 import { DEFAULT_TIER, fieldPool } from '../lib/rankings';
@@ -15,11 +16,11 @@ import type { LeagueId } from '../lib/types';
 import type { Profile } from '../lib/profile';
 import { monthGrid } from '../lib/records';
 import {
-  CURRENT_SEASON, DAILY_BATTLES, ELO_MAX, NO_MOVES, SET_SIZE, TIERS,
-  addBattle, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
+  CURRENT_SEASON, DAILY_BATTLES, ELO_MAX, MAX_ALTS, NO_MOVES, SET_SIZE, TIERS,
+  addAccount, addBattle, deleteAccount, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
   knowsAny, lastElo, leaderboard, listMySets, localDay, meta, nextTier, recap, seasonSets, seasonTotals, setPublic, startSet, summaryOf,
   tallyOf, tierOf, todaysSets, updateBattle, updateSet,
-  type GblBattle, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
+  type GblAccount, type GblBattle, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
 } from '../lib/gbl';
 
 type View = 'log' | 'meta' | 'stats' | 'ladder';
@@ -31,6 +32,7 @@ const readFormat = (): string => {
   try { return localStorage.getItem(FORMAT_KEY) ?? 'great'; } catch { return 'great'; }
 };
 
+const byStart = (a: GblSet, b: GblSet) => a.startedAt.localeCompare(b.startedAt);
 const formatOf = (key: string) => PRESET_FORMATS.find((p) => p.key === key) ?? PRESET_FORMATS[0];
 const formatName = (key: string) => formatOf(key).name;
 const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : '—');
@@ -63,6 +65,12 @@ function TierBadge({ elo }: { elo: number | null }) {
   return <span className={`gt-tier is-${t.id}`}>{t.label}</span>;
 }
 
+/** The account the tracker opens on, remembered per browser; null is the main account. */
+const ACCOUNT_KEY = 'gbl-tracker-account';
+const readAccount = (): string | null => {
+  try { return localStorage.getItem(ACCOUNT_KEY); } catch { return null; }
+};
+
 export function BattleTrackerScreen() {
   const { patch } = useAppState();
   const { user } = useSession();
@@ -70,13 +78,21 @@ export function BattleTrackerScreen() {
   const [season, setSeason] = useState(CURRENT_SEASON);
   const [format, setFormatState] = useState(readFormat);
   const [sets, setSets] = useState<GblSet[] | null>(null);
+  const [accounts, setAccounts] = useState<GblAccount[]>([]);
+  const [account, setAccountState] = useState<string | null>(readAccount);
   const [error, setError] = useState<string | null>(null);
   const setFormat = (f: string) => {
     setFormatState(f);
     try { localStorage.setItem(FORMAT_KEY, f); } catch { /* private window: forget it */ }
   };
+  const setAccount = (id: string | null) => {
+    setAccountState(id);
+    try { if (id) localStorage.setItem(ACCOUNT_KEY, id); else localStorage.removeItem(ACCOUNT_KEY); } catch { /* as above */ }
+  };
 
   const uid = user?.id ?? null;
+  const profiles = useProfiles(uid ? [uid] : []);
+  const mainName = (uid && profiles.get(uid)?.goUsername) || 'Main account';
   useEffect(() => {
     if (!uid) return;
     let live = true;
@@ -84,6 +100,12 @@ export function BattleTrackerScreen() {
     listMySets(season).then((s) => live && setSets(s)).catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
   }, [uid, season]);
+  useEffect(() => {
+    if (!uid) return;
+    let live = true;
+    listAccounts().then((a) => live && setAccounts(a)).catch(() => {});
+    return () => { live = false; };
+  }, [uid]);
 
   if (!user) {
     return (
@@ -97,6 +119,13 @@ export function BattleTrackerScreen() {
     );
   }
 
+  // A remembered alt that has since been deleted falls back to the main account.
+  const active = account && accounts.some((x) => x.id === account) ? account : null;
+  const label = active ? accounts.find((x) => x.id === active)!.name : mainName;
+  const mine = sets ? onAccount(sets, active) : null;
+  // The Log edits one account's sets; the others ride along untouched.
+  const setMine = (next: GblSet[]) => setSets([...(sets ?? []).filter((x) => x.accountId !== active), ...next].sort(byStart));
+
   return (
     <div className="gt">
       <ScreenHeader
@@ -105,9 +134,9 @@ export function BattleTrackerScreen() {
       />
       <div className="gt-bar">
         <div className="seg-group gt-views" role="tablist" aria-label="Tracker view">
-          {VIEWS.map(([v, label]) => (
+          {VIEWS.map(([v, l]) => (
             <button key={v} type="button" role="tab" aria-selected={view === v}
-              className={`btn seg-btn${view === v ? ' is-active' : ''}`} onClick={() => setView(v)}>{label}</button>
+              className={`btn seg-btn${view === v ? ' is-active' : ''}`} onClick={() => setView(v)}>{l}</button>
           ))}
         </div>
         <label className="gt-field">
@@ -125,12 +154,106 @@ export function BattleTrackerScreen() {
           </span>
         </div>
       </div>
+      {view !== 'meta' && view !== 'ladder' && (
+        <AccountBar mainName={mainName} accounts={accounts} active={active} onPick={setAccount} onAccounts={setAccounts}
+          onDeleted={(id) => { setSets((sets ?? []).filter((x) => x.accountId !== id)); if (active === id) setAccount(null); }} />
+      )}
 
       {error && <p className="friend-notice" role="alert">{error}</p>}
-      {view === 'log' && (sets ? <LogView season={season} format={format} sets={sets} setSets={setSets} onError={setError} /> : <p className="text-muted">Loading your season…</p>)}
+      {view === 'log' && (mine
+        ? <LogView key={active ?? 'main'} season={season} format={format} accountId={active} sets={mine} setSets={setMine} onError={setError} />
+        : <p className="text-muted">Loading your season…</p>)}
       {view === 'meta' && <MetaView format={format} />}
-      {view === 'stats' && <StatsView userId={user.id} season={season} mine={sets} />}
+      {view === 'stats' && <StatsView key={active ?? 'main'} userId={user.id} accountId={active} season={season} mine={mine} name={label} self />}
       {view === 'ladder' && <LadderView season={season} />}
+    </div>
+  );
+}
+
+/**
+ * Which GO account is being logged: the main one, named after the trainer on
+ * the profile, and up to two alts. Each has its own Elo, its own 25 a day and
+ * its own row on the ladder. Alts are added, renamed and removed here.
+ */
+function AccountBar({ mainName, accounts, active, onPick, onAccounts, onDeleted }: {
+  mainName: string; accounts: GblAccount[]; active: string | null; onPick: (id: string | null) => void;
+  onAccounts: (a: GblAccount[]) => void; onDeleted: (id: string) => void;
+}) {
+  const [managing, setManaging] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    setProblem(null);
+    try { await f(); } catch (e) { setProblem((e as Error).message); } finally { setBusy(false); }
+  };
+  const add = () => run(async () => {
+    const a = await addAccount(draft);
+    onAccounts([...accounts, a]);
+    setDraft('');
+    onPick(a.id);
+  });
+  const rename = (a: GblAccount) => run(async () => {
+    const name = (names[a.id] ?? a.name).trim();
+    await renameAccount(a.id, name);
+    onAccounts(accounts.map((x) => (x.id === a.id ? { ...x, name } : x)));
+  });
+  const remove = (a: GblAccount) => run(async () => {
+    const ok = await confirmDialog({
+      title: `Delete ${a.name}?`,
+      body: `Every set and battle logged on ${a.name} is deleted with it. Your main account and other alt are not touched.`,
+      confirmLabel: 'Delete alt and its logs',
+    });
+    if (!ok) return;
+    await deleteAccount(a.id);
+    onAccounts(accounts.filter((x) => x.id !== a.id));
+    onDeleted(a.id);
+  });
+
+  return (
+    <div className="gt-accounts">
+      <div className="gt-accounts-bar">
+        <span className="hud-label">Account</span>
+        <div className="seg-group" role="group" aria-label="GO account">
+          <button type="button" className={`btn seg-btn${active === null ? ' is-active' : ''}`} aria-pressed={active === null} onClick={() => onPick(null)}>
+            <span className="gt-acct-kind">Main</span> {mainName}
+          </button>
+          {accounts.map((a) => (
+            <button key={a.id} type="button" className={`btn seg-btn${active === a.id ? ' is-active' : ''}`} aria-pressed={active === a.id} onClick={() => onPick(a.id)}>
+              <span className="gt-acct-kind">Alt</span> {a.name}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="btn btn-ghost" aria-expanded={managing} onClick={() => setManaging(!managing)}>
+          {accounts.length < MAX_ALTS ? '＋ Alt account' : 'Manage alts'}
+        </button>
+      </div>
+      {managing && (
+        <section className="panel chamfer-9 gt-accounts-panel anim-rise" aria-label="Alternate accounts">
+          <p className="text-muted gt-hint">
+            Up to {MAX_ALTS} alternate GO accounts besides {mainName}, named after their in-game trainer. Each keeps its own Elo, its own {DAILY_BATTLES} battles a day and its own place on the ladder.
+          </p>
+          {accounts.map((a) => (
+            <div key={a.id} className="gt-acct-row">
+              <input className="input" aria-label={`Rename ${a.name}`} maxLength={30} value={names[a.id] ?? a.name}
+                onChange={(e) => setNames({ ...names, [a.id]: e.target.value })} />
+              <button type="button" className="btn" disabled={busy || !(names[a.id] ?? a.name).trim() || (names[a.id] ?? a.name).trim() === a.name} onClick={() => rename(a)}>Rename</button>
+              <button type="button" className="btn btn-ghost gt-danger" disabled={busy} onClick={() => remove(a)}>Delete</button>
+            </div>
+          ))}
+          {accounts.length < MAX_ALTS ? (
+            <form className="gt-acct-row" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) void add(); }}>
+              <input className="input" aria-label="New alt's trainer name" placeholder="Alt's trainer name" maxLength={30} value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <button type="submit" className="btn btn-primary" disabled={busy || !draft.trim()}>Add alt</button>
+            </form>
+          ) : (
+            <p className="text-faint gt-hint">That's the most — delete one to add another.</p>
+          )}
+          {problem && <p className="friend-notice" role="alert">{problem}</p>}
+        </section>
+      )}
     </div>
   );
 }
@@ -140,15 +263,14 @@ export function BattleTrackerScreen() {
 type Target = { kind: 'opp' | 'team'; slot: number };
 const EMPTY3 = ['', '', ''];
 const NO_MOVES3: OppMoves[] = [NO_MOVES, NO_MOVES, NO_MOVES];
-const byStart = (a: GblSet, b: GblSet) => a.startedAt.localeCompare(b.startedAt);
 
 /**
  * Logging: live into today, or — for a day that was played and never written
  * down — into any past day picked from the calendar. A day is its own page of
  * the notebook: its own sets numbered from one, its own 25-battle limit.
  */
-function LogView({ season, format, sets, setSets, onError }: {
-  season: number; format: string; sets: GblSet[]; setSets: (s: GblSet[]) => void; onError: (m: string | null) => void;
+function LogView({ season, format, accountId, sets, setSets, onError }: {
+  season: number; format: string; accountId: string | null; sets: GblSet[]; setSets: (s: GblSet[]) => void; onError: (m: string | null) => void;
 }) {
   // null: today, logged live.
   const [dayKey, setDayKey] = useState<string | null>(null);
@@ -215,7 +337,7 @@ function LogView({ season, format, sets, setSets, onError }: {
       if (!set) {
         // The Elo a set starts at is the last one written down before it — on a past day, before that moment.
         const before = at ? sets.filter((x) => x.startedAt < at) : sets;
-        set = await startSet({ season, format, team: team.filter(Boolean), eloStart: lastElo(before), startedAt: at });
+        set = await startSet({ season, format, team: team.filter(Boolean), eloStart: lastElo(before), startedAt: at, accountId });
         all = [...sets, set].sort(byStart);
       }
       const kept = opps.map((r, i) => [r, moves[i]] as const).filter(([r]) => r);
@@ -233,7 +355,7 @@ function LogView({ season, format, sets, setSets, onError }: {
     } finally {
       setBusy(false);
     }
-  }, [busy, awaitingElo, full, backlog, daySets, day, open, sets, season, format, team, opps, moves, note, setSets, onError]);
+  }, [busy, awaitingElo, full, backlog, daySets, day, open, sets, season, format, accountId, team, opps, moves, note, setSets, onError]);
 
   const undo = async () => {
     const s = last;
@@ -741,18 +863,19 @@ function MetaView({ format }: { format: string }) {
  * with their battles, which adds today's recap and the share controls; any
  * other player's season comes as tallies from gbl_season_sets.
  */
-function StatsView({ userId, season, mine, name }: { userId: string; season: number; mine: GblSet[] | null; name?: string }) {
-  const self = !name;
+function StatsView({ userId, accountId, season, mine, name, self = false }: {
+  userId: string; accountId: string | null; season: number; mine: GblSet[] | null; name: string; self?: boolean;
+}) {
   const [theirs, setTheirs] = useState<GblSetSummary[] | null>(null);
   useEffect(() => {
     if (self) return;
     let live = true;
-    seasonSets(userId, season).then((s) => live && setTheirs(s)).catch(() => live && setTheirs([]));
+    seasonSets(userId, season, accountId).then((s) => live && setTheirs(s)).catch(() => live && setTheirs([]));
     return () => { live = false; };
-  }, [self, userId, season]);
+  }, [self, userId, accountId, season]);
   const sets = self ? (mine ? mine.map(summaryOf) : null) : theirs;
   if (!sets) return <p className="text-muted">Loading the season…</p>;
-  if (!sets.length) return <p className="panel text-muted">{self ? `No sets logged in season ${season} yet.` : `${name} has logged nothing in season ${season}.`}</p>;
+  if (!sets.length) return <p className="panel text-muted">{self ? `Nothing logged on ${name} in season ${season} yet.` : `${name} has logged nothing in season ${season}.`}</p>;
 
   const tot = seasonTotals(sets);
   const series = eloSeries(sets);
@@ -768,7 +891,7 @@ function StatsView({ userId, season, mine, name }: { userId: string; season: num
       {self && mine && <Today sets={todaysSets(mine)} />}
       <section className="panel chamfer-9 gt-hero" aria-label="Season">
         <div className="gt-hero-main">
-          <span className="hud-label">{name ? `${name} · ` : ''}Season {season} · current Elo</span>
+          <span className="hud-label">{name} · Season {season} · current Elo</span>
           <span className="gt-hero-elo numeric">{elo?.toLocaleString() ?? '—'}</span>
         </div>
         <div className="gt-hero-side">
@@ -936,7 +1059,7 @@ function LadderView({ season }: { season: number }) {
           <button type="button" className="btn" onClick={() => setOpen(null)}>‹ Ladder</button>
           <button type="button" className="btn btn-ghost" onClick={() => patch({ screen: 'player', activePlayerId: open.userId })}>Open {open.name}'s profile</button>
         </div>
-        <StatsView userId={open.userId} season={season} mine={null} name={open.name} />
+        <StatsView userId={open.userId} accountId={open.accountId} season={season} mine={null} name={open.accountName ?? open.name} />
       </div>
     );
   }
@@ -958,12 +1081,13 @@ function LadderView({ season }: { season: number }) {
       {shown.length > 0 && (
         <ol className="gt-ladder-list">
           {shown.map((r, i) => (
-            <li key={r.userId}>
+            <li key={`${r.userId}:${r.accountId ?? 'main'}`}>
               <button type="button" className={`gt-ladder-row${i < 3 ? ` is-podium is-p${i + 1}` : ''}`} onClick={() => setOpen(r)}>
                 <span className="gt-ladder-rank numeric">{i + 1}</span>
                 <TrainerAvatar profile={{ avatar: r.avatar } as Profile} name={r.name} size={40} userId={r.userId} />
                 <span className="gt-ladder-who">
-                  <b>{r.name}</b>
+                  <b>{r.accountName ?? r.name}</b>
+                  {r.accountName && <span className="gt-acct-of">alt of {r.name}</span>}
                   {r.isFriend && <span className="gt-friend-tag">Friend</span>}
                 </span>
                 <TierBadge elo={r.elo} />

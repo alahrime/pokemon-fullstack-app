@@ -159,6 +159,15 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'Your win rate, opponents, calendar and match history.',
   },
   {
+    id: 'tracker',
+    label: 'Battle Tracker',
+    kicker: 'GO Battle League',
+    glyph: '◷',
+    // Bug: the last type colour no screen carries (screens.test.ts guards distinct hues).
+    hue: 'var(--type-bug)',
+    blurb: 'Log every GBL battle and set, track your Elo all season, and see the live meta and ladder.',
+  },
+  {
     id: 'player',
     label: 'Player',
     kicker: 'Profile',
@@ -221,7 +230,7 @@ export const SECTIONS: SectionDef[] = [
     glyph: '⚔',
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
-    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'player'],
+    screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'tracker', 'player'],
   },
 ];
 

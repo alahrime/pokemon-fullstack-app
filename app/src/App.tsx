@@ -55,6 +55,7 @@ const MatchmakingScreen = lazy(() =>
 // at the top of this file is actually drawn around.
 const PlayerScreen = lazy(() => import('./screens/PlayerScreen').then((m) => ({ default: m.PlayerScreen })));
 const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then((m) => ({ default: m.RecordsScreen })));
+const BattleTrackerScreen = lazy(() => import('./screens/BattleTrackerScreen').then((m) => ({ default: m.BattleTrackerScreen })));
 const TournamentsScreen = lazy(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
 const ChatScreen = lazy(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
 const FriendsScreen = lazy(() =>
@@ -188,6 +189,8 @@ function Screens() {
       return <LazyScreen key="tournaments"><TournamentsScreen /></LazyScreen>;
     case 'records':
       return <LazyScreen key="records"><RecordsScreen /></LazyScreen>;
+    case 'tracker':
+      return <LazyScreen key="tracker"><BattleTrackerScreen /></LazyScreen>;
     case 'player':
       return <LazyScreen key="player"><PlayerScreen /></LazyScreen>;
     case 'account':

@@ -5,7 +5,7 @@ import { defaultSpreadFor, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
 import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'account';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'tracker' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 

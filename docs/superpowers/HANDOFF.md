@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-27 (twelfth session: one-view Battle screen with a scrubbable timeline; double-KO tie; Shadow movesets; Battle Tracker with alt accounts and a 25-row day log; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-27 (thirteenth session: Battle Tracker saved teams of three, 25/50/100 day sizes with a lock warning, three edge-case fixes; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -36,11 +36,36 @@ design authority; the plans argue from it.
 | **Shell** (plan A) | **Built, reviewed, merged and pushed** 2026-09-29 (`421f5d3`). Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. |
 | **Challenges and chat** (plan B) | **Built, reviewed, merged, pushed and deployed** 2026-09-29 (`0637e5a`); its two migrations are applied in production. `npm run check` green; roundtrip `tools/m4-challenges-roundtrip.ts` 14/14; `check:db` 5 environmental reds, see below. Plan: `docs/superpowers/plans/2026-09-29-b-challenges-and-chat.md` |
 | **Tournaments** (plan C) | **Built, reviewed, merged and pushed** 2026-09-30 (11 tasks + a final fix wave; `0fc3432..` on `main`). `npm run check` green (1744/1744); roundtrip `tools/m5-tournament-roundtrip.ts` 26/26; `check:db` 270/275 — the 5 reds are the environmental `social.test.ts` ones. **Five migrations, applied to production by the push (verify — see "Start here").** Plan: `docs/superpowers/plans/2026-09-29-c-tournaments.md` |
-| **Battle Tracker** — a GBL notebook (25 a day, Elo per set, meta, ladder, up to 2 alt accounts) | **Built, pushed and live 2026-10-26/27** (`8e24924`, `78e4d3c`, `4fe2064`). Two migrations (`20261026000000_battle_tracker`, `20261026010000_gbl_alt_accounts`), both applied in production. Kept apart from Show 6 match records. See "Start here". |
+| **Battle Tracker** — a GBL notebook (25/50/100 a day, Elo per set, meta, ladder, up to 2 alt accounts, saved teams) | **Built, pushed and live 2026-10-26/27** (`8e24924`, `78e4d3c`, `4fe2064`, `85a9e19`, `4f5fde1`, `1b510a6`). Three migrations (`20261026000000_battle_tracker`, `20261026010000_gbl_alt_accounts`, `20261027000000_gbl_teams`), all applied in production. Kept apart from Show 6 match records. See "Start here". |
 
 ---
 
 ## Start here — next session
+
+**Thirteenth session, 2026-10-27 (all pushed; `main` == `origin/main`, last code commit `c6e828f`; `npm run check` 1979/1979; ONE new migration, `20261027000000_gbl_teams`, applied in production by the user (`supabase migration list --linked` shows it remote; anon REST on `gbl_teams` moved from `PGRST205` to `42501`); the tracker changes confirmed live on paragon2 by grepping `BattleTrackerScreen-*.js` for `gbl_teams` and `gt-size-warn`).**
+
+**The user is testing these features on their phone after today's league rotation.** Start the next session by asking what they found; their play-based reports have been right every time.
+
+**Done this session:**
+- **Saved teams of three** (`85a9e19`): in the logging modal, a full "Your team" shows "＋ Save team"; saved teams sit under it as three-sprite chips (tap fills the team, ✕ forgets it). New table `gbl_teams (user_id, team text[3])`, owner-only RLS, unique on `(user_id, team)`: order matters, lead first. Per player, shared by their alts. **Not** the Team Builder's `teams` table: its rows need IVs and moves the tracker never records, so a tracker save would have invented them. `listGblTeams` / `saveGblTeam` / `deleteGblTeam` in `lib/gbl.ts`.
+- **25 / 50 / 100 battles a day** (`85a9e19`): a toggle in the day table's header (GO Battle Thursday 50, GO Battle Week 100). `daySize(played, picked)` in `lib/gbl.ts` is the one rule: the size picked, raised to the smallest of 25/50/100 that holds what is logged, so 36/50 and 69/100 read right on any device. The pick is localStorage `gbl-tracker-day-size`, keyed `account:YYYY-MM-DD` (`main` for the main account). It drives the + row, empty rows, the modal's "Battle n of N", and the calendar (`DayPicker` `limitOf`).
+- **Lock warning** (`1b510a6`): a size below what is logged is `aria-disabled`; picking it shows a warning naming how many to undo ("delete the last 25 with ↶ Undo — or keep these and log the rest on another day from the calendar"). The count drops with each undo and the warning clears when the day fits. `BattleTable` is keyed by day so the warning does not follow you to another day. The user asked for "start a new battle day log" as the other way out; it is worded as logging on another day from the calendar, since days are calendar days.
+- **Edge cases found by automated probes, fixed** (`4f5fde1`, tests in `battle-tracker-edges.test.tsx`): a stored size of `null` crashed the Log view; "Save team" was offered for the same Pokémon twice; backlogging into a day played past ~23:57 stacked battles on one 23:59 timestamp, leaving set order and Elo chain to chance on reload (`backdatedAt` now steps a second apart past 23:59).
+- **Flaky test** (`c6e828f`): `combo-stress.test.tsx`'s `pick` waited 1s for a search row and failed twice under a full `npm run check` (passed alone and under plain `vitest run`, also on the previous commit). Now 10s, like `team-builder.test.tsx`.
+
+**Known limits (reported, not fixed):**
+- The day-size pick is per browser. Another device sees the smallest size that fits, so a 20-battle day set to 50 reads 20/25 there. A column on a day table would fix it.
+- Backlogging more than ~60 battles after 23:59 into one day rolls into the next day (noted at `backdatedAt`).
+- The duplicate guard on "Save team" compares exact refs: a Shadow and a non-Shadow of one species can be saved together, which GO may not allow. Logging (not saving) a team with duplicates is still allowed, as before.
+- Saved teams are not filtered by the current format's cup legality.
+- Still from the twelfth session: `CURRENT_SEASON` is a constant; "Today" does not roll over at midnight without a reload.
+
+**Gotchas from this session:**
+- Production `supabase db push` is refused by the auto-mode classifier: the user runs `cd app && npx supabase db push --linked --workdir ..` and must answer **Yes** at its prompt (the first attempt sat unanswered). Run from the repo root it fails with "Cannot find project ref" (wrong `--workdir`). Commit locally and hold the push until the migration is confirmed, or the live UI shows a feature whose table does not exist.
+- A background task's "exit code 0" is its LAST command's. `npm run check > log; echo exit=$? >> log` reported 0 for a red gate and a push went out before it was caught. Read the `exit=` line, or `rc=$?` in the foreground.
+- Seeding the user's local tracker: their local user id is `d55d3c75-aaf7-4a89-84a6-e9dcfa222812`; tag seeded sets with a format like `ui-seed-size` and delete by it afterwards.
+
+### Previous session (twelfth)
 
 **Twelfth session, 2026-10-21 to 10-27 (all pushed; `main` == `origin/main`, last code commit `4fe2064`; `npm run check` 1964/1964; TWO new migrations, `20261026000000_battle_tracker` and `20261026010000_gbl_alt_accounts`, both confirmed applied in production by anon REST probes; every frontend change confirmed live on paragon2 by grepping the live chunk).** The user picks the next item each request and will add new tasks in a new session.
 

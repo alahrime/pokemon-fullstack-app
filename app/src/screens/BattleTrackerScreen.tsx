@@ -17,11 +17,11 @@ import type { LeagueId } from '../lib/types';
 import type { Profile } from '../lib/profile';
 import { monthGrid } from '../lib/records';
 import {
-  CURRENT_SEASON, DAILY_BATTLES, ELO_MAX, MAX_ALTS, NO_MOVES, SET_SIZE, TIERS,
-  addAccount, addBattle, deleteAccount, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
+  CURRENT_SEASON, DAILY_BATTLES, DAY_SIZES, ELO_MAX, MAX_ALTS, NO_MOVES, SET_SIZE, TIERS,
+  addAccount, addBattle, daySize, deleteAccount, deleteGblTeam, listGblTeams, saveGblTeam, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
   knowsAny, lastElo, leaderboard, listMySets, localDay, meta, nextTier, recap, seasonSets, seasonTotals, setPublic, startSet, summaryOf,
   tallyOf, tierOf, todaysSets, updateBattle, updateSet,
-  type GblAccount, type GblBattle, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
+  type GblAccount, type GblBattle, type GblTeam, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
 } from '../lib/gbl';
 
 type View = 'log' | 'meta' | 'stats' | 'ladder';
@@ -70,6 +70,13 @@ function TierBadge({ elo }: { elo: number | null }) {
 const ACCOUNT_KEY = 'gbl-tracker-account';
 const readAccount = (): string | null => {
   try { return localStorage.getItem(ACCOUNT_KEY); } catch { return null; }
+};
+
+/** The 25, 50 or 100 picked for each `account:day`, remembered per browser. */
+// ponytail: per browser; another device shows the smallest size that holds what was logged. A column on a day table if that bites.
+const SIZE_KEY = 'gbl-tracker-day-size';
+const readSizes = (): Record<string, number> => {
+  try { return JSON.parse(localStorage.getItem(SIZE_KEY) ?? '{}') as Record<string, number>; } catch { return {}; }
 };
 
 export function BattleTrackerScreen() {
@@ -166,7 +173,7 @@ export function BattleTrackerScreen() {
 
 /**
  * Which GO account is being logged: the main one, named after the trainer on
- * the profile, and up to two alts. Each has its own Elo, its own 25 a day and
+ * the profile, and up to two alts. Each has its own Elo, its own battles a day and
  * its own row on the ladder. Alts are added, renamed and removed here.
  */
 function AccountBar({ mainName, accounts, active, onPick, onAccounts, onDeleted }: {
@@ -227,7 +234,7 @@ function AccountBar({ mainName, accounts, active, onPick, onAccounts, onDeleted 
       {managing && (
         <section className="panel chamfer-9 gt-accounts-panel anim-rise" aria-label="Alternate accounts">
           <p className="text-muted gt-hint">
-            Up to {MAX_ALTS} alternate GO accounts besides {mainName}, named after their in-game trainer. Each keeps its own Elo, its own {DAILY_BATTLES} battles a day and its own place on the ladder.
+            Up to {MAX_ALTS} alternate GO accounts besides {mainName}, named after their in-game trainer. Each keeps its own Elo, its own battles a day and its own place on the ladder.
           </p>
           {accounts.map((a) => (
             <div key={a.id} className="gt-acct-row">
@@ -261,7 +268,7 @@ const NO_MOVES3: OppMoves[] = [NO_MOVES, NO_MOVES, NO_MOVES];
 /**
  * Logging: live into today, or — for a day that was played and never written
  * down — into any past day picked from the calendar. A day is its own page of
- * the notebook: its own sets numbered from one, its own 25-battle limit.
+ * the notebook: its own sets numbered from one, its own limit of 25, 50 or 100.
  */
 function LogView({ season, format, accountId, sets, setSets, onError }: {
   season: number; format: string; accountId: string | null; sets: GblSet[]; setSets: (s: GblSet[]) => void; onError: (m: string | null) => void;
@@ -286,7 +293,22 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
   // The logging panel is a modal, opened from the table's + row.
   const [adding, setAdding] = useState(false);
   const played = battlesToday(sets, day);
-  const full = played >= DAILY_BATTLES;
+  // 25 a day, 50 on a GO Battle Thursday, 100 in GO Battle Week: picked per day, never below what is logged.
+  const [sizes, setSizes] = useState(readSizes);
+  const sizeKey = (k: string) => `${accountId ?? 'main'}:${k}`;
+  const limit = daySize(played, sizes[sizeKey(localDay(day))]);
+  const pickLimit = (n: number) => {
+    const next = { ...sizes, [sizeKey(localDay(day))]: n };
+    setSizes(next);
+    try { localStorage.setItem(SIZE_KEY, JSON.stringify(next)); } catch { /* private window: forget it */ }
+  };
+  const full = played >= limit;
+  const [teams, setTeams] = useState<GblTeam[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    listGblTeams().then((t) => live && setTeams(t)).catch(() => live && setTeams([]));
+    return () => { live = false; };
+  }, []);
   const picks = useMemo(() => topRefs(format, 12), [format]);
   const legal = useMemo(() => cupLegal(format), [format]);
 
@@ -414,7 +436,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
 
   return (
     <div className="gt-log">
-      <DayPicker sets={sets} value={dayKey} onChange={(k) => { setDayKey(k); setSkipped(new Set()); setAdding(false); }} />
+      <DayPicker sets={sets} value={dayKey} limitOf={(k, n) => daySize(n, sizes[sizeKey(k)])} onChange={(k) => { setDayKey(k); setSkipped(new Set()); setAdding(false); }} />
 
       {awaitingElo && (
         <EloEntry set={awaitingElo} index={daySets.indexOf(awaitingElo) + 1}
@@ -425,7 +447,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
       )}
 
       <BattleTable sets={daySets} title={dayLabel} format={format} backlog={backlog}
-        played={played} next={{ set: nextSet, inSet: nextInSet }} blocked={awaitingElo ? `Write down Set ${daySets.indexOf(awaitingElo) + 1}'s Elo above first` : null}
+        played={played} limit={limit} onLimit={pickLimit} next={{ set: nextSet, inSet: nextInSet }} blocked={awaitingElo ? `Write down Set ${daySets.indexOf(awaitingElo) + 1}'s Elo above first` : null}
         busy={busy} onAdd={() => setAdding(true)} onUndo={undo} onSaved={replace} onError={onError} />
 
       {adding && createPortal(
@@ -433,7 +455,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
           <div className={`modal-panel gt-modal${backlog ? ' is-backlog' : ''}`} role="dialog" aria-modal="true" aria-label={`Log battle ${played + 1}`}
             tabIndex={-1} ref={(el) => el?.focus({ preventScroll: true })}>
             <div className="modal-head">
-              <span className="hud-label">Battle {played + 1} of {DAILY_BATTLES} · {dayLabel}</span>
+              <span className="hud-label">Battle {played + 1} of {limit} · {dayLabel}</span>
               <button type="button" className="btn btn-sm" onClick={() => setAdding(false)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body gt-set">
@@ -452,9 +474,9 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
                     return <li key={i} className={`gt-pip ${cls}`} aria-label={b ? `Battle ${i + 1}: ${b.result ?? 'no result'}` : `Battle ${i + 1}`} />;
                   })}
                 </ol>
-                <div className={`gt-today${full ? ' is-full' : ''}`} title="GO allows 25 battles a day">
-                  <b className="numeric">{played}</b><i>/{DAILY_BATTLES} {backlog ? 'that day' : 'today'}</i>
-                  <span className="gt-today-bar"><span style={{ width: `${Math.min(100, (played / DAILY_BATTLES) * 100)}%` }} /></span>
+                <div className={`gt-today${full ? ' is-full' : ''}`} title={`${limit} battles ${backlog ? 'that day' : 'today'}`}>
+                  <b className="numeric">{played}</b><i>/{limit} {backlog ? 'that day' : 'today'}</i>
+                  <span className="gt-today-bar"><span style={{ width: `${Math.min(100, (played / limit) * 100)}%` }} /></span>
                 </div>
               </div>
 
@@ -462,6 +484,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
                 <div className="gt-slots" role="group" aria-label="Your team">
                   <span className="hud-label">Your team</span>
                   <div className="gt-slot-grid">{team.map((r, i) => slot('team', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
+                  <SavedTeams team={team} teams={teams} onTeams={setTeams} onPick={setTeam} onError={onError} />
                 </div>
                 <div className="gt-slots" role="group" aria-label="Opponent">
                   <span className="hud-label">Opponent</span>
@@ -516,9 +539,11 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
 
 /**
  * The backlog calendar: each day of a month with how many battles it holds of
- * GO's 25. Picking a past day logs into it; Today returns to live logging.
+ * its limit (25, 50 or 100). Picking a past day logs into it; Today returns to live logging.
  */
-function DayPicker({ sets, value, onChange }: { sets: GblSet[]; value: string | null; onChange: (k: string | null) => void }) {
+function DayPicker({ sets, value, limitOf, onChange }: {
+  sets: GblSet[]; value: string | null; limitOf: (day: string, played: number) => number; onChange: (k: string | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const todayKey = localDay(new Date());
   const shown = value ? fromLocalDay(value) : new Date();
@@ -547,21 +572,22 @@ function DayPicker({ sets, value, onChange }: { sets: GblSet[]; value: string | 
             {monthGrid(ym.y, ym.m).flat().map((k, i) => {
               if (!k) return <span key={i} />;
               const n = counts.get(k) ?? 0;
+              const of = limitOf(k, n);
               const future = k > todayKey;
               const sel = (value ?? todayKey) === k;
               return (
                 <button key={k} type="button" role="gridcell" disabled={future} aria-selected={sel}
-                  className={`gt-cal-day${sel ? ' is-sel' : ''}${k === todayKey ? ' is-today' : ''}${n >= DAILY_BATTLES ? ' is-full' : n ? ' has-battles' : ''}`}
-                  style={{ ['--fill' as string]: `${Math.min(100, (n / DAILY_BATTLES) * 100)}%` } as CSSProperties}
-                  aria-label={`${k}: ${n} of ${DAILY_BATTLES} battles logged`}
+                  className={`gt-cal-day${sel ? ' is-sel' : ''}${k === todayKey ? ' is-today' : ''}${n >= of ? ' is-full' : n ? ' has-battles' : ''}`}
+                  style={{ ['--fill' as string]: `${Math.min(100, (n / of) * 100)}%` } as CSSProperties}
+                  aria-label={`${k}: ${n} of ${of} battles logged`}
                   onClick={() => { onChange(k === todayKey ? null : k); setOpen(false); }}>
                   <span className="gt-cal-date">{Number(k.slice(8))}</span>
-                  <span className="gt-cal-n numeric">{n ? `${n}/${DAILY_BATTLES}` : ''}</span>
+                  <span className="gt-cal-n numeric">{n ? `${n}/${of}` : ''}</span>
                 </button>
               );
             })}
           </div>
-          <p className="text-faint gt-hint">Days are your local calendar. A full day has {DAILY_BATTLES} battles, GO's daily limit.</p>
+          <p className="text-faint gt-hint">Days are your local calendar. A full day has {DAILY_BATTLES} battles, GO's daily limit — or the 50 or 100 you set for it.</p>
         </section>
       )}
     </div>
@@ -674,13 +700,13 @@ function EloEntry({ set, index, onDone, onSkip }: { set: GblSet; index: number; 
 }
 
 /**
- * A day of GBL as a table of its 25 battles: the ones logged, in order, with
+ * A day of GBL as a table of its 25, 50 or 100 battles: the ones logged, in order, with
  * their set, result, opponents, note and the Elo each set closed on; then a +
  * row for the next one; then the rest of the day's places, empty. A row opens
  * to its note and the moves seen; the last one can be undone.
  */
-function BattleTable({ sets, title, format, backlog, played, next, blocked, busy, onAdd, onUndo, onSaved, onError }: {
-  sets: GblSet[]; title: string; format: string; backlog: boolean; played: number;
+function BattleTable({ sets, title, format, backlog, played, limit, onLimit, next, blocked, busy, onAdd, onUndo, onSaved, onError }: {
+  sets: GblSet[]; title: string; format: string; backlog: boolean; played: number; limit: number; onLimit: (n: number) => void;
   next: { set: number; inSet: number }; blocked: string | null; busy: boolean;
   onAdd: () => void; onUndo: () => void; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
 }) {
@@ -691,7 +717,15 @@ function BattleTable({ sets, title, format, backlog, played, next, blocked, busy
     <section className={`panel chamfer-9 gt-table-panel${backlog ? ' is-backlog' : ''}`} aria-label={title}>
       <div className="gt-table-head">
         <HudLabel>{title}</HudLabel>
-        <span className="numeric gt-table-count"><b>{played}</b>/{DAILY_BATTLES} battles</span>
+        <span className="gt-table-size">
+          <span className="numeric gt-table-count"><b>{played}</b>/{limit} battles</span>
+          <span className="seg-group" role="group" aria-label="Battles this day" title="25 a day; 50 on a GO Battle Thursday; 100 in GO Battle Week">
+            {DAY_SIZES.map((n) => (
+              <button key={n} type="button" className={`btn seg-btn btn-sm${limit === n ? ' is-active' : ''}`} aria-pressed={limit === n}
+                disabled={n < played} onClick={() => onLimit(n)}>{n}</button>
+            ))}
+          </span>
+        </span>
       </div>
       <div className="gt-rows" role="table" aria-label={`${title}'s battles`}>
         <div className="gt-row is-header" role="row">
@@ -735,7 +769,7 @@ function BattleTable({ sets, title, format, backlog, played, next, blocked, busy
             </div>
           );
         })}
-        {played < DAILY_BATTLES && (
+        {played < limit && (
           <div role="row" className="gt-row is-add">
             <button type="button" className="gt-add" onClick={onAdd} disabled={!!blocked} aria-label={`Add battle ${played + 1}`}>
               <span className="gt-add-plus" aria-hidden="true">＋</span>
@@ -743,13 +777,48 @@ function BattleTable({ sets, title, format, backlog, played, next, blocked, busy
             </button>
           </div>
         )}
-        {Array.from({ length: Math.max(0, DAILY_BATTLES - played - 1) }, (_, k) => (
+        {Array.from({ length: Math.max(0, limit - played - 1) }, (_, k) => (
           <div key={k} role="row" className={`gt-row is-empty${(played + 1 + k) % SET_SIZE === 0 ? ' is-set-end' : ''}`} aria-hidden="true">
             <span className="gt-row-n numeric">{played + 2 + k}</span>
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Saved teams of three: tap one to fill "Your team", or keep the team on show.
+ * Some players run one team all day; others switch between many.
+ */
+function SavedTeams({ team, teams, onTeams, onPick, onError }: {
+  team: string[]; teams: GblTeam[] | null; onTeams: (t: GblTeam[]) => void; onPick: (t: string[]) => void; onError: (m: string | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const key = (t: string[]) => t.join('|');
+  const saved = teams?.some((t) => key(t.team) === key(team));
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    try { await f(); } catch (e) { onError((e as Error).message); } finally { setBusy(false); }
+  };
+  if (!teams) return null;
+  return (
+    <div className="gt-teams" role="group" aria-label="Saved teams">
+      {teams.map((t) => (
+        <span key={t.id} className={`gt-team${key(t.team) === key(team) ? ' is-on' : ''}`}>
+          <button type="button" className="gt-team-pick" aria-label={`Use ${t.team.map(displayName).join(', ')}`} onClick={() => onPick([...t.team])}>
+            {t.team.map((r, i) => <Mon key={r + i} refId={r} size={28} label={false} />)}
+          </button>
+          <button type="button" className="gt-team-del" disabled={busy} aria-label={`Forget ${t.team.map(displayName).join(', ')}`}
+            onClick={() => run(async () => { await deleteGblTeam(t.id); onTeams(teams.filter((x) => x.id !== t.id)); })}>✕</button>
+        </span>
+      ))}
+      {team.every(Boolean) && !saved && (
+        <button type="button" className="btn btn-sm" disabled={busy}
+          onClick={() => run(async () => { onTeams([...teams, await saveGblTeam(team)]); })}>＋ Save team</button>
+      )}
+      {!teams.length && !team.every(Boolean) && <span className="text-faint gt-hint">Fill all three to save the team.</span>}
+    </div>
   );
 }
 

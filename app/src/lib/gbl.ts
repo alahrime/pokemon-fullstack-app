@@ -65,6 +65,11 @@ export interface GblSetSummary {
 export const SET_SIZE = 5;
 /** GO allows five sets of five a day. */
 export const DAILY_BATTLES = 25;
+/** A day's limit: 25, 50 on a GO Battle Thursday, 100 during GO Battle Week. */
+export const DAY_SIZES = [DAILY_BATTLES, 50, 100] as const;
+/** The day's limit: the one picked, raised to the smallest that holds what was logged. */
+export const daySize = (played: number, picked: number = DAILY_BATTLES): number =>
+  DAY_SIZES.find((s) => s >= Math.max(played, picked)) ?? DAY_SIZES.at(-1)!;
 /** The season the tracker opens on; the stepper reaches any other. */
 export const CURRENT_SEASON = 28;
 export const ELO_MAX = 4000;
@@ -159,6 +164,23 @@ export async function renameAccount(id: string, name: string): Promise<void> {
 /** Deletes the alt and every set and battle logged on it. */
 export async function deleteAccount(id: string): Promise<void> {
   check(await supabase.from('gbl_accounts').delete().eq('id', id));
+}
+
+// ── Saved teams ─────────────────────────────────────────────────────────────
+
+/** A team of three, lead first, kept to load with one tap. */
+export interface GblTeam { id: string; team: string[] }
+
+export async function listGblTeams(): Promise<GblTeam[]> {
+  return (check(await supabase.from('gbl_teams').select('id, team').order('created_at')) ?? []) as GblTeam[];
+}
+
+export async function saveGblTeam(team: string[]): Promise<GblTeam> {
+  return check(await supabase.from('gbl_teams').insert({ team }).select('id, team').single()) as GblTeam;
+}
+
+export async function deleteGblTeam(id: string): Promise<void> {
+  check(await supabase.from('gbl_teams').delete().eq('id', id));
 }
 
 /** The caller's own sets in a season, oldest first, with their battles — every account's; filter with `onAccount`. */

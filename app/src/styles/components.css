@@ -8122,6 +8122,19 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .gt-table-head { display: flex; justify-content: space-between; align-items: baseline; }
 .gt-table-count { font-size: var(--text-sm); color: var(--text-muted); }
 .gt-table-count b { color: var(--color-text); font-size: var(--text-md); }
+.gt-table-size { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+
+/* Saved teams under "Your team": each a chip of three sprites, with its own ✕. */
+.gt-teams { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gt-team {
+  display: inline-flex; align-items: center;
+  background: var(--surface-2); border: var(--border-hairline) solid var(--rule-hairline);
+  transition: border-color var(--dur-2) var(--ease-out);
+}
+.gt-team:hover, .gt-team.is-on { border-color: var(--color-accent); }
+.gt-team-pick { display: inline-flex; padding: 2px 4px; cursor: pointer; background: none; border: 0; color: inherit; }
+.gt-team-del { align-self: stretch; padding: 0 6px; cursor: pointer; background: none; border: 0; border-left: var(--border-hairline) solid var(--rule-hairline); color: var(--text-faint); font-size: var(--text-2xs); }
+.gt-team-del:hover:not(:disabled) { color: var(--color-text); }
 .gt-rows { display: flex; flex-direction: column; }
 .gt-row {
   --c: var(--color-neutral-500);

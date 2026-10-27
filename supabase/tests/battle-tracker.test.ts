@@ -162,6 +162,18 @@ describe('battle tracker', () => {
     });
   });
 
+  it('keeps saved teams of three to their owner, once each', async () => {
+    const save = (who: string, team: string) => as(who)<{ id: string }>(`insert into public.gbl_teams (team) values ('{${team}}') returning id`);
+    const [t] = await save(me, 'medicham,azumarill,registeel');
+    expect((await refusal(() => save(me, 'medicham,azumarill,registeel'))).code).toBe('23505');
+    expect((await refusal(() => save(me, 'medicham,azumarill'))).code).toBe('23514');
+    // The same three on another player is theirs to keep; neither sees the other's.
+    await save(friend, 'medicham,azumarill,registeel');
+    expect(await as(me)(`select id from public.gbl_teams`)).toEqual([{ id: t.id }]);
+    expect(await as(friend)(`delete from public.gbl_teams where id = '${t.id}' returning id`)).toEqual([]);
+    expect((await refusal(() => asAnon()(`select * from public.gbl_teams`))).code).toBe('42501');
+  });
+
   it('refuses anonymous callers', async () => {
     expect((await refusal(() => asAnon()(`select * from public.gbl_leaderboard(28::smallint)`))).code).toBe('42501');
     expect((await refusal(() => asAnon()(`select * from public.gbl_sets`))).code).toBe('42501');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  backdatedAt, battlesByDay, onAccount, battlesToday, byFormat, eloSeries, fromLocalDay, lastElo, localDay, nextTier, recap, seasonTotals, summaryOf,
+  backdatedAt, battlesByDay, daySize, onAccount, battlesToday, byFormat, eloSeries, fromLocalDay, lastElo, localDay, nextTier, recap, seasonTotals, summaryOf,
   tallyOf, tierOf, todaysSets, type GblBattle, type GblSet,
 } from '../gbl';
 
@@ -60,6 +60,12 @@ describe('a season worked out', () => {
     const old = set({ startedAt: yesterday, battles: [battle('win', [], yesterday), battle('win', [], yesterday)] });
     expect(battlesToday([old, s1])).toBe(3);
     expect(todaysSets([old, s1])).toEqual([s1]);
+  });
+});
+
+describe('a day\'s size', () => {
+  it('is the size picked, raised to the smallest of 25/50/100 that holds what was logged', () => {
+    expect([daySize(0), daySize(25), daySize(26), daySize(36, 25), daySize(10, 100), daySize(69, 50), daySize(120)]).toEqual([25, 25, 50, 50, 100, 100, 100]);
   });
 });
 

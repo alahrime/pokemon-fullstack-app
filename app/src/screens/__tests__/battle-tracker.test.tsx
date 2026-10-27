@@ -9,6 +9,7 @@ const G = vi.hoisted(() => ({
   listMySets: vi.fn(), startSet: vi.fn(), addBattle: vi.fn(), deleteBattle: vi.fn(), deleteSet: vi.fn(), updateSet: vi.fn(),
   meta: vi.fn(), leaderboard: vi.fn(), seasonSets: vi.fn(), getPublic: vi.fn(), setPublic: vi.fn(), updateBattle: vi.fn(),
   listAccounts: vi.fn(), addAccount: vi.fn(), renameAccount: vi.fn(), deleteAccount: vi.fn(),
+  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), deleteGblTeam: vi.fn(),
 }));
 vi.mock('../../lib/gbl', async (orig) => ({ ...(await orig<typeof import('../../lib/gbl')>()), ...G }));
 
@@ -31,6 +32,9 @@ beforeEach(() => {
   G.listMySets.mockResolvedValue([closed]);
   G.updateBattle.mockResolvedValue(undefined);
   G.listAccounts.mockResolvedValue([]);
+  G.listGblTeams.mockResolvedValue([]);
+  G.saveGblTeam.mockImplementation(async (team: string[]) => ({ id: `t-${team.join('-')}`, team }));
+  G.deleteGblTeam.mockResolvedValue(undefined);
   G.startSet.mockImplementation(async (p: { season: number; format: string; team: string[]; eloStart: number | null; accountId?: string | null }) =>
     ({ id: 'new', accountId: p.accountId ?? null, season: p.season, format: p.format, team: p.team, eloStart: p.eloStart, eloEnd: null, startedAt: now(), battles: [] }));
   let k = 0;
@@ -206,6 +210,51 @@ describe('BattleTrackerScreen', () => {
     await waitFor(() => expect(rows()).toHaveLength(25));
     expect(screen.queryByRole('button', { name: /^Add battle/ })).toBeNull();
     expect(document.querySelectorAll('.gt-row.is-empty')).toHaveLength(0);
+    // A GO Battle Thursday: raise the day to 50 and the + row returns.
+    fireEvent.click(screen.getByRole('button', { name: '50' }));
+    expect(screen.getByRole('button', { name: 'Add battle 26' })).toBeTruthy();
+    expect(document.querySelectorAll('.gt-row.is-empty')).toHaveLength(50 - 25 - 1);
+    expect(document.querySelector('.gt-table-count')!.textContent).toBe('25/50 battles');
+    // The pick is the day's, remembered: the screen reopens on it.
+    cleanup();
+    open();
+    await waitFor(() => expect(document.querySelector('.gt-table-count')!.textContent).toBe('25/50 battles'));
+  });
+
+  it('shows a day holding more than 25 against the smallest size that fits', async () => {
+    const at = now();
+    const day = Array.from({ length: 8 }, (_, s): GblSet => ({
+      id: `e${s}`, accountId: null, season: 28, format: 'great', team: [], eloStart: 2500, eloEnd: 2500, startedAt: at,
+      battles: Array.from({ length: s === 7 ? 1 : 5 }, (_, i) => ({ id: `e${s}b${i}`, idx: i + 1, result: 'win' as const, opponents: [], opponentMoves: [], note: null, playedAt: at })),
+    }));
+    G.listMySets.mockResolvedValue(day);
+    open();
+    await waitFor(() => expect(document.querySelector('.gt-table-count')!.textContent).toBe('36/50 battles'));
+    // 36 logged: 25 no longer holds the day.
+    expect(screen.getByRole('button', { name: '25' })).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: '100' }));
+    expect(document.querySelector('.gt-table-count')!.textContent).toBe('36/100 battles');
+  });
+
+  it('saves the team of three, and fills Your team from a saved one', async () => {
+    G.listGblTeams.mockResolvedValue([{ id: 't1', team: ['medicham', 'azumarill', 'registeel'] }]);
+    open();
+    await openAdd();
+    const yours = within(screen.getByRole('group', { name: 'Your team' }));
+    expect(yours.queryByRole('button', { name: '＋ Save team' })).toBeNull();
+    fireEvent.click(yours.getByRole('button', { name: /^Use Medicham/ }));
+    expect(document.querySelectorAll('.gt-slots')[0].querySelectorAll('.gt-slot.is-filled')).toHaveLength(3);
+    // Already saved: nothing to save. Change one and the new three can be.
+    expect(yours.queryByRole('button', { name: '＋ Save team' })).toBeNull();
+    fireEvent.click(yours.getAllByRole('button', { pressed: false }).find((b) => b.classList.contains('gt-slot'))!);
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.gt-quick-mon')!);
+    fireEvent.click(yours.getByRole('button', { name: '＋ Save team' }));
+    await waitFor(() => expect(G.saveGblTeam).toHaveBeenCalled());
+    expect(G.saveGblTeam.mock.calls[0][0]).toHaveLength(3);
+    await waitFor(() => expect(yours.getAllByRole('button', { name: /^Use / })).toHaveLength(2));
+    fireEvent.click(yours.getByRole('button', { name: /^Forget Medicham/ }));
+    await waitFor(() => expect(yours.getAllByRole('button', { name: /^Use / })).toHaveLength(1));
+    expect(G.deleteGblTeam).toHaveBeenCalledWith('t1');
   });
 
   it('shows the meta for the format and filters it by bracket', async () => {

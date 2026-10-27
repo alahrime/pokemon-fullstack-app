@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-16 (tenth session: coordinator, queue and offer board removed; tournament round panel and timer rule; Shedinja; error boundaries; phone sheet scrolling; header, profile, Report and chat-dock fixes; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-27 (twelfth session: one-view Battle screen with a scrubbable timeline; double-KO tie; Shadow movesets; Battle Tracker with alt accounts and a 25-row day log; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -36,10 +36,46 @@ design authority; the plans argue from it.
 | **Shell** (plan A) | **Built, reviewed, merged and pushed** 2026-09-29 (`421f5d3`). Spec: `docs/superpowers/specs/2026-09-29-shell-challenges-tournaments-design.md`. |
 | **Challenges and chat** (plan B) | **Built, reviewed, merged, pushed and deployed** 2026-09-29 (`0637e5a`); its two migrations are applied in production. `npm run check` green; roundtrip `tools/m4-challenges-roundtrip.ts` 14/14; `check:db` 5 environmental reds, see below. Plan: `docs/superpowers/plans/2026-09-29-b-challenges-and-chat.md` |
 | **Tournaments** (plan C) | **Built, reviewed, merged and pushed** 2026-09-30 (11 tasks + a final fix wave; `0fc3432..` on `main`). `npm run check` green (1744/1744); roundtrip `tools/m5-tournament-roundtrip.ts` 26/26; `check:db` 270/275 — the 5 reds are the environmental `social.test.ts` ones. **Five migrations, applied to production by the push (verify — see "Start here").** Plan: `docs/superpowers/plans/2026-09-29-c-tournaments.md` |
+| **Battle Tracker** — a GBL notebook (25 a day, Elo per set, meta, ladder, up to 2 alt accounts) | **Built, pushed and live 2026-10-26/27** (`8e24924`, `78e4d3c`, `4fe2064`). Two migrations (`20261026000000_battle_tracker`, `20261026010000_gbl_alt_accounts`), both applied in production. Kept apart from Show 6 match records. See "Start here". |
 
 ---
 
 ## Start here — next session
+
+**Twelfth session, 2026-10-21 to 10-27 (all pushed; `main` == `origin/main`, last code commit `4fe2064`; `npm run check` 1964/1964; TWO new migrations, `20261026000000_battle_tracker` and `20261026010000_gbl_alt_accounts`, both confirmed applied in production by anon REST probes; every frontend change confirmed live on paragon2 by grepping the live chunk).** The user picks the next item each request and will add new tasks in a new session.
+
+**Done this session:**
+- **Battle screen, one view** (`57ff812`): both sides at once, PvPoke-style — CP, IVs, rank, moves, shields, Shadow, and options (starting HP, starting energy stepped by one fast move, baiting per side, stat stages). The timeline is scrubbable: hover/scrub/pin updates HP bars, energy and charge bubbles (full HP and 0 energy before the first turn). Bait modes and stat stages are a literal port of PvPoke's ActionLogic gates, checked cell by cell against PvPoke's own `Battle` class on pvpoke.com. Fits 1440x900 and 375x812 without scrolling.
+- **Double knockout reads as a tie** (`9027cce`): the Shadow Sableye mirror showed a win. Shields also clear their charge circle on the timeline.
+- **Shadows use PvPoke's Shadow moveset** (`446d065`): before, every Shadow used its base form's moveset, which was why the Sableye mirror had no final Shadow Claw. `build-data.mjs` now emits `shadowMoves` (119 rows across 96 species); `movesFor(species, league, shadow)` checks it first. `verify-data` checks every ranked Shadow fields its PvPoke moveset. Rankings regenerated (the ~3h data run completed).
+- **Battle Tracker** (`8e24924`): a GBL notebook at `#/play/tracker`. Five battles a set, 25 a day, Elo written per set; opponents' moves (only what was seen; rated default otherwise); a note per battle (owner-only, never returned by a shared function); a backlog calendar to log missed days; season stats, Elo chart, meta (recorded move %), and a ladder of friends plus opted-in players (`profiles.gbl_public`). Never feeds Show 6 records.
+- **Alt accounts** (`78e4d3c`): up to two alts (three accounts in all), not named like the main `go_username` (trigger `gbl_accounts_guard`). Each account has its own season and ladder row; deleting an alt cascades to its sets.
+- **Day log as a table** (`4fe2064`): no season stepper (fixed at `CURRENT_SEASON = 28` in `lib/gbl.ts`); the Log is a 25-row table of the day; a "+" row opens the logging panel as a portal modal (W/T/L keys only while it is open); Undo on the last row. Measured: modal 1080x689 at 1440x900, 343px wide at 375, actions pinned.
+
+**Eleventh session (another session, 2026-10-16 to 10-21; not written up there, summarised from its commits):** provider sign-up refreshes the session before the profile insert (`ce4c47d`); Discord sign-in lands on Account (`26f3096`); trainer cards on Friends and Matches, Messenger-style chat (`573c1dd`); root `package-lock.json` removed, it broke the Cloudflare build (`f318ce0`); chat presence dots, typing, Seen receipts, unread counts (`0e5ec37`); team sprites keep an even shape (`019e760`).
+
+**Open — needs the user (carried over):**
+- Scheduled challenges still need the proposer's confirm — a decision not yet given.
+- Custom SMTP for sign-up email (outsiders cannot sign up; steps in "Tenth session").
+- Optional dashboard cleanup: the inert Vault secrets `coordinator_url` / `coordinator_service_role_key` and the deployed `coordinator` function.
+
+**Known limits of the Battle Tracker (reported, not fixed):**
+- The season is a constant: bump `CURRENT_SEASON` when season 29 starts, or switch it on a start date.
+- "Today" does not roll over at midnight without a reload.
+- Not seen with two real accounts (friends' seasons, ladder, meta across users): DB tests only (`supabase/tests/battle-tracker.test.ts`, 14).
+
+**Candidates (none started, none promised):**
+- The Report screen's own-Pokémon default moves ignore league and Shadow form (found while fixing Shadow movesets).
+- Realtime and the tournament round panel still unseen live between two accounts (from the tenth session).
+
+**How to verify (added this session):**
+- Engine parity: on pvpoke.com, PvPoke's own `new Battle()` / `Pokemon` run in the page (in-browser harness); compare per battle.
+- Deploy: Cloudflare's Git trigger is unreliable; POST the deploy hook (the user has it), then grep the live lazy chunk (e.g. `BattleTrackerScreen-*.js`) — the index alone is not proof. A build can sit queued during a Cloudflare incident; the user retries it in the dashboard.
+- Production migrations: an anon REST call to a new function/table changing from `PGRST202`/`PGRST205` to `42501` proves it applied.
+- DB suite: `npx vitest run --config vitest.db.config.ts` (local Supabase in Docker). Two pre-existing local friendship rows make some `social` tests fail locally; environmental, left alone. Each tracker test run uses its own format key so reruns do not collide.
+- A portalled modal sits outside `.gt`: CSS variables it needs must be defined on the modal class too (`.gt-modal`).
+
+### Previous session (tenth)
 
 **Tenth session, 2026-10-15 to 10-16 (all pushed; `main` == `origin/main`, last code commit `dca9de8`; `npm run check` 1911/1911; CI green; TWO new migrations, `20261015020000_remove_coordinator` and `20261015030000_start_round_waits_for_timer`, both confirmed applied in production; every frontend change confirmed live on paragon2).** The user picks the next item each request; details of each change are in "Tenth session — details" just below.
 

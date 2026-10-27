@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { displayName, parseRef, speciesOf } from '../lib/data';
-import { listTeams, saveTeam, type SavedTeam } from '../lib/saves';
+import { deleteTeam, listTeams, saveTeam, type SavedTeam } from '../lib/saves';
 import { decodeMember, encodeMember, type StoredMember } from '../lib/teamCodec';
 import type { LeagueId } from '../lib/types';
 import { AddPokemonModal, movesForChoice } from './AddPokemonModal';
@@ -96,6 +96,24 @@ export function ChallengeTeam({ league, size, slots, onChange, restrictTo }: {
     }
   }
 
+  /** Deletes the saved team picked in the dropdown; the slots keep what it loaded. */
+  async function remove() {
+    const t = saved?.find((x) => x.id === loaded);
+    if (!t || !(await confirmDialog({ title: 'Delete team', body: `Delete "${t.name}"? This cannot be undone.`, confirmLabel: 'Delete team' }))) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      await deleteTeam(t.id);
+      setLoaded('');
+      await load();
+      setNote({ text: `Deleted “${t.name}”`, bad: false });
+    } catch (e) {
+      setNote({ text: messageOf(e), bad: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const set = (i: number, m: StoredMember | null) => onChange(slots.map((x, j) => (j === i ? m : x)));
   const open = editing !== null ? slots[editing] : null;
 
@@ -103,10 +121,13 @@ export function ChallengeTeam({ league, size, slots, onChange, restrictTo }: {
     <div className="ct">
       <div className="field">
         <label htmlFor="ct-saved">Saved team</label>
-        <select id="ct-saved" className="input" value={loaded} onChange={(e) => pick(e.target.value)} disabled={!savable || saved === null}>
-          <option value="">{saved === null && savable ? 'Loading…' : 'Load a saved team…'}</option>
-          {(saved ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+        <div className="flex gap-2">
+          <select id="ct-saved" className="input min-w-0 flex-1" value={loaded} onChange={(e) => pick(e.target.value)} disabled={!savable || saved === null}>
+            <option value="">{saved === null && savable ? 'Loading…' : 'Load a saved team…'}</option>
+            {(saved ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          {loaded && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void remove()}>Delete</button>}
+        </div>
         <p className="text-muted ct-hint">
           {saved && saved.length === 0 ? `No saved ${size}-Pokémon teams for this league. Build one below and save it.` : 'Load one, then change any slot, or build from scratch below.'}
         </p>

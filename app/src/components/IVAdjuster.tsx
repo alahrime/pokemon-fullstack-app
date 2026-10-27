@@ -47,6 +47,10 @@ function useChanged(value: number, ms = 420): boolean {
   return changed;
 }
 
+/** The release sparkle: eight points thrown from the tick the drag landed on. Same spark as ShinyBurst. */
+const SPARK_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+const SPARK_MS = 900;
+
 /**
  * One appraisal-style stat row.
  *
@@ -73,6 +77,28 @@ function StatRow({
   const perfect = value === MAX_IV;
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  /** Tick centres in px from the track's padding edge, measured when a drag starts — what the drag bubble rides on. */
+  const [centers, setCenters] = useState<number[]>([]);
+  /** The sparkle thrown on release; `n` keys it so a second release restarts the animation rather than reusing it. */
+  const [burst, setBurst] = useState<{ n: number; x: number; v: number } | null>(null);
+  useEffect(() => {
+    if (!burst) return;
+    const t = setTimeout(() => setBurst(null), SPARK_MS);
+    return () => clearTimeout(t);
+  }, [burst]);
+
+  const measure = (): number[] => {
+    const el = trackRef.current;
+    if (!el) return [];
+    // Absolute children sit inside the border, so offset from the padding edge, not the border box.
+    const left = el.getBoundingClientRect().left + el.clientLeft;
+    return [...el.querySelectorAll<HTMLElement>('.iv-tick')].map((t) => {
+      const b = t.getBoundingClientRect();
+      return b.left + b.width / 2 - left;
+    });
+  };
+  /** Where the bubble sits for `v`: over its tick, or at the start of the bar for 0. */
+  const xFor = (v: number): number => (v > 0 ? (centers[v - 1] ?? 0) : 0);
 
   /**
    * Which tick the pointer is over, from its position along the track.
@@ -111,6 +137,7 @@ function StatRow({
           if (e.button !== 0) return;
           e.preventDefault();
           setDragging(true);
+          setCenters(measure());
           // Capture so the drag survives leaving the track, and so a pointerup
           // anywhere still ends it.
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -128,6 +155,8 @@ function StatRow({
           if (next !== value) onSet(next);
         }}
         onPointerUp={(e) => {
+          // Sparkle where the selection landed. A press that cleared to 0 picked nothing, so it throws nothing.
+          if (dragging && value > 0) setBurst((b) => ({ n: (b?.n ?? 0) + 1, x: xFor(value), v: value }));
           setDragging(false);
           if (e.currentTarget.hasPointerCapture(e.pointerId)) {
             e.currentTarget.releasePointerCapture(e.pointerId);
@@ -167,6 +196,31 @@ function StatRow({
             />
           );
         })}
+
+        {dragging && (
+          // Rides above the thumb while held: slides tick to tick (a transition on `left`) and rolls the digit in,
+          // keyed on the value, so the number visibly travels rather than blinking between readings.
+          <span
+            className="iv-drag-bubble"
+            style={{ left: xFor(value), ['--iv-bubble' as string]: ivColor(Math.max(1, value)) }}
+            aria-hidden
+          >
+            <span key={value} className="iv-drag-num numeric">{value}</span>
+          </span>
+        )}
+
+        {burst && (
+          <span
+            key={burst.n}
+            className="iv-burst"
+            style={{ left: burst.x, ['--c' as string]: ivColor(burst.v) }}
+            aria-hidden
+          >
+            {SPARK_ANGLES.map((a, i) => (
+              <i key={a} style={{ ['--a' as string]: `${a}deg`, ['--d' as string]: `${(i % 3) * 40}ms` }} />
+            ))}
+          </span>
+        )}
       </div>
 
       <span className={`iv-value numeric${changed ? ' is-changing' : ''}`}>{value}</span>

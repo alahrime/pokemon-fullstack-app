@@ -115,7 +115,8 @@ async function pick(c: HTMLElement, typed: string) {
     const hit = [...c.querySelectorAll('.search-dropdown .search-row')].find((r) => new RegExp(`^${typed}$`, 'i').test(r.querySelector('.search-row-name')?.textContent?.trim() ?? ''));
     if (!hit) throw new Error('no ' + typed);
     return hit;
-  });
+    // Under a full `npm run check` the dropdown has outlasted waitFor's 1s default (twice, 2026-10-27).
+  }, { timeout: 10_000 });
   fireEvent.mouseDown(row);
 }
 

@@ -76,7 +76,7 @@ const readAccount = (): string | null => {
 // ponytail: per browser; another device shows the smallest size that holds what was logged. A column on a day table if that bites.
 const SIZE_KEY = 'gbl-tracker-day-size';
 const readSizes = (): Record<string, number> => {
-  try { return JSON.parse(localStorage.getItem(SIZE_KEY) ?? '{}') as Record<string, number>; } catch { return {}; }
+  try { return (JSON.parse(localStorage.getItem(SIZE_KEY) ?? '{}') as Record<string, number> | null) ?? {}; } catch { return {}; }
 };
 
 export function BattleTrackerScreen() {
@@ -813,7 +813,8 @@ function SavedTeams({ team, teams, onTeams, onPick, onError }: {
             onClick={() => run(async () => { await deleteGblTeam(t.id); onTeams(teams.filter((x) => x.id !== t.id)); })}>✕</button>
         </span>
       ))}
-      {team.every(Boolean) && !saved && (
+      {/* GO allows a Pokémon once per team. */}
+      {team.every(Boolean) && new Set(team).size === team.length && !saved && (
         <button type="button" className="btn btn-sm" disabled={busy}
           onClick={() => run(async () => { onTeams([...teams, await saveGblTeam(team)]); })}>＋ Save team</button>
       )}

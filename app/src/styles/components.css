@@ -3892,6 +3892,65 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   .iv-tick { transition: none; }
 }
 
+/* While a tick is held, a bubble rides above it reading the value. It slides tick to tick on `left`, the digit rolls
+   in on each change (keyed in IVAdjuster), and a gradient outline circles it — the one animation here that runs
+   continuously, and only for as long as the pointer is down. The outline is a conic border-box layer under an opaque
+   padding-box one, so only the 2px border shows the spin. */
+@property --iv-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.iv-track { position: relative; }
+.iv-drag-bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background:
+    linear-gradient(var(--surface-1), var(--surface-1)) padding-box,
+    conic-gradient(from var(--iv-spin), var(--iv-bubble), #7fe7ff, #ff9be8, #ffe58a, var(--iv-bubble)) border-box;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--iv-bubble) 55%, transparent);
+  color: var(--iv-bubble);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  line-height: 1;
+  pointer-events: none;
+  translate: -50% 0;
+  transition: left var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+  animation: iv-bubble-in var(--dur-2) var(--ease-spring) both, iv-spin 1.4s linear infinite;
+}
+.iv-drag-num { display: block; animation: iv-num-roll var(--dur-2) var(--ease-out) both; }
+@keyframes iv-bubble-in { from { opacity: 0; scale: 0.5; } }
+@keyframes iv-spin { to { --iv-spin: 360deg; } }
+@keyframes iv-num-roll { from { opacity: 0; transform: translateY(70%); } }
+
+/* The release sparkle, thrown from the selected tick: the shiny star's spark, smaller and in the tick's colour. */
+.iv-burst { position: absolute; top: 50%; z-index: 3; width: 0; height: 0; pointer-events: none; }
+.iv-burst i {
+  position: absolute; left: 0; top: 0; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: 0;
+  background: var(--c);
+  filter: drop-shadow(0 0 3px var(--c));
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: shiny-spark 700ms var(--ease-out) var(--d, 0ms) both;
+  --reach: 24px;
+}
+.iv-burst i:nth-child(even) { background: var(--c2, #7fe7ff); filter: drop-shadow(0 0 3px var(--c2, #7fe7ff)); width: 6px; height: 6px; margin: -3px 0 0 -3px; --reach: 17px; }
+.iv-burst i:nth-child(4n) { --c2: #ff9be8; }
+[data-motion='off'] .iv-burst { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .iv-burst { display: none; }
+  .iv-drag-bubble { transition: none; animation: none; }
+  .iv-drag-num { animation: none; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    CORE ROW BUILDS
 

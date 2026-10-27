@@ -114,6 +114,40 @@ describe('IVAdjuster dragging', () => {
     expect(onSet).not.toHaveBeenCalled();
   });
 
+  it('shows the held value in a bubble while dragging, and sparkles on release', () => {
+    function Held() {
+      const [iv, setIv] = useState({ a: 0, d: 8, s: 15 });
+      return <IVAdjuster iv={iv} onBump={() => {}} onSet={(k, v) => setIv((cur) => ({ ...cur, [k]: v }))} />;
+    }
+    const { container } = renderApp(<Held />);
+    const track = container.querySelector('[role="slider"]') as HTMLElement;
+    expect(track.querySelector('.iv-drag-bubble')).toBeNull();
+    fireEvent.pointerDown(track, { clientX: 38, pointerId: 1 });
+    expect(track.querySelector('.iv-drag-bubble')?.textContent).toBe('3');
+    fireEvent.pointerMove(track, { clientX: 160, pointerId: 1 });
+    expect(track.querySelector('.iv-drag-bubble')?.textContent).toBe('12');
+    expect(track.querySelector('.iv-burst')).toBeNull();
+    fireEvent.pointerUp(track, { clientX: 160, pointerId: 1 });
+    expect(track.querySelector('.iv-drag-bubble')).toBeNull();
+    expect(track.querySelectorAll('.iv-burst i')).toHaveLength(8);
+  });
+
+  it('throws no sparkle when the press cleared the stat, or the drag was cancelled', () => {
+    function Held() {
+      const [iv, setIv] = useState({ a: 3, d: 8, s: 15 });
+      return <IVAdjuster iv={iv} onBump={() => {}} onSet={(k, v) => setIv((cur) => ({ ...cur, [k]: v }))} />;
+    }
+    const { container } = renderApp(<Held />);
+    const track = container.querySelector('[role="slider"]') as HTMLElement;
+    fireEvent.pointerDown(track, { clientX: 38, pointerId: 1 }); // its own tick: clears to 0
+    fireEvent.pointerUp(track, { clientX: 38, pointerId: 1 });
+    expect(track.querySelector('.iv-burst')).toBeNull();
+    fireEvent.pointerDown(track, { clientX: 160, pointerId: 1 });
+    fireEvent.pointerCancel(track, { pointerId: 1 });
+    expect(track.querySelector('.iv-burst')).toBeNull();
+    expect(track.querySelector('.iv-drag-bubble')).toBeNull();
+  });
+
   it('steps with the arrow keys', () => {
     const { track, onBump } = setup();
     fireEvent.keyDown(track, { key: 'ArrowRight' });

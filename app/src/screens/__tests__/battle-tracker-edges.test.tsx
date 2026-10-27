@@ -98,6 +98,28 @@ describe('day size', () => {
     expect(screen.getByRole('button', { name: 'Add battle 51' })).toBeTruthy();
   });
 
+  it('locks a size below what is logged, counting down what to delete as battles are undone', async () => {
+    const at = new Date().toISOString();
+    G.listMySets.mockResolvedValue(day(52, at));
+    G.deleteBattle.mockResolvedValue(undefined);
+    G.deleteSet.mockResolvedValue(undefined);
+    localStorage.setItem('gbl-tracker-day-size', JSON.stringify({ [`main:${localDay(new Date())}`]: 100 }));
+    open();
+    await waitFor(() => expect(count()).toBe('52/100 battles'));
+    fireEvent.click(screen.getByRole('button', { name: '25' }));
+    expect(screen.getByRole('alert').textContent).toMatch(/more than 25.*delete the last 27 with/);
+    fireEvent.click(screen.getByRole('button', { name: '50' }));
+    expect(screen.getByRole('alert').textContent).toMatch(/more than 50.*delete the last 2 with/);
+    expect(count()).toBe('52/100 battles');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the last battle' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/delete the last 1 with/));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the last battle' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    // Now it fits, and 50 takes.
+    fireEvent.click(screen.getByRole('button', { name: '50' }));
+    expect(count()).toBe('50/50 battles');
+  });
+
   it('keeps the pick after an undo takes the day back under 25', async () => {
     const at = new Date().toISOString();
     G.listMySets.mockResolvedValue(day(26, at));

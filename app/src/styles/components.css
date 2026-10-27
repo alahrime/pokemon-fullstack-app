@@ -8122,6 +8122,7 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .gt-table-head { display: flex; justify-content: space-between; align-items: baseline; }
 .gt-table-count { font-size: var(--text-sm); color: var(--text-muted); }
 .gt-table-count b { color: var(--color-text); font-size: var(--text-md); }
+.gt-size-warn { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
 .gt-table-size { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
 
 /* Saved teams under "Your team": each a chip of three sprites, with its own ✕. */

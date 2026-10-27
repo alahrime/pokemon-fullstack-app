@@ -230,8 +230,13 @@ describe('BattleTrackerScreen', () => {
     G.listMySets.mockResolvedValue(day);
     open();
     await waitFor(() => expect(document.querySelector('.gt-table-count')!.textContent).toBe('36/50 battles'));
-    // 36 logged: 25 no longer holds the day.
-    expect(screen.getByRole('button', { name: '25' })).toHaveProperty('disabled', true);
+    // 36 logged: 25 no longer holds the day. Picking it says what it would take, and changes nothing.
+    expect(screen.getByRole('button', { name: '25' }).getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '25' }));
+    expect(screen.getByRole('alert').textContent).toMatch(/36 battles logged, more than 25.*delete the last 11 with/);
+    expect(document.querySelector('.gt-table-count')!.textContent).toBe('36/50 battles');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '100' }));
     expect(document.querySelector('.gt-table-count')!.textContent).toBe('36/100 battles');
   });

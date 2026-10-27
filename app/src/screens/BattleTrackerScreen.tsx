@@ -446,7 +446,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
           onSkip={() => setSkipped(new Set([...skipped, awaitingElo.id]))} />
       )}
 
-      <BattleTable sets={daySets} title={dayLabel} format={format} backlog={backlog}
+      <BattleTable key={dayKey ?? 'today'} sets={daySets} title={dayLabel} format={format} backlog={backlog}
         played={played} limit={limit} onLimit={pickLimit} next={{ set: nextSet, inSet: nextInSet }} blocked={awaitingElo ? `Write down Set ${daySets.indexOf(awaitingElo) + 1}'s Elo above first` : null}
         busy={busy} onAdd={() => setAdding(true)} onUndo={undo} onSaved={replace} onError={onError} />
 
@@ -711,6 +711,9 @@ function BattleTable({ sets, title, format, backlog, played, limit, onLimit, nex
   onAdd: () => void; onUndo: () => void; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  // A size picked below what is logged: locked, with what it would take. Gone once enough are undone.
+  const [tooSmall, setTooSmall] = useState<number | null>(null);
+  const over = tooSmall !== null && tooSmall < played ? played - tooSmall : 0;
   const rows = sets.flatMap((s, si) => s.battles.map((b) => ({ s, si, b })));
   const lastId = rows.at(-1)?.b.id;
   return (
@@ -722,11 +725,20 @@ function BattleTable({ sets, title, format, backlog, played, limit, onLimit, nex
           <span className="seg-group" role="group" aria-label="Battles this day" title="25 a day; 50 on a GO Battle Thursday; 100 in GO Battle Week">
             {DAY_SIZES.map((n) => (
               <button key={n} type="button" className={`btn seg-btn btn-sm${limit === n ? ' is-active' : ''}`} aria-pressed={limit === n}
-                disabled={n < played} onClick={() => onLimit(n)}>{n}</button>
+                aria-disabled={n < played} onClick={() => { if (n < played) setTooSmall(n); else { setTooSmall(null); onLimit(n); } }}>{n}</button>
             ))}
           </span>
         </span>
       </div>
+      {over > 0 && (
+        <div className="friend-notice gt-size-warn" role="alert">
+          <span>
+            This day has <b className="numeric">{played}</b> battles logged, more than {tooSmall}. To make it a {tooSmall}-battle day,
+            delete the last <b className="numeric">{over}</b> with ↶ Undo — or keep these and log the rest on another day from the calendar.
+          </span>
+          <button type="button" className="btn btn-ghost btn-sm" aria-label="Dismiss" onClick={() => setTooSmall(null)}>✕</button>
+        </div>
+      )}
       <div className="gt-rows" role="table" aria-label={`${title}'s battles`}>
         <div className="gt-row is-header" role="row">
           {['#', 'Set', 'Result', 'Opponent', 'Note', 'Elo'].map((h) => <span key={h} role="columnheader">{h}</span>)}

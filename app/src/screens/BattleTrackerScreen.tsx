@@ -19,7 +19,7 @@ import { monthGrid } from '../lib/records';
 import {
   CURRENT_SEASON, DAILY_BATTLES, DAY_SIZES, ELO_MAX, MAX_ALTS, NO_MOVES, SET_SIZE, TIERS,
   addAccount, addBattle, daySize, deleteAccount, deleteGblTeam, listGblTeams, saveGblTeam, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
-  knowsAny, lastElo, leaderboard, listMySets, localDay, meta, nextTier, recap, seasonSets, seasonTotals, setPublic, startSet, summaryOf,
+  knowsAny, lastElo, leaderboard, removeBattle, restoreBattle, listMySets, localDay, meta, nextTier, recap, seasonSets, seasonTotals, setPublic, startSet, summaryOf,
   tallyOf, tierOf, todaysSets, updateBattle, updateSet,
   type GblAccount, type GblBattle, type GblTeam, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
 } from '../lib/gbl';
@@ -290,6 +290,8 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
   const [team, setTeam] = useState<string[]>(() => [...lastTeam, '', '', ''].slice(0, 3));
   const [target, setTarget] = useState<Target>({ kind: 'opp', slot: 0 });
   const [busy, setBusy] = useState(false);
+  // The last battle deleted from the table, until Restore, the next log or another day.
+  const [removed, setRemoved] = useState<{ battle: GblBattle; set: GblSet; setGone: boolean; label: string } | null>(null);
   // The logging panel is a modal, opened from the table's + row.
   const [adding, setAdding] = useState(false);
   const played = battlesToday(sets, day);
@@ -369,6 +371,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
       setNote('');
       setTarget({ kind: 'opp', slot: 0 });
       setAdding(false);
+      setRemoved(null);
     } catch (e) {
       onError((e as Error).message);
     } finally {
@@ -396,6 +399,47 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
       }
     } catch (e) {
       onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (s: GblSet, b: GblBattle) => {
+    if (busy) return;
+    setBusy(true);
+    onError(null);
+    try {
+      const rest = await removeBattle(s, b);
+      // A set left with nothing in it goes too, as Undo does.
+      if (!rest.length) await deleteSet(s.id);
+      setSets(rest.length ? sets.map((x) => (x.id === s.id ? { ...s, battles: rest } : x)) : sets.filter((x) => x.id !== s.id));
+      setRemoved({ battle: b, set: s, setGone: !rest.length, label: `Set ${daySets.indexOf(s) + 1}, battle ${b.idx}` });
+    } catch (e) {
+      onError(`${(e as Error).message} — reload to see the day as saved.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restore = async () => {
+    if (!removed || busy) return;
+    const { battle: b, set: was, setGone } = removed;
+    setBusy(true);
+    onError(null);
+    try {
+      if (setGone) {
+        const s = await startSet({ season: was.season, format: was.format, team: was.team, eloStart: was.eloStart, startedAt: was.startedAt, accountId: was.accountId });
+        if (was.eloEnd !== null) await updateSet(s.id, { eloEnd: was.eloEnd });
+        const back = await addBattle(s.id, 1, b.result, b.opponents, { moves: b.opponentMoves, note: b.note, playedAt: b.playedAt });
+        setSets([...sets, { ...s, eloEnd: was.eloEnd, battles: [back] }].sort(byStart));
+      } else {
+        const now = sets.find((x) => x.id === was.id)!;
+        const battles = await restoreBattle(now, b);
+        setSets(sets.map((x) => (x.id === now.id ? { ...now, battles } : x)));
+      }
+      setRemoved(null);
+    } catch (e) {
+      onError(`${(e as Error).message} — reload to see the day as saved.`);
     } finally {
       setBusy(false);
     }
@@ -436,7 +480,17 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
 
   return (
     <div className="gt-log">
-      <DayPicker sets={sets} value={dayKey} limitOf={(k, n) => daySize(n, sizes[sizeKey(k)])} onChange={(k) => { setDayKey(k); setSkipped(new Set()); setAdding(false); }} />
+      <DayPicker sets={sets} value={dayKey} limitOf={(k, n) => daySize(n, sizes[sizeKey(k)])} onChange={(k) => { setDayKey(k); setSkipped(new Set()); setAdding(false); setRemoved(null); }} />
+
+      {removed && (
+        <div className="friend-notice gt-size-warn" role="status">
+          <span>{removed.label} deleted.</span>
+          <span>
+            <button type="button" className="btn btn-sm" disabled={busy} onClick={restore}>Restore</button>
+            <button type="button" className="btn btn-ghost btn-sm" aria-label="Dismiss" onClick={() => setRemoved(null)}>✕</button>
+          </span>
+        </div>
+      )}
 
       {awaitingElo && (
         <EloEntry set={awaitingElo} index={daySets.indexOf(awaitingElo) + 1}
@@ -448,7 +502,7 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
 
       <BattleTable key={dayKey ?? 'today'} sets={daySets} title={dayLabel} format={format} backlog={backlog}
         played={played} limit={limit} onLimit={pickLimit} next={{ set: nextSet, inSet: nextInSet }} blocked={awaitingElo ? `Write down Set ${daySets.indexOf(awaitingElo) + 1}'s Elo above first` : null}
-        busy={busy} onAdd={() => setAdding(true)} onUndo={undo} onSaved={replace} onError={onError} />
+        busy={busy} onAdd={() => setAdding(true)} onUndo={() => { setRemoved(null); void undo(); }} onDelete={remove} onSaved={replace} onError={onError} />
 
       {adding && createPortal(
         <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) setAdding(false); }}>
@@ -703,12 +757,12 @@ function EloEntry({ set, index, onDone, onSkip }: { set: GblSet; index: number; 
  * A day of GBL as a table of its 25, 50 or 100 battles: the ones logged, in order, with
  * their set, result, opponents, note and the Elo each set closed on; then a +
  * row for the next one; then the rest of the day's places, empty. A row opens
- * to its note and the moves seen; the last one can be undone.
+ * to its note and the moves seen, and can be deleted (with a Restore); the last one can be undone.
  */
-function BattleTable({ sets, title, format, backlog, played, limit, onLimit, next, blocked, busy, onAdd, onUndo, onSaved, onError }: {
+function BattleTable({ sets, title, format, backlog, played, limit, onLimit, next, blocked, busy, onAdd, onUndo, onDelete, onSaved, onError }: {
   sets: GblSet[]; title: string; format: string; backlog: boolean; played: number; limit: number; onLimit: (n: number) => void;
   next: { set: number; inSet: number }; blocked: string | null; busy: boolean;
-  onAdd: () => void; onUndo: () => void; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
+  onAdd: () => void; onUndo: () => void; onDelete: (s: GblSet, b: GblBattle) => void; onSaved: (s: GblSet) => void; onError: (m: string | null) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   // A size picked below what is logged: locked, with what it would take. Gone once enough are undone.
@@ -775,7 +829,7 @@ function BattleTable({ sets, title, format, backlog, played, limit, onLimit, nex
                 </span>
               </div>
               {opened && (
-                <BattleEditor key={b.id} battle={b} format={format} onError={onError}
+                <BattleEditor key={b.id} battle={b} format={format} onError={onError} busy={busy} onDelete={() => onDelete(s, b)}
                   onSaved={(nb) => onSaved({ ...s, battles: s.battles.map((x) => (x.id === nb.id ? nb : x)) })} />
               )}
             </div>
@@ -836,8 +890,8 @@ function SavedTeams({ team, teams, onTeams, onPick, onError }: {
 }
 
 /** A logged battle, after the fact: its note, and the moves seen on each opponent. */
-function BattleEditor({ battle, format, onSaved, onError }: {
-  battle: GblBattle; format: string; onSaved: (b: GblBattle) => void; onError: (m: string | null) => void;
+function BattleEditor({ battle, format, busy, onSaved, onDelete, onError }: {
+  battle: GblBattle; format: string; busy: boolean; onSaved: (b: GblBattle) => void; onDelete: () => void; onError: (m: string | null) => void;
 }) {
   const [note, setNote] = useState(battle.note ?? '');
   const [moves, setMoves] = useState<OppMoves[]>(battle.opponentMoves);
@@ -879,6 +933,7 @@ function BattleEditor({ battle, format, onSaved, onError }: {
         <textarea className="input" rows={3} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Only you can see it." />
       </label>
       <div className="gt-elo-actions">
+        <button type="button" className="btn btn-ghost gt-danger" disabled={busy || saving} onClick={onDelete}>Delete battle</button>
         <button type="button" className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>

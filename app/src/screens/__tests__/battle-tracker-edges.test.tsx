@@ -9,7 +9,7 @@ const G = vi.hoisted(() => ({
   listMySets: vi.fn(), startSet: vi.fn(), addBattle: vi.fn(), deleteBattle: vi.fn(), deleteSet: vi.fn(), updateSet: vi.fn(),
   meta: vi.fn(), leaderboard: vi.fn(), seasonSets: vi.fn(), getPublic: vi.fn(), setPublic: vi.fn(), updateBattle: vi.fn(),
   listAccounts: vi.fn(), addAccount: vi.fn(), renameAccount: vi.fn(), deleteAccount: vi.fn(),
-  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), deleteGblTeam: vi.fn(),
+  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), deleteGblTeam: vi.fn(), removeBattle: vi.fn(), restoreBattle: vi.fn(),
 }));
 vi.mock('../../lib/gbl', async (orig) => ({ ...(await orig<typeof import('../../lib/gbl')>()), ...G }));
 
@@ -196,5 +196,68 @@ describe('saved teams', () => {
     fireEvent.click(yours.getByRole('button', { name: /^Use Medicham/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Win' }));
     await waitFor(() => expect(G.startSet).toHaveBeenCalledWith(expect.objectContaining({ team: ['medicham', 'azumarill', 'registeel'] })));
+  });
+});
+
+describe('deleting a battle, and restoring it', () => {
+  const rows = () => [...document.querySelectorAll<HTMLElement>('.gt-rowgroup > .gt-row')];
+  const at = () => new Date().toISOString();
+  const openRow = (i: number) => fireEvent.click(rows()[i]);
+
+  it('deletes a battle from the middle of a set, and Restore puts it back', async () => {
+    const sets = day(5, at());
+    G.listMySets.mockResolvedValue(sets);
+    const rest = sets[0].battles.filter((b) => b.idx !== 2).map((b) => (b.idx > 2 ? { ...b, idx: b.idx - 1 } : b));
+    G.removeBattle.mockResolvedValue(rest);
+    G.restoreBattle.mockResolvedValue(sets[0].battles);
+    open();
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    openRow(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete battle' }));
+    await waitFor(() => expect(rows()).toHaveLength(4));
+    expect(G.removeBattle).toHaveBeenCalledWith(expect.objectContaining({ id: 'd0' }), expect.objectContaining({ id: 'd0b1', idx: 2 }));
+    expect(G.deleteSet).not.toHaveBeenCalled();
+    expect(screen.getByRole('status').textContent).toMatch(/Set 1, battle 2 deleted/);
+    // The set reads 1..4 now, and the day has room for one more.
+    expect(rows().map((r) => r.querySelector('.gt-row-set i')!.textContent)).toEqual(['1/5', '2/5', '3/5', '4/5']);
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    expect(G.restoreBattle).toHaveBeenCalledWith(expect.objectContaining({ id: 'd0', battles: rest }), expect.objectContaining({ id: 'd0b1' }));
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('deletes a set with its only battle, and Restore rebuilds the set where it was', async () => {
+    const t = at();
+    const sets = [...day(5, t), ...day(1, t, null, 'x')].map((x, i) => ({ ...x, startedAt: new Date(Date.now() - (2 - i) * 60_000).toISOString(), eloEnd: i ? 2550 : 2500 }));
+    G.listMySets.mockResolvedValue(sets);
+    G.removeBattle.mockResolvedValue([]);
+    G.deleteSet.mockResolvedValue(undefined);
+    G.updateSet.mockResolvedValue(undefined);
+    open();
+    await waitFor(() => expect(rows()).toHaveLength(6));
+    openRow(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete battle' }));
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    expect(G.deleteSet).toHaveBeenCalledWith('x0');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    await waitFor(() => expect(rows()).toHaveLength(6));
+    expect(G.startSet).toHaveBeenCalledWith(expect.objectContaining({ startedAt: sets[1].startedAt, eloStart: 2500 }));
+    expect(G.updateSet).toHaveBeenCalledWith(expect.any(String), { eloEnd: 2550 });
+    expect(G.addBattle).toHaveBeenCalledWith(expect.any(String), 1, 'win', [], expect.objectContaining({ playedAt: t }));
+  });
+
+  it('drops the Restore once another battle is logged', async () => {
+    const sets = day(3, at());
+    G.listMySets.mockResolvedValue(sets);
+    G.removeBattle.mockResolvedValue(sets[0].battles.slice(0, 2));
+    open();
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    openRow(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete battle' }));
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('button', { name: /^Add battle/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Win' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

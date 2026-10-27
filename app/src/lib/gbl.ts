@@ -239,6 +239,28 @@ export async function deleteBattle(id: string): Promise<void> {
   check(await supabase.from('gbl_battles').delete().eq('id', id));
 }
 
+const renumber = async (b: GblBattle, idx: number) => check(await supabase.from('gbl_battles').update({ idx }).eq('id', b.id));
+
+/**
+ * Deletes a battle from the middle of its set and closes the gap, so the set stays numbered 1..n.
+ * Later battles move up in order, so `unique (set_id, idx)` never sees two at once.
+ */
+// ponytail: several requests, not one transaction; a failure part-way leaves a gap until a reload. An RPC if that bites.
+export async function removeBattle(set: GblSet, b: GblBattle): Promise<GblBattle[]> {
+  await deleteBattle(b.id);
+  const rest = set.battles.filter((x) => x.id !== b.id);
+  for (const x of rest) if (x.idx > b.idx) await renumber(x, x.idx - 1);
+  return rest.map((x) => (x.idx > b.idx ? { ...x, idx: x.idx - 1 } : x));
+}
+
+/** Puts a removed battle back at its place in `set` (as it is now): the ones after it move down first, from the end. */
+export async function restoreBattle(set: GblSet, b: GblBattle): Promise<GblBattle[]> {
+  const after = set.battles.filter((x) => x.idx >= b.idx);
+  for (const x of [...after].reverse()) await renumber(x, x.idx + 1);
+  const back = await addBattle(set.id, b.idx, b.result, b.opponents, { moves: b.opponentMoves, note: b.note, playedAt: b.playedAt });
+  return [...set.battles.map((x) => (x.idx >= b.idx ? { ...x, idx: x.idx + 1 } : x)), back].sort((x, y) => x.idx - y.idx);
+}
+
 /** One of any player's accounts' season as the caller may see it (null: their main); empty when they may not. */
 export async function seasonSets(userId: string, season: number, accountId: string | null = null): Promise<GblSetSummary[]> {
   const data = check(await supabase.rpc('gbl_season_sets', { p_user: userId, p_season: season, p_account: accountId }));

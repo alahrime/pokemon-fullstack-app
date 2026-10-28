@@ -42,7 +42,7 @@ design authority; the plans argue from it.
 
 ## Start here — next session
 
-**Fourteenth session, 2026-10-27/28 (all merged; `main` == `origin/main`, last code commit `3e764c5`; `npm run check` 1989/1989 locally and CI `check` green on both PRs; NO migrations; the user saw it live on paragon2 and signed off on the look).** Work now goes through a branch + PR, merged once CI `check` is green: PR #3 (`55fe2c4`) and PR #4 (`3e764c5`).
+**Fourteenth session, 2026-10-27/28 (all merged; `main` == `origin/main`, last code commit `3e764c5`; `npm run check` green in CI on both PRs (1987/1987 locally before the two new tests; the new tests and touched suites green locally); NO migrations; the user saw it live on paragon2 and signed off on the look).** Work now goes through a branch + PR, merged once CI `check` is green: PR #3 (`55fe2c4`) and PR #4 (`3e764c5`).
 
 **Done this session:**
 - **IV slider drag bubble** (`IVAdjuster.tsx`, shared by the Analyze/report screen, the Add Pokémon modal and the Battle screen): while a tick is held, `.iv-drag-bubble` rides above it showing the value. It slides tick to tick (transition on `left`, from tick centres measured once on pointerdown, `measure()`), and the digit rolls in on each change (`.iv-drag-num` keyed on the value). A conic-gradient border spins via a registered `@property --iv-spin` (1.1s/turn), only while the pointer is down: the one deliberate exception to "animation never idles".

@@ -109,9 +109,12 @@ export interface MatrixCell {
 const hit = (from: ResolvedMon, to: ResolvedMon, move: FastMove | ChargeMove | undefined) =>
   move ? dmg(from.mon.atk, to.mon.def, move, to.types) : null;
 
-/** One pairing at one shield scenario. */
-export function cell(row: ResolvedMon, col: ResolvedMon, shieldsRow: number, shieldsCol: number): MatrixCell {
-  const r = battle(row.mon, col.mon, shieldsRow, shieldsCol, 0, 0, false);
+/**
+ * One pairing at one shield scenario. `optimizeTiming` is the app's charge-timing setting, the same one the 1v1 screen
+ * reads, so a cell opened there replays the battle it was scored on.
+ */
+export function cell(row: ResolvedMon, col: ResolvedMon, shieldsRow: number, shieldsCol: number, optimizeTiming = false): MatrixCell {
+  const r = battle(row.mon, col.mon, shieldsRow, shieldsCol, 0, 0, false, optimizeTiming);
   // PvPoke scores a double knockout a draw; the engine's `win` alone would hand it to the row.
   const tie = r.hpA <= 0 && r.hpB <= 0;
   const atkDiff = row.mon.cmpAtk - col.mon.cmpAtk;
@@ -126,8 +129,10 @@ export function cell(row: ResolvedMon, col: ResolvedMon, shieldsRow: number, shi
 }
 
 /** Every row against every column, indexed [row][column]. */
-export function matrix(rows: readonly ResolvedMon[], cols: readonly ResolvedMon[], shieldsRow: number, shieldsCol: number): MatrixCell[][] {
-  return rows.map((r) => cols.map((c) => cell(r, c, shieldsRow, shieldsCol)));
+export function matrix(
+  rows: readonly ResolvedMon[], cols: readonly ResolvedMon[], shieldsRow: number, shieldsCol: number, optimizeTiming = false,
+): MatrixCell[][] {
+  return rows.map((r) => cols.map((c) => cell(r, c, shieldsRow, shieldsCol, optimizeTiming)));
 }
 
 // ── Views ──────────────────────────────────────────────────────────────────
@@ -243,14 +248,39 @@ export const CMP_DIFF_LABEL: Record<DiffKind, string> = {
 /** How many of a meta a quick fill takes: the top of the league or cup's own ranking. */
 export const META_SIZE = 40;
 
-export interface QuickFill { key: string; label: string }
+export interface QuickFill {
+  key: string;
+  label: string;
+  /** One line on what the group is, for the option's second row. */
+  note: string;
+  /** Two to three CSS colours for the option's swatch: the cup's own palette, its types, or the league. */
+  swatch: string[];
+  /** Types a cup is built from, drawn as icons beside its name. */
+  types: string[];
+}
+
+const LEAGUE_SWATCH: Record<LeagueId, string[]> = {
+  great: ['var(--lg-great)', 'var(--lg-great-accent)'],
+  ultra: ['var(--lg-ultra)', 'var(--lg-ultra-accent, #c9a227)'],
+  master: ['var(--lg-master)', 'var(--lg-master-accent, #b88cff)'],
+};
 
 /** The groups a side can be filled with in a league: its meta, then each limited cup played under its cap. */
 export function quickFills(league: LeagueId): QuickFill[] {
   const name = LEAGUE_BY_ID.get(league)!.name.split(' · ')[0];
+  const cap = league === 'master' ? 'No CP cap' : `${LEAGUE_BY_ID.get(league)!.cap} CP`;
   return [
-    { key: `meta:${league}`, label: `${name} meta` },
-    ...LIMITED_CUPS.filter((c) => c.base === league).map((c) => ({ key: `cup:${c.key}`, label: c.name })),
+    { key: `meta:${league}`, label: `${name} meta`, note: `Top ${META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
+    ...LIMITED_CUPS.filter((c) => c.base === league).map((c) => {
+      const types = c.cup.include?.types ?? [];
+      return {
+        key: `cup:${c.key}`,
+        label: c.name,
+        note: `Top ${META_SIZE} the cup allows · ${cap}`,
+        swatch: c.palette ?? (types.length ? types.slice(0, 3).map((t) => `var(--type-${t})`) : LEAGUE_SWATCH[league]),
+        types,
+      };
+    }),
   ];
 }
 

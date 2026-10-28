@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { BattleModeSwitch } from '../components/BattleModeSwitch';
+import { BattleModeTabs } from '../components/BattleModeTabs';
 import { AddPokemonModal, RETURN_ID, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { MatrixResults } from '../components/MatrixResults';
 import { SegButton, SegGroup } from '../components/Seg';
@@ -79,8 +79,8 @@ export function MatrixBattle() {
       <ScreenHeader
         title="Battle"
         blurb="Matrix: every Pokémon on the left against every Pokémon on the right, at the shields each side holds. Compare rolls, movesets or whole species, and see which matchups, breakpoints and bulkpoints each one gains or loses."
-        aside={<BattleModeSwitch />}
       />
+      <BattleModeTabs />
       <div className="bm-sides">
         <MatrixSide
           id="left"

@@ -16,7 +16,7 @@ function seed(left: unknown[], right: unknown[] = []) {
 
 async function openMatrix() {
   const view = renderApp(<BattleScreen />);
-  fireEvent.click(screen.getByRole('button', { name: 'Matrix' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Matrix/ }));
   await screen.findByRole('region', { name: 'Your Pokémon' }, { timeout: 10000 });
   return view;
 }
@@ -33,8 +33,10 @@ describe('Battle → Matrix', () => {
   it('switches modes, and asks for both sides before showing a matrix', async () => {
     await openMatrix();
     expect(screen.getByText(/Add at least one Pokémon on each side/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Single' }));
+    expect(screen.getByRole('tab', { name: /^Matrix/ }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(screen.getByRole('tab', { name: /^1v1/ }));
     expect(screen.queryByRole('region', { name: 'Your Pokémon' })).toBeNull();
+    expect(screen.getByRole('tab', { name: /^1v1/ }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('quick-fills a side with a meta and fights every pairing', async () => {

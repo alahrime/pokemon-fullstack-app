@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { BattleModeSwitch } from '../components/BattleModeSwitch';
+import { BattleModeTabs } from '../components/BattleModeTabs';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, makeRef, movesFor, ratedFastIdx, LEAGUE_BY_ID } from '../lib/data';
 import {
@@ -623,8 +623,8 @@ function SingleBattle() {
       <ScreenHeader
         title="Battle"
         blurb="Head-to-head PvP simulation. Point at the timeline to scrub through the fight; Options holds starting HP, energy, baiting and stat stages."
-        aside={<BattleModeSwitch />}
       />
+      <BattleModeTabs />
       {/* Phones only (CSS), pinned under the slim nav: both Pokémon and how
           the battle stands at the turn shown stay in view while either side is
           edited below. */}

@@ -118,7 +118,9 @@ describe('differences against the baseline', () => {
 
 describe('quick fill', () => {
   it('offers the league\'s meta and only the cups played under its cap', () => {
-    expect(quickFills(L)[0]).toEqual({ key: 'meta:great', label: 'Great League meta' });
+    expect(quickFills(L)[0]).toMatchObject({ key: 'meta:great', label: 'Great League meta', note: expect.stringMatching(/Top 40/) });
+    for (const f of quickFills(L)) expect(f.swatch.length).toBeGreaterThan(0);
+    expect(quickFills(L).find((f) => f.key === 'cup:mega-color')!.types).toContain('fire');
     expect(quickFills(L).some((f) => f.key === 'cup:retro')).toBe(true);
     expect(quickFills('ultra').some((f) => f.key === 'cup:retro')).toBe(false);
   });

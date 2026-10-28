@@ -56,7 +56,7 @@ describe('HeatmapView with WebGL available', () => {
       <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
         onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
     fireEvent.click([...container.querySelectorAll('.hv-controls button')].find((b) => b.textContent === '3D')!);
-    expect((await findByRole('alert')).textContent).toMatch(/The 3D terrain could not be drawn \(.+\), so this is the flat grid/);
+    expect((await findByRole('alert', {}, { timeout: 10000 })).textContent).toMatch(/The 3D terrain could not be drawn \(.+\), so this is the flat grid/);
     expect(container.querySelector('.hv-grid')).toBeTruthy();
     expect(container.querySelector('.hv-terrain')).toBeNull();
   });

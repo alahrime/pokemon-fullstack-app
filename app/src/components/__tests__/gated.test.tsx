@@ -31,21 +31,22 @@ describe('HeatmapView with WebGL available', () => {
     return { species, iv, table, cells, palette: paletteFor(species) };
   };
 
-  it('offers the terrain, and comes back to the flat grid', async () => {
+  it('opens on the terrain, goes to the flat grid, and comes back', async () => {
     pretendWebGL();
     const { iv, cells, palette } = view();
     const { container } = renderApp(
       <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
         onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
     const controls = container.querySelector('.hv-controls')!;
-    const threeD = [...controls.querySelectorAll('button')].find((b) => b.textContent === '3D');
-    expect(threeD).toBeTruthy();
-    fireEvent.click(threeD!);
-    // The flat grid gives way to the lazily-loaded terrain.
-    await waitFor(() => expect(container.querySelector('.hv-terrain')).toBeTruthy());
-    const twoD = [...controls.querySelectorAll('button')].find((b) => b.textContent === '2D')!;
-    fireEvent.click(twoD);
+    const button = (label: string) => [...controls.querySelectorAll('button')].find((b) => b.textContent === label)!;
+    // 3D is the default where it can be drawn.
+    expect(container.querySelector('.hv-terrain')).toBeTruthy();
+    expect(container.querySelector('.hv-grid')).toBeNull();
+    fireEvent.click(button('2D'));
     expect(container.querySelector('.hv-grid')).toBeTruthy();
+    expect(container.querySelector('.hv-terrain')).toBeNull();
+    fireEvent.click(button('3D'));
+    await waitFor(() => expect(container.querySelector('.hv-terrain')).toBeTruthy());
   });
 
   it('a terrain that cannot be drawn (the probe passes, the context is a stub) falls back to the flat grid with the reason, instead of taking the screen down', async () => {
@@ -55,10 +56,27 @@ describe('HeatmapView with WebGL available', () => {
     const { container, findByRole } = renderApp(
       <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
         onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
-    fireEvent.click([...container.querySelectorAll('.hv-controls button')].find((b) => b.textContent === '3D')!);
-    expect((await findByRole('alert')).textContent).toMatch(/The 3D terrain could not be drawn \(.+\), so this is the flat grid/);
+    // It opens on the terrain, which throws on the stub context.
+    expect((await findByRole('alert', {}, { timeout: 10000 })).textContent).toMatch(/The 3D terrain could not be drawn \(.+\), so this is the flat grid/);
     expect(container.querySelector('.hv-grid')).toBeTruthy();
     expect(container.querySelector('.hv-terrain')).toBeNull();
+  });
+
+  it('opens on the flat grid on a phone, with the terrain one tap away', async () => {
+    pretendWebGL();
+    vi.spyOn(window, 'matchMedia').mockImplementation((q: string) => ({
+      matches: q === '(max-width: 820px)', media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    }));
+    const { iv, cells, palette } = view();
+    const { container } = renderApp(
+      <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
+        onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
+    expect(container.querySelector('.hv-grid')).toBeTruthy();
+    expect(container.querySelector('.hv-terrain')).toBeNull();
+    fireEvent.click([...container.querySelectorAll('.hv-controls button')].find((b) => b.textContent === '3D')!);
+    await waitFor(() => expect(container.querySelector('.hv-terrain')).toBeTruthy());
   });
 
   it('hides the toggle entirely where the probe fails', () => {

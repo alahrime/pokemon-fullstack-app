@@ -5,12 +5,13 @@ import { HudLabel } from '../../components/Hud';
 import { TerrainBoundary } from '../../components/TerrainBoundary';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
+import { usePhone } from '../../lib/usePhone';
 import type { ColorBy } from '../../state/AppState';
 import { paletteRamp, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
 
-/* three.js + R3F is ~1.1MB of the bundle and 3D is opt-in, so it's split out
-   and fetched on first use. The 2D grid stays in the main chunk. */
+/* three.js + R3F is ~1.1MB of the bundle, so it's split out and fetched when
+   the terrain first renders. The 2D grid stays in the main chunk. */
 const Heatmap3D = lazy(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
 
 const NOTES: Record<ColorBy, string> = {
@@ -63,10 +64,14 @@ export function HeatmapView({
   onIvS: (v: number) => void;
   palette: HeatPalette;
 }) {
-  // Probed once — if the browser can't give us a context, the 3D toggle never
-  // appears and the 2D grid stays the only option.
+  // Probed once — 3D is the default where it can be drawn, except on phones,
+  // where the terrain is heavy for the GPU and the battery and the flat grid
+  // opens instead (the toggle is still there). If the browser can't give us a
+  // context, the toggle never appears and the 2D grid is the only option.
   const webgl = useMemo(() => hasWebGL(), []);
-  const [dim, setDim] = useState<'2d' | '3d'>('2d');
+  const phone = usePhone();
+  // Only the starting view: crossing the breakpoint later doesn't override a pick.
+  const [dim, setDim] = useState<'2d' | '3d'>(phone ? '2d' : '3d');
   const [terrainError, setTerrainError] = useState<string | null>(null);
   const show3d = webgl && dim === '3d';
 

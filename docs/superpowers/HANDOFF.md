@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-27 (thirteenth session: Battle Tracker saved teams of three, 25/50/100 day sizes with a lock warning, three edge-case fixes; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-28 (fourteenth session: IV slider drag bubble with a spinning gradient outline and a release sparkle; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,25 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Fourteenth session, 2026-10-27/28 (all merged; `main` == `origin/main`, last code commit `3e764c5`; `npm run check` green in CI on both PRs (1987/1987 locally before the two new tests; the new tests and touched suites green locally); NO migrations; the user saw it live on paragon2 and signed off on the look).** Work now goes through a branch + PR, merged once CI `check` is green: PR #3 (`55fe2c4`) and PR #4 (`3e764c5`).
+
+**Done this session:**
+- **IV slider drag bubble** (`IVAdjuster.tsx`, shared by the Analyze/report screen, the Add Pokémon modal and the Battle screen): while a tick is held, `.iv-drag-bubble` rides above it showing the value. It slides tick to tick (transition on `left`, from tick centres measured once on pointerdown, `measure()`), and the digit rolls in on each change (`.iv-drag-num` keyed on the value). A conic-gradient border spins via a registered `@property --iv-spin` (1.1s/turn), only while the pointer is down: the one deliberate exception to "animation never idles".
+- **Release sparkle**: on pointerup after a drag, `.iv-burst` throws 8 points from the selected tick (the shiny star's `shiny-spark` keyframes, in the tick's `ivColor` alternating with the shiny cyan/pink; white vanished on the light theme). Nothing when the press cleared the stat to 0, or on pointercancel. Hidden under reduced motion / `data-motion='off'`; the bubble stays but goes static.
+- Tuned once at the user's request (PR #4): spin 1.4s to 1.1s, bubble 28×24 to 32×27 with `--text-md` digit, sparkle reach 24/17px to 34/25px. The user is happy with it as is.
+- Two tests in `screens/__tests__/report-wiring.test.tsx` (bubble value follows the drag and leaves on release; sparkle only on a real selection). Measured in Chromium: bubble centre vs held tick centre delta −0.008px.
+
+**Known limits:** on the Attack row the bubble overlaps the "max →" chip above it while dragging (transient, accepted).
+
+**Gotchas from this session:**
+- `npm run verify` OOMs at node's default heap in the cloud container; `NODE_OPTIONS=--max-old-space-size=8192` and it passes. CI is unaffected.
+- The Vite dev server needs `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` set (dummies are fine for UI work) or the app throws at load. The Analyze screen is `#/analyze/report`, not `#/report`.
+- `document.elementFromPoint` skips `pointer-events: none` elements, so it cannot tell whether an overlay like the bubble is visible; it always reports what is under it.
+- After a squash-merge, reusing the branch name needs a force-push, which the auto-mode classifier refuses. Use a fresh branch name for follow-ups.
+- The frontend host (paragon2) posts no status on commits, so a deploy cannot be confirmed from the session; the user confirms it on the live site.
+
+### Previous session (thirteenth)
 
 **Thirteenth session, 2026-10-27 (all pushed; `main` == `origin/main`, last code commit `c6e828f`; `npm run check` 1979/1979; ONE new migration, `20261027000000_gbl_teams`, applied in production by the user (`supabase migration list --linked` shows it remote; anon REST on `gbl_teams` moved from `PGRST205` to `42501`); the tracker changes confirmed live on paragon2 by grepping `BattleTrackerScreen-*.js` for `gbl_teams` and `gt-size-warn`).**
 

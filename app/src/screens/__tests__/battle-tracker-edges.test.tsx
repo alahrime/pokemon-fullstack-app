@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import type { GblBattle, GblSet } from '../../lib/gbl';
 import { backdatedAt, localDay } from '../../lib/gbl';
+import { LIMITED_CUPS, cupLegal } from '../../lib/presetFormats';
+import { displayName } from '../../lib/data';
 
 let user: { id: string } | null = { id: 'me' };
 vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user }) }));
@@ -210,6 +212,32 @@ describe('saved teams', () => {
     const q = document.querySelector<HTMLButtonElement>('.gt-quick-mon')!;
     fireEvent.click(q); fireEvent.click(q); fireEvent.click(q);
     expect(yours.queryByRole('button', { name: '＋ Save team' })).toBeNull();
+  });
+
+  it('refuses a Shadow and a plain one of the same species together, and allows three different ones', async () => {
+    const lastSet = (team: string[]) => [{ ...day(1, new Date(Date.now() - 864e5).toISOString())[0], team }];
+    G.listMySets.mockResolvedValue(lastSet(['medicham', 'medicham_shadow', 'registeel']));
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: /^Add battle/ }));
+    expect(screen.queryByRole('button', { name: '＋ Save team' })).toBeNull();
+    cleanup();
+    G.listMySets.mockResolvedValue(lastSet(['medicham', 'azumarill_shadow', 'registeel']));
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: /^Add battle/ }));
+    expect(screen.getByRole('button', { name: '＋ Save team' })).toBeTruthy();
+  });
+
+  it('shows only the saved teams the current cup allows', async () => {
+    const fits = ['medicham', 'azumarill', 'registeel'];
+    // A cup that bans one of these but allows some other three: whatever cups the data holds today.
+    const cup = LIMITED_CUPS.find((c) => { const l = cupLegal(c.key)!; return !fits.every((r) => l.has(r)) && l.size >= 3; })!;
+    const ok = [...cupLegal(cup.key)!].filter((r) => !r.includes('_')).slice(0, 3);
+    localStorage.setItem('gbl-tracker-format', cup.key);
+    G.listGblTeams.mockResolvedValue([{ id: 't1', team: fits }, { id: 't2', team: ok }]);
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: /^Add battle/ }));
+    const saved = within(screen.getByRole('group', { name: 'Saved teams' }));
+    expect(saved.getAllByRole('button', { name: /^Use / }).map((b) => b.getAttribute('aria-label'))).toEqual([`Use ${ok.map(displayName).join(', ')}`]);
   });
 
   it('starts the next set with a saved team picked between sets', async () => {

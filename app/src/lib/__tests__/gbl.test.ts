@@ -91,6 +91,15 @@ describe('the backlog', () => {
     const stamped = new Date(backdatedAt([set({ battles: [battle('win', [], late)] })], day));
     expect([stamped.getDate(), stamped.getHours(), stamped.getMinutes()]).toEqual([3, 23, 59]);
   });
+
+  it('keeps all 100 of a day backlogged after 23:59 on that day, each later than the last', () => {
+    const day = new Date(2026, 9, 3);
+    const sets = [set({ battles: [battle('win', [], new Date(2026, 9, 3, 23, 58, 30).toISOString())] })];
+    for (let i = 0; i < 100; i++) sets[0].battles.push(battle('win', [], backdatedAt(sets, day)));
+    const t = sets[0].battles.map((b) => Date.parse(b.playedAt));
+    expect(t.every((x, i) => i === 0 || x > t[i - 1])).toBe(true);
+    expect(new Date(t.at(-1)!).getDate()).toBe(3);
+  });
 });
 
 describe('accounts', () => {

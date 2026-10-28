@@ -408,9 +408,9 @@ export function backdatedAt(daySets: readonly GblSet[], day: Date): string {
   const morning = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9).getTime();
   const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59).getTime();
   if (!last) return new Date(morning).toISOString();
-  // Past 23:59, a second apart: two battles at one moment would leave their sets' order, and Elo chain, to chance.
-  // ponytail: more than ~60 battles backlogged after 23:59 run into the next day.
-  return new Date(Math.min(last + 3 * 60_000, Math.max(end, last + 1000))).toISOString();
+  // Past 23:59, a millisecond apart: two battles at one moment would leave their sets' order, and Elo chain, to
+  // chance, and the minute holds 60,000 of them, far past the 100 a day can hold.
+  return new Date(Math.min(last + 3 * 60_000, Math.max(end, last + 1))).toISOString();
 }
 
 /** Battles logged on the local calendar day of `now` — GO's 25 a day. */

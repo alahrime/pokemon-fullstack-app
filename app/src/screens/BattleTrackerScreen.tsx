@@ -563,7 +563,7 @@ function LogView({ season, format, accountId, today, sets, setSets, onError }: {
                 <div className="gt-slots" role="group" aria-label="Your team">
                   <span className="hud-label">Your team</span>
                   <div className="gt-slot-grid">{team.map((r, i) => slot('team', i, r, i === 0 ? 'Lead' : `Slot ${i + 1}`))}</div>
-                  <SavedTeams team={team} teams={teams} onTeams={setTeams} onPick={setTeam} onError={onError} />
+                  <SavedTeams team={team} teams={teams} legal={legal} onTeams={setTeams} onPick={setTeam} onError={onError} />
                 </div>
                 <div className="gt-slots" role="group" aria-label="Opponent">
                   <span className="hud-label">Opponent</span>
@@ -882,8 +882,8 @@ function BattleTable({ sets, title, format, backlog, played, limit, onLimit, nex
  * Saved teams of three: tap one to fill "Your team", or keep the team on show.
  * Some players run one team all day; others switch between many.
  */
-function SavedTeams({ team, teams, onTeams, onPick, onError }: {
-  team: string[]; teams: GblTeam[] | null; onTeams: (t: GblTeam[]) => void; onPick: (t: string[]) => void; onError: (m: string | null) => void;
+function SavedTeams({ team, teams, legal, onTeams, onPick, onError }: {
+  team: string[]; teams: GblTeam[] | null; legal: Set<string> | null; onTeams: (t: GblTeam[]) => void; onPick: (t: string[]) => void; onError: (m: string | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const key = (t: string[]) => t.join('|');
@@ -892,10 +892,14 @@ function SavedTeams({ team, teams, onTeams, onPick, onError }: {
     setBusy(true);
     try { await f(); } catch (e) { onError((e as Error).message); } finally { setBusy(false); }
   };
+  // GO allows a species once per team, Shadow or not, any form: it goes by Pokédex number.
+  const distinct = new Set(team.map((r) => speciesOf(r)?.dex ?? r)).size === team.length;
   if (!teams) return null;
+  // In a cup, only the teams it allows: a Great League team with a Steel type is no use in a Fighting Cup.
+  const shown = legal ? teams.filter((t) => t.team.every((r) => legal.has(r))) : teams;
   return (
     <div className="gt-teams" role="group" aria-label="Saved teams">
-      {teams.map((t) => (
+      {shown.map((t) => (
         <span key={t.id} className={`gt-team${key(t.team) === key(team) ? ' is-on' : ''}`}>
           <button type="button" className="gt-team-pick" aria-label={`Use ${t.team.map(displayName).join(', ')}`} onClick={() => onPick([...t.team])}>
             {t.team.map((r, i) => <Mon key={r + i} refId={r} size={28} label={false} />)}
@@ -904,8 +908,7 @@ function SavedTeams({ team, teams, onTeams, onPick, onError }: {
             onClick={() => run(async () => { await deleteGblTeam(t.id); onTeams(teams.filter((x) => x.id !== t.id)); })}>✕</button>
         </span>
       ))}
-      {/* GO allows a Pokémon once per team. */}
-      {team.every(Boolean) && new Set(team).size === team.length && !saved && (
+      {team.every(Boolean) && distinct && !saved && (
         <button type="button" className="btn btn-sm" disabled={busy}
           onClick={() => run(async () => { onTeams([...teams, await saveGblTeam(team)]); })}>＋ Save team</button>
       )}

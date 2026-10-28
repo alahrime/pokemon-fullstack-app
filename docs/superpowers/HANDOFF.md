@@ -88,9 +88,9 @@ design authority; the plans argue from it.
 
 **Known limits (reported, not fixed):**
 - ~~The day-size pick is per browser.~~ **Fixed 2026-10-28:** saved per account and day in `gbl_day_sizes` (migration `20261028000000_gbl_day_sizes`; `listDaySizes` / `setDaySize` in `lib/gbl.ts`). localStorage stays as this browser's copy until the saved sizes load.
-- Backlogging more than ~60 battles after 23:59 into one day rolls into the next day (noted at `backdatedAt`).
-- The duplicate guard on "Save team" compares exact refs: a Shadow and a non-Shadow of one species can be saved together, which GO may not allow. Logging (not saving) a team with duplicates is still allowed, as before.
-- Saved teams are not filtered by the current format's cup legality.
+- ~~Backlogging more than ~60 battles after 23:59 rolls into the next day.~~ **Fixed 2026-10-28:** `backdatedAt` steps 1ms apart past 23:59, so all 100 a day fit.
+- ~~The duplicate guard on "Save team" compares exact refs.~~ **Fixed 2026-10-28:** it compares Pokédex numbers, so a Shadow and a plain one (or two forms) of a species cannot be saved together. Logging (not saving) a team with duplicates is still allowed, as before.
+- ~~Saved teams are not filtered by cup legality.~~ **Fixed 2026-10-28:** in a cup, only saved teams it allows are shown (`cupLegal`); the rest reappear in an open league.
 - Still from the twelfth session: `CURRENT_SEASON` is a constant. ("Today" now rolls over at local midnight: `useLocalDay` in `BattleTrackerScreen.tsx`, fixed 2026-10-28.)
 
 **Gotchas from this session:**

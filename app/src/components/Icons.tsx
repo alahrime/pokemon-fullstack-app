@@ -93,6 +93,15 @@ export function FlipIcon({ size = 14, style }: IconProps) {
   );
 }
 
+/** HP — the stamina IV. */
+export function HeartIcon({ size = 14, style }: IconProps) {
+  return (
+    <svg {...svgProps(size)} className="icon-svg" style={style}>
+      <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z" />
+    </svg>
+  );
+}
+
 /** Bulkpoint — damage you take. */
 export function ShieldIcon({ size = 14, style }: IconProps) {
   return (

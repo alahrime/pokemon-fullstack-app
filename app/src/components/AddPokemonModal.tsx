@@ -58,6 +58,7 @@ export function AddPokemonModal({
   restrictTo,
   initial,
   buddy = false,
+  commitLabel = 'Add to team',
   onCommit,
   onClose,
 }: {
@@ -67,6 +68,8 @@ export function AddPokemonModal({
   initial?: AddPokemonChoice;
   /** Offer the Best Buddy toggle; only meaningful where the result is used for it. */
   buddy?: boolean;
+  /** The add button's wording, for callers that are not adding to a team. */
+  commitLabel?: string;
   onCommit: (choice: AddPokemonChoice) => void;
   onClose: () => void;
 }) {
@@ -185,10 +188,10 @@ export function AddPokemonModal({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Add a Pokémon to the team"
+        aria-label={initial ? 'Edit a Pokémon' : 'Add a Pokémon'}
       >
         <div className="modal-head">
-          <span className="hud-label">Add a Pokémon</span>
+          <span className="hud-label">{initial ? 'Edit a Pokémon' : 'Add a Pokémon'}</span>
           <button className="btn btn-sm py-0.5 px-2" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
@@ -325,7 +328,7 @@ export function AddPokemonModal({
         <div className="modal-foot">
           <button className="btn btn-sm" onClick={onClose}>Cancel</button>
           <button className="btn btn-sm is-primary" onClick={commit} disabled={!ref}>
-            {initial ? 'Save changes' : 'Add to team'}
+            {initial ? 'Save changes' : commitLabel}
           </button>
         </div>
       </div>

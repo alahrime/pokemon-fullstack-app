@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { BattleModeTabs } from '../components/BattleModeTabs';
 import { useAppState } from '../state/AppState';
 import { SPECIES_BY_ID, displayName, parseRef, makeRef, movesFor, ratedFastIdx, LEAGUE_BY_ID } from '../lib/data';
 import {
@@ -510,7 +511,22 @@ const monFor = (ref: string, league: LeagueId, entry: Parameters<typeof mkBattle
   return mkBattleMon(entry, fast, charges, species.types);
 };
 
+const MatrixBattle = lazy(() => import('./MatrixBattle').then((m) => ({ default: m.MatrixBattle })));
+
+/** One head-to-head, or the Matrix: the mode is app state, so leaving the screen and coming back keeps it. */
 export function BattleScreen() {
+  const { state } = useAppState();
+  if (state.battleMode === 'matrix') {
+    return (
+      <Suspense fallback={<p className="text-faint">Loading the matrix…</p>}>
+        <MatrixBattle />
+      </Suspense>
+    );
+  }
+  return <SingleBattle />;
+}
+
+function SingleBattle() {
   const { state, patch } = useAppState();
   const {
     league, battleA, battleB, ivA, ivB, fastA, fastB, chargeIdsA, chargeIdsB, shieldsA, shieldsB, energyA, energyB,
@@ -608,6 +624,7 @@ export function BattleScreen() {
         title="Battle"
         blurb="Head-to-head PvP simulation. Point at the timeline to scrub through the fight; Options holds starting HP, energy, baiting and stat stages."
       />
+      <BattleModeTabs />
       {/* Phones only (CSS), pinned under the slim nav: both Pokémon and how
           the battle stands at the turn shown stay in view while either side is
           edited below. */}

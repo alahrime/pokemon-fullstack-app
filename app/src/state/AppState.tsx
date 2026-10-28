@@ -82,6 +82,8 @@ export interface AppStateShape {
   /** Starting attack/defence stages per battle side, PvPoke's stat modifiers. */
   stagesA: Stages;
   stagesB: Stages;
+  /** The Battle screen's mode: one head-to-head, or a matrix of every Pokémon on one side against every one on the other. */
+  battleMode: 'single' | 'matrix';
   /**
    * The match the `match` screen is open on. A whole `Match`, not just an
    * id, because whoever navigates here (a row on the Matchmaking screen)
@@ -182,6 +184,7 @@ export const INITIAL_STATE: AppStateShape = {
   baitB: 1,
   stagesA: { atk: 0, def: 0 },
   stagesB: { atk: 0, def: 0 },
+  battleMode: 'single',
   activeMatch: null,
   activeTournamentId: null,
   activePlayerId: null,

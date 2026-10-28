@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { IV } from '../lib/types';
+import { HeartIcon, ShieldIcon, SwordIcon } from './Icons';
 
 const ROWS: [keyof IV, string][] = [
   ['a', 'Attack'],
   ['d', 'Defense'],
   ['s', 'HP'],
 ];
+
+/** Compact labels, for a narrow card: sword, shield, heart. The track keeps the full word as its accessible name. */
+const ICONS: Record<keyof IV, ReactNode> = {
+  a: <SwordIcon size={15} />,
+  d: <ShieldIcon size={15} />,
+  s: <HeartIcon size={15} />,
+};
 
 const MAX_IV = 15;
 /** Segment boundaries, matching the game's appraisal bar: ticks at 5 and 10, three equal thirds. */
@@ -66,8 +75,10 @@ function StatRow({
   onSet,
   onBump,
   size,
+  icon,
 }: {
   label: string;
+  icon?: ReactNode;
   value: number;
   onSet: (v: number) => void;
   onBump: (delta: number) => void;
@@ -120,7 +131,7 @@ function StatRow({
 
   return (
     <div className={`iv-row${perfect ? ' is-perfect' : ''}${dragging ? ' is-dragging' : ''}`}>
-      <span className="iv-label">{label}</span>
+      {icon ? <span className="iv-label is-icon" title={label} aria-hidden>{icon}</span> : <span className="iv-label">{label}</span>}
 
       <div
         ref={trackRef}
@@ -256,8 +267,11 @@ export function IVAdjuster({
   onBump,
   onSet,
   size = 26,
+  icons = false,
 }: {
   iv: IV;
+  /** Sword, shield and heart in place of the words, where width is short. */
+  icons?: boolean;
   onBump: (key: keyof IV, delta: number) => void;
   onSet?: (key: keyof IV, value: number) => void;
   size?: number;
@@ -270,6 +284,7 @@ export function IVAdjuster({
           label={label}
           value={iv[k]}
           size={size}
+          icon={icons ? ICONS[k] : undefined}
           onBump={(d) => onBump(k, d)}
           onSet={(v) => (onSet ? onSet(k, v) : onBump(k, v - iv[k]))}
         />

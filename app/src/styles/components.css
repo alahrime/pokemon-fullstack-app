@@ -581,6 +581,8 @@ input[type='range'] { accent-color: var(--color-accent); }
   color: var(--iv-fill);
 }
 .iv-row.is-perfect .iv-label { color: var(--iv-fill-max); }
+/* Sword / shield / heart in place of the word (IVAdjuster `icons`), tinted like the word would be. */
+.iv-label.is-icon { display: grid; place-items: center; line-height: 0; }
 
 /* Segmented track: 15 ticks in thirds, as the game draws them. Columns come from IVAdjuster (GROUP). */
 .iv-track {
@@ -8377,3 +8379,177 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .gt-acct-row .input { flex: 1; min-width: 0; height: 34px; }
 .gt-danger { color: var(--type-fire); }
 .gt-acct-of { font-size: var(--text-xs); color: var(--text-faint); white-space: nowrap; }
+
+/* ── Battle → Matrix (screens/MatrixBattle, components/MatrixResults) ─────────────────────────────────────────────
+   Two lists side by side, then every pairing in a table and the Differences under it. Outcome colours follow PvPoke's
+   matrix — blue win, magenta loss — with a simultaneous KO in its own gold (dark text, the one cell colour light enough to need it), and every cell carries a glyph too
+   (● ⨯⨯ ✕), so colour is never the only signal. The six Differences colours are distinct per kind: what was gained reads cool, what was lost warm.
+   Literal colours, scoped here like `.mx`, all carrying white text at AA. */
+.bm-results, .bm-sides {
+  --bm-win: #2f6fd0; --bm-tie: #e0a526; --bm-loss: #b0247a;
+  --bm-gain-win: #1f6fc4; --bm-gain-tie: #14806f; --bm-drop-tie: #9a6208; --bm-drop-loss: #b0247a;
+  --bm-gain: #2a7d45; --bm-drop: #b8322a;
+}
+.bm-sides { display: grid; gap: var(--space-4); margin-bottom: var(--space-4); }
+@media (min-width: 900px) { .bm-sides { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.bm-side { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
+.bm-side-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
+.bm-side-title { font-family: var(--font-heading); font-size: var(--size-h5); margin: 0; }
+.bm-side-note { margin: 2px 0 0; font-size: var(--text-sm); }
+.bm-side-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.bm-side-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.bm-fill, .bm-slot { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 200px; max-width: 320px; }
+.bm-select {
+  min-height: 34px; width: 100%; padding: 0 var(--space-2);
+  font: inherit; font-size: var(--text-sm); color: var(--color-text);
+  background: var(--surface-2); border: var(--border-hairline) solid var(--rule-strong);
+}
+.bm-select:focus-visible { outline: var(--ring-width) solid var(--color-accent); outline-offset: 1px; }
+.bm-side-empty { margin: 0; padding: var(--space-4) 0; text-align: center; }
+.bm-empty { margin: var(--space-4) 0; text-align: center; }
+
+/* Lists scroll inside their panel, so a 40-strong meta does not push the results off the page. Cards are tall and
+   narrow and tile across the side, so a side shows several at once. */
+.bm-list {
+  list-style: none; margin: 0; padding: 0 var(--space-1) 0 0;
+  display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  max-height: 720px; overflow-y: auto; scrollbar-width: thin; align-items: start;
+}
+.bm-card {
+  display: grid; gap: 6px; padding: var(--space-2);
+  border-top: 3px solid var(--t1);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--t1) 18%, var(--surface-2)), color-mix(in srgb, var(--t2) 8%, var(--surface-2)) 70%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+}
+.bm-card-top { display: flex; align-items: center; justify-content: space-between; }
+.bm-card-pos { color: var(--text-muted); font-size: var(--text-xs); }
+.bm-card-actions { display: flex; gap: 2px; }
+.bm-icon { min-width: 28px; min-height: 28px; padding: 0 5px; }
+.bm-stage {
+  position: relative; display: grid; place-items: center; width: 100%; padding: var(--space-3) 0 var(--space-2);
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--t1) 45%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--t2) 30%, transparent), transparent 65%),
+    repeating-linear-gradient(90deg, var(--grid-line, color-mix(in srgb, var(--color-text) 6%, transparent)) 0 1px, transparent 1px 22px),
+    var(--surface-1);
+  border-bottom: var(--border-hairline) solid color-mix(in srgb, var(--t1) 40%, transparent);
+}
+/* Contact shadow, as under the Analyze hero. */
+.bm-stage::after {
+  content: ''; position: absolute; left: 50%; bottom: 8px; width: 46%; height: 7px; transform: translateX(-50%);
+  border-radius: 50%; background: radial-gradient(ellipse at center, rgb(0 0 0 / 0.35), transparent 72%); pointer-events: none;
+}
+.bm-stage.is-shadow {
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--shadow-aura, #7b3fbf) 42%, transparent), transparent 70%),
+    var(--surface-1);
+}
+.bm-stage > :not(.bm-dex) { position: relative; z-index: 1; }
+.bm-dex { position: absolute; top: 4px; left: 6px; font-size: var(--text-2xs); color: var(--text-muted); letter-spacing: 0.06em; }
+.bm-card-id {
+  display: grid; justify-items: center; gap: 4px; min-width: 0;
+  background: none; border: 0; padding: 0; color: inherit; text-align: center; cursor: pointer;
+}
+.bm-card-id:hover .bm-card-name { color: var(--color-accent); }
+.bm-card-id:focus-visible { outline: var(--ring-width) solid var(--color-accent); outline-offset: 2px; }
+.bm-card-name { font-family: var(--font-heading); font-size: var(--text-md); line-height: 1.2; overflow-wrap: anywhere; transition: color var(--dur-1) var(--ease-out); }
+.bm-card-stats { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+.bm-moves { display: grid; gap: 4px; }
+.bm-move { display: grid; gap: 1px; min-width: 0; }
+.bm-move-k { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.bm-move .bm-select { min-height: 28px; font-size: var(--text-xs); padding: 0 4px; }
+.bm-ivs { min-width: 0; }
+/* The Analyze screen's appraisal bars, packed for a narrow card: a shorter label column and smaller steppers. */
+.bm-ivs .iv-adjuster { gap: 5px; }
+.bm-ivs .iv-row { grid-template-columns: 16px minmax(0, 1fr) 18px auto; gap: 6px; }
+.bm-ivs .iv-value { font-size: var(--text-sm); }
+
+/* Results */
+.bm-results { display: grid; gap: var(--space-4); }
+.bm-results.is-stale { opacity: 0.6; transition: opacity var(--dur-2) var(--ease-out); }
+.bm-panel { display: grid; gap: var(--space-3); min-width: 0; }
+.bm-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.bm-lede { margin: 0; font-size: var(--text-sm); max-width: 70ch; }
+.bm-scroll { overflow: auto; max-height: min(72vh, 760px); max-width: 100%; scrollbar-width: thin; }
+.bm-table { border-collapse: separate; border-spacing: 3px; }
+.bm-table th { font-weight: 400; }
+.bm-table thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface-1);
+  vertical-align: bottom; padding: 0 0 var(--space-1);
+}
+.bm-table thead th.bm-corner { left: 0; z-index: 3; }
+.bm-sort {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%;
+  background: none; border: 0; padding: 2px; color: inherit; cursor: pointer;
+  font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em;
+}
+.bm-sort:hover { color: var(--color-accent); }
+.bm-sort:focus-visible { outline: var(--ring-width) solid var(--color-accent); }
+.bm-sort.is-sorted { color: var(--color-accent); }
+.bm-sort small { color: var(--text-muted); }
+.bm-corner .bm-sort { align-items: flex-start; text-transform: uppercase; color: var(--text-muted); }
+.bm-colhead { min-width: 78px; max-width: 96px; }
+.bm-arrow { font-size: var(--text-2xs); }
+.bm-label { display: grid; justify-items: inherit; min-width: 0; line-height: 1.15; }
+.bm-label-name { font-family: var(--font-heading); font-size: var(--text-xs); overflow-wrap: anywhere; color: var(--color-text); }
+.bm-label-sub { font-size: var(--text-2xs); color: var(--text-muted); }
+.bm-colhead .bm-label { justify-items: center; text-align: center; }
+.bm-rowhead {
+  position: sticky; left: 0; z-index: 1; background: var(--surface-1);
+  display: flex; align-items: center; gap: var(--space-2); min-width: 170px; text-align: left;
+  padding: 2px var(--space-2) 2px 0; border-left: 3px solid transparent;
+}
+.bm-table tr.is-base .bm-rowhead { border-left-color: var(--color-accent); }
+.bm-table tbody tr:hover .bm-rowhead { background: var(--surface-2); }
+.bm-pos { color: var(--text-muted); font-size: var(--text-xs); min-width: 1.6em; text-align: right; }
+.bm-cell { padding: 0; text-align: center; }
+.bm-val {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 70px; padding: 6px 8px; color: #fff;
+  font-family: var(--font-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.bm-val > i { font-style: normal; font-size: var(--text-2xs); opacity: 0.9; }
+.bm-val.is-win { background: var(--bm-win); }
+.bm-val.is-tie { background: var(--bm-tie); color: #1a1206; }
+.bm-val.is-loss { background: var(--bm-loss); }
+.bm-val.is-swatch { min-width: 0; padding: 2px 5px; }
+.bm-stat { padding: 0 var(--space-2); text-align: center; font-size: var(--text-sm); white-space: nowrap; }
+.bm-stathead .bm-sort { min-width: 64px; }
+.bm-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.bm-key { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); }
+.bm-key-item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Differences */
+.bm-diff-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
+.bm-diffs { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin; }
+.bm-diff-row {
+  display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: var(--space-3); align-items: center;
+  padding: 6px var(--space-2); background: var(--surface-2); border-left: 3px solid transparent;
+}
+.bm-diff-row:nth-child(even) { background: color-mix(in srgb, var(--color-text) 4%, var(--surface-2)); }
+.bm-diff-row.is-base { border-left-color: var(--color-accent); }
+.bm-diff-who { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.bm-diff-chips { display: flex; flex-wrap: wrap; gap: 4px; font-size: var(--text-sm); }
+.bm-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; color: #fff; line-height: 1.1;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+.bm-chip > b { font-family: var(--font-mono); font-size: var(--text-md); }
+.bm-chip-text { display: grid; }
+.bm-chip-name { font-family: var(--font-heading); font-size: var(--text-xs); }
+.bm-chip small { font-family: var(--font-mono); font-size: var(--text-2xs); opacity: 0.9; }
+.bm-chip.is-swatch { width: 14px; height: 14px; padding: 0; }
+.bm-chip.is-gain-win { background: var(--bm-gain-win); }
+.bm-chip.is-gain-tie { background: var(--bm-gain-tie); }
+.bm-chip.is-drop-tie { background: var(--bm-drop-tie); }
+.bm-chip.is-drop-loss { background: var(--bm-drop-loss); }
+.bm-chip.is-gain { background: var(--bm-gain); }
+.bm-chip.is-drop { background: var(--bm-drop); }
+@media (max-width: 640px) {
+  .bm-diff-row { grid-template-columns: minmax(0, 1fr); }
+  .bm-rowhead { min-width: 130px; }
+}
+/* CMP view: the priority marker inside a battle-coloured cell, and in the key. */
+.bm-cmp { font-style: normal; font-size: var(--text-2xs); line-height: 1; padding: 2px 3px; background: rgb(0 0 0 / 0.28); color: #fff; }
+.bm-key .bm-cmp { background: var(--color-text); color: var(--surface-1); }

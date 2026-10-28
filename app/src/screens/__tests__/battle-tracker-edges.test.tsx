@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import type { GblBattle, GblSet } from '../../lib/gbl';
 import { backdatedAt, localDay } from '../../lib/gbl';
 
@@ -9,7 +9,7 @@ const G = vi.hoisted(() => ({
   listMySets: vi.fn(), startSet: vi.fn(), addBattle: vi.fn(), deleteBattle: vi.fn(), deleteSet: vi.fn(), updateSet: vi.fn(),
   meta: vi.fn(), leaderboard: vi.fn(), seasonSets: vi.fn(), getPublic: vi.fn(), setPublic: vi.fn(), updateBattle: vi.fn(),
   listAccounts: vi.fn(), addAccount: vi.fn(), renameAccount: vi.fn(), deleteAccount: vi.fn(),
-  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), deleteGblTeam: vi.fn(), removeBattle: vi.fn(), restoreBattle: vi.fn(),
+  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), listDaySizes: vi.fn(), setDaySize: vi.fn(), deleteGblTeam: vi.fn(), removeBattle: vi.fn(), restoreBattle: vi.fn(),
 }));
 vi.mock('../../lib/gbl', async (orig) => ({ ...(await orig<typeof import('../../lib/gbl')>()), ...G }));
 
@@ -33,6 +33,8 @@ beforeEach(() => {
   G.listMySets.mockResolvedValue([]);
   G.listAccounts.mockResolvedValue([]);
   G.listGblTeams.mockResolvedValue([]);
+  G.listDaySizes.mockResolvedValue({});
+  G.setDaySize.mockResolvedValue(undefined);
   G.saveGblTeam.mockImplementation(async (team: string[]) => ({ id: `t-${team.join('-')}`, team }));
   G.deleteGblTeam.mockResolvedValue(undefined);
   G.startSet.mockImplementation(async (p: { season: number; format: string; team: string[]; eloStart: number | null; accountId?: string | null; startedAt?: string }) =>
@@ -65,6 +67,28 @@ describe('day size', () => {
     await waitFor(() => expect(count()).toBe('0/25 battles'));
     fireEvent.click(screen.getByRole('button', { name: /Main/ }));
     await waitFor(() => expect(count()).toBe('0/50 battles'));
+  });
+
+  it('shows the size saved from another device, and saves a pick for every device', async () => {
+    const today = localDay(new Date());
+    G.listAccounts.mockResolvedValue([{ id: 'alt1', name: 'AltOne' }]);
+    G.listDaySizes.mockResolvedValue({ [`main:${today}`]: 100 });
+    open();
+    await waitFor(() => expect(count()).toBe('0/100 battles'));
+    fireEvent.click(await screen.findByRole('button', { name: /AltOne/ }));
+    await waitFor(() => expect(count()).toBe('0/25 battles'));
+    fireEvent.click(screen.getByRole('button', { name: '50' }));
+    expect(G.setDaySize).toHaveBeenCalledWith('alt1', today, 50);
+    expect(count()).toBe('0/50 battles');
+  });
+
+  it('says so when a pick is not saved, and keeps it on this device', async () => {
+    G.setDaySize.mockRejectedValue(new Error('offline'));
+    open();
+    await waitFor(() => expect(count()).toBe('0/25 battles'));
+    fireEvent.click(screen.getByRole('button', { name: '50' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/day size was not saved: offline/);
+    expect(count()).toBe('0/50 battles');
   });
 
   it('keeps a past day\'s pick to that day, and the calendar shows it', async () => {
@@ -259,5 +283,22 @@ describe('deleting a battle, and restoring it', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Win' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+describe('midnight', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('rolls Today over to the new day without a reload', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    vi.setSystemTime(new Date(2026, 9, 28, 23, 59, 0));
+    G.listMySets.mockResolvedValue(day(25, new Date(2026, 9, 28, 22).toISOString()));
+    open();
+    await vi.waitFor(() => expect(count()).toBe('25/25 battles'));
+    expect(screen.queryByRole('button', { name: /^Add battle/ })).toBeNull();
+    // A minute later it is the 29th: a fresh day, with room to log.
+    await act(() => vi.advanceTimersByTimeAsync(61_000));
+    expect(count()).toBe('0/25 battles');
+    expect(screen.getByRole('button', { name: 'Add battle 1' })).toBeTruthy();
   });
 });

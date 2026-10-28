@@ -9,7 +9,7 @@ const G = vi.hoisted(() => ({
   listMySets: vi.fn(), startSet: vi.fn(), addBattle: vi.fn(), deleteBattle: vi.fn(), deleteSet: vi.fn(), updateSet: vi.fn(),
   meta: vi.fn(), leaderboard: vi.fn(), seasonSets: vi.fn(), getPublic: vi.fn(), setPublic: vi.fn(), updateBattle: vi.fn(),
   listAccounts: vi.fn(), addAccount: vi.fn(), renameAccount: vi.fn(), deleteAccount: vi.fn(),
-  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), deleteGblTeam: vi.fn(),
+  listGblTeams: vi.fn(), saveGblTeam: vi.fn(), listDaySizes: vi.fn(), setDaySize: vi.fn(), deleteGblTeam: vi.fn(),
 }));
 vi.mock('../../lib/gbl', async (orig) => ({ ...(await orig<typeof import('../../lib/gbl')>()), ...G }));
 
@@ -33,6 +33,8 @@ beforeEach(() => {
   G.updateBattle.mockResolvedValue(undefined);
   G.listAccounts.mockResolvedValue([]);
   G.listGblTeams.mockResolvedValue([]);
+  G.listDaySizes.mockResolvedValue({});
+  G.setDaySize.mockResolvedValue(undefined);
   G.saveGblTeam.mockImplementation(async (team: string[]) => ({ id: `t-${team.join('-')}`, team }));
   G.deleteGblTeam.mockResolvedValue(undefined);
   G.startSet.mockImplementation(async (p: { season: number; format: string; team: string[]; eloStart: number | null; accountId?: string | null }) =>

@@ -174,6 +174,21 @@ describe('battle tracker', () => {
     expect((await refusal(() => asAnon()(`select * from public.gbl_teams`))).code).toBe('42501');
   });
 
+  it('keeps one day size per account and day to its owner, and upserts it', async () => {
+    const put = (who: string, size: number, account = 'null') => as(who)(
+      `insert into public.gbl_day_sizes (account_id, day, size) values (${account}, '2026-10-28', ${size})
+       on conflict (user_id, account_id, day) do update set size = excluded.size`);
+    await put(me, 50);
+    await put(me, 100);
+    expect(await as(me)(`select size from public.gbl_day_sizes`)).toEqual([{ size: 100 }]);
+    expect((await refusal(() => put(me, 30))).code).toBe('23514');
+    // Another player's alt is not an account of mine to size.
+    const [alt] = await sql<{ id: string }>(`insert into public.gbl_accounts (user_id, name) values ('${friend}', 'DS${friend.slice(0, 6)}') returning id`);
+    expect((await refusal(() => put(me, 50, `'${alt.id}'`))).message).toMatch(POLICY_DENIED);
+    expect(await as(friend)(`select * from public.gbl_day_sizes`)).toEqual([]);
+    expect((await refusal(() => asAnon()(`select * from public.gbl_day_sizes`))).code).toBe('42501');
+  });
+
   it('refuses anonymous callers', async () => {
     expect((await refusal(() => asAnon()(`select * from public.gbl_leaderboard(28::smallint)`))).code).toBe('42501');
     expect((await refusal(() => asAnon()(`select * from public.gbl_sets`))).code).toBe('42501');

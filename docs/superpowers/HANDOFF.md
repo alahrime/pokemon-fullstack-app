@@ -87,11 +87,11 @@ design authority; the plans argue from it.
 - **Flaky test** (`c6e828f`): `combo-stress.test.tsx`'s `pick` waited 1s for a search row and failed twice under a full `npm run check` (passed alone and under plain `vitest run`, also on the previous commit). Now 10s, like `team-builder.test.tsx`.
 
 **Known limits (reported, not fixed):**
-- The day-size pick is per browser. Another device sees the smallest size that fits, so a 20-battle day set to 50 reads 20/25 there. A column on a day table would fix it.
+- ~~The day-size pick is per browser.~~ **Fixed 2026-10-28:** saved per account and day in `gbl_day_sizes` (migration `20261028000000_gbl_day_sizes`; `listDaySizes` / `setDaySize` in `lib/gbl.ts`). localStorage stays as this browser's copy until the saved sizes load.
 - Backlogging more than ~60 battles after 23:59 into one day rolls into the next day (noted at `backdatedAt`).
 - The duplicate guard on "Save team" compares exact refs: a Shadow and a non-Shadow of one species can be saved together, which GO may not allow. Logging (not saving) a team with duplicates is still allowed, as before.
 - Saved teams are not filtered by the current format's cup legality.
-- Still from the twelfth session: `CURRENT_SEASON` is a constant; "Today" does not roll over at midnight without a reload.
+- Still from the twelfth session: `CURRENT_SEASON` is a constant. ("Today" now rolls over at local midnight: `useLocalDay` in `BattleTrackerScreen.tsx`, fixed 2026-10-28.)
 
 **Gotchas from this session:**
 - Production `supabase db push` is refused by the auto-mode classifier: the user runs `cd app && npx supabase db push --linked --workdir ..` and must answer **Yes** at its prompt (the first attempt sat unanswered). Run from the repo root it fails with "Cannot find project ref" (wrong `--workdir`). Commit locally and hold the push until the migration is confirmed, or the live UI shows a feature whose table does not exist.

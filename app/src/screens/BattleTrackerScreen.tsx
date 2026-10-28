@@ -18,7 +18,7 @@ import type { Profile } from '../lib/profile';
 import { monthGrid } from '../lib/records';
 import {
   CURRENT_SEASON, DAILY_BATTLES, DAY_SIZES, ELO_MAX, MAX_ALTS, NO_MOVES, SET_SIZE, TIERS,
-  addAccount, addBattle, daySize, deleteAccount, deleteGblTeam, listGblTeams, saveGblTeam, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
+  addAccount, addBattle, daySize, listDaySizes, setDaySize, deleteAccount, deleteGblTeam, listGblTeams, saveGblTeam, listAccounts, onAccount, renameAccount, backdatedAt, battlesByDay, battlesToday, byFormat, deleteBattle, deleteSet, eloSeries, exportSeason, fromLocalDay, getPublic,
   knowsAny, lastElo, leaderboard, removeBattle, restoreBattle, listMySets, localDay, meta, nextTier, recap, seasonSets, seasonTotals, setPublic, startSet, summaryOf,
   tallyOf, tierOf, todaysSets, updateBattle, updateSet,
   type GblAccount, type GblBattle, type GblTeam, type GblResult, type GblSet, type GblSetSummary, type LadderRow, type Meta, type OppMoves, type Tally, type Tier,
@@ -72,15 +72,32 @@ const readAccount = (): string | null => {
   try { return localStorage.getItem(ACCOUNT_KEY); } catch { return null; }
 };
 
-/** The 25, 50 or 100 picked for each `account:day`, remembered per browser. */
-// ponytail: per browser; another device shows the smallest size that holds what was logged. A column on a day table if that bites.
+/** The 25, 50 or 100 picked for each `account:day`, as this browser last saw it: shown until the saved sizes load. */
 const SIZE_KEY = 'gbl-tracker-day-size';
 const readSizes = (): Record<string, number> => {
   try { return (JSON.parse(localStorage.getItem(SIZE_KEY) ?? '{}') as Record<string, number> | null) ?? {}; } catch { return {}; }
 };
 
+/**
+ * Today's calendar day, which changes at local midnight while the screen is open: a session played across midnight
+ * starts a fresh day (its own sets from one, its own 25), as GO's daily limit does, with no reload.
+ */
+export function useLocalDay(): string {
+  const [today, setToday] = useState(() => localDay(new Date()));
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    // A sleeping phone fires this late, on waking; the half second keeps an early tick from reading yesterday.
+    const t = window.setTimeout(() => setToday(localDay(new Date())), midnight.getTime() - now.getTime() + 500);
+    return () => window.clearTimeout(t);
+  }, [today]);
+  return today;
+}
+
 export function BattleTrackerScreen() {
   const { patch } = useAppState();
+  // Re-renders the whole tracker at midnight, so Today, the calendar and the day's session all move on together.
+  const today = useLocalDay();
   const { user } = useSession();
   const [view, setView] = useState<View>('log');
   // The current season only: the tracker is a notebook for the season being played.
@@ -162,7 +179,7 @@ export function BattleTrackerScreen() {
 
       {error && <p className="friend-notice" role="alert">{error}</p>}
       {view === 'log' && (mine
-        ? <LogView key={active ?? 'main'} season={season} format={format} accountId={active} sets={mine} setSets={setMine} onError={setError} />
+        ? <LogView key={active ?? 'main'} season={season} format={format} accountId={active} today={today} sets={mine} setSets={setMine} onError={setError} />
         : <p className="text-muted">Loading your season…</p>)}
       {view === 'meta' && <MetaView format={format} />}
       {view === 'stats' && <StatsView key={active ?? 'main'} userId={user.id} accountId={active} season={season} mine={mine} name={label} self />}
@@ -270,12 +287,12 @@ const NO_MOVES3: OppMoves[] = [NO_MOVES, NO_MOVES, NO_MOVES];
  * down — into any past day picked from the calendar. A day is its own page of
  * the notebook: its own sets numbered from one, its own limit of 25, 50 or 100.
  */
-function LogView({ season, format, accountId, sets, setSets, onError }: {
-  season: number; format: string; accountId: string | null; sets: GblSet[]; setSets: (s: GblSet[]) => void; onError: (m: string | null) => void;
+function LogView({ season, format, accountId, today, sets, setSets, onError }: {
+  season: number; format: string; accountId: string | null; today: string; sets: GblSet[]; setSets: (s: GblSet[]) => void; onError: (m: string | null) => void;
 }) {
   // null: today, logged live.
   const [dayKey, setDayKey] = useState<string | null>(null);
-  const day = useMemo(() => (dayKey ? fromLocalDay(dayKey) : new Date()), [dayKey]);
+  const day = useMemo(() => fromLocalDay(dayKey ?? today), [dayKey, today]);
   const backlog = dayKey !== null;
   const daySets = todaysSets(sets, day);
   const last = daySets.at(-1) ?? null;
@@ -296,13 +313,21 @@ function LogView({ season, format, accountId, sets, setSets, onError }: {
   const [adding, setAdding] = useState(false);
   const played = battlesToday(sets, day);
   // 25 a day, 50 on a GO Battle Thursday, 100 in GO Battle Week: picked per day, never below what is logged.
+  // Saved with the player, so every device agrees; this browser's copy fills in until they load.
   const [sizes, setSizes] = useState(readSizes);
+  useEffect(() => {
+    let live = true;
+    listDaySizes().then((saved) => live && setSizes((s) => ({ ...s, ...saved }))).catch(() => {});
+    return () => { live = false; };
+  }, []);
   const sizeKey = (k: string) => `${accountId ?? 'main'}:${k}`;
   const limit = daySize(played, sizes[sizeKey(localDay(day))]);
   const pickLimit = (n: number) => {
-    const next = { ...sizes, [sizeKey(localDay(day))]: n };
+    const k = localDay(day);
+    const next = { ...sizes, [sizeKey(k)]: n };
     setSizes(next);
     try { localStorage.setItem(SIZE_KEY, JSON.stringify(next)); } catch { /* private window: forget it */ }
+    setDaySize(accountId, k, n).catch((e: Error) => onError(`The day size was not saved: ${e.message}`));
   };
   const full = played >= limit;
   const [teams, setTeams] = useState<GblTeam[] | null>(null);

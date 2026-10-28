@@ -183,6 +183,18 @@ export async function deleteGblTeam(id: string): Promise<void> {
   check(await supabase.from('gbl_teams').delete().eq('id', id));
 }
 
+/** The size picked for each day, keyed `account:YYYY-MM-DD` (`main` for the main account). */
+export async function listDaySizes(): Promise<Record<string, number>> {
+  const rows = (check(await supabase.from('gbl_day_sizes').select('account_id, day, size')) ?? []) as
+    { account_id: string | null; day: string; size: number }[];
+  return Object.fromEntries(rows.map((r) => [`${r.account_id ?? 'main'}:${r.day}`, r.size]));
+}
+
+export async function setDaySize(accountId: string | null, day: string, size: number): Promise<void> {
+  check(await supabase.from('gbl_day_sizes')
+    .upsert({ account_id: accountId, day, size }, { onConflict: 'user_id,account_id,day' }));
+}
+
 /** The caller's own sets in a season, oldest first, with their battles — every account's; filter with `onAccount`. */
 export async function listMySets(season: number): Promise<GblSet[]> {
   const data = check(await supabase.from('gbl_sets').select('*, gbl_battles(*)').eq('season', season).order('started_at'));

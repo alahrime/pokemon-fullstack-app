@@ -8,6 +8,14 @@ import { META_SIZE } from '../../lib/battleMatrix';
 
 /** Battle → Matrix, driven the way a player would: lists edited in place, a meta filled in, every view read. */
 
+// Switching from 1v1 carries its pair onto the Matrix; most tests here are about the lists themselves, so only the
+// ones that set `carry` see it.
+let carry = false;
+vi.mock('../../components/BattleModeTabs', async (orig) => {
+  const real = await orig<typeof import('../../components/BattleModeTabs')>();
+  return { ...real, peekCarried: () => (carry ? real.peekCarried() : null) };
+});
+
 const entry = (key: string, ref: string, a: number, d: number, s: number) => ({ key, ref, fastIdx: 0, chargeIds: [], iv: { a, d, s } });
 
 function seed(left: unknown[], right: unknown[] = []) {
@@ -34,6 +42,7 @@ function choose(trigger: HTMLElement, option: string) {
 const shown = (trigger: HTMLElement) => trigger.querySelector('.fs-label')?.textContent;
 
 beforeEach(() => {
+  carry = false;
   localStorage.clear();
   URL.createObjectURL = (() => 'blob:x') as never;
   URL.revokeObjectURL = (() => {}) as never;
@@ -268,5 +277,36 @@ describe('Battle → Matrix', () => {
     localStorage.setItem(MATRIX_STORE_KEY, '{not json');
     await openMatrix();
     expect(within(side('Your Pokémon')).getByText(/No Pokémon yet/)).toBeTruthy();
+  });
+
+  it('carries the 1v1 pair to the front of each side, once, and the X removes it', async () => {
+    carry = true;
+    seed([entry('a', 'cramorant', 8, 9, 6)], [entry('x', 'azumarill', 0, 15, 15)]);
+    await openMatrix();
+    const names = (s: 'Your Pokémon' | 'Opponents') =>
+      [...side(s).querySelectorAll('.bm-card-name')].map((n) => n.textContent);
+    const left = names('Your Pokémon');
+    const right = names('Opponents');
+    expect(left).toHaveLength(2);
+    expect(right).toHaveLength(2);
+    expect(left[1]).toBe('Cramorant');
+    expect(right[1]).toBe('Azumarill');
+    // Back and forth with the same pair adds nothing.
+    fireEvent.click(screen.getByRole('tab', { name: /^1v1/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Matrix/ }));
+    await screen.findByRole('region', { name: 'Your Pokémon' }, { timeout: 10000 });
+    expect(names('Your Pokémon')).toEqual(left);
+    expect(names('Opponents')).toEqual(right);
+    // The carried card is an ordinary card: its X removes it, and it stays gone after a remount.
+    fireEvent.click(within(side('Your Pokémon')).getByRole('button', { name: `Remove ${left[0]}` }));
+    await waitFor(() => expect(names('Your Pokémon')).toEqual(['Cramorant']));
+    expect(JSON.parse(localStorage.getItem(MATRIX_STORE_KEY)!).great.left.entries).toHaveLength(1);
+  });
+
+  it('the + in an empty side opens the Add Pokémon dialog for that side', async () => {
+    await openMatrix();
+    fireEvent.click(within(side('Opponents')).getByRole('button', { name: 'Add a Pokémon to Opponents' }));
+    expect(screen.getByRole('dialog', { name: 'Add a Pokémon' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add to opponents' })).toBeTruthy();
   });
 });

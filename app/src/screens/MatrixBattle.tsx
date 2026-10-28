@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { BattleModeTabs } from '../components/BattleModeTabs';
+import { BattleModeTabs, clearCarried, peekCarried, type CarriedMon } from '../components/BattleModeTabs';
 import { AddPokemonModal, RETURN_ID, type AddPokemonChoice } from '../components/AddPokemonModal';
 import { MatrixResults } from '../components/MatrixResults';
 import { FancySelect, Swatch, type FancyOption } from '../components/FancySelect';
@@ -55,11 +55,27 @@ function save(league: LeagueId, sides: Record<SideId, SideState>) {
   }
 }
 
+/** The 1v1's Pokémon at the front of its side, unless that exact build is already on it. */
+function withCarried(side: SideState, c: CarriedMon): SideState {
+  const build = (e: Omit<MatrixEntry, 'key'>) =>
+    JSON.stringify([e.ref, e.fastIdx, e.chargeIds, e.iv.a, e.iv.d, e.iv.s, !!e.bestBuddy]);
+  if (side.entries.some((e) => build(e) === build(c))) return side;
+  const entry: MatrixEntry = { key: newKey(), ref: c.ref, fastIdx: c.fastIdx, chargeIds: c.chargeIds, iv: { ...c.iv }, ...(c.bestBuddy ? { bestBuddy: true } : {}) };
+  return isUsable(entry) ? { ...side, entries: [entry, ...side.entries] } : side;
+}
+
+function initial(league: LeagueId): Record<SideId, SideState> {
+  const got = load(league);
+  const c = peekCarried();
+  return c && c.league === league ? { left: withCarried(got.left, c.left), right: withCarried(got.right, c.right) } : got;
+}
+
 export function MatrixBattle() {
   const { state } = useAppState();
   const { league } = state;
   // Lists belong to a league: a Great League group priced at the Ultra cap is a different group.
-  const [sides, setSides] = useState(() => ({ league, ...load(league) }));
+  const [sides, setSides] = useState(() => ({ league, ...initial(league) }));
+  useEffect(clearCarried, []);
   if (sides.league !== league) setSides({ league, ...load(league) });
   useEffect(() => save(sides.league, { left: sides.left, right: sides.right }), [sides]);
 
@@ -249,7 +265,8 @@ function MatrixSide({ id, title, note, league, state, mons, onChange, onRemove }
 
       {entries.length === 0 ? (
         <div className="bm-side-empty">
-          <span className="bm-side-empty-ring" aria-hidden="true">+</span>
+          <button type="button" className="bm-side-empty-ring" onClick={() => setModal({ edit: null })}
+            aria-label={`Add a Pokémon to ${title}`} title="Add Pokémon">+</button>
           <p className="text-faint">No Pokémon yet. Add one, or Quick Fill a whole group.</p>
         </div>
       ) : (

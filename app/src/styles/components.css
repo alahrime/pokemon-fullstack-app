@@ -8590,7 +8590,12 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .bm-side-empty-ring {
   display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: 22px; color: var(--color-accent);
   border: 1.5px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: none; padding: 0; cursor: pointer; font-family: inherit;
+  transition: transform var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
+.bm-side-empty-ring:hover { background: color-mix(in srgb, var(--color-accent) 14%, transparent); transform: scale(1.06); }
+.bm-side-empty-ring:active { transform: scale(0.94); }
+.bm-side-empty-ring:focus-visible { outline: var(--ring-width) solid var(--focus-ring); outline-offset: 2px; }
 .bm-side-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2); padding-top: var(--space-2); border-top: var(--border-hairline) solid var(--rule-hairline); }
 .bm-undo { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-muted); animation: bm-rise var(--dur-3) var(--ease-out); }
 .bm-empty {

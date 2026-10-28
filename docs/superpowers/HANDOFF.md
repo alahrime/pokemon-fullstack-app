@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-28 (fourteenth session: IV slider drag bubble with a spinning gradient outline and a release sparkle; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-28 (fifteenth session: the Analyze heatmap opens on the 3D terrain on desktop and the flat grid on phones; a 1s test wait de-flaked; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,18 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Fifteenth session, 2026-10-28 (merged and live; `main` == `origin/main`, last code commit `2f199da`, PR #8 squash-merged once CI `check` was green; `npm run check` 2028/2028 locally; NO migrations; the user confirmed it live).**
+
+**Done this session:**
+- **Heatmap opens on 3D on desktop** (`screens/detail/HeatmapView.tsx`, the Analyze/report "Visualisation" panel): the 2D/3D toggle's starting state is `phone ? '2d' : '3d'` from `usePhone()` (the 820px breakpoint). Phones keep the flat grid because the terrain is heavy for a phone's GPU and battery; the toggle is still there. Width only seeds the initial state, so crossing the breakpoint later doesn't override a pick. No WebGL: unchanged (no toggle, grid only). A terrain that throws still falls back to the grid with the reason. Cost: on desktop the lazy three.js chunk (~1.1MB) now loads on first visit to the Report screen rather than on the first 3D click.
+- **De-flaked** `components/__tests__/gated.test.tsx` "a terrain that cannot be drawn … falls back to the flat grid": its `findByRole('alert')` used the 1s default and failed once under a full `npm run check` (1155ms). Now `{ timeout: 10000 }`, like `combo-stress`/`team-builder`. Assertions unchanged.
+- Tests for the new default in the same file: the WebGL view opens on the terrain, goes to the grid and back; on a phone-width `matchMedia` (spied to match `(max-width: 820px)`) it opens on the grid and 3D is one tap away. The fallback test no longer clicks 3D first.
+- Measured in headless Chromium with SwiftShader WebGL (`--use-gl=swiftshader --enable-unsafe-swiftshader`) at `#/analyze/report`: 375×812 grid with 2D active; 1280×900 terrain with a canvas and 3D active, no alert.
+
+**Gotcha:** jsdom has no WebGL, so `HeatmapView` tests only see the toggle through the gated file's `pretendWebGL()`; every other test still renders the 2D grid.
+
+### Previous session (fourteenth)
 
 **Fourteenth session, 2026-10-27/28 (all merged; `main` == `origin/main`, last code commit `3e764c5`; `npm run check` green in CI on both PRs (1987/1987 locally before the two new tests; the new tests and touched suites green locally); NO migrations; the user saw it live on paragon2 and signed off on the look).** Work now goes through a branch + PR, merged once CI `check` is green: PR #3 (`55fe2c4`) and PR #4 (`3e764c5`).
 

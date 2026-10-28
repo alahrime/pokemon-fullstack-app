@@ -5,6 +5,7 @@ import { HudLabel } from '../../components/Hud';
 import { TerrainBoundary } from '../../components/TerrainBoundary';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
+import { usePhone } from '../../lib/usePhone';
 import type { ColorBy } from '../../state/AppState';
 import { paletteRamp, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
@@ -63,11 +64,14 @@ export function HeatmapView({
   onIvS: (v: number) => void;
   palette: HeatPalette;
 }) {
-  // Probed once — 3D is the default where it can be drawn. If the browser
-  // can't give us a context, the toggle never appears and the 2D grid is the
-  // only option.
+  // Probed once — 3D is the default where it can be drawn, except on phones,
+  // where the terrain is heavy for the GPU and the battery and the flat grid
+  // opens instead (the toggle is still there). If the browser can't give us a
+  // context, the toggle never appears and the 2D grid is the only option.
   const webgl = useMemo(() => hasWebGL(), []);
-  const [dim, setDim] = useState<'2d' | '3d'>('3d');
+  const phone = usePhone();
+  // Only the starting view: crossing the breakpoint later doesn't override a pick.
+  const [dim, setDim] = useState<'2d' | '3d'>(phone ? '2d' : '3d');
   const [terrainError, setTerrainError] = useState<string | null>(null);
   const show3d = webgl && dim === '3d';
 

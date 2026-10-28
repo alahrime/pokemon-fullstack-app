@@ -62,6 +62,23 @@ describe('HeatmapView with WebGL available', () => {
     expect(container.querySelector('.hv-terrain')).toBeNull();
   });
 
+  it('opens on the flat grid on a phone, with the terrain one tap away', async () => {
+    pretendWebGL();
+    vi.spyOn(window, 'matchMedia').mockImplementation((q: string) => ({
+      matches: q === '(max-width: 820px)', media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    }));
+    const { iv, cells, palette } = view();
+    const { container } = renderApp(
+      <HeatmapView cells={cells} colorBy="rank" colorByLabel="stat product rank"
+        onPick={() => {}} ivS={iv.s} onIvS={() => {}} palette={palette} />);
+    expect(container.querySelector('.hv-grid')).toBeTruthy();
+    expect(container.querySelector('.hv-terrain')).toBeNull();
+    fireEvent.click([...container.querySelectorAll('.hv-controls button')].find((b) => b.textContent === '3D')!);
+    await waitFor(() => expect(container.querySelector('.hv-terrain')).toBeTruthy());
+  });
+
   it('hides the toggle entirely where the probe fails', () => {
     const { iv, cells, palette } = view();
     const { container } = renderApp(

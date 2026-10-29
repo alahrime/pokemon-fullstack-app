@@ -2,16 +2,16 @@ import { resolvePool } from '../rules/pool';
 import { rulesHash, RULES_SCHEMA, type Format } from '../rules';
 import type { LeagueId } from './types';
 import { listServerFormats, saveServerFormat, type SavedFormat } from './saves';
+import CUP_POOLS from '../data/cup-pools.json';
 
 /**
- * The cups in PvPoke's format dropdown, written the way PvPoke writes them (an include list and an exclude list of
- * types, tags and ids) so a changed cup can be pasted in. `toFormat` turns one into rules. Nobody has to save these:
- * choosing one in a challenge saves it to your own formats the first time, and reuses that copy after.
+ * PvPoke's format dropdown as rules. A cup is an include list and an exclude list of types, tags and ids; the
+ * shipped cups are only an include list of ids, PvPoke's own ranking for the cup. `toFormat` turns one into rules.
+ * Nobody has to save these: choosing one in a challenge saves it to your own formats the first time, and reuses
+ * that copy after.
  *
- * `every` cups (the Mega ones, and Battle Frontier Master) draw from every species buildable under the cap, Megas
- * included, not just the ranked ones. Their include lists are turned into one deny of everything outside them,
- * since the pool already starts full. Retro's "no Megas" needs no clause in a ranked cup (no Mega is ranked); a
- * bare `mega` selector would also match Meganium.
+ * `every` cups draw from every species buildable under the cap, Megas included, not just the league's ranked ones.
+ * Their include lists are turned into one deny of everything outside them, since the pool already starts full.
  */
 export interface Cup {
   /** Start from everything buildable, Megas too, instead of the ranked league. */
@@ -21,7 +21,7 @@ export interface Cup {
 }
 export interface PresetFormat {
   key: string; name: string; base: LeagueId; cup: Cup; format: Format;
-  /** Colours for a cup that is not defined by types (the Mega and retro cups); types, then the league, otherwise. */
+  /** Colours for a cup that is not defined by types (the Mega and LAIC cups); types, then the league, otherwise. */
   palette?: string[];
 }
 
@@ -57,58 +57,34 @@ export function toFormat(base: LeagueId, cup: Cup): Format {
 const preset = (key: string, name: string, base: LeagueId, cup: Cup = {}, palette?: string[]): PresetFormat =>
   ({ key, name, base, cup, format: toFormat(base, cup), palette });
 
-const ORDER = ['great', 'ultra', 'master', 'mega-great', 'mega-ultra', 'mega-master', 'mega-color', 'retro', 'laic-2027',
-  'battlefrontier-spectral', 'battlefrontier-cauldron', 'battlefrontier-master'];
+/** Keys the app used before cups came from PvPoke's own list, kept so saved selections still resolve. */
+const KEYS: Record<string, string> = {
+  'mega-1500': 'mega-great', 'mega-2500': 'mega-ultra', 'mega-10000': 'mega-master', 'laic2027-1500': 'laic-2027',
+  'spectral-1500': 'battlefrontier-spectral', 'cauldron-2500': 'battlefrontier-cauldron',
+  'battlefrontiermaster-10000': 'battlefrontier-master',
+};
+const BASE: Record<number, LeagueId> = { 1500: 'great', 2500: 'ultra', 10000: 'master' };
+const typeSwatch = (types: string[]) => types.map((t) => `var(--type-${t})`);
+const PALETTES: Record<string, string[]> = {
+  'mega-great': ['var(--lg-great)', ...MEGA], 'mega-ultra': ['var(--lg-ultra-accent)', ...MEGA],
+  'mega-master': ['var(--lg-master)', ...MEGA], 'laic-2027': ['#2aa7a0', '#f2b630'],
+  'battlefrontier-spectral': typeSwatch(['bug', 'ghost', 'ice', 'poison', 'psychic']),
+  'battlefrontier-cauldron': typeSwatch(['bug', 'dark', 'fairy', 'ghost', 'poison']),
+};
 
-/** PvPoke's dropdown order. */
-export const PRESET_FORMATS: PresetFormat[] = ([
+/**
+ * PvPoke's dropdown order: the three leagues, then every cup in `cup-pools.json` (`npm run cups`). A cup's population
+ * is exactly what PvPoke ranks in it, so it starts from everything buildable (Megas too) and keeps only those ids.
+ */
+export const PRESET_FORMATS: PresetFormat[] = [
   preset('great', 'Great League', 'great'),
   preset('ultra', 'Ultra League', 'ultra'),
   preset('master', 'Master League', 'master'),
-  preset('retro', 'Retro Cup', 'great', { exclude: { types: ['dark', 'fairy', 'steel'] } }, ['#d9822b', '#7a4fa6']),
-  preset('battlefrontier-spectral', 'Battle Frontier (Spectral)', 'great', {
-    include: { types: ['bug', 'ghost', 'ice', 'poison', 'psychic'] },
-    exclude: {
-      types: ['dark', 'normal', 'rock', 'steel'],
-      tags: ['shadow'],
-      ids: ['annihilape', 'araquanid', 'armarouge', 'clodsire', 'corsola_galarian', 'dusclops', 'dusknoir', 'frillish', 'golett',
-        'golurk', 'jellicent', 'lapras', 'marowak_alolan', 'mimikyu', 'sealeo', 'spidops', 'toxapex', 'toxtricity', 'typhlosion_hisuian', 'walrein'],
-    },
+  ...(CUP_POOLS as { cup: string; cp: number; title: string; ids: string[] }[]).map((c) => {
+    const key = KEYS[`${c.cup}-${c.cp}`] ?? c.cup;
+    return preset(key, c.title, BASE[c.cp], { every: true, include: { ids: c.ids } }, PALETTES[key]);
   }),
-  preset('battlefrontier-cauldron', 'Battle Frontier (Cauldron)', 'ultra', {
-    include: {
-      types: ['bug', 'dark', 'fairy', 'ghost', 'poison'],
-      ids: ['blaziken', 'blaziken_shadow', 'camerupt', 'camerupt_shadow', 'charizard', 'charizard_shadow', 'delphox', 'delphox_shadow',
-        'greedent', 'ninetales', 'ninetales_shadow', 'rapidash', 'rapidash_shadow', 'reshiram', 'reshiram_shadow', 'samurott',
-        'samurott_shadow', 'seaking', 'sandslash', 'sandslash_shadow', 'talonflame', 'talonflame_shadow', 'turtonator', 'typhlosion',
-        'typhlosion_shadow', 'ursaluna', 'ursaluna_shadow'],
-    },
-    exclude: { ids: ['crustle', 'forretress', 'guzzlord', 'kingambit', 'mimikyu', 'nidoqueen', 'tentacruel', 'tinkaton'] },
-  }),
-  preset('mega-great', 'Mega Great League', 'great', {
-    every: true,
-    exclude: { ids: ['mewtwo_mega_x', 'mewtwo_mega_y', 'kyogre_primal', 'groudon_primal', 'rayquaza_mega'] },
-  }, ['var(--lg-great)', ...MEGA]),
-  preset('mega-ultra', 'Mega Ultra League', 'ultra', { every: true }, ['var(--lg-ultra-accent)', ...MEGA]),
-  preset('mega-master', 'Mega Master League', 'master', { every: true }, ['var(--lg-master)', ...MEGA]),
-  preset('mega-color', 'Mega Color Cup', 'great', { every: true, include: { types: ['fire', 'water', 'grass', 'electric'] } }),
-  preset('laic-2027', 'LAIC 2027 Championship Series Cup', 'great', {
-    every: true,
-    exclude: {
-      types: ['dark', 'fairy', 'fire', 'steel'],
-      tags: ['legendary', 'mythical', 'ultrabeast'],
-      ids: ['altaria', 'annihilape', 'araquanid', 'chansey', 'clodsire', 'corsola_galarian', 'dusclops', 'furret', 'jellicent', 'kingdra',
-        'medicham', 'oranguru', 'snorlax', 'wobbuffet', 'sableye_mega'],
-    },
-  }, ['#2aa7a0', '#f2b630']),
-  preset('battlefrontier-master', 'Battle Frontier (Master)', 'master', {
-    every: true,
-    exclude: {
-      ids: ['rayquaza_mega', 'groudon_primal', 'kyogre_primal', 'metagross_mega', 'heracross_mega', 'delphox_mega', 'dragonite_mega',
-        'tyranitar_mega', 'salamence_mega', 'garchomp_mega', 'mewtwo_mega_y', 'mewtwo_mega_x', 'gyarados_mega', 'greninja_mega', 'chesnaught_mega'],
-    },
-  }),
-] as PresetFormat[]).sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+];
 
 /** The plain leagues are the league tabs; every other preset is a limited cup. */
 export const LIMITED_CUPS = PRESET_FORMATS.filter((p) => p.key !== p.base);

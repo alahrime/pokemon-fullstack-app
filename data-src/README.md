@@ -21,6 +21,11 @@ curl -o overrides-1500.json $B/overrides/all/1500.json \
 cd ../app && npm run data && npm run verify
 ```
 
+The limited cups are their own refresh. `npm run cups` reads the live gamemaster's format dropdown and writes each
+cup's PvPoke ranking ids (`rankings/<cup>/overall/rankings-<cp>.json`) to `app/src/data/cup-pools.json`; that list
+is the cup's whole population and its order is the dropdown's. A cup PvPoke lists without a published ranking
+(P!P Championship Series) is skipped with a warning.
+
 `npm run data` is two passes. `build-data.mjs` runs on plain node and writes
 `species.json`; `build-best-spreads.ts` then reads it back and records each
 species' rank-1 IV roll per league, so the engine doesn't search all 4096 at

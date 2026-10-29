@@ -120,16 +120,15 @@ describe('quick fill', () => {
   it('offers the league\'s meta and only the cups played under its cap', () => {
     expect(quickFills(L)[0]).toMatchObject({ key: 'meta:great', label: 'Great League meta', note: expect.stringMatching(/Top 40/) });
     for (const f of quickFills(L)) expect(f.swatch.length).toBeGreaterThan(0);
-    expect(quickFills(L).find((f) => f.key === 'cup:mega-color')!.types).toContain('fire');
-    expect(quickFills(L).some((f) => f.key === 'cup:retro')).toBe(true);
-    expect(quickFills('ultra').some((f) => f.key === 'cup:retro')).toBe(false);
+    expect(quickFills(L).some((f) => f.key === 'cup:fantasy')).toBe(true);
+    expect(quickFills('ultra').some((f) => f.key === 'cup:fantasy')).toBe(false);
   });
   it('takes the top of the league, and of a cup only what the cup allows', () => {
     const meta = quickFillRefs('meta:great', L);
     expect(meta.length).toBe(META_SIZE);
     expect(new Set(meta).size).toBe(meta.length);
-    const legal = cupLegal('retro')!;
-    const retro = quickFillRefs('cup:retro', L);
+    const legal = cupLegal('fantasy')!;
+    const retro = quickFillRefs('cup:fantasy', L);
     expect(retro.length).toBeGreaterThan(0);
     expect(retro.every((r) => legal.has(r))).toBe(true);
     expect(quickFillRefs('cup:nope', L)).toEqual([]);

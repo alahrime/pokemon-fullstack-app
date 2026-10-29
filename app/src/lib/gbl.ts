@@ -40,7 +40,7 @@ export interface GblSet {
   /** The alt it was played on; null for the main account. */
   accountId: string | null;
   season: number;
-  /** A preset format key: a league, or a cup such as `retro`. */
+  /** A preset format key: a league, or a cup such as `fantasy`. */
   format: string;
   team: string[];
   eloStart: number | null;

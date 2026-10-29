@@ -115,7 +115,7 @@ describe('ChallengeSheet', () => {
   it('lists the standard cups in PvPoke order, then your own formats, each with its league emblem', async () => {
     open();
     const names = await optionNames();
-    expect(names.slice(0, 12)).toEqual(['Great League', 'Ultra League', 'Master League', 'Mega Great League', 'Mega Ultra League', 'Mega Master League', 'Mega Color Cup', 'Retro Cup', 'LAIC 2027 Championship Series Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']);
+    expect(names.slice(0, 12)).toEqual(['Great League', 'Ultra League', 'Master League', 'Mega Great League', 'Mega Ultra League', 'Mega Master League', 'Fantasy Cup', 'Mega Halloween Cup', 'LAIC 2027 Championship Series Cup', 'Battle Frontier (Spectral)', 'Battle Frontier (Cauldron)', 'Battle Frontier (Master)']);
     expect(names).toContain('Fmt g3');
     for (const o of within(screen.getByRole('listbox', { name: 'Format' })).getAllByRole('option')) expect(o.querySelector('svg')).toBeTruthy();
   });
@@ -135,7 +135,7 @@ describe('ChallengeSheet', () => {
   it('a format of your own that is only a copy of a cup is not listed twice', async () => {
     const { PRESET_FORMATS } = await import('../../lib/presetFormats');
     const { rulesHash } = await import('../../rules');
-    formats = [{ ...fmt('copy', 'great', 3), name: 'Retro copy', rulesHash: await rulesHash(PRESET_FORMATS.find((p) => p.key === 'retro')!.format) }, fmt('g3', 'great', 3)];
+    formats = [{ ...fmt('copy', 'great', 3), name: 'Fantasy copy', rulesHash: await rulesHash(PRESET_FORMATS.find((p) => p.key === 'fantasy')!.format) }, fmt('g3', 'great', 3)];
     open();
     // The cups' hashes are computed asynchronously; until they are, a copy still shows.
     await waitFor(async () => {
@@ -143,7 +143,7 @@ describe('ChallengeSheet', () => {
       const names = within(screen.getByRole('listbox', { name: 'Format' })).getAllByRole('option').map((o) => o.textContent ?? '');
       fireEvent.click(await formatBox());
       expect(names.some((n) => n.startsWith('Fmt g3'))).toBe(true);
-      expect(names.some((n) => n.startsWith('Retro copy'))).toBe(false);
+      expect(names.some((n) => n.startsWith('Fantasy copy'))).toBe(false);
     });
   });
 
@@ -317,7 +317,7 @@ describe('ChallengeSheet', () => {
   it('a cup binds the team: a Pokémon it bans blocks Send and says so', async () => {
     teams = [{ ...team('t3', 'great', 3), members: ['umbreon', 'azumarill', 'altaria'].map(member) }];
     open();
-    await choose('Team t3', 'Retro Cup');
+    await choose('Team t3', 'Fantasy Cup');
     expect((await screen.findByText(/Umbreon is not allowed in this format/i)).className).toContain('roster-problem');
     expect((screen.getByRole('button', { name: 'Send challenge' }) as HTMLButtonElement).disabled).toBe(true);
   });

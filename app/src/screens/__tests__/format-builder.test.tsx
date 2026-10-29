@@ -39,12 +39,12 @@ describe('FormatBuilderScreen', () => {
 
   it('lists the standard cups, and loading one fills the builder with its name and pool', () => {
     renderScreen();
-    for (const n of ['Great League', 'Mega Great League', 'Retro Cup', 'Battle Frontier (Cauldron)']) {
+    for (const n of ['Great League', 'Mega Great League', 'Fantasy Cup', 'Battle Frontier (Cauldron)']) {
       expect(screen.getByRole('button', { name: `Load ${n}` })).toBeTruthy();
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Load Retro Cup' }));
-    expect((screen.getByLabelText('Format name') as HTMLInputElement).value).toBe('Retro Cup');
-    expect(Number(screen.getByTestId('pool-count').textContent)).toBeGreaterThan(500);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Fantasy Cup' }));
+    expect((screen.getByLabelText('Format name') as HTMLInputElement).value).toBe('Fantasy Cup');
+    expect(Number(screen.getByTestId('pool-count').textContent)).toBeGreaterThan(150);
   });
 
   it('adding a deny clause shrinks the pool', () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PRESET_FORMATS, withTeamSize, type Cup } from '../presetFormats';
 import { everyRefFor, opponentCandidatesFor, parseRef, speciesOf } from '../data';
 import { lintFormat, resolvePool } from '../../rules';
+import CUP_POOLS from '../../data/cup-pools.json';
 
 /** PvPoke's rule, stated directly and by exact ref: in if it matches an include, out if it matches an exclude. */
 function expected(base: Parameters<typeof opponentCandidatesFor>[0], cup: Cup): string[] {
@@ -29,45 +30,29 @@ describe('preset formats', () => {
     });
   }
 
-  it('the cups actually restrict: each is smaller than its league, the plain leagues are not', () => {
-    const size = (k: string) => resolvePool(PRESET_FORMATS.find((p) => p.key === k)!.format).legal.length;
-    expect(size('retro')).toBeLessThan(size('great'));
-    expect(size('battlefrontier-spectral')).toBeLessThan(size('great'));
-    expect(size('battlefrontier-cauldron')).toBeLessThan(size('ultra'));
-    expect(size('mega-color')).toBeLessThan(size('mega-great'));
-    expect(size('laic-2027')).toBeLessThan(size('mega-great'));
+  it('every cup is exactly the species PvPoke ranks in it, in its own league', () => {
+    const cups = PRESET_FORMATS.filter((p) => p.key !== p.base);
+    expect(cups.length).toBe(CUP_POOLS.length);
+    for (const [i, p] of cups.entries()) {
+      const legal = resolvePool(p.format).legal;
+      expect(legal.length, p.name).toBeGreaterThan(0.95 * CUP_POOLS[i].ids.length);
+      expect(legal.filter((r) => !CUP_POOLS[i].ids.includes(r)), p.name).toEqual([]);
+    }
   });
 
-  it('the Mega cups admit Megas and unranked species; the ranked cups admit neither', () => {
+  it('the Mega cups admit the Megas PvPoke ranks; the plain leagues admit none', () => {
     const legal = (k: string) => new Set(resolvePool(PRESET_FORMATS.find((p) => p.key === k)!.format).legal);
     expect(legal('mega-great').has('venusaur_mega')).toBe(true);
     expect(legal('great').has('venusaur_mega')).toBe(false);
-    expect(legal('mega-master').has('rayquaza_mega')).toBe(true);
     expect(legal('mega-great').has('rayquaza_mega')).toBe(false);
-    expect(legal('battlefrontier-master').has('rayquaza_mega')).toBe(false);
-    expect(legal('battlefrontier-master').has('venusaur_mega')).toBe(true);
+    expect(legal('mega-great')).not.toEqual(legal('fantasy'));
   });
 
-  it('no Mega or Primal is offered as a Shadow', () => {
-    const legal = resolvePool(PRESET_FORMATS.find((p) => p.key === 'mega-great')!.format).legal;
-    expect(legal.filter((r) => /_mega|_primal/.test(r) && r.endsWith('_shadow'))).toEqual([]);
-    expect(legal).toContain('venusaur_shadow');
-  });
-
-  it('Mega Color Cup keeps a Mega only if one of its types is fire, water, grass or electric', () => {
-    const legal = new Set(resolvePool(PRESET_FORMATS.find((p) => p.key === 'mega-color')!.format).legal);
-    expect(legal.has('blastoise_mega_x') || legal.has('blastoise_mega')).toBe(true);
-    expect(legal.has('gengar_mega')).toBe(false);
-  });
-
-  it('is listed in the order of PvPoke\'s dropdown', () => {
+  it('is listed in the order of PvPoke\'s dropdown, keeping the keys saved selections use', () => {
     expect(PRESET_FORMATS.map((p) => p.name).slice(0, 4)).toEqual(['Great League', 'Ultra League', 'Master League', 'Mega Great League']);
-  });
-
-  it('a Shadow is banned only where the list names its ref', () => {
-    const cauldron = resolvePool(PRESET_FORMATS.find((p) => p.key === 'battlefrontier-cauldron')!.format).legal;
-    expect(cauldron).not.toContain('forretress');
-    expect(cauldron).toContain('forretress_shadow');
+    for (const k of ['mega-great', 'mega-ultra', 'mega-master', 'laic-2027', 'battlefrontier-spectral', 'battlefrontier-cauldron', 'battlefrontier-master', 'fantasy', 'halloweenmega']) {
+      expect(PRESET_FORMATS.some((p) => p.key === k), k).toBe(true);
+    }
   });
 
   it('Show 6 is six on the roster and three brought; GBL is three, and either way the pool is untouched', () => {

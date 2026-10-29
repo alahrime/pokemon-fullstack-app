@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-28 (fifteenth session: the Analyze heatmap opens on the 3D terrain on desktop and the flat grid on phones; a 1s test wait de-flaked; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-10-29 (sixteenth session: the Battle Matrix card's duplicate icon now carries a +; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,14 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Sixteenth session, 2026-10-29 (pushed straight to `main` and live; last code commit `7ee13b8`; `npm run check` 2036/2036 locally; NO migrations).**
+
+**Done this session:**
+- **Matrix duplicate icon is clearer** (`screens/MatrixBattle.tsx`, `MatrixCard`): the user didn't know each card could be duplicated. The existing top-right copy button (`aria-label="Duplicate <name>"`, inserts a copy right after the card on the same side) now draws a copy-plus glyph, 16px instead of 14px. Same behaviour, same label. I asked what was missing (copy to the other side, ×N copies, a labelled button); the user said the in-place duplicate is enough, so none of those were built.
+- Checked in the pane by cloning the button large into the page corner (scrolled screenshots come back blank), and by grepping the live lazy chunk `assets/MatrixBattle-*.js` for the new path. The icon lives in that lazy chunk, not in a script the index links directly, so grepping only the index's scripts never finds it.
+
+### Previous session (fifteenth)
 
 **Fifteenth session, 2026-10-28 (merged and live; `main` == `origin/main`, last code commit `2f199da`, PR #8 squash-merged once CI `check` was green; `npm run check` 2028/2028 locally; NO migrations; the user confirmed it live).**
 

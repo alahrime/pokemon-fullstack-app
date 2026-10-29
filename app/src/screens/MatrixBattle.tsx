@@ -382,7 +382,8 @@ function MatrixCard({ index, mon, leaving, onEdit, onChange, onCopy, onRemove }:
         <span className="bm-card-types">{sp.types.map((t) => <TypeIcon key={t} type={t} size={16} />)}</span>
         <span className="bm-card-actions">
           <button type="button" className="bm-icon" onClick={onCopy} aria-label={`Duplicate ${name}`} title="Duplicate (to compare another roll or moveset)">
-            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M16 8V4H4v12h4" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
+            {/* Copy-plus: a sheet behind, the new copy in front carrying a +, so it reads as "add another of this". */}
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7V3H3v12h4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><rect x="8" y="8" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M14.5 11.5v6M11.5 14.5h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           </button>
           <button type="button" className="bm-icon is-danger" onClick={onRemove} aria-label={`Remove ${name}`} title="Remove">
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>

@@ -112,12 +112,14 @@ export interface Species {
 /** What makes a mon leave a form, and for which one. PvPoke's `formChange`. */
 export interface FormRule {
   /** activate_charged / activate_shield: Aegislash. charged_move: Morpeko,
-   *  Cramorant. charged_move_damage: Mimikyu. */
+   *  Cramorant. charged_move_damage: Mimikyu. battle_start, hp: Minior. */
   trigger: string;
   /** Target form id; `variable` for Cramorant, resolved at runtime. */
   to: string;
   /** Move ids that trigger it, or ['ANY']. */
   moves: string[];
+  /** `hp` only: the fraction of max HP it changes below (Minior Meteor: 0.5). */
+  amount?: number;
 }
 
 export interface SpeciesForm {

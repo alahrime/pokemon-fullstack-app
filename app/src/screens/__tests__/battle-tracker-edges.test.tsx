@@ -240,6 +240,13 @@ describe('saved teams', () => {
     expect(saved.getAllByRole('button', { name: /^Use / }).map((b) => b.getAttribute('aria-label'))).toEqual([`Use ${ok.map(displayName).join(', ')}`]);
   });
 
+  it('forgets a remembered cup that no longer exists', async () => {
+    localStorage.setItem('gbl-tracker-format', 'retro');
+    open();
+    await screen.findByRole('button', { name: /^Add battle/ });
+    expect(localStorage.getItem('gbl-tracker-format')).toBeNull();
+  });
+
   it('starts the next set with a saved team picked between sets', async () => {
     G.listGblTeams.mockResolvedValue([{ id: 't1', team: ['medicham', 'azumarill', 'registeel'] }]);
     open();

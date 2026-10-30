@@ -281,7 +281,8 @@ describe('Battle → Matrix', () => {
 
   it('carries the 1v1 pair to the front of each side, once, and the X removes it', async () => {
     carry = true;
-    seed([entry('a', 'cramorant', 8, 9, 6)], [entry('x', 'azumarill', 0, 15, 15)]);
+    // Rolls no default spread lands on, so whichever pair the opening draws, the carry cannot dedupe against them.
+    seed([entry('a', 'cramorant', 3, 3, 3)], [entry('x', 'azumarill', 3, 3, 3)]);
     await openMatrix();
     const names = (s: 'Your Pokémon' | 'Opponents') =>
       [...side(s).querySelectorAll('.bm-card-name')].map((n) => n.textContent);

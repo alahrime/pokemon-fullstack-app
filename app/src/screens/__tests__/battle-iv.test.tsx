@@ -136,9 +136,11 @@ describe('the rank-1 button', () => {
   it('re-runs the fight, since the roll is what the screen is asking about', () => {
     const { container } = renderApp(<BattleScreen />);
     nudge(container);
-    const before = container.querySelector('.bt-margin')!.textContent;
+    // Every shield scenario's result rather than the one rounded margin, which two rolls can share.
+    const results = () => container.querySelector('.bt-margin')!.textContent! + container.querySelector('.bt-matrix')!.textContent!;
+    const before = results();
     fireEvent.click(rankBtn(sides(container)[0]));
-    expect(container.querySelector('.bt-margin')!.textContent).not.toBe(before);
+    expect(results()).not.toBe(before);
   });
 
   it('aims at a different roll in an uncapped league', () => {

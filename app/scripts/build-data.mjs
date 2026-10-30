@@ -270,7 +270,7 @@ const intern = (m) => {
 };
 
 // ── form changes ───────────────────────────────────────────────────────────
-// Aegislash, Morpeko, Mimikyu and Cramorant change form mid-battle. PvPoke
+// Aegislash, Morpeko, Mimikyu, Cramorant and Minior change form mid-battle. PvPoke
 // keeps each alternate form as its own (unreleased) entry, so the base species
 // carries the forms it can reach, each with the rule that leaves it. The rule
 // is PvPoke's `formChange`, trimmed to what the engine reads.
@@ -280,6 +280,7 @@ const formRule = (fc) => fc && fc.trigger !== 'none'
       trigger: fc.trigger,
       to: fc.alternativeFormId,
       moves: fc.moveIDs ?? (fc.moveId ? [fc.moveId] : ['ANY']),
+      ...(fc.amount ? { amount: fc.amount } : {}),
     }
   : null;
 function formsOf(p) {
@@ -314,7 +315,10 @@ function formsOf(p) {
 // (a profile favourite, a Report card with a notice). They join no league: membership is presence in a league's
 // rankings, which they never have, and the app holds them out of every picker and pool by `showcaseOnly`.
 const SHOWCASE_ONLY = new Set(['shedinja']);
-const released = pokemon.filter((p) => (p.released || SHOWCASE_ONLY.has(p.speciesId)) && !/^pikachu_/.test(p.speciesId));
+// And species a cup ranks before PvPoke marks them released (Hisuian Goodra in Battle Frontier Master): the cup's
+// population is its ranking (`npm run cups`), so a ranked entry is one somebody can bring.
+const CUP_RANKED = new Set(JSON.parse(fs.readFileSync(path.resolve(HERE, '../src/data/cup-pools.json'), 'utf8')).flatMap((c) => c.ids));
+const released = pokemon.filter((p) => (p.released || SHOWCASE_ONLY.has(p.speciesId) || CUP_RANKED.has(p.speciesId)) && !/^pikachu_/.test(p.speciesId));
 const shadowIds = new Set(released.filter((p) => (p.tags ?? []).includes('shadow')).map((p) => p.speciesId));
 const bases = released.filter((p) => !(p.tags ?? []).includes('shadow'));
 

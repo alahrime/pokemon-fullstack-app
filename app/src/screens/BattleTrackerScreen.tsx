@@ -29,8 +29,14 @@ const VIEWS: [View, string][] = [['log', 'Log'], ['meta', 'Meta'], ['stats', 'St
 
 /** Remembered per browser: which format you play is a habit, not a setting worth an account column. */
 const FORMAT_KEY = 'gbl-tracker-format';
+/** A remembered cup PvPoke has since dropped (Retro, Mega Color) is forgotten rather than shown as Great League. */
 const readFormat = (): string => {
-  try { return localStorage.getItem(FORMAT_KEY) ?? 'great'; } catch { return 'great'; }
+  try {
+    const k = localStorage.getItem(FORMAT_KEY);
+    if (k && PRESET_FORMATS.some((p) => p.key === k)) return k;
+    localStorage.removeItem(FORMAT_KEY);
+  } catch { /* private window: nothing remembered */ }
+  return 'great';
 };
 
 const byStart = (a: GblSet, b: GblSet) => a.startedAt.localeCompare(b.startedAt);

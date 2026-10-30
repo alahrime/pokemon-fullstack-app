@@ -57,18 +57,20 @@ describe('the battle screen steps energy in fast moves', () => {
   });
 
   it('snaps an off-grid slider value onto a whole throw', () => {
-    // A drag leaves 30; one press should land on a real number of throws, not
-    // on 30 plus a gain.
+    // A drag leaves an off-grid value; one press should land on a real number of
+    // throws, not on that value plus a gain.
     const { container } = renderApp(<BattleScreen />);
     const range = side(container, 0).querySelector('.bt-range') as HTMLInputElement;
     const gain = Number(side(container, 0).querySelector('.bt-energy-gain')!.textContent!.match(/\d+/)![0]);
-    fireEvent.change(range, { target: { value: '30' } });
-    expect(energyOf(container, 0)).toBe(30);
+    // Off this side's grid whatever its gain: the seeded draw decides the move.
+    const off = gain * 2 + 1;
+    fireEvent.change(range, { target: { value: String(off) } });
+    expect(energyOf(container, 0)).toBe(off);
     press(container, 0, '+');
     const after = energyOf(container, 0);
     expect(after % gain).toBe(0);
-    expect(after).toBeGreaterThan(30);
-    expect(after).toBeLessThan(30 + gain);
+    expect(after).toBeGreaterThan(off);
+    expect(after).toBeLessThan(off + gain);
   });
 
   it('stops at the last whole throw that fits under the cap', () => {

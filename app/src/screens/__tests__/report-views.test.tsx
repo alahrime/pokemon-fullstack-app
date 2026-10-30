@@ -60,9 +60,10 @@ describe('ReportScreen views', () => {
     expect(container.textContent).toMatch(/Shadow/);
   });
 
-  it('says plainly when no Shadow form exists', () => {
-    const { container } = renderApp(<ReportScreen />);
-    expect(container.textContent).toMatch(/No Shadow form exists/);
+  it('says plainly when no Shadow form exists', async () => {
+    // Pinned: the opening species is a seeded draw, and which species have a Shadow moves with the data.
+    const { container } = renderApp(<With species="clefable"><ReportScreen /></With>);
+    await waitFor(() => expect(container.textContent).toMatch(/No Shadow form exists/));
   });
 
   it('does not move the displayed stats when the form changes', async () => {
@@ -267,8 +268,9 @@ describe('report left column', () => {
     expect(block.querySelector('.hud-label')!.textContent).toContain('Shadow damage');
   });
 
-  it('omits the Shadow block entirely for a species with no Shadow form', () => {
-    const { container } = renderApp(<ReportScreen />);
+  it('omits the Shadow block entirely for a species with no Shadow form', async () => {
+    const { container } = renderApp(<With species="clefable"><ReportScreen /></With>);
+    await waitFor(() => expect(container.textContent).toMatch(/Clefable/));
     expect(container.querySelector('.rs-shadow-table')).toBeFalsy();
   });
 });

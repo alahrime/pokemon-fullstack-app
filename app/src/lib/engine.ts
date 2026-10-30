@@ -1,4 +1,4 @@
-import { BB_MAX_LEVEL_IDX, CPM, LVL, MAX_LEVEL_IDX } from './cpm';
+import { BB_MAX_LEVEL_IDX, CPM, FORM_CPM, LVL, MAX_LEVEL_IDX } from './cpm';
 import { typeEffectiveness } from './typeChart';
 import {
   LEAGUE_BY_ID,
@@ -25,6 +25,7 @@ import type {
   RankedEntry,
   ShieldPolicy,
   Species,
+  SpeciesForm,
   SpeciesTable,
   StatLine,
 } from './types';
@@ -91,28 +92,52 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
  * PvPoke's getFormStats: a form with the same base stats (Morpeko, Mimikyu,
  * Cramorant) keeps the roll's stats. Aegislash Blade does not - its level is
  * derived from Shield's (x0.5 + 1 in Great, x0.75 in Ultra), then stepped down
- * a whole level at a time until it fits under the cap. HP never changes.
+ * a whole level at a time until it fits under the cap. Minior's Meteor and Core
+ * are derived from each other's level the same way, by PvPoke's own formulas.
+ * HP never changes.
  */
 function formsAt(
   species: Species, iv: IV, line: StatLine, league: League,
 ): BattleForms | undefined {
   if (!species.forms) return undefined;
   const by: BattleForms['by'] = {};
+  // A form at `lvl`, stepped down until it fits under the cap.
+  const fit = (f: SpeciesForm, lvl: number, step = 1) => {
+    const form = { ...species, atk: f.atk, def: f.def };
+    lvl = Math.min(lvl, 55);
+    let s = statsAt(form, iv, FORM_CPM[(lvl - 1) * 2]);
+    while (cpOf(s) > league.cap && lvl > 1) s = statsAt(form, iv, FORM_CPM[((lvl -= step) - 1) * 2]);
+    return { s, lvl };
+  };
+  let meteorLvl = 0;
   for (const [id, f] of Object.entries(species.forms)) {
     let atk = line.atk, def = line.def;
     if (f.atk !== species.atk || f.def !== species.def) {
-      let lvl = line.lvl;
+      let lvl = line.lvl, step = 1;
       if (id === 'aegislash_blade') {
         lvl = league.cap === 1500 ? Math.ceil(lvl * 0.5) + 1 : league.cap === 2500 ? Math.ceil(lvl * 0.75) : lvl;
       }
-      const form = { ...species, atk: f.atk, def: f.def };
-      let s = statsAt(form, iv, CPM[(lvl - 1) * 2]);
-      while (cpOf(s) > league.cap && lvl > 1) s = statsAt(form, iv, CPM[(--lvl - 1) * 2]);
-      atk = s.atk;
-      def = s.def;
+      // PvPoke's Minior formulas (after u/Ok_Lobster8494), floored to a half level and stepped down by halves.
+      if (id === 'minior_meteor') {
+        lvl = league.cap === 1500 ? Math.floor((47 * lvl / 25 + 1) * 2) / 2
+          : league.cap === 2500 ? Math.floor((73 * lvl / 50 + 26 / 25) * 2) / 2 : lvl;
+        step = 0.5;
+      }
+      const r = fit(f, lvl, step);
+      if (id === 'minior_meteor') meteorLvl = r.lvl;
+      atk = r.s.atk;
+      def = r.s.def;
     }
     // No form-changer has a Shadow, so these are the stats themselves.
     by[id] = { ...f, atk, cmpAtk: atk, def };
+  }
+  // Minior starts every battle as Meteor, so the Core it returns to is derived back from Meteor's level (PvPoke's
+  // inverse formulas), not the roll's own: in Ultra that is a lower level than the one the roll was bought at.
+  if (meteorLvl && league.cap <= 2500) {
+    const core = species.forms[species.id];
+    const lvl = league.cap === 1500 ? Math.round((meteorLvl - 1) * 25 / 47 * 2) / 2 : Math.round((meteorLvl - 26 / 25) * 50 / 73 * 2) / 2;
+    const { s } = fit(core, lvl);
+    by[species.id] = { ...by[species.id], atk: s.atk, cmpAtk: s.atk, def: s.def };
   }
   return { start: species.id, by };
 }
@@ -1878,11 +1903,12 @@ export function battle(
     if (!gulp || !other || e < gulp.c.energy) return null;
     return oppHp > other.dmg * 1.3 && other.dpe / gulp.dpe < 1.5 ? gulp.c : null;
   };
+  // Minior Meteor keeps its shields for Core the same way Aegislash Shield keeps them for Blade.
   // PvPoke's shield overrides beyond Aegislash's: a loaded Cramorant keeps its
   // shields for a hit it can take 2.2 times over, and nobody shields a
   // Cramorant hit worth under a third of their HP.
   const holdsShield = (def: BattleMon, att: BattleMon, raw: number, hp: number) =>
-    (triggers(def, 'activate_charged') && raw * 2 < hp) || (!!missileOf(def) && raw * 2.2 < hp) || (cramorant(att) && raw / hp < 0.33);
+    ((triggers(def, 'activate_charged') || triggers(def, 'hp')) && raw * 2 < hp) || (!!missileOf(def) && raw * 2.2 < hp) || (cramorant(att) && raw / hp < 0.33);
   const chargeAtk = (m: BattleMon) => (triggers(m, 'activate_charged') ? m.forms!.by[rule(m)!.to].atk : m.atk);
   // ── PvPoke's shielding (ActionLogic.wouldShield, Battle.js) ──
   const sideOf = (att: 'A' | 'B') => att === 'A'
@@ -2019,6 +2045,9 @@ export function battle(
         if (e >= acm[n].c.energy && x.hpDef <= acm[n].dmg && !selfDebuffing(acm[n].c)) return acm[n].c;
     const broken = breaker(acm, e, o, x.sDef);
     if (broken) return broken;
+    // PvPoke: while either side is Minior Meteor, both bank energy as long as they can still gain it and live -
+    // Meteor for Core's attack, its opponent for Core's defense.
+    if ((triggers(m, 'hp') || triggers(o, 'hp')) && 100 - e >= m.fast.energyGain && ttl > m.fast.turns) return null;
     if (optimizeTiming && holdsForTiming(v, ttl)) return null;
     const gulp = gulper(m, e, x.hpDef, acm);
     if (gulp) return gulp;
@@ -2190,6 +2219,14 @@ export function battle(
     worstFromB = chargeDmgB.length ? Math.max(...chargeDmgB) : 0;
   };
   syncDerived();
+  // Minior enters every battle as Meteor (PvPoke's battle_start rule).
+  if (triggers(a, 'battle_start')) toForm(a);
+  if (triggers(b, 'battle_start')) toForm(b);
+  // Meteor breaks open into Core once a hit leaves it under half HP (PvPoke's hp rule), checked after every hit.
+  const afterHit = () => {
+    if (triggers(a, 'hp') && hpA > 0 && hpA / a.hp < rule(a)!.amount!) toForm(a);
+    if (triggers(b, 'hp') && hpB > 0 && hpB / b.hp < rule(b)!.amount!) toForm(b);
+  };
 
   /**
    * Apply a charged move's stat effect after it resolves.
@@ -2268,6 +2305,7 @@ export function battle(
           if (shielded) sB--;
           if (shielded && triggers(b, 'activate_shield')) toForm(b);
           hpB -= damage;
+          afterHit();
           // A shield blocks damage, never the secondary effect.
           let buffTextA = applyBuff(moveA, true);
           if (disguisedB) {
@@ -2306,6 +2344,7 @@ export function battle(
           if (missileB) {
             const hit = Math.floor((missileB.power / 100) * a.hp) + 1;
             hpA -= hit;
+            afterHit();
             const text = applyBuff(missileB, false);
             toForm(b, hpB);
             if (collectLog) log.push({ turn, actor: 'B', kind: 'charge', moveName: missileB.name, bait: false,
@@ -2323,6 +2362,7 @@ export function battle(
           if (shielded) sA--;
           if (shielded && triggers(a, 'activate_shield')) toForm(a);
           hpA -= damage;
+          afterHit();
           let buffTextB = applyBuff(moveB, false);
           if (disguisedA) {
             toForm(a);
@@ -2357,6 +2397,7 @@ export function battle(
           if (missileA) {
             const hit = Math.floor((missileA.power / 100) * b.hp) + 1;
             hpB -= hit;
+            afterHit();
             const text = applyBuff(missileA, true);
             toForm(a, hpA);
             if (collectLog) log.push({ turn, actor: 'A', kind: 'charge', moveName: missileA.name, bait: false,
@@ -2394,6 +2435,8 @@ export function battle(
         if (collectLog) log.push({ turn, actor: 'A', kind: 'fast', moveName: a.fast.name, bait: false,
           shielded: false, damage: fA, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
           atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: null });
+        // After the log line, so it records the damage dealt rather than the re-derived figure.
+        afterHit();
       }
       // Mirror of the above for the other side; see the note there.
       if (hpB > 0 && !moveB && hpA > 0) {
@@ -2402,6 +2445,8 @@ export function battle(
         if (collectLog) log.push({ turn, actor: 'B', kind: 'fast', moveName: b.fast.name, bait: false,
           shielded: false, damage: fB, hpA: Math.max(0, hpA), hpB: Math.max(0, hpB), energyA: eA, energyB: eB,
           atkStageA: stA.atk, defStageA: stA.def, atkStageB: stB.atk, defStageB: stB.def, buffText: null });
+        // After the log line, so it records the damage dealt rather than the re-derived figure.
+        afterHit();
       }
       continue;
     }
@@ -2427,6 +2472,7 @@ export function battle(
         defStageB: stB.def,
         buffText: null,
       });
+      afterHit();
     }
     if (--tB <= 0) {
       hpA -= fB;
@@ -2450,6 +2496,7 @@ export function battle(
         defStageB: stB.def,
         buffText: null,
       });
+      afterHit();
     }
   }
   const finalHpA = Math.max(0, hpA);

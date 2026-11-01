@@ -913,24 +913,6 @@
    ]
   },
   {
-   "id": "gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup",
-   "title": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
-   "kind": "GO Battle League",
-   "start": "2026-11-18T21:00:00.000Z",
-   "end": "2026-11-25T21:00:00.000Z",
-   "groups": [],
-   "moves": [],
-   "bonuses": [],
-   "price": null,
-   "topics": [],
-   "sources": [
-    {
-     "name": "LeekDuck",
-     "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/"
-    }
-   ]
-  },
-  {
    "id": "raidhour20261118",
    "title": "Cresselia and Darkrai Raid Hour",
    "kind": "Raid Hour",
@@ -953,6 +935,24 @@
     {
      "name": "LeekDuck",
      "link": "https://leekduck.com/events/raidhour20261118/"
+    }
+   ]
+  },
+  {
+   "id": "gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup",
+   "title": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
+   "kind": "GO Battle League",
+   "start": "2026-11-18T21:00:00.000Z",
+   "end": "2026-11-25T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/"
     }
    ]
   },

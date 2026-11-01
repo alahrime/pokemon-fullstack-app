@@ -253,15 +253,6 @@
    "end": "2026-11-23T20:00:00.000"
   },
   {
-   "id": "gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup",
-   "name": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
-   "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/",
-   "image": "https://cdn.leekduck.com/assets/img/events/go-battle-league-ultra-league-machamp-swampert.jpg",
-   "start": "2026-11-18T21:00:00.000Z",
-   "end": "2026-11-25T21:00:00.000Z"
-  },
-  {
    "id": "raidhour20261118",
    "name": "Cresselia and Darkrai Raid Hour",
    "kind": "Raid Hour",
@@ -269,6 +260,15 @@
    "image": "https://cdn.leekduck.com/assets/img/events/raidhour.jpg",
    "start": "2026-11-18T18:00:00.000",
    "end": "2026-11-18T19:00:00.000"
+  },
+  {
+   "id": "gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup",
+   "name": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
+   "kind": "GO Battle League",
+   "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/",
+   "image": "https://cdn.leekduck.com/assets/img/events/go-battle-league-ultra-league-machamp-swampert.jpg",
+   "start": "2026-11-18T21:00:00.000Z",
+   "end": "2026-11-25T21:00:00.000Z"
   },
   {
    "id": "pokemonspotlighthour2026-11-19",

@@ -3,9 +3,9 @@ import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup, ratedFastIdx } from '../lib/data';
 import { defaultSpreadFor, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
-import { hashForView, isAuthCallback, newsIdFromHash, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
+import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
-export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'tracker' | 'news' | 'account';
+export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'tracker' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
 export type ColorBy = 'rank' | 'break' | 'bulk';
 
@@ -96,8 +96,6 @@ export interface AppStateShape {
   activeTournamentId: string | null;
   /** The profile open on the `player` screen (`#/play/players/<id>`), linkable like a tournament. */
   activePlayerId: string | null;
-  /** The story open on the `news` screen (`#/news/news/<id>`), linkable like a profile. */
-  activeNewsId: string | null;
 }
 
 // Rolled once per page load, so the battle screen opens somewhere different
@@ -190,7 +188,6 @@ export const INITIAL_STATE: AppStateShape = {
   activeMatch: null,
   activeTournamentId: null,
   activePlayerId: null,
-  activeNewsId: null,
 };
 
 interface AppStateContextValue {
@@ -214,14 +211,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     screen: typeof window === 'undefined' ? 'landing' : screenFromHash(window.location.hash),
     activeTournamentId: typeof window === 'undefined' ? null : tournamentIdFromHash(window.location.hash),
     activePlayerId: typeof window === 'undefined' ? null : playerIdFromHash(window.location.hash),
-    activeNewsId: typeof window === 'undefined' ? null : newsIdFromHash(window.location.hash),
   }));
 
   // State → URL. An empty hash is the landing page, so a fresh visit writes
   // nothing and adds no history entry.
   const wanted = useRef('#/');
   useEffect(() => {
-    const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId, state.activeNewsId);
+    const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId);
     wanted.current = want;
     const have = window.location.hash || '#/';
     if (have === want) return;
@@ -231,9 +227,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // An unknown route is not ours to keep: replace it so Back does not land on
     // it again. replaceState fires no hashchange, and state already says
     // `want`, so nothing else to sync.
-    if (hashForView(screenFromHash(have), tournamentIdFromHash(have), playerIdFromHash(have), newsIdFromHash(have)) !== have) history.replaceState(null, '', want);
+    if (hashForView(screenFromHash(have), tournamentIdFromHash(have), playerIdFromHash(have)) !== have) history.replaceState(null, '', want);
     else window.location.hash = want;
-  }, [state.screen, state.activeTournamentId, state.activePlayerId, state.activeNewsId]);
+  }, [state.screen, state.activeTournamentId, state.activePlayerId]);
 
   // URL → state, for back/forward and hand-edited addresses.
   useEffect(() => {
@@ -248,12 +244,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const next = screenFromHash(window.location.hash);
       const nextId = tournamentIdFromHash(window.location.hash);
       const nextPlayer = playerIdFromHash(window.location.hash);
-      const nextNews = newsIdFromHash(window.location.hash);
       // An open match keeps its screen when the address still says Matches.
       setState((s) =>
-        hashForView(s.screen, s.activeTournamentId, s.activePlayerId, s.activeNewsId) === hashForView(next, nextId, nextPlayer, nextNews)
+        hashForView(s.screen, s.activeTournamentId, s.activePlayerId) === hashForView(next, nextId, nextPlayer)
           ? s
-          : { ...s, screen: next, activeTournamentId: nextId, activePlayerId: nextPlayer, activeNewsId: nextNews },
+          : { ...s, screen: next, activeTournamentId: nextId, activePlayerId: nextPlayer },
       );
     };
     window.addEventListener('hashchange', onHash);

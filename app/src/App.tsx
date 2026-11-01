@@ -58,7 +58,6 @@ const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then((m) => (
 const BattleTrackerScreen = lazy(() => import('./screens/BattleTrackerScreen').then((m) => ({ default: m.BattleTrackerScreen })));
 const TournamentsScreen = lazy(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
 const ChatScreen = lazy(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
-const NewsScreen = lazy(() => import('./screens/NewsScreen').then((m) => ({ default: m.NewsScreen })));
 const FriendsScreen = lazy(() =>
   import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
 );
@@ -90,7 +89,7 @@ function Nav() {
               data-section={s.id}
               style={{ ['--tab-hue' as string]: s.hue }}
               aria-current={active ? 'page' : undefined}
-              onClick={() => patch({ screen: s.screens[0], activeNewsId: null })}
+              onClick={() => set('screen', s.screens[0])}
               title={s.blurb}
             >
               <span className="nav-tab-glyph" aria-hidden="true">{s.glyph}</span>
@@ -194,8 +193,6 @@ function Screens() {
       return <LazyScreen key="tracker"><BattleTrackerScreen /></LazyScreen>;
     case 'player':
       return <LazyScreen key="player"><PlayerScreen /></LazyScreen>;
-    case 'news':
-      return <LazyScreen key="news"><NewsScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }
@@ -236,7 +233,7 @@ function Shell() {
         <Nav />
         <div className={wide ? 'relative z-[2] w-full' : `shell mx-auto w-full px-6 pt-6 pb-16${section ? ' has-rail' : ''}`}>
           {section && (
-            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => patch({ screen: s, activeTournamentId: null, activeNewsId: null })} />
+            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => patch({ screen: s, activeTournamentId: null })} />
           )}
           <div
             key={state.screen}

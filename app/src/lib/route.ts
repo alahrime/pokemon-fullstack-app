@@ -4,7 +4,6 @@ import { SECTIONS, sectionOf } from './screens';
 const TID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const TOURNAMENT_HASH = new RegExp(`^#/play/tournaments/(${TID})$`, 'i');
 const PLAYER_HASH = new RegExp(`^#/play/players/(${TID})$`, 'i');
-const NEWS_HASH = /^#\/news\/news\/([\w-]+)$/;
 
 /** `match` shares Matches' address: an open match lives in memory (`activeMatch`)
  *  and a URL cannot recreate it. */
@@ -27,17 +26,9 @@ export function playerIdFromHash(hash: string): string | null {
   return PLAYER_HASH.exec(hash)?.[1].toLowerCase() ?? null;
 }
 
-/** A News story's address: an event's LeekDuck id or an announcement's pokemongo.com slug. */
-export const hashForNews = (id: string): string => `#/news/news/${id}`;
-
-export function newsIdFromHash(hash: string): string | null {
-  return NEWS_HASH.exec(hash)?.[1] ?? null;
-}
-
-/** The address a screen (and, on Tournaments / Player / News, the open tournament / profile / story) lives at. */
-export function hashForView(screen: Screen, tournamentId: string | null, playerId: string | null = null, newsId: string | null = null): string {
+/** The address a screen (and, on Tournaments / Player, the open tournament / profile) lives at. */
+export function hashForView(screen: Screen, tournamentId: string | null, playerId: string | null = null): string {
   if (screen === 'player' && playerId) return hashForPlayer(playerId);
-  if (screen === 'news' && newsId) return hashForNews(newsId);
   return screen === 'tournaments' && tournamentId ? hashForTournament(tournamentId) : hashFor(screen);
 }
 
@@ -54,7 +45,6 @@ export function screenFromHash(hash: string): Screen {
   if (isAuthCallback(hash)) return 'account';
   if (tournamentIdFromHash(hash)) return 'tournaments';
   if (playerIdFromHash(hash)) return 'player';
-  if (newsIdFromHash(hash)) return 'news';
   const m = /^#\/([a-z]+)\/([a-z0-9]+)$/.exec(hash);
   if (m) {
     const section = SECTIONS.find((s) => s.id === m[1]);

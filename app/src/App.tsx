@@ -58,6 +58,7 @@ const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then((m) => (
 const BattleTrackerScreen = lazy(() => import('./screens/BattleTrackerScreen').then((m) => ({ default: m.BattleTrackerScreen })));
 const TournamentsScreen = lazy(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
 const ChatScreen = lazy(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
+const NewsScreen = lazy(() => import('./screens/NewsScreen').then((m) => ({ default: m.NewsScreen })));
 const FriendsScreen = lazy(() =>
   import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
 );
@@ -193,6 +194,8 @@ function Screens() {
       return <LazyScreen key="tracker"><BattleTrackerScreen /></LazyScreen>;
     case 'player':
       return <LazyScreen key="player"><PlayerScreen /></LazyScreen>;
+    case 'news':
+      return <LazyScreen key="news"><NewsScreen /></LazyScreen>;
     case 'account':
       return <LazyScreen key="account"><SignInScreen /></LazyScreen>;
   }

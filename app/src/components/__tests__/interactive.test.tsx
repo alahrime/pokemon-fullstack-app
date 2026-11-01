@@ -23,7 +23,7 @@ beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
 describe('App shell', () => {
   it('mounts and shows the nav', () => {
     const { container } = renderApp(<App />);
-    expect(container.querySelectorAll('.nav-section').length).toBe(3);
+    expect(container.querySelectorAll('.nav-section').length).toBe(4);
   });
   it('navigates between screens', async () => {
     const { container } = renderApp(<App />);

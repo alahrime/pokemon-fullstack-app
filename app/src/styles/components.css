@@ -8883,3 +8883,18 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   .bm-arrow, .bm-stat-tile, .bm-undo, .sp-sweep, .sp-btn.is-on .sp-glyph, .fs-flash, .fs-list, .fs-option, .bm-swap-spin,
   .bm-tab.is-active svg, .bm-pill-toggle button.is-on) { animation: none !important; }
 :root[data-motion='off'] :is(.sp-sweep, .fs-flash, .bm-swap-spin) { display: none; }
+
+/* News: a card per event or announcement, linking out. Hairlines brighten on approach like every other panel. */
+.news-card {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur-2) var(--ease-out);
+}
+.news-card:hover,
+.news-card:focus-visible { border-color: var(--color-accent); }
+.news-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface-2);
+}

@@ -1,0 +1,36 @@
+# Refreshes the News screen: re-fetches LeekDuck's events and pokemongo.com's announcements
+# (app/scripts/fetch-news.mjs) and commits app/src/data/news.json when it changed. The push
+# to main is what deploys it, the same as any other commit.
+#
+# A fetch that fails or parses nothing throws, so the job fails and nothing is committed —
+# the screen keeps the last good data rather than going blank.
+
+name: news
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: news
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.node-version
+      - run: node scripts/fetch-news.mjs
+        working-directory: app
+      - name: Commit if changed
+        run: |
+          git diff --quiet -- app/src/data/news.json && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898780+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: refresh news' -- app/src/data/news.json
+          git push

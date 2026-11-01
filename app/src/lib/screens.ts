@@ -177,6 +177,16 @@ export const SCREEN_DEFS: ScreenDef[] = [
     blurb: 'A player\'s tournament record, and your matches against them.',
   },
   {
+    id: 'news',
+    label: 'News',
+    kicker: 'In game',
+    glyph: '✦',
+    // Normal, shared with Account: every type colour is taken, and Account's is never drawn —
+    // it has its own top-bar button rather than a rail item or a landing card (screens.test.ts).
+    hue: 'var(--type-normal)',
+    blurb: 'Pokémon GO events happening now and coming up, and the latest announcements.',
+  },
+  {
     id: 'account',
     label: 'Account',
     kicker: 'You',
@@ -191,7 +201,7 @@ export const HUE_OF: Record<string, string> = Object.fromEntries(
 );
 
 export interface SectionDef {
-  id: 'analyze' | 'teams' | 'play';
+  id: 'analyze' | 'teams' | 'play' | 'news';
   label: string;
   glyph: string;
   hue: string;
@@ -200,7 +210,7 @@ export interface SectionDef {
 }
 
 /**
- * The top bar's three destinations, and the screens each one owns.
+ * The top bar's four destinations, and the screens each one owns.
  *
  * `match` is listed under Play so `sectionOf('match')` resolves, but it is not
  * a rail item — it is opened from a row, not chosen (see `railScreens`).
@@ -231,6 +241,14 @@ export const SECTIONS: SectionDef[] = [
     hue: 'var(--type-ghost)',
     blurb: 'Find opponents, report matches, and stay in touch.',
     screens: ['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'tracker', 'player'],
+  },
+  {
+    id: 'news',
+    label: 'News',
+    glyph: '✦',
+    hue: 'var(--type-normal)',
+    blurb: 'What is on in Pokémon GO, now and next.',
+    screens: ['news'],
   },
 ];
 

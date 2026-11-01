@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from 'vitest';
 import { act, render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import type { GblBattle, GblSet } from '../../lib/gbl';
 import { backdatedAt, localDay } from '../../lib/gbl';
@@ -94,6 +94,10 @@ describe('day size', () => {
   });
 
   it('keeps a past day\'s pick to that day, and the calendar shows it', async () => {
+    // Mid-month: on the 1st, yesterday sits in last month's grid and the calendar opens on this one.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 15, 12));
+    onTestFinished(() => { vi.useRealTimers(); });
     const y = new Date(); y.setDate(y.getDate() - 1); y.setHours(12);
     G.listMySets.mockResolvedValue(day(30, y.toISOString(), null, 'y'));
     open();

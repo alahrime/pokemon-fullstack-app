@@ -10,7 +10,8 @@ describe('screen table', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
   it('gives every screen a distinct hue, so colour identifies a section', () => {
-    const hues = SCREEN_DEFS.map((s) => s.hue);
+    // Account is exempt: its hue is never drawn (top-bar button, no rail item or card), and News needed one.
+    const hues = SCREEN_DEFS.filter((s) => s.id !== 'account').map((s) => s.hue);
     expect(new Set(hues).size).toBe(hues.length);
   });
   it('draws hues from the type palette rather than inventing a second scheme', () => {
@@ -40,10 +41,11 @@ describe('sections', () => {
     expect(all).not.toContain('landing');
   });
   it('orders the sections and their screens as specified', () => {
-    expect(SECTIONS.map((s) => s.id)).toEqual(['analyze', 'teams', 'play']);
+    expect(SECTIONS.map((s) => s.id)).toEqual(['analyze', 'teams', 'play', 'news']);
     expect(SECTIONS[0].screens).toEqual(['report', 'battle', 'moves', 'rankings', 'diagnostics']);
     expect(SECTIONS[1].screens).toEqual(['gbl', 'show6', 'cores', 'formats']);
     expect(SECTIONS[2].screens).toEqual(['matchmaking', 'match', 'friends', 'chat', 'tournaments', 'records', 'tracker', 'player']);
+    expect(SECTIONS[3].screens).toEqual(['news']);
   });
   it('finds a screen\'s section, and none for landing and account', () => {
     expect(sectionOf('rankings')?.id).toBe('analyze');

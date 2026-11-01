@@ -2,656 +2,2132 @@
  "events": [
   {
    "id": "season-24-twilight-trails",
-   "name": "Twilight Trails",
+   "title": "Twilight Trails",
    "kind": "Season",
-   "link": "https://leekduck.com/events/season-24-twilight-trails/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-09-08-season-24-twilight-trails/season-24-twilight-trails.jpg",
    "start": "2026-09-08T10:00:00.000",
-   "end": "2026-12-01T10:00:00.000"
+   "end": "2026-12-01T10:00:00.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/season-24-twilight-trails/"
+    }
+   ]
   },
   {
    "id": "pokemon-x-adidas-2026",
-   "name": "adidas × Pokémon Timed Research",
+   "title": "adidas × Pokémon Timed Research",
    "kind": "Research",
-   "link": "https://leekduck.com/events/pokemon-x-adidas-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/pokemon-x-adidas-2026.jpg",
    "start": "2026-09-25T10:00:00.000",
-   "end": "2027-01-15T20:00:00.000"
+   "end": "2027-01-15T20:00:00.000",
+   "groups": [
+    {
+     "label": "Research",
+     "refs": [
+      "lucario"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Timed Research",
+    "Complete the outfit!"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-x-adidas-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pokemon-x-adidas-2026"
+    }
+   ]
   },
   {
    "id": "go-pass-october-2026",
-   "name": "GO Pass: October",
+   "title": "GO Pass: October",
    "kind": "GO Pass",
-   "link": "https://leekduck.com/events/go-pass-october-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-10-06-go-pass-october-2026/go-pass-october-2026.jpg",
    "start": "2026-10-06T10:00:00.000",
-   "end": "2026-11-03T10:00:00.000"
+   "end": "2026-11-03T10:00:00.000",
+   "groups": [
+    {
+     "label": "Research",
+     "refs": [
+      "kyogre"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "One additional Candy for trading Pokémon.",
+    "Trainers level 31 and above will receive one guaranteed Candy XL when trading Pokémon.",
+    "Open up to 40 Gifts per day.",
+    "Receive up to 125 Gifts per day from spinning PokéStops and Gym Photo Discs.",
+    "Hold 10 more Gifts in your Item Bag.",
+    "2× Daily Adventure Incense duration.",
+    "Increased Stardust and XP from hatching Eggs.",
+    "Open up to 50 Gifts per day.",
+    "Receive up to 150 Gifts per day from spinning PokéStops and Gym Photo Discs.",
+    "Hold up to 20 more Gifts in your Item Bag."
+   ],
+   "price": "US$7.99",
+   "topics": [
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards",
+    "The Lucky Trinket"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/go-pass-october-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/go-pass-october-2026"
+    }
+   ]
   },
   {
    "id": "shadow-landorus-incarnate-forme-in-shadow-raids-october-2026",
-   "name": "Shadow Landorus (Incarnate Forme) in Shadow Raids",
+   "title": "Shadow Landorus (Incarnate Forme) in Shadow Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/shadow-landorus-incarnate-forme-in-shadow-raids-october-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-10-07T06:00:00.000",
-   "end": "2026-11-03T22:00:00.000"
+   "end": "2026-11-03T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "landorus_incarnate_shadow",
+      "landorus_incarnate"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/shadow-landorus-incarnate-forme-in-shadow-raids-october-2026/"
+    }
+   ]
   },
   {
    "id": "halloween-2026-part-1",
-   "name": "Pokémon GO Halloween 2026 Part I",
+   "title": "Pokémon GO Halloween 2026 Part I",
    "kind": "Event",
-   "link": "https://leekduck.com/events/halloween-2026-part-1/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-10-27-halloween-2026-part-1/halloween-2026-part-1.jpg",
    "start": "2026-10-27T10:00:00.000",
-   "end": "2026-11-01T10:00:00.000"
+   "end": "2026-11-01T10:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu",
+      "zubat",
+      "sinistea"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "zubat",
+      "duskull",
+      "piplup",
+      "drifblim",
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "sinistea"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "2× Candy for catching Pokémon.",
+    "GO Pass Deluxe: 3× Candy for catching Pokémon.",
+    "2× Stardust for catching Pokémon.",
+    "GO Pass Deluxe: 3× Stardust for catching Pokémon."
+   ],
+   "price": "US$7.99",
+   "topics": [
+    "Pokémon Debuts",
+    "Trick or Treat!",
+    "Wild Encounters",
+    "Raids",
+    "Timed Research",
+    "Field Research Task Rewards",
+    "New Avatar Items and Stickers",
+    "Lavender Town Music",
+    "Explore with Decor",
+    "GO Pass: Halloween 2026",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/halloween-2026-part-1/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/halloween-part-1-2026"
+    }
+   ]
   },
   {
    "id": "gbl-twilight-trails_master-league_mega-halloween-cup-great-league-edition",
-   "name": "Master League and Mega Halloween Cup: Great League Edition | Twilight Trails",
+   "title": "Master League and Mega Halloween Cup: Great League Edition | Twilight Trails",
    "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_master-league_mega-halloween-cup-great-league-edition/",
-   "image": "https://cdn.leekduck.com/assets/img/events/gobattleleague-master-key.jpg",
    "start": "2026-10-27T21:00:00.000Z",
-   "end": "2026-11-03T21:00:00.000Z"
+   "end": "2026-11-03T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_master-league_mega-halloween-cup-great-league-edition/"
+    }
+   ]
   },
   {
    "id": "giratina-origin-forme-in-5-star-raid-battles-october-2026",
-   "name": "Giratina (Origin Forme) in 5-star Raid Battles",
+   "title": "Giratina (Origin Forme) in 5-star Raid Battles",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/giratina-origin-forme-in-5-star-raid-battles-october-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/giratinaoriginforme.jpg",
    "start": "2026-10-28T06:00:00.000",
-   "end": "2026-11-03T22:00:00.000"
+   "end": "2026-11-03T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "giratina_origin"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/giratina-origin-forme-in-5-star-raid-battles-october-2026/"
+    }
+   ]
   },
   {
    "id": "mega-sableye-in-mega-raids-october-2026",
-   "name": "Mega Sableye in Mega Raids",
+   "title": "Mega Sableye in Mega Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/mega-sableye-in-mega-raids-october-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/mega-default.jpg",
    "start": "2026-10-28T06:00:00.000",
-   "end": "2026-11-08T22:00:00.000"
+   "end": "2026-11-08T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "sableye_mega"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/mega-sableye-in-mega-raids-october-2026/"
+    }
+   ]
   },
   {
    "id": "halloween-2026-part-2",
-   "name": "Pokémon GO Halloween 2026 Part II",
+   "title": "Pokémon GO Halloween 2026 Part II",
    "kind": "Event",
-   "link": "https://leekduck.com/events/halloween-2026-part-2/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-01-halloween-2026-part-2/halloween-2026-part-2.jpg",
    "start": "2026-11-01T10:00:00.000",
-   "end": "2026-11-05T20:00:00.000"
+   "end": "2026-11-05T20:00:00.000",
+   "groups": [
+    {
+     "label": "In the wild",
+     "refs": [
+      "greavard"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "litwick",
+      "rowlet",
+      "greavard",
+      "gengar",
+      "sinistea"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "sinistea"
+     ]
+    },
+    {
+     "label": "Featured",
+     "refs": [
+      "sableye"
+     ]
+    }
+   ],
+   "moves": [
+    "NIGHT_SHADE"
+   ],
+   "bonuses": [
+    "2× Candy for catching Pokémon.",
+    "GO Pass Deluxe: 3× Candy for catching Pokémon.",
+    "2× Stardust for catching Pokémon.",
+    "GO Pass Deluxe: 3× Stardust for catching Pokémon."
+   ],
+   "price": "US$7.99",
+   "topics": [
+    "Featured Pokémon",
+    "Wild Encounters",
+    "Raids",
+    "New Mega Level: Super Max!",
+    "Timed Research",
+    "Field Research Task Rewards",
+    "GO Pass: Halloween 2026",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/halloween-2026-part-2/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/halloween-part-2-2026"
+    }
+   ]
   },
   {
    "id": "max-mondays-2026-11-02",
-   "name": "Dynamax Machop during Max Monday",
+   "title": "Dynamax Machop during Max Monday",
    "kind": "Max Mondays",
-   "link": "https://leekduck.com/events/max-mondays-2026-11-02/",
-   "image": "https://cdn.leekduck.com/assets/img/events/max-battles-kanto.jpg",
    "start": "2026-11-02T06:00:00.000",
-   "end": "2026-11-02T21:00:00.000"
+   "end": "2026-11-02T21:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "machop"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/max-mondays-2026-11-02/"
+    }
+   ]
   },
   {
    "id": "go-pass-november-2026",
-   "name": "GO Pass: November",
+   "title": "GO Pass: November",
    "kind": "GO Pass",
-   "link": "https://leekduck.com/events/go-pass-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-03-go-pass-november-2026/go-pass-november-2026.jpg",
    "start": "2026-11-03T10:00:00.000",
-   "end": "2026-12-01T10:00:00.000"
+   "end": "2026-12-01T10:00:00.000",
+   "groups": [
+    {
+     "label": "Research",
+     "refs": [
+      "groudon"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "One additional Candy for trading Pokémon.",
+    "Trainers level 31 and above will receive one guaranteed Candy XL when trading Pokémon.",
+    "Open up to 40 Gifts per day.",
+    "Receive up to 125 Gifts per day from spinning PokéStops and Gym Photo Discs.",
+    "Hold 10 more Gifts in your Item Bag.",
+    "2× Daily Adventure Incense duration.",
+    "Increased Stardust and XP from hatching Eggs.",
+    "Open up to 50 Gifts per day.",
+    "Receive up to 150 Gifts per day from spinning PokéStops and Gym Photo Discs.",
+    "Hold up to 20 more Gifts in your Item Bag."
+   ],
+   "price": "US$7.99",
+   "topics": [
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/go-pass-november-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/go-pass-november-2026"
+    }
+   ]
   },
   {
    "id": "gbl-twilight-trails_great-league-mega-edition_ultra-league-mega-edition_master-league-mega-edition-split-3",
-   "name": "Great League: Mega Edition, Ultra League: Mega Edition, and Master League: Mega Edition | Twilight Trails",
+   "title": "Great League: Mega Edition, Ultra League: Mega Edition, and Master League: Mega Edition | Twilight Trails",
    "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_great-league-mega-edition_ultra-league-mega-edition_master-league-mega-edition-split-3/",
-   "image": "https://cdn.leekduck.com/assets/img/events/go-battle-league-season-28-twilight-trails.png",
    "start": "2026-11-03T21:00:00.000Z",
-   "end": "2026-11-10T21:00:00.000Z"
+   "end": "2026-11-10T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_great-league-mega-edition_ultra-league-mega-edition_master-league-mega-edition-split-3/"
+    }
+   ]
   },
   {
    "id": "giratina-altered-forme-in-5-star-raid-battles-november-2026",
-   "name": "Giratina (Altered Forme) in 5-star Raid Battles",
+   "title": "Giratina (Altered Forme) in 5-star Raid Battles",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/giratina-altered-forme-in-5-star-raid-battles-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-04T06:00:00.000",
-   "end": "2026-11-08T22:00:00.000"
+   "end": "2026-11-08T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "giratina_altered"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/giratina-altered-forme-in-5-star-raid-battles-november-2026/"
+    }
+   ]
   },
   {
    "id": "shadow-tornadus-incarnate-forme-in-shadow-raids-november-4-2026",
-   "name": "Shadow Tornadus (Incarnate Forme) in Shadow Raids",
+   "title": "Shadow Tornadus (Incarnate Forme) in Shadow Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/shadow-tornadus-incarnate-forme-in-shadow-raids-november-4-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-04T06:00:00.000",
-   "end": "2026-11-08T22:00:00.000"
+   "end": "2026-11-08T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "tornadus_incarnate_shadow",
+      "tornadus_incarnate"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/shadow-tornadus-incarnate-forme-in-shadow-raids-november-4-2026/"
+    }
+   ]
   },
   {
    "id": "raidhour20261104",
-   "name": "Giratina (Altered Forme) Raid Hour",
+   "title": "Giratina (Altered Forme) Raid Hour",
    "kind": "Raid Hour",
-   "link": "https://leekduck.com/events/raidhour20261104/",
-   "image": "https://cdn.leekduck.com/assets/img/events/raidhour.jpg",
    "start": "2026-11-04T18:00:00.000",
-   "end": "2026-11-04T19:00:00.000"
+   "end": "2026-11-04T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "giratina_altered"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/raidhour20261104/"
+    }
+   ]
   },
   {
    "id": "pokemonspotlighthour2026-11-05",
-   "name": "Teddiursa wearing a witch hat Spotlight Hour",
+   "title": "Teddiursa wearing a witch hat Spotlight Hour",
    "kind": "Pokémon Spotlight Hour",
-   "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-05/",
-   "image": "https://cdn.leekduck.com/assets/img/events/pokemonspotlighthour.jpg",
    "start": "2026-11-05T18:00:00.000",
-   "end": "2026-11-05T19:00:00.000"
+   "end": "2026-11-05T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "teddiursa"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "2× Evolution XP"
+   ],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-05/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-wild-area-2026-sendai-japan",
-   "name": "Pokémon GO Wild Area 2026: Sendai • Tohoku",
+   "title": "Pokémon GO Wild Area 2026: Sendai • Tohoku",
    "kind": "Wild Area",
-   "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-sendai-japan/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-06-pokemon-go-wild-area-2026-sendai-japan/key-art.jpg",
    "start": "2026-11-06T01:00:00.000Z",
-   "end": "2026-11-08T09:00:00.000Z"
+   "end": "2026-11-08T09:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-sendai-japan/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-wild-area-2026-mexico-city",
-   "name": "Pokémon GO Wild Area 2026: Mexico City",
+   "title": "Pokémon GO Wild Area 2026: Mexico City",
    "kind": "Wild Area",
-   "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-mexico-city/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-06-pokemon-go-wild-area-2026-mexico-city/key-art.jpg",
    "start": "2026-11-06T16:00:00.000Z",
-   "end": "2026-11-09T00:00:00.000Z"
+   "end": "2026-11-09T00:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-mexico-city/"
+    }
+   ]
   },
   {
    "id": "into-the-wild-2026",
-   "name": "Into the Wild",
+   "title": "Into the Wild",
    "kind": "Event",
-   "link": "https://leekduck.com/events/into-the-wild-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-09-into-the-wild-2026/into-the-wild-2026.jpg",
    "start": "2026-11-09T10:00:00.000",
-   "end": "2026-11-13T20:00:00.000"
+   "end": "2026-11-13T20:00:00.000",
+   "groups": [
+    {
+     "label": "Max Battles",
+     "refs": [
+      "regidrago",
+      "meltan",
+      "latios"
+     ]
+    },
+    {
+     "label": "Featured",
+     "refs": [
+      "gimmighoul",
+      "meltan",
+      "pikachu",
+      "eevee",
+      "registeel",
+      "latias",
+      "latios",
+      "regidrago"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "zacian_crowned_sword",
+      "zamazenta_crowned_shield",
+      "orthworm"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "magnemite",
+      "noibat",
+      "togedemaru",
+      "meltan",
+      "duraludon"
+     ]
+    }
+   ],
+   "moves": [
+    "METAL_CLAW",
+    "MIST_BALL",
+    "LUSTER_PURGE",
+    "DRAGON_BREATH"
+   ],
+   "bonuses": [
+    "1/2 Hatch Distance for Eggs placed in Incubators during the event",
+    "Additional 5,000 XP from completed raids",
+    "Additional 5,000 XP from completed Max Battles",
+    "3/4 Max Particle cost for unlocking and powering up Max Moves",
+    "1 additional Candy awarded for completing raids",
+    "1 additional Candy XL awarded for completing raids (Trainers level 31+)",
+    "1 additional Candy awarded for completing Max Battles",
+    "1 additional Candy XL awarded for completing Max Battles (Trainers level 31+)"
+   ],
+   "price": "US$14.99",
+   "topics": [
+    "Dynamax Pokémon Debut",
+    "Meltan",
+    "Max Battles",
+    "Raids",
+    "Featured Attacks",
+    "New Special Background!",
+    "Wild Encounters",
+    "Field Research Tasks",
+    "Into the Wild Global Challenge",
+    "Stickers",
+    "GO Pass: Into the Wild",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards",
+    "What is Hyper Training?",
+    "Silver Bottle Cap",
+    "Training Tasks"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/into-the-wild-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/into-the-wild-2026"
+    }
+   ]
   },
   {
    "id": "pokemon-night-out-london-2026",
-   "name": "Pokémon Night Out 2026 - London",
+   "title": "Pokémon Night Out 2026 - London",
    "kind": "Event",
-   "link": "https://leekduck.com/events/pokemon-night-out-london-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/pokemon-night-out-2026.jpg",
    "start": "2026-11-10T18:00:00.000Z",
-   "end": "2026-11-10T22:30:00.000Z"
+   "end": "2026-11-10T22:30:00.000Z",
+   "groups": [
+    {
+     "label": "Research",
+     "refs": [
+      "toxtricity",
+      "gastly",
+      "voltorb",
+      "marowak_alolan",
+      "hoothoot",
+      "murkrow",
+      "houndour",
+      "electrike",
+      "carvanha",
+      "shinx",
+      "zorua",
+      "joltik",
+      "froakie",
+      "dedenne",
+      "rookidee",
+      "unown"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "Lure Modules (excluding Golden Lure Modules) activated during the event will last for one hour."
+   ],
+   "price": null,
+   "topics": [
+    "Raids",
+    "Timed Research Task Rewards",
+    "Wild Encounter"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-night-out-london-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pokemon-night-out-irl-details2026"
+    }
+   ]
   },
   {
    "id": "gbl-twilight-trails_great-league_ultra-league-mega-edition_2026-go-laic-cup",
-   "name": "Great League, Ultra League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
+   "title": "Great League, Ultra League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
    "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_great-league_ultra-league-mega-edition_2026-go-laic-cup/",
-   "image": "https://cdn.leekduck.com/assets/img/events/gobattle-greatleague-key.jpg",
    "start": "2026-11-10T21:00:00.000Z",
-   "end": "2026-11-17T21:00:00.000Z"
+   "end": "2026-11-17T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_great-league_ultra-league-mega-edition_2026-go-laic-cup/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-wild-area-2026-global",
-   "name": "Pokémon GO Wild Area 2026: Global",
+   "title": "Pokémon GO Wild Area 2026: Global",
    "kind": "Wild Area",
-   "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-global/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-14-pokemon-go-wild-area-2026-global/key-art.jpg",
    "start": "2026-11-14T10:00:00.000",
-   "end": "2026-11-15T18:00:00.000"
+   "end": "2026-11-15T18:00:00.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Karlsruhe, Germany",
+    "Stockholm, Sweden",
+    "What to Expect"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-wild-area-2026-global/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/gowa-global-europe-2026"
+    }
+   ]
   },
   {
    "id": "minior-showers-leonids-2026",
-   "name": "Minior Showers: Leonids 2026",
+   "title": "Minior Showers: Leonids 2026",
    "kind": "Event",
-   "link": "https://leekduck.com/events/minior-showers-leonids-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
    "start": "2026-11-14T17:00:00.000",
-   "end": "2026-11-19T23:59:00.000"
+   "end": "2026-11-19T23:59:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/minior-showers-leonids-2026/"
+    }
+   ]
   },
   {
    "id": "max-mondays-2026-11-16",
-   "name": "Max Monday: Pokémon to be announced",
+   "title": "Max Monday: Pokémon to be announced",
    "kind": "Max Mondays",
-   "link": "https://leekduck.com/events/max-mondays-2026-11-16/",
-   "image": "https://cdn.leekduck.com/assets/img/events/max-battles-kanto.jpg",
    "start": "2026-11-16T06:00:00.000",
-   "end": "2026-11-16T21:00:00.000"
+   "end": "2026-11-16T21:00:00.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/max-mondays-2026-11-16/"
+    }
+   ]
   },
   {
    "id": "cresselia-darkrai-in-5-star-raid-battles-november-2026",
-   "name": "Cresselia and Darkrai in 5-star Raid Battles",
+   "title": "Cresselia and Darkrai in 5-star Raid Battles",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/cresselia-darkrai-in-5-star-raid-battles-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-16T06:00:00.000",
-   "end": "2026-11-24T22:00:00.000"
+   "end": "2026-11-24T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "cresselia",
+      "darkrai"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/cresselia-darkrai-in-5-star-raid-battles-november-2026/"
+    }
+   ]
   },
   {
    "id": "mega-banette-in-mega-raids-november-2026",
-   "name": "Mega Banette in Mega Raids",
+   "title": "Mega Banette in Mega Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/mega-banette-in-mega-raids-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/mega-default.jpg",
    "start": "2026-11-16T06:00:00.000",
-   "end": "2026-11-24T22:00:00.000"
+   "end": "2026-11-24T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "banette_mega"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/mega-banette-in-mega-raids-november-2026/"
+    }
+   ]
   },
   {
    "id": "shadow-tornadus-incarnate-forme-in-shadow-raids-november-16-2026",
-   "name": "Shadow Tornadus (Incarnate Forme) in Shadow Raids",
+   "title": "Shadow Tornadus (Incarnate Forme) in Shadow Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/shadow-tornadus-incarnate-forme-in-shadow-raids-november-16-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-16T06:00:00.000",
-   "end": "2026-12-01T22:00:00.000"
+   "end": "2026-12-01T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "tornadus_incarnate_shadow",
+      "tornadus_incarnate"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/shadow-tornadus-incarnate-forme-in-shadow-raids-november-16-2026/"
+    }
+   ]
   },
   {
    "id": "dynamax-trails-2026",
-   "name": "Dynamax Trails",
+   "title": "Dynamax Trails",
    "kind": "Event",
-   "link": "https://leekduck.com/events/dynamax-trails-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-16-dynamax-trails-2026/dynamax-trails-2026.jpg",
    "start": "2026-11-16T10:00:00.000",
-   "end": "2026-11-23T20:00:00.000"
-  },
-  {
-   "id": "raidhour20261118",
-   "name": "Cresselia and Darkrai Raid Hour",
-   "kind": "Raid Hour",
-   "link": "https://leekduck.com/events/raidhour20261118/",
-   "image": "https://cdn.leekduck.com/assets/img/events/raidhour.jpg",
-   "start": "2026-11-18T18:00:00.000",
-   "end": "2026-11-18T19:00:00.000"
+   "end": "2026-11-23T20:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "eternatus",
+      "grookey",
+      "scorbunny",
+      "sobble"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "eternatus"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "A chance to receive Max Particles when catching event-themed Pokémon in the wild or after Max Battles.",
+    "More Power Spots than usual will be active.",
+    "Power Spots will refresh more frequently.",
+    "Max Particle collection limit increased to 2,400.",
+    "8× Max Particles from Power Spots.",
+    "From November 20 at 1:00 p.m.",
+    "2× Catch Stardust",
+    "1/2 Candy and Stardust to activate the Dynamax Cannon Adventure Effect",
+    "Additional Candy and Candy XL from Max Battles"
+   ],
+   "price": "US$4.99",
+   "topics": [
+    "Dynamax Trails",
+    "Wild Encounters",
+    "Max Battles",
+    "Spotlight Hour",
+    "Field Research Task Encounters",
+    "Event-Themed Stickers",
+    "Eternatus Returns",
+    "The Gigantic Pokémon Eternatus returns!",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/dynamax-trails-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/dynamax-trails-eternamax-eternatus-2026"
+    }
+   ]
   },
   {
    "id": "gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup",
-   "name": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
+   "title": "Ultra League, Master League: Mega Edition, and 2026 GO LAIC Cup | Twilight Trails",
    "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/",
-   "image": "https://cdn.leekduck.com/assets/img/events/go-battle-league-ultra-league-machamp-swampert.jpg",
    "start": "2026-11-18T21:00:00.000Z",
-   "end": "2026-11-25T21:00:00.000Z"
+   "end": "2026-11-25T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_ultra-league_master-league-mega-edition_2026-go-laic-cup/"
+    }
+   ]
+  },
+  {
+   "id": "raidhour20261118",
+   "title": "Cresselia and Darkrai Raid Hour",
+   "kind": "Raid Hour",
+   "start": "2026-11-18T18:00:00.000",
+   "end": "2026-11-18T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "cresselia",
+      "darkrai"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/raidhour20261118/"
+    }
+   ]
   },
   {
    "id": "pokemonspotlighthour2026-11-19",
-   "name": "Grookey, Scorbunny, and Sobble Spotlight Hour",
+   "title": "Grookey, Scorbunny, and Sobble Spotlight Hour",
    "kind": "Pokémon Spotlight Hour",
-   "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-19/",
-   "image": "https://cdn.leekduck.com/assets/img/events/pokemonspotlighthour.jpg",
    "start": "2026-11-19T18:00:00.000",
-   "end": "2026-11-19T19:00:00.000"
+   "end": "2026-11-19T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "grookey",
+      "scorbunny",
+      "sobble"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "2× Catch Candy"
+   ],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-19/"
+    }
+   ]
   },
   {
    "id": "eternamax-eternatus-max-battles-2026",
-   "name": "Eternamax Eternatus Returns",
+   "title": "Eternamax Eternatus Returns",
    "kind": "Max Battles",
-   "link": "https://leekduck.com/events/eternamax-eternatus-max-battles-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-16-dynamax-trails-2026/dynamax-trails-2026.jpg",
    "start": "2026-11-21T11:00:00.000",
-   "end": "2026-11-21T14:00:00.000"
+   "end": "2026-11-21T14:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "eternatus",
+      "grookey",
+      "scorbunny",
+      "sobble"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "A chance to receive Max Particles when catching event-themed Pokémon in the wild or after Max Battles.",
+    "More Power Spots than usual will be active.",
+    "Power Spots will refresh more frequently.",
+    "Max Particle collection limit increased to 2,400.",
+    "8× Max Particles from Power Spots.",
+    "From November 20 at 1:00 p.m.",
+    "2× Catch Stardust",
+    "1/2 Candy and Stardust to activate the Dynamax Cannon Adventure Effect",
+    "Additional Candy and Candy XL from Max Battles"
+   ],
+   "price": "US$4.99",
+   "topics": [
+    "Dynamax Trails",
+    "Wild Encounters",
+    "Max Battles",
+    "Spotlight Hour",
+    "Field Research Task Encounters",
+    "Event-Themed Stickers",
+    "Eternatus Returns",
+    "The Gigantic Pokémon Eternatus returns!",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/eternamax-eternatus-max-battles-2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/dynamax-trails-eternamax-eternatus-2026"
+    }
+   ]
   },
   {
    "id": "november-communityday2026",
-   "name": "Pawniard Community Day",
+   "title": "Pawniard Community Day",
    "kind": "Community Day",
-   "link": "https://leekduck.com/events/november-communityday2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/article-images/2026/2026-11-21-november-communityday2026/pawniard-november-cd-2026.jpg",
    "start": "2026-11-21T14:00:00.000",
-   "end": "2026-11-21T17:00:00.000"
+   "end": "2026-11-21T17:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pawniard",
+      "bisharp",
+      "kingambit"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "1/4 Egg Hatch Distance when Eggs are placed in an Incubator during the event period.",
+    "2× Candy for catching Pokémon.",
+    "2× chance for Trainers level 31 and up to receive Candy XL from catching Pokémon.",
+    "Incense (excluding Daily Adventure Incense) activated during the event will last for three hours.",
+    "Take a few snapshots during Community Day for a surprise!",
+    "Lure Modules will last for one hour and may attract the featured Pokémon.",
+    "One additional Special Trade can be made for a maximum of two for the day.",
+    "Trades will require 50% less Stardust.",
+    "Limited-time Evolution requirement: Evolve Bisharp into Kingambit after defeating 1 Dark- or Steel-type Raid Boss with Bisharp as your buddy."
+   ],
+   "price": "US$1.99",
+   "topics": [
+    "Featured Pokémon",
+    "Featured Attack",
+    "Community Day Special Research",
+    "Field Research"
+   ],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/november-communityday2026/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/communityday-november-2026-pawniard"
+    }
+   ]
   },
   {
    "id": "max-mondays-2026-11-23",
-   "name": "Dynamax Espurr during Max Monday",
+   "title": "Dynamax Espurr during Max Monday",
    "kind": "Max Mondays",
-   "link": "https://leekduck.com/events/max-mondays-2026-11-23/",
-   "image": "https://cdn.leekduck.com/assets/img/events/max-battles-kanto.jpg",
    "start": "2026-11-23T06:00:00.000",
-   "end": "2026-11-23T21:00:00.000"
+   "end": "2026-11-23T21:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "espurr"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/max-mondays-2026-11-23/"
+    }
+   ]
   },
   {
    "id": "twilight-wishes-2026",
-   "name": "Twilight Wishes",
+   "title": "Twilight Wishes",
    "kind": "Event",
-   "link": "https://leekduck.com/events/twilight-wishes-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-24T10:00:00.000",
-   "end": "2026-11-30T20:00:00.000"
+   "end": "2026-11-30T20:00:00.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/twilight-wishes-2026/"
+    }
+   ]
   },
   {
    "id": "gbl-twilight-trails_master-league_mega-catch-cup-great-league-edition",
-   "name": "Master League and Mega Catch Cup: Great League Edition | Twilight Trails",
+   "title": "Master League and Mega Catch Cup: Great League Edition | Twilight Trails",
    "kind": "GO Battle League",
-   "link": "https://leekduck.com/events/gbl-twilight-trails_master-league_mega-catch-cup-great-league-edition/",
-   "image": "https://cdn.leekduck.com/assets/img/events/gobattleleague-master-key.jpg",
    "start": "2026-11-24T21:00:00.000Z",
-   "end": "2026-12-01T21:00:00.000Z"
+   "end": "2026-12-01T21:00:00.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/gbl-twilight-trails_master-league_mega-catch-cup-great-league-edition/"
+    }
+   ]
   },
   {
    "id": "deoxys-normal-defense-attack-speed-formes-in-5-star-raid-battles-november-2026",
-   "name": "Deoxys (Normal, Defense, Attack, and Speed Formes) in 5-star Raid Battles",
+   "title": "Deoxys (Normal, Defense, Attack, and Speed Formes) in 5-star Raid Battles",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/deoxys-normal-defense-attack-speed-formes-in-5-star-raid-battles-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-25T06:00:00.000",
-   "end": "2026-12-01T22:00:00.000"
+   "end": "2026-12-01T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "deoxys",
+      "deoxys_defense",
+      "deoxys_attack",
+      "deoxys_speed"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/deoxys-normal-defense-attack-speed-formes-in-5-star-raid-battles-november-2026/"
+    }
+   ]
   },
   {
    "id": "mega-metagross-in-mega-raids-november-2026",
-   "name": "Mega Metagross in Mega Raids",
+   "title": "Mega Metagross in Mega Raids",
    "kind": "Raid Battles",
-   "link": "https://leekduck.com/events/mega-metagross-in-mega-raids-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/mega-default.jpg",
    "start": "2026-11-25T06:00:00.000",
-   "end": "2026-12-01T22:00:00.000"
+   "end": "2026-12-01T22:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "metagross_mega"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/mega-metagross-in-mega-raids-november-2026/"
+    }
+   ]
   },
   {
    "id": "raidhour20261125",
-   "name": "Deoxys (Normal, Defense, Attack, and Speed Formes) Raid Hour",
+   "title": "Deoxys (Normal, Defense, Attack, and Speed Formes) Raid Hour",
    "kind": "Raid Hour",
-   "link": "https://leekduck.com/events/raidhour20261125/",
-   "image": "https://cdn.leekduck.com/assets/img/events/raidhour.jpg",
    "start": "2026-11-25T18:00:00.000",
-   "end": "2026-11-25T19:00:00.000"
+   "end": "2026-11-25T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "deoxys"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/raidhour20261125/"
+    }
+   ]
   },
   {
    "id": "pokemonspotlighthour2026-11-26",
-   "name": "Noibat Spotlight Hour",
+   "title": "Noibat Spotlight Hour",
    "kind": "Pokémon Spotlight Hour",
-   "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-26/",
-   "image": "https://cdn.leekduck.com/assets/img/events/pokemonspotlighthour.jpg",
    "start": "2026-11-26T18:00:00.000",
-   "end": "2026-11-26T19:00:00.000"
+   "end": "2026-11-26T19:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "noibat"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "2× Catch Candy"
+   ],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemonspotlighthour2026-11-26/"
+    }
+   ]
   },
   {
    "id": "super-mega-raid-day-november-2026",
-   "name": "Super Mega Raid Day",
+   "title": "Super Mega Raid Day",
    "kind": "Raid Day",
-   "link": "https://leekduck.com/events/super-mega-raid-day-november-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2026-11-28T14:00:00.000",
-   "end": "2026-11-28T17:00:00.000"
+   "end": "2026-11-28T17:00:00.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/super-mega-raid-day-november-2026/"
+    }
+   ]
   },
   {
    "id": "max-mondays-2026-11-30",
-   "name": "Dynamax Cryogonal during Max Monday",
+   "title": "Dynamax Cryogonal during Max Monday",
    "kind": "Max Mondays",
-   "link": "https://leekduck.com/events/max-mondays-2026-11-30/",
-   "image": "https://cdn.leekduck.com/assets/img/events/max-battles-kanto.jpg",
    "start": "2026-11-30T06:00:00.000",
-   "end": "2026-11-30T21:00:00.000"
+   "end": "2026-11-30T21:00:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "cryogonal"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/max-mondays-2026-11-30/"
+    }
+   ]
   },
   {
    "id": "minior-showers-geminids-2026",
-   "name": "Minior Showers: Geminids 2026",
+   "title": "Minior Showers: Geminids 2026",
    "kind": "Event",
-   "link": "https://leekduck.com/events/minior-showers-geminids-2026/",
-   "image": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
    "start": "2026-12-11T17:00:00.000",
-   "end": "2026-12-16T23:59:00.000"
+   "end": "2026-12-16T23:59:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/minior-showers-geminids-2026/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-tour-alola-kaohsiung-2027",
-   "name": "Pokémon GO Tour: Alola - Kaohsiung 2027",
+   "title": "Pokémon GO Tour: Alola - Kaohsiung 2027",
    "kind": "Pokémon GO Tour",
-   "link": "https://leekduck.com/events/pokemon-go-tour-alola-kaohsiung-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2027-02-18T16:00:00.000Z",
-   "end": "2027-02-21T15:59:59.000Z"
+   "end": "2027-02-21T15:59:59.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-tour-alola-kaohsiung-2027/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-tour-alola-los-angeles-2027",
-   "name": "Pokémon GO Tour: Alola - Los Angeles 2027",
+   "title": "Pokémon GO Tour: Alola - Los Angeles 2027",
    "kind": "Pokémon GO Tour",
-   "link": "https://leekduck.com/events/pokemon-go-tour-alola-los-angeles-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2027-02-19T08:00:00.000Z",
-   "end": "2027-02-22T07:59:59.000Z"
+   "end": "2027-02-22T07:59:59.000Z",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-tour-alola-los-angeles-2027/"
+    }
+   ]
   },
   {
    "id": "pokemon-go-tour-alola-global-2027",
-   "name": "Pokémon GO Tour: Alola - Global 2027",
+   "title": "Pokémon GO Tour: Alola - Global 2027",
    "kind": "Pokémon GO Tour",
-   "link": "https://leekduck.com/events/pokemon-go-tour-alola-global-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/events-default-img.jpg",
    "start": "2027-02-27T00:00:00.000",
-   "end": "2027-02-28T23:59:59.000"
+   "end": "2027-02-28T23:59:59.000",
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/pokemon-go-tour-alola-global-2027/"
+    },
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/save-the-date-go-tour-2027"
+    }
+   ]
   },
   {
    "id": "minior-showers-eta-aquariids-2027",
-   "name": "Minior Showers: Eta Aquariids 2027",
+   "title": "Minior Showers: Eta Aquariids 2027",
    "kind": "Event",
-   "link": "https://leekduck.com/events/minior-showers-eta-aquariids-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
    "start": "2027-05-03T17:00:00.000",
-   "end": "2027-05-08T23:59:00.000"
+   "end": "2027-05-08T23:59:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/minior-showers-eta-aquariids-2027/"
+    }
+   ]
   },
   {
    "id": "minior-showers-southern-delta-aquariids-2027",
-   "name": "Minior Showers: Southern Delta Aquariids 2027",
+   "title": "Minior Showers: Southern Delta Aquariids 2027",
    "kind": "Event",
-   "link": "https://leekduck.com/events/minior-showers-southern-delta-aquariids-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
    "start": "2027-07-28T17:00:00.000",
-   "end": "2027-08-02T23:59:00.000"
+   "end": "2027-08-02T23:59:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/minior-showers-southern-delta-aquariids-2027/"
+    }
+   ]
   },
   {
    "id": "minior-showers-perseids-2027",
-   "name": "Minior Showers: Perseids 2027",
+   "title": "Minior Showers: Perseids 2027",
    "kind": "Event",
-   "link": "https://leekduck.com/events/minior-showers-perseids-2027/",
-   "image": "https://cdn.leekduck.com/assets/img/events/minior-showers-2026.jpg",
    "start": "2027-08-10T17:00:00.000",
-   "end": "2027-08-15T23:59:00.000"
+   "end": "2027-08-15T23:59:00.000",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "LeekDuck",
+     "link": "https://leekduck.com/events/minior-showers-perseids-2027/"
+    }
+   ]
   }
  ],
  "announcements": [
   {
    "id": "pokemon-center-bangkok-opens-2026",
    "title": "Pokémon Center BANGKOK Opens!",
-   "link": "https://pokemongo.com/news/pokemon-center-bangkok-opens-2026",
-   "image": "https://lh3.googleusercontent.com/fnBXKPEpPstymzci766hw5zowvl79B6lJBbdNfLJLExCcBa7WQUFBKSY9sCP-4H86qpObJMgBgWylIwEdELE1rbnshaRUCFx_0db80NnMrQ=w480-e365",
-   "date": "2026-10-29T03:26:15.805Z"
-  },
-  {
-   "id": "dynamax-trails-eternamax-eternatus-2026",
-   "title": "All roads lead to Eternatus’s return during the Dynamax Trails event!",
-   "link": "https://pokemongo.com/news/dynamax-trails-eternamax-eternatus-2026",
-   "image": "https://lh3.googleusercontent.com/1ZxNwH9PkuqgUPjvwhCrCNSTSDktinzgCcLJEkm4tu41LlE_7OdyfM4GkR9qd9atoN_Tairx5bQ6IxBBOULlCO29cCM4qTuvsE4dm-RFup0=w480-e365",
-   "date": "2026-10-28T17:00:00.000Z"
-  },
-  {
-   "id": "gowa-global-europe-2026",
-   "title": "Find your community in Europe during Pokémon GO Wild Area: Global!",
-   "link": "https://pokemongo.com/news/gowa-global-europe-2026",
-   "image": "https://lh3.googleusercontent.com/44ggmV081gROwILff_vc2fROBHVCfBGTlRPQ8EtwxMt0ePAkWpirNJMtFk0C3qzHyx7zQqfFAbzKsziiRTTz67bHWdZyRKJN1d7b9Z50Q0M=w480-e365",
-   "date": "2026-10-26T16:54:16.970Z"
+   "date": "2026-10-29T03:26:15.805Z",
+   "when": null,
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Timed Research",
+    "Stickers"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pokemon-center-bangkok-opens-2026"
+    }
+   ]
   },
   {
    "id": "go-wild-area-stamp-rally-details-2026",
    "title": "GO Wild Area Event Stamp Rallies Clarification",
-   "link": "https://pokemongo.com/news/go-wild-area-stamp-rally-details-2026",
-   "image": "https://lh3.googleusercontent.com/1gLekpJ6ufDdk-OksjycvqaJIQREQ6qlsP5Lt8HoMhZyJTiwNVuV8mqI0n-fjF3N7hhOhSYoDnZ9qEJq2unSlISul2f4W87piqz23PKSspw=w480-e365",
-   "date": "2026-10-22T23:03:26.186Z"
-  },
-  {
-   "id": "communityday-november-2026-pawniard",
-   "title": "November 2026 Community Day: Pawniard",
-   "link": "https://pokemongo.com/news/communityday-november-2026-pawniard",
-   "image": "https://lh3.googleusercontent.com/t5O4uk87m4uBdjNiiMgMq9nKNOkWyt3lNxwPc4dEqi8nL2ORXDgmO91Dc8orIGjysTupi4Jfr9F1FQq5jp36L68z7XZlddd8Kq-CSJQJEVfk=w480-e365",
-   "date": "2026-10-21T17:00:00.000Z"
-  },
-  {
-   "id": "go-pass-november-2026",
-   "title": "Earn PokéCoins for progressing in GO Pass: November!",
-   "link": "https://pokemongo.com/news/go-pass-november-2026",
-   "image": "https://lh3.googleusercontent.com/2H2wVXVBCkoOjc8Swmtz67KAxNbWQMwkqSezJmyAOFnzlfervIkFR-rJJ6nZfqWtZmG4eXJwD7-Is2-TdjJXH2q2nAPFAk8lj7Lz_5TWtTYo=w480-e365",
-   "date": "2026-10-20T17:00:00.000Z"
-  },
-  {
-   "id": "pokemon-night-out-irl-details2026",
-   "title": "Celebrate the Pokémon Night Out events in Pokémon GO!",
-   "link": "https://pokemongo.com/news/pokemon-night-out-irl-details2026",
-   "image": "https://lh3.googleusercontent.com/h81gWCZI7QPWqLC9Kb-LE5utTRCFwXdO225OSVNQf-TkvVGAex0CVs10QchugDtpN3CKtaSdoiJltEVQhfYVHFtlxYwLwpmJ8fXL7kDsqw=w480-e365",
-   "date": "2026-10-19T17:00:00.000Z"
-  },
-  {
-   "id": "into-the-wild-2026",
-   "title": "It’s time to head back Into the Wild for a Steel- and Dragon-type adventure!",
-   "link": "https://pokemongo.com/news/into-the-wild-2026",
-   "image": "https://lh3.googleusercontent.com/xQzYXbxguNWaaSXG5thVM5x44Luvbb5Pi8rPlYSPIV6kePCzoS_5NWzlM0yzNGIVs1NzhXIPLcg2HKS0iuizGsHZUvSS_ZcemC5-i4My5yA=w480-e365",
-   "date": "2026-10-14T17:00:00.000Z"
+   "date": "2026-10-22T23:03:26.186Z",
+   "when": null,
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Sendai • Tohoku",
+    "Mexico City"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/go-wild-area-stamp-rally-details-2026"
+    }
+   ]
   },
   {
    "id": "chandelure-super-mega-raid-day-2026",
    "title": "A haunting glow awaits with the Chandelure Super Mega Raid Day!",
-   "link": "https://pokemongo.com/news/chandelure-super-mega-raid-day-2026",
-   "image": "https://lh3.googleusercontent.com/6P6KzIHu36YynVJ4Bn6-2y_98P8qbfr5VP6aBOsIC83pPQ6NifL2ZrIWrF12RCzi-yJzdpuVsboYspq5mfkvph2B5OJslcoYMaHnNM8ua8og=w480-e365",
-   "date": "2026-10-13T20:00:00.000Z"
+   "date": "2026-10-13T20:00:00.000Z",
+   "when": "Saturday, October 31, 2026, from 2:00 p.m. to 5:00 p.m. local time",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "chandelure"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "tyranitar"
+     ]
+    }
+   ],
+   "moves": [
+    "OMINOUS_WIND"
+   ],
+   "bonuses": [
+    "Remote Raid limit increased to 20 from Friday, October 30, at 5:00 p.m.",
+    "Receive up to six free Raid Passes from spinning Gym Photo Discs.",
+    "Chandelure caught from Super Mega Raids will have Mega Level 1 unlocked.",
+    "Increased chance of encountering Shiny Chandelure from Super Mega Raids."
+   ],
+   "price": "US$4.99",
+   "topics": [
+    "Mega-Evolved Pokémon Debut",
+    "New Mega Level: Super Max",
+    "Global Challenge",
+    "Timed Research",
+    "Event Ticket",
+    "Where can I find Super Mega Raids?"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/chandelure-super-mega-raid-day-2026"
+    }
+   ]
   },
   {
    "id": "pgo-gameplay-update-oct-2026",
    "title": "Pokémon GO Gameplay and Quality-of-Life Updates",
-   "link": "https://pokemongo.com/news/pgo-gameplay-update-oct-2026",
-   "image": "https://lh3.googleusercontent.com/YTWdPxzC8pivOHHqNqkA5VYuXBhfFinH38ENvIZ7f9LfkMDoyXrXRnh5kd-ibfKJHequDEp7sbd6Ahwnvh2ct8REj7kjdvJQkCkIXabrFikr=w480-e365",
-   "date": "2026-10-08T18:50:02.647Z"
-  },
-  {
-   "id": "halloween-part-2-2026",
-   "title": "Mega Sableye powers up and Shiny Greavard makes its Pokémon GO debut during Halloween 2026 Part II!",
-   "link": "https://pokemongo.com/news/halloween-part-2-2026",
-   "image": "https://lh3.googleusercontent.com/4QN-7EtDk7S7dxL9bKLbsUF7lbTaUTntnGzOG8qDk4xxOQFyY4dKt3tQQ2msv37JhacLDFrawLGXVAv_kv3tzE_kTXiIh_HbskFdKhNCHjlh=w480-e365",
-   "date": "2026-10-08T17:00:00.000Z"
+   "date": "2026-10-08T18:50:02.647Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "zygarde"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pgo-gameplay-update-oct-2026"
+    }
+   ]
   },
   {
    "id": "event-singapore-30th-anniversary-2026",
    "title": "PokéXciting! lands at Changi Airport and Jewel — get ready, Singapore!",
-   "link": "https://pokemongo.com/news/event-singapore-30th-anniversary-2026",
-   "image": "https://lh3.googleusercontent.com/2MjiTTHSr_Vao03G3MxlKLsDlrZvGrsM1RE38Kxv23qi0DGCozAaP2lFV5-sjtwhPe6G9uG5urCo7rRpHZVYo__bc--idrRrIsKZbDMDOGs=w480-e365",
-   "date": "2026-10-07T04:00:00.000Z"
-  },
-  {
-   "id": "halloween-part-1-2026",
-   "title": "Trick or Treat with costumed Pikachu, Zubat, and Sinistea during Halloween 2026 Part I!",
-   "link": "https://pokemongo.com/news/halloween-part-1-2026",
-   "image": "https://lh3.googleusercontent.com/_-kCe3YnQqLlPgLfqe6BZN6v8dIhuuhVzbOSgExE5XjKL__BcqBCbch1V2Z4fOEh18nYEX6O5rqBgWmNmU7kmvy92Yd2u8RBIxDbe79p3kU=w480-e365",
-   "date": "2026-10-05T17:00:00.000Z"
+   "date": "2026-10-07T04:00:00.000Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu",
+      "bulbasaur",
+      "charmander",
+      "squirtle",
+      "lapras",
+      "venusaur",
+      "charizard",
+      "blastoise"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "GO Stamp Rally",
+    "Cross-Region GO Stamp Rally",
+    "Regional GO Stamp Rally at Changi Airport and Jewel",
+    "In-Game Content Awaits",
+    "Pokémon GO PokéXciting! Booth",
+    "Beyond Pokémon GO"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/event-singapore-30th-anniversary-2026"
+    }
+   ]
   },
   {
    "id": "pokemon-night-out-twitch-drops2026",
    "title": "Get codes for exclusive Timed Research during the Pokémon Night Out Twitch broadcast!",
-   "link": "https://pokemongo.com/news/pokemon-night-out-twitch-drops2026",
-   "image": "https://lh3.googleusercontent.com/j57haqLgq-cJEc1zh6_1jassToZ0zyuOvp3qcRAaROOH9KN83O6aOjwPcJMn0p0XtVCT5xd0bmbbaEi84t_T9sK1JLRpQj4ID7EGrMf7kZ8=w480-e365",
-   "date": "2026-10-02T13:17:50.439Z"
+   "date": "2026-10-02T13:17:50.439Z",
+   "when": null,
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "How to Obtain and Redeem a Code"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pokemon-night-out-twitch-drops2026"
+    }
+   ]
   },
   {
    "id": "city-safari-boston-rescheduled",
    "title": "Pokémon GO City Safari: Boston Update",
-   "link": "https://pokemongo.com/news/city-safari-boston-rescheduled",
-   "image": "https://lh3.googleusercontent.com/5SAHXmMPUCpY_TUiDA81oiN00LXrIbsOXN9CTFtZbjI4pz_0RbQr0tmSACr1JErfEvZqM131RfCU8-LA2uskPRaP7YAom1uS216jhW_JpQ=w480-e365",
-   "date": "2026-10-01T22:31:42.203Z"
+   "date": "2026-10-01T22:31:42.203Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "eevee",
+      "hawlucha",
+      "mudbray",
+      "komala"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/city-safari-boston-rescheduled"
+    }
+   ]
   },
   {
    "id": "dynamax-uxie-mesprit-azelf-max-battle-day-2026",
    "title": "Rising from the forgotten tides, Uxie, Mesprit, and Azelf make their Dynamax debut!",
-   "link": "https://pokemongo.com/news/dynamax-uxie-mesprit-azelf-max-battle-day-2026",
-   "image": "https://lh3.googleusercontent.com/lKvMVkt13VprgaVCCdWqglwACCNc_F4rLJMuuZg_MqZSHjDIkEm3dldHcnyv7OPdDmJYAdfYC9xZef00Jfna7R1B8QJLLBMOigqW_89obec=w480-e365",
-   "date": "2026-10-01T20:00:00.000Z"
+   "date": "2026-10-01T20:00:00.000Z",
+   "when": "Saturday, October 24, 2026, from 2:00 p.m. to 5:00 p.m. local time",
+   "groups": [
+    {
+     "label": "Max Battles",
+     "refs": [
+      "uxie",
+      "mesprit",
+      "azelf"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "Max Particle collection limit increased to 1,600",
+    "All Power Spots will host Dynamax Battles",
+    "Power Spots will refresh more frequently",
+    "Additional Power Spots will be active",
+    "8× Max Particles from Power Spots",
+    "Two additional Special Trades can be made for a maximum of three for the day",
+    "From October 23 at 5:00 p.m.",
+    "2× Max Particles from exploring",
+    "1/4 Adventuring distance to receive Max Particles"
+   ],
+   "price": "US$4.99",
+   "topics": [
+    "Dynamax Debut!",
+    "Event Ticket",
+    "Where can I find Max Battles?"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/dynamax-uxie-mesprit-azelf-max-battle-day-2026"
+    }
+   ]
   },
   {
    "id": "minior-meteor-showers-2026",
    "title": "Explore by starlight during meteor showers for a chance to encounter Minior!",
-   "link": "https://pokemongo.com/news/minior-meteor-showers-2026",
-   "image": "https://lh3.googleusercontent.com/u0gcBk4WxvszF4cKKAseYnVDOT8ombVKElMwM2f8545aa98EHjJADmhiyJ6EGXDRhLSlJn6SE4ESV6WVVRLfuQUTIM5Hx7wsKN80mLYxW4rt=w480-e365",
-   "date": "2026-10-01T17:00:00.000Z"
+   "date": "2026-10-01T17:00:00.000Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "minior_core"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Explore by Starlight"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/minior-meteor-showers-2026"
+    }
+   ]
   },
   {
    "id": "tcg-30th-celebration-event",
    "title": "Pokémon TCG 30th Celebration Event",
-   "link": "https://pokemongo.com/news/tcg-30th-celebration-event",
-   "image": "https://lh3.googleusercontent.com/gu1IHS_f2PGLsp57UvnfXLT3fugx6jlQbECfFUQfU5GIEGQfjVspMMywEamItPc6BA36X6bv4rYC1bVoLzjyvLC-ddmUXbkPD5CurRnP8w=w480-e365",
-   "date": "2026-09-27T20:00:00.000Z"
+   "date": "2026-09-27T20:00:00.000Z",
+   "when": "Sunday, September 27, at 10:00 a.m. to Tuesday, October 20, 2026, at 10:00 p.m. local time",
+   "groups": [
+    {
+     "label": "In the wild",
+     "refs": [
+      "gengar_mega",
+      "gengar"
+     ]
+    },
+    {
+     "label": "Featured",
+     "refs": [
+      "gengar"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Pokémon TCG 30th Celebration Event",
+    "Featured Pokémon",
+    "Timed Research"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/tcg-30th-celebration-event"
+    }
+   ]
   },
   {
    "id": "festival-of-lights-2026",
    "title": "Celebrate the Festival of Lights with the return of Pikachu wearing a saree and Pikachu wearing a kurta!",
-   "link": "https://pokemongo.com/news/festival-of-lights-2026",
-   "image": "https://lh3.googleusercontent.com/CecgAXRzLOF4ifTP3Ufl01if11xzdVEI6R169xxEXw095LM8_lhhWydeV5VNDpXF9Ax-U8N1Zxq6SlKpwsft03DRYjsekc05qpxF8EyqcnU=w480-e365",
-   "date": "2026-09-25T10:30:00.000Z"
+   "date": "2026-09-25T10:30:00.000Z",
+   "when": "Friday, November 6, at 10:00 a.m. to Sunday, November 8, 2026, at 8:00 p.m. local time",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu",
+      "charmander",
+      "chinchou",
+      "mareep",
+      "camerupt",
+      "litwick",
+      "lampent",
+      "morelull",
+      "tadbulb"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "charmander",
+      "chinchou",
+      "mareep",
+      "camerupt",
+      "litwick",
+      "lampent",
+      "morelull",
+      "tadbulb",
+      "pikachu"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "3× Lure Module duration.",
+    "Receive stickers featuring Pikachu wearing a saree or Pikachu wearing a kurta when spinning PokéStops.",
+    "Some event-themed Pokémon will also glow."
+   ],
+   "price": null,
+   "topics": [
+    "Festival of Lights",
+    "Raids",
+    "Sparkle O'Clock",
+    "Increased Lure Module Encounters",
+    "Timed Research",
+    "Collection Challenge"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/festival-of-lights-2026"
+    }
+   ]
   },
   {
    "id": "sandile-hatch-day-2026",
    "title": "Dig in during Sandile Hatch Day!",
-   "link": "https://pokemongo.com/news/sandile-hatch-day-2026",
-   "image": "https://lh3.googleusercontent.com/r1sFIBAWuypbu790nY-nohK15pwrrz9wxabdnLn-equ2WbOzIF-1_H6L15URPfazMTlosJBnBe-PR_Wpdj6Q7GJ2JrShPTDUEc6_GMgtShxE=w480-e365",
-   "date": "2026-09-24T17:00:00.000Z"
+   "date": "2026-09-24T17:00:00.000Z",
+   "when": "Saturday, October 17, 2026, from 11:00 a.m. to 5:00 p.m. local time",
+   "groups": [
+    {
+     "label": "In the wild",
+     "refs": [
+      "sandile"
+     ]
+    },
+    {
+     "label": "Featured",
+     "refs": [
+      "sandile"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "sandile"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [
+    "2× Candy from hatching Eggs",
+    "1/2 Egg Hatch Distance",
+    "Increased chance of hatching Shiny Sandile",
+    "Increased chance of receiving 2 km Eggs from spinning PokéStops"
+   ],
+   "price": "US$1.99",
+   "topics": [
+    "Featured Pokémon",
+    "Timed Research",
+    "Paid Timed Research"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/sandile-hatch-day-2026"
+    }
+   ]
   },
   {
    "id": "city-safari-boston-update",
    "title": "Event Update: City Safari Boston",
-   "link": "https://pokemongo.com/news/city-safari-boston-update",
-   "image": "https://lh3.googleusercontent.com/5SAHXmMPUCpY_TUiDA81oiN00LXrIbsOXN9CTFtZbjI4pz_0RbQr0tmSACr1JErfEvZqM131RfCU8-LA2uskPRaP7YAom1uS216jhW_JpQ=w480-e365",
-   "date": "2026-09-24T13:00:00.000Z"
-  },
-  {
-   "id": "pokemon-x-adidas-2026",
-   "title": "Avatar items from the adidas | Pokémon collection are coming to Pokémon GO!",
-   "link": "https://pokemongo.com/news/pokemon-x-adidas-2026",
-   "image": "https://lh3.googleusercontent.com/L-Kp0mvhQ_6rxdgpFz0sKpRJ4pKeVhqqtWuOJsRXu2O1uU8_FmURLvbr8j0K24XcWggFoYItYc3Pb6RS8LVMOn2S5QvC4cBKSYHXV3reP58=w480-e365",
-   "date": "2026-09-24T08:00:00.000Z"
-  },
-  {
-   "id": "save-the-date-go-tour-2027",
-   "title": "Save the Date: Pokémon GO Tour 2027",
-   "link": "https://pokemongo.com/news/save-the-date-go-tour-2027",
-   "image": "https://lh3.googleusercontent.com/ZD_ZnJIVRb8a2RWD8L9wF4UR3f0fBAT2ZKk9lLB58yOlXhKOrghIstmijArGABhFlVacGQU56R514Pl0NsA9tTqEpGxbIo4D4oipystojQ=w480-e365",
-   "date": "2026-09-23T23:00:00.000Z"
+   "date": "2026-09-24T13:00:00.000Z",
+   "when": null,
+   "groups": [],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/city-safari-boston-update"
+    }
+   ]
   },
   {
    "id": "fall-marathon-buddy-trek-2026",
-   "title": "Fall Marathon: Buddy Trek will bring Bramblin’s Pokémon GO debut!",
-   "link": "https://pokemongo.com/news/fall-marathon-buddy-trek-2026",
-   "image": "https://lh3.googleusercontent.com/M4kOTm3cvwmzkibKybdE7ItO-lG_C4RpMeI-UQJdEH7kOGF36MjUUo_2VVd6QMHmGoUypowGKIzv2f7LBAXjT3qrtYNNYRhX4GszOYp3vw=w480-e365",
-   "date": "2026-09-23T19:59:00.000Z"
+   "title": "Fall Marathon: Buddy Trek will bring Bramblin's Pokémon GO debut!",
+   "date": "2026-09-23T19:59:00.000Z",
+   "when": "Tuesday, October 13, at 10:00 a.m. to Monday, October 19, 2026, at 8:00 p.m. local time",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "bramblin",
+      "manectric",
+      "electrike",
+      "growlithe_hisuian"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "ponyta",
+      "doduo",
+      "electrike",
+      "blitzle",
+      "skarmory",
+      "ponyta_galarian",
+      "hoppip",
+      "dwebble",
+      "bramblin",
+      "growlithe_hisuian",
+      "nincada",
+      "helioptile",
+      "manectric",
+      "pikachu"
+     ]
+    }
+   ],
+   "moves": [
+    "DISCHARGE"
+   ],
+   "bonuses": [
+    "Increased chance to encounter Shiny Electrike.",
+    "Increased chance to encounter Shiny Hisuian Growlithe from Incense from October 16 at 10:00 a.m.",
+    "Incense (excluding Daily Adventure Incense) activated during the event will last for two hours.",
+    "Earn 5× Mega Energy by exploring with Electrike or Manectric as your buddy after Mega Evolving Manectric at least once."
+   ],
+   "price": "US$4.99",
+   "topics": [
+    "Pokémon Debut",
+    "Super Max Debut",
+    "Wild Encounters",
+    "Incense Encounters",
+    "Field Research Task Encounters",
+    "Timed Research",
+    "GO Pass: Fall Marathon",
+    "GO Pass and GO Pass Deluxe",
+    "Featured Pokémon and Rewards"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/fall-marathon-buddy-trek-2026"
+    }
+   ]
   },
   {
    "id": "apac-mall-exploration-2026",
    "title": "Pokémon GO joins Pokémon 30th Anniversary Mall Exploration!",
-   "link": "https://pokemongo.com/news/apac-mall-exploration-2026",
-   "image": "https://lh3.googleusercontent.com/dFl-bn3on9Th9YzRT-Bs14neMfLhAsomPudR7lZ0l1j-1WERlgWfMrgd-pG9Kk5sVl1L9u3viOCWpGnVSlaLwwBcDrCayaXwSkC-eex8Qg=w480-e365",
-   "date": "2026-09-23T02:00:00.000Z"
-  },
-  {
-   "id": "go-pass-october-2026",
-   "title": "Kyogre makes waves and the Lucky Trinket returns in GO Pass: October!",
-   "link": "https://pokemongo.com/news/go-pass-october-2026",
-   "image": "https://lh3.googleusercontent.com/YI_hCo34fVtgznowncdPRDK3uObq-7nJkPTmsttNh2uBZGkKDqFWvPQFP-9lTLmjkvpb-iHQq-JERqqXXYbVsWryT2gNTWc5_xVf3H0H-3FN=w480-e365",
-   "date": "2026-09-22T17:00:00.000Z"
+   "date": "2026-09-23T02:00:00.000Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Timed Research",
+    "Event Dates & Mall Locations:"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/apac-mall-exploration-2026"
+    }
+   ]
   },
   {
    "id": "world-space-week-2026",
    "title": "Blast off with Astronaut Pikachu during World Space Week!",
-   "link": "https://pokemongo.com/news/world-space-week-2026",
-   "image": "https://lh3.googleusercontent.com/AiDIi-NAxX879TxCAX8X6I6EwjrUUajpCN18w4uPXAwSqgbR1y6_awmrDJFY31ljBfh4flc1v5Ma2by0Mt4y77-Q4LCPLnSBEMZIJSS0hvZx=w480-e365",
-   "date": "2026-09-21T14:00:00.000Z"
+   "date": "2026-09-21T14:00:00.000Z",
+   "when": "Sunday, October 4, at 12:00 a.m. to Saturday, October 10, 2026, at 11:59 p.m. local time",
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "pikachu"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Pokémon Debut",
+    "Raids",
+    "Timed Research"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/world-space-week-2026"
+    }
+   ]
   },
   {
    "id": "pokemongo-iitdelhi-2026",
    "title": "Pokémon GO is coming to IIT-Delhi for Rendezvous 2026!",
-   "link": "https://pokemongo.com/news/pokemongo-iitdelhi-2026",
-   "image": "https://lh3.googleusercontent.com/p1c_ao2Gj5JRfWVMIiME-H7Inyug7essJkakMvraAgvfrP-6buFtwt0ZY0Z_SwLvWcH4JDOxaNCilYkqt351qt70B_JRbDBKun_K9bJSv-k=w480-e365",
-   "date": "2026-09-21T10:30:00.000Z"
+   "date": "2026-09-21T10:30:00.000Z",
+   "when": "Monday, September 28, at 10:00 a.m. to Thursday, October 1, 2026, at 8:00 p.m. local time",
+   "groups": [
+    {
+     "label": "Research",
+     "refs": [
+      "bulbasaur",
+      "charmander",
+      "squirtle",
+      "pikachu",
+      "eevee",
+      "lapras",
+      "snorlax",
+      "venusaur",
+      "charizard",
+      "blastoise"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "meowth",
+      "psyduck",
+      "snorlax",
+      "lapras"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Pokémon GO at Rendezvous 2026",
+    "Wild Encounters",
+    "Raids",
+    "Collection Challenge",
+    "Timed Research"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/pokemongo-iitdelhi-2026"
+    }
+   ]
   },
   {
    "id": "european-space-agency-event",
    "title": "Pokémon GO partners with the European Space Agency",
-   "link": "https://pokemongo.com/news/european-space-agency-event",
-   "image": "https://lh3.googleusercontent.com/7CITEYsKb4CAwdYOln7q7h5K6U1cIVu2cnWRbDZtixs10PkfYfHzPn5Iz9wwbMFE3bosgBEiKnZlEZJZmGiyl-YqYRKHlIL8d7VAzR4DjA=w480-e365",
-   "date": "2026-09-19T18:09:01.050Z"
+   "date": "2026-09-19T18:09:01.050Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Raids",
+     "refs": [
+      "pikachu"
+     ]
+    },
+    {
+     "label": "Research",
+     "refs": [
+      "pikachu",
+      "clefairy",
+      "magnemite",
+      "starmie",
+      "lunatone",
+      "solrock",
+      "elgyem",
+      "blipbug"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Participating Museums",
+    "Raids",
+    "Timed Research",
+    "Field Research",
+    "Wild Encounters",
+    "ESA Locations"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/european-space-agency-event"
+    }
+   ]
   },
   {
    "id": "city-safari-brisbane-know-before-you-go",
    "title": "Pokémon GO City Safari: Brisbane – Know Before You GO!",
-   "link": "https://pokemongo.com/news/city-safari-brisbane-know-before-you-go",
-   "image": "https://lh3.googleusercontent.com/o8jvdwEPkxtY4vnEQ54snT5Tn-lxn-_vV0_PTWtY2IW4Jh18RLWRB_UDL7do0zkr4HuAIFKQI5PyAOUVFyklR3fWPv4Z8EeHWoGasKu0IWGE=w480-e365",
-   "date": "2026-09-16T03:30:17.065Z"
+   "date": "2026-09-16T03:30:17.065Z",
+   "when": null,
+   "groups": [
+    {
+     "label": "Featured",
+     "refs": [
+      "pikachu",
+      "eevee"
+     ]
+    }
+   ],
+   "moves": [],
+   "bonuses": [],
+   "price": null,
+   "topics": [
+    "Make the Most of Brisbane with a Stamp Rally",
+    "Don't miss these community activities!",
+    "Visit the Pokémon Regional Championships!",
+    "Frequently Asked Questions"
+   ],
+   "sources": [
+    {
+     "name": "pokemongo.com",
+     "link": "https://pokemongo.com/news/city-safari-brisbane-know-before-you-go"
+    }
+   ]
   }
  ]
 }

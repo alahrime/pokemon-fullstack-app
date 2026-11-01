@@ -90,7 +90,7 @@ function Nav() {
               data-section={s.id}
               style={{ ['--tab-hue' as string]: s.hue }}
               aria-current={active ? 'page' : undefined}
-              onClick={() => set('screen', s.screens[0])}
+              onClick={() => patch({ screen: s.screens[0], activeNewsId: null })}
               title={s.blurb}
             >
               <span className="nav-tab-glyph" aria-hidden="true">{s.glyph}</span>
@@ -236,7 +236,7 @@ function Shell() {
         <Nav />
         <div className={wide ? 'relative z-[2] w-full' : `shell mx-auto w-full px-6 pt-6 pb-16${section ? ' has-rail' : ''}`}>
           {section && (
-            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => patch({ screen: s, activeTournamentId: null })} />
+            <SectionRail section={section} screen={state.screen} badges={badges} onGo={(s) => patch({ screen: s, activeTournamentId: null, activeNewsId: null })} />
           )}
           <div
             key={state.screen}

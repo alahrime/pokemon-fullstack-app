@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LEAGUE_BY_ID, displayName, makeRef, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestBuddyEligible, bestSpreadFor, chargesOf, defaultSpreadFor, getEntry, selectedCharges } from '../lib/engine';
+import { bestBuddyEligible, bestSpreadFor, boostShown, chargesOf, defaultSpreadFor, getEntry, isMega, selectedCharges } from '../lib/engine';
 import { BestBuddyToggle } from './BestBuddyToggle';
 import { SpeciesSearch } from './SpeciesSearch';
 import { Sprite } from './Sprite';
@@ -235,7 +235,7 @@ export function AddPokemonModal({
                   {buddy && (
                     <div>
                       <div className="hud-label">Level cap</div>
-                      <BestBuddyToggle on={bestBuddy} eligible={bestBuddyEligible(sp, LEAGUE_BY_ID.get(league)!)} onChange={setBestBuddy} />
+                      <BestBuddyToggle on={boostShown(sp, bestBuddy)} eligible={bestBuddyEligible(sp, LEAGUE_BY_ID.get(league)!)} mega={isMega(sp)} onChange={(v) => setBestBuddy(boostShown(sp, v))} />
                     </div>
                   )}
                 </div>

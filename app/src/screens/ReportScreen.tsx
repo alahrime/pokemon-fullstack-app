@@ -19,6 +19,8 @@ import {
   scenarioMatrix,
   verdictLine,
   leagueVerdicts,
+  boostShown,
+  isMega,
   onBuddyBoost,
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
@@ -289,18 +291,32 @@ function FullReport() {
             </div>
 
             <div className="rs-prop">
-              <Switch
-                label="Best Buddy"
-                tone="buddy"
-                checked={bestBuddy && bbEligible}
-                disabled={!bbEligible}
-                onChange={(v) => set('bestBuddy', v)}
-                title={bbEligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
-              />
+              {isMega(species) ? (
+                <Switch
+                  label="Mega Level 4"
+                  checked={boostShown(species, bestBuddy)}
+                  disabled={!bbEligible}
+                  onChange={(v) => set('bestBuddy', boostShown(species, v))}
+                  title="Mega Level 4 adds two levels, up to 52"
+                />
+              ) : (
+                <Switch
+                  label="Best Buddy"
+                  tone="buddy"
+                  checked={bestBuddy && bbEligible}
+                  disabled={!bbEligible}
+                  onChange={(v) => set('bestBuddy', v)}
+                  title={bbEligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
+                />
+              )}
               <p className="rs-prop-note">
-                {bbEligible
-                  ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
-                  : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
+                {isMega(species)
+                  ? (bbEligible
+                    ? 'Level 3 stops at level 50. Level 4 adds two levels, up to 52.'
+                    : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`)
+                  : bbEligible
+                    ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
+                    : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
               </p>
             </div>
           </div>

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EvolutionLine } from '../EvolutionLine';
-import { SPECIES_BY_ID, canPurify, lineOf } from '../../lib/data';
-import { getEntry, onBuddyBoost, purifiedIv } from '../../lib/engine';
+import { LEAGUE_BY_ID, SPECIES_BY_ID, canPurify, lineOf } from '../../lib/data';
+import { bestBuddyEligible, boostShown, buildTable, getEntry, onBuddyBoost, purifiedIv } from '../../lib/engine';
 
 const sp = (id: string) => SPECIES_BY_ID.get(id)!;
 const ids = (id: string) => lineOf(sp(id)).map((s) => s.id);
@@ -86,5 +86,42 @@ describe('EvolutionLine', () => {
     const line = [...SPECIES_BY_ID.values()].find((s) => s.line && lineOf(s).length > 1 && !lineOf(s).some(canPurify))!;
     open(line.id);
     expect(screen.queryByRole('switch', { name: /Purified/ })).toBeNull();
+  });
+});
+
+describe('Mega Level', () => {
+  const lvl = (id: string, league: 'great' | 'ultra' | 'master', flag: boolean, iv = '15/15/15') =>
+    buildTable(id, league, flag).all.find((e) => `${e.a}/${e.d}/${e.s}` === iv)!.lvl;
+  const top = (id: string, league: 'ultra', flag: boolean) => {
+    const e = buildTable(id, league, flag).all.find((x) => x.rank === 1)!;
+    return `${e.a}/${e.d}/${e.s}`;
+  };
+
+  it('a Mega starts at Level 3 and the flag lifts it to 4; a Super Mega starts at 4 and the flag drops it to 3', () => {
+    expect(lvl('venusaur_mega', 'master', false)).toBe(50);
+    expect(lvl('venusaur_mega', 'master', true)).toBe(52);
+    expect(lvl('sableye_mega', 'ultra', false)).toBe(52);
+    expect(lvl('sableye_mega', 'ultra', true)).toBe(50);
+  });
+
+  it('Mega Level 4 can move rank 1 under a cap, as PvPoke has it for Mawile in Ultra', () => {
+    expect(top('mawile_mega', 'ultra', false)).toBe('1/14/15');
+    expect(top('mawile_mega', 'ultra', true)).toBe('0/15/14');
+  });
+
+  it('is only offered where it changes something', () => {
+    const ultra = LEAGUE_BY_ID.get('ultra')!;
+    const great = LEAGUE_BY_ID.get('great')!;
+    expect(bestBuddyEligible(SPECIES_BY_ID.get('mawile_mega')!, ultra)).toBe(true);
+    expect(bestBuddyEligible(SPECIES_BY_ID.get('sableye_mega')!, ultra)).toBe(true);
+    expect(bestBuddyEligible(SPECIES_BY_ID.get('venusaur_mega')!, great)).toBe(false);
+  });
+
+  it('the toggle reads the flag through boostShown, the same way in both directions', () => {
+    const sableye = SPECIES_BY_ID.get('sableye_mega')!;
+    const venusaur = SPECIES_BY_ID.get('venusaur_mega')!;
+    expect(boostShown(sableye, false)).toBe(true);
+    expect(boostShown(sableye, boostShown(sableye, true))).toBe(true);
+    expect(boostShown(venusaur, false)).toBe(false);
   });
 });

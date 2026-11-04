@@ -15,21 +15,24 @@ import { BestBuddyRibbon } from './BestBuddyRibbon';
 export function BestBuddyToggle({
   on,
   eligible,
+  mega = false,
   onChange,
 }: {
   on: boolean;
   eligible: boolean;
+  /** The same two poles on a Mega are its Mega Level. */
+  mega?: boolean;
   onChange: (on: boolean) => void;
 }) {
   return (
-    <div className="form-toggle" role="group" aria-label="Best Buddy">
+    <div className="form-toggle" role="group" aria-label={mega ? 'Mega Level' : 'Best Buddy'}>
       <button
         type="button"
         className={`form-opt form-opt-normal${!on || !eligible ? ' is-active' : ''}`}
         aria-pressed={!on || !eligible}
         onClick={() => onChange(false)}
       >
-        Level 50
+        {mega ? 'Mega Level 3' : 'Level 50'}
       </button>
       <button
         type="button"
@@ -38,10 +41,9 @@ export function BestBuddyToggle({
         aria-pressed={on && eligible}
         disabled={!eligible}
         onClick={() => onChange(true)}
-        title={eligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
+        title={!eligible ? 'No spread here can exceed level 50' : mega ? 'Include levels up to 52' : 'Include levels 50.5 and 51'}
       >
-        <BestBuddyRibbon size={16} title="" detail />
-        Best Buddy
+        {mega ? 'Mega Level 4' : <><BestBuddyRibbon size={16} title="" detail />Best Buddy</>}
       </button>
     </div>
   );

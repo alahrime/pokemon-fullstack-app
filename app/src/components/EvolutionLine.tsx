@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { canPurify, lineOf } from '../lib/data';
-import { leagueVerdicts, purifiedIv } from '../lib/engine';
+import { isMega, leagueVerdicts, purifiedIv } from '../lib/engine';
 import type { IV, Species } from '../lib/types';
 import { LeagueEmblem } from './LeagueEmblem';
 import { Sprite } from './Sprite';
@@ -26,9 +26,11 @@ export function EvolutionLine({ species, iv, bestBuddy, onPick }: {
   const rows = useMemo(
     () => line.map((s) => {
       const shown = on && canPurify(s) ? purifiedIv(iv) : iv;
-      return { s, shown, plain: leagueVerdicts(s.id, iv, bestBuddy), cells: leagueVerdicts(s.id, shown, bestBuddy) };
+      // The flag only carries to forms it means the same thing on, so a row reads as it will once opened.
+      const boost = (s.id === species.id || !(isMega(s) || isMega(species))) && bestBuddy;
+      return { s, shown, plain: leagueVerdicts(s.id, iv, boost), cells: leagueVerdicts(s.id, shown, boost) };
     }),
-    [line, iv, on, bestBuddy],
+    [line, species, iv, on, bestBuddy],
   );
 
   if (line.length < 2) return null;

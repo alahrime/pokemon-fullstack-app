@@ -8,6 +8,8 @@ import {
   ENERGY_CAP, STAGE_MAX, STAGE_MIN, bestBuddyEligible, bestSpreadFor, buffMultiplier, defaultSpreadFor, dmg, fastMoveCounts,
   getEntry, mkBattleMon, selectedCharges, shieldMatrix,
   type BaitMode, type Stages,
+  boostShown,
+  isMega,
   onBuddyBoost,
 } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
@@ -313,7 +315,7 @@ function Side({
               onClick={() => onForm(makeRef(baseId, true))}>Shadow</button>
           </div>
         )}
-        <BestBuddyToggle on={bestBuddy} eligible={bbEligible} onChange={onBestBuddy} />
+        <BestBuddyToggle on={boostShown(species, bestBuddy)} eligible={bbEligible} mega={isMega(species)} onChange={(v) => onBestBuddy(boostShown(species, v))} />
       </div>
 
       <BattleOptions fast={fast} energy={energy} onEnergy={onEnergy} hp={hp} maxHp={entry.hp} onHp={onHp}

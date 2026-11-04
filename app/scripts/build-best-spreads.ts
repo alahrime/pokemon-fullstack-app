@@ -24,8 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SPECIES, LEAGUES } from '../src/lib/data';
-import { bestAt, buildTable, defaultFromTable, ivKey } from '../src/lib/engine';
-import { BB_MAX_LEVEL_IDX, MAX_LEVEL_IDX } from '../src/lib/cpm';
+import { bestAt, buildTable, defaultFromTable, ivKey, levelCapIdx } from '../src/lib/engine';
 import type { LeagueId, StatLine } from '../src/lib/types';
 
 // Anchored on the npm working directory, not import.meta.url: esbuild emits
@@ -73,8 +72,8 @@ for (const row of raw.species) {
   const bestIvBB: Record<string, number> = {};
   for (const lg of leagues) {
     const league = LEAGUES.find((l) => l.id === lg)!;
-    bestIv[lg] = search(league, MAX_LEVEL_IDX);
-    const bb = search(league, BB_MAX_LEVEL_IDX);
+    bestIv[lg] = search(league, levelCapIdx(species, league, false));
+    const bb = search(league, levelCapIdx(species, league, true));
     if (bb !== bestIv[lg]) bestIvBB[lg] = bb;
   }
   row.bestIv = bestIv;

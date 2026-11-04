@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { IV, LeagueId } from '../lib/types';
-import { opponentsFor, randomMatchup, ratedFastIdx } from '../lib/data';
-import { defaultSpreadFor, type BaitMode, type Stages } from '../lib/engine';
+import { opponentsFor, randomMatchup, ratedFastIdx, SPECIES_BY_ID } from '../lib/data';
+import { defaultSpreadFor, isMega, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
 import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
 
@@ -258,7 +258,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppStateContextValue>(() => {
     const set = <K extends keyof AppStateShape>(key: K, v: AppStateShape[K]) =>
       setState((s) => ({ ...s, [key]: v }));
-    const patch = (partial: Partial<AppStateShape>) => setState((s) => ({ ...s, ...partial }));
+    const patch = (partial: Partial<AppStateShape>) => setState((s) => {
+      // On a Mega `bestBuddy` is its Mega Level, which means nothing to the next species.
+      const next = partial.species && partial.species !== s.species ? SPECIES_BY_ID.get(partial.species) : undefined;
+      const crossed = next && (isMega(next) || isMega(SPECIES_BY_ID.get(s.species)!));
+      return { ...s, ...(crossed ? { bestBuddy: false } : {}), ...partial };
+    });
     const bumpIv = (key: keyof IV, delta: number) =>
       setState((s) => ({ ...s, iv: { ...s.iv, [key]: Math.max(0, Math.min(15, s.iv[key] + delta)) } }));
     return { state, set, patch, bumpIv };

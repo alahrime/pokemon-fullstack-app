@@ -157,23 +157,31 @@ function formsAt(
  */
 const bbEligibleCache = new Map<string, boolean>();
 const isSuperMega = (species: Species) => species.tags.includes('supermega');
+export const isMega = (species: Species) => species.tags.includes('mega');
 
-/** Past level 50 on a Best Buddy boost: a Super Mega gets there on its own Mega Level. */
-export const onBuddyBoost = (species: Species, lvl: number) => lvl > 50 && !isSuperMega(species);
+/**
+ * On a Mega the boost flag is its Mega Level instead of Best Buddy. PvPoke starts a Super Mega at Level 4 and any
+ * other Mega at Level 3, and an unset flag means that start, so the flag means "the other one". Converts either way
+ * between the flag and "the toggle reads on". A Best Buddy reads the flag as is.
+ */
+export const boostShown = (species: Species, flag: boolean) => (isSuperMega(species) ? !flag : flag);
+
+/** Past level 50 on a Best Buddy boost. A Mega gets there on its Mega Level. */
+export const onBuddyBoost = (species: Species, lvl: number) => lvl > 50 && !isMega(species);
 
 export function bestBuddyEligible(species: Species, league: League): boolean {
-  if (isSuperMega(species)) return false;
   const key = `${species.id}|${league.id}`;
   const hit = bbEligibleCache.get(key);
   if (hit !== undefined) return hit;
-  const out = bestAt(species, { a: 0, d: 0, s: 0 }, league, BB_MAX_LEVEL_IDX).lvl > 50;
+  const top = isMega(species) ? SUPER_MEGA_MAX_LEVEL_IDX : BB_MAX_LEVEL_IDX;
+  const out = bestAt(species, { a: 0, d: 0, s: 0 }, league, top).lvl > 50;
   bbEligibleCache.set(key, out);
   return out;
 }
 
 /** Level ceiling to build a table with, honouring both the toggle and eligibility. */
-function levelCapIdx(species: Species, league: League, bestBuddy: boolean): number {
-  if (isSuperMega(species)) return SUPER_MEGA_MAX_LEVEL_IDX;
+export function levelCapIdx(species: Species, league: League, bestBuddy: boolean): number {
+  if (isMega(species)) return boostShown(species, bestBuddy) ? SUPER_MEGA_MAX_LEVEL_IDX : MAX_LEVEL_IDX;
   return bestBuddy && bestBuddyEligible(species, league) ? BB_MAX_LEVEL_IDX : MAX_LEVEL_IDX;
 }
 
@@ -572,8 +580,7 @@ export function bestSpreadFor(
   // stored when it differs, so fall back to bestIv when it is absent. The
   // search below still runs for a species outside every league, or data
   // generated before the index existed.
-  const boosted = maxIdx !== MAX_LEVEL_IDX;
-  const key4096 = boosted
+  const key4096 = bestBuddy
     ? (species.bestIvBB?.[leagueId] ?? species.bestIv?.[leagueId])
     : species.bestIv?.[leagueId];
   if (key4096 !== undefined) {
@@ -830,7 +837,7 @@ export function defaultSpreadFor(ref: string, leagueId: LeagueId, bestBuddy = fa
   // The generator records the pick and its rank (scripts/build-best-spreads.ts),
   // so the usual path is one bestAt, not a 4096-roll table: a Rankings page of
   // 100 new species built 100 tables here and froze for ~1.5s on a phone.
-  const stored = maxIdx !== MAX_LEVEL_IDX
+  const stored = bestBuddy
     ? (species.defaultIvBB?.[leagueId] ?? species.defaultIv?.[leagueId])
     : species.defaultIv?.[leagueId];
   let out: RankedEntry;

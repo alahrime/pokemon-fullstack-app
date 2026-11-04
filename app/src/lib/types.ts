@@ -48,6 +48,8 @@ export interface Species {
   tags: string[];
   /** PvPoke evolution-family id (FAMILY_POLIWAG), null for standalone forms. */
   family: string | null;
+  /** Evolution line: forms this catch can become, so regional branches stay apart. Absent when it is alone. See lineOf(). */
+  line?: string;
   /** CP at level 50 with perfect IVs — the ceiling this form can reach. */
   maxCP: number;
   /** Whether a Shadow variant of this form exists in the game. */

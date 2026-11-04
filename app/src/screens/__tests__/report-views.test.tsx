@@ -208,7 +208,8 @@ describe('report left column', () => {
     // The two properties label themselves, over their own switches, rather
     // than sharing one block label between them.
     const props = [...side.querySelectorAll('.sw-label')].map((l) => l.textContent);
-    expect(props).toEqual(['Shadow', 'Best Buddy']);
+    // Purified belongs to the evolution line block, and only shows when the line can purify.
+    expect(props.slice(0, 2)).toEqual(['Shadow', 'Best Buddy']);
   });
 
   it('switching shiny on sparkles the hero sprite and no other sprite on the page', () => {

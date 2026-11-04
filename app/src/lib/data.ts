@@ -295,6 +295,24 @@ export const ROSTER: RosterEntry[] = SPECIES.filter((s) => isSimulated(s.id)).fl
 
 export const BASE_ROSTER: RosterEntry[] = ROSTER.filter((r) => !r.shadow);
 
+const LINES = new Map<string, Species[]>();
+for (const { species: s } of BASE_ROSTER) {
+  if (s.line) LINES.set(s.line, [...(LINES.get(s.line) ?? []), s]);
+}
+
+/** Every simulated form this one shares an evolution line with, itself included, in dex order. */
+export function lineOf(species: Species): Species[] {
+  return (species.line && LINES.get(species.line)) || [species];
+}
+
+/**
+ * A Mega is never a Shadow, but a purified Shadow can Mega Evolve, so a Mega answers for its base form. Reads that
+ * form's flag rather than PvPoke's tag, which is missing from some Megas whose base is eligible (Garchomp).
+ */
+export function canPurify(species: Species): boolean {
+  return species.shadowEligible || !!SPECIES_BY_ID.get(species.id.replace(/_(mega(_[xy])?|primal)$/, ''))?.shadowEligible;
+}
+
 /** The showcase-only species as search rows, for the searches that offer them. */
 export const SHOWCASE_ROSTER: RosterEntry[] = SPECIES.filter((s) => s.showcaseOnly).map((s) => ({ ref: s.id, species: s, shadow: false, name: s.name }));
 

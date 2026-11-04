@@ -417,7 +417,8 @@ console.log('\n── uncapped (master) ─────────────�
       notHundo++;
       if (examples.length < 5) examples.push(`${s.id} ${b.a}/${b.d}/${b.s}`);
     }
-    if (b.lvl !== 50) notL50++;
+    // A Super Mega's own ceiling is 52 (PvPoke's Mega Level 4, in every league); everyone else stops at 50.
+    if (b.lvl !== (s.tags.includes('supermega') ? 52 : 50)) notL50++;
     for (const e of t.all) {
       if (e.a < 15 && t.map.get((e.a + 1) * 256 + e.d * 16 + e.s)!.sp < e.sp) {
         nonMono++;
@@ -426,7 +427,7 @@ console.log('\n── uncapped (master) ─────────────�
     }
   }
   check('master rank 1 is always 15/15/15', notHundo === 0, examples.join(', '));
-  check('master is always level 50', notL50 === 0, `${notL50} off`);
+  check('master is level 50, or 52 for a Super Mega', notL50 === 0, `${notL50} off`);
   check('master stat product is monotonic in IVs', nonMono === 0, `${nonMono} species`);
 
   // And the capped leagues must NOT be degenerate - a low attack IV genuinely

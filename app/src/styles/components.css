@@ -499,10 +499,34 @@ input[type='range'] { accent-color: var(--color-accent); }
 .league-verdict small { font-size: var(--text-2xs); }
 .league-verdict > span { white-space: nowrap; }
 
+/* — one roll across the evolution line — */
+.evo-line { display: grid; gap: var(--space-1); }
+.evo-line-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--rule-hairline);
+  background: var(--surface-1);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.evo-line-row:hover { border-color: var(--rule-strong); }
+.evo-line-row[aria-current='true'] { border-left: 3px solid var(--color-accent); }
+.evo-line-name { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-2); font-weight: 700; min-width: 0; }
+.evo-line-cell { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: var(--space-1); align-items: center; white-space: nowrap; }
+.evo-line-cell svg { grid-row: span 2; }
+.evo-line-rank { font-weight: 700; }
+.evo-line-sub { grid-column: 2; color: var(--text-muted); font-size: var(--text-2xs); }
+.evo-line-rank[data-move='up'] { color: var(--type-grass); }
+.evo-line-rank[data-move='down'] { color: var(--type-fire); }
+
 /* Phones: the card, the roll and every league lead the column, so a catch can
    be judged on the first screen; the rest keeps its order beneath. */
 @media (max-width: 820px) {
-  .report-side > .hero, .report-side > .rs-roll, .report-side > .rs-leagues { order: -1; }
+  .report-side > .hero, .report-side > .rs-roll, .report-side > .rs-leagues, .report-side > .rs-line { order: -1; }
   /* A smaller subject, so the card, roll and leagues share one screen. Sprite
      sizes itself inline (its img fills the box), hence !important. */
   .report-side .hero-stage { padding: var(--space-2) var(--space-3); }
@@ -514,6 +538,7 @@ input[type='range'] { accent-color: var(--color-accent); }
   /* 253px of row at 375 wide cannot hold the names too; the emblem says which league. */
   .league-verdict { grid-template-columns: 22px repeat(4, auto); justify-content: space-between; column-gap: var(--space-2); }
   .league-verdict-name { display: none; }
+  .evo-line-row { column-gap: var(--space-1); padding-inline: var(--space-2); }
 }
 
 /* — battle stat strip — */

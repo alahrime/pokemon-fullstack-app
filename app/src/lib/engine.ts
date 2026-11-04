@@ -1,4 +1,4 @@
-import { BB_MAX_LEVEL_IDX, CPM, FORM_CPM, LVL, MAX_LEVEL_IDX } from './cpm';
+import { BB_MAX_LEVEL_IDX, FORM_CPM, LVL, MAX_LEVEL_IDX, SUPER_MEGA_MAX_LEVEL_IDX } from './cpm';
 import { typeEffectiveness } from './typeChart';
 import {
   LEAGUE_BY_ID,
@@ -52,7 +52,7 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
   // searching. The walk got this in one step and a binary search would spend
   // ~7, which measurably slowed Master's table build.
   {
-    const s = statsAt(species, iv, CPM[maxIdx]);
+    const s = statsAt(species, iv, FORM_CPM[maxIdx]);
     const cp = cpOf(s);
     if (cp <= league.cap) {
       const hp = Math.max(10, s.h);
@@ -69,7 +69,7 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
   let found = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    if (cpOf(statsAt(species, iv, CPM[mid])) <= league.cap) {
+    if (cpOf(statsAt(species, iv, FORM_CPM[mid])) <= league.cap) {
       found = mid;
       lo = mid + 1;
     } else {
@@ -77,11 +77,11 @@ export function bestAt(species: Species, iv: IV, league: League, maxIdx = MAX_LE
     }
   }
   if (found >= 0) {
-    const s = statsAt(species, iv, CPM[found]);
+    const s = statsAt(species, iv, FORM_CPM[found]);
     const hp = Math.max(10, s.h);
     return { lvl: LVL(found), cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
   }
-  const s = statsAt(species, iv, CPM[0]);
+  const s = statsAt(species, iv, FORM_CPM[0]);
   const hp = Math.max(10, s.h);
   return { lvl: 1, cp: cpOf(s), atk: s.atk, def: s.def, hp, sp: s.atk * s.def * hp };
 }
@@ -156,7 +156,13 @@ function formsAt(
  * table for no difference.
  */
 const bbEligibleCache = new Map<string, boolean>();
+const isSuperMega = (species: Species) => species.tags.includes('supermega');
+
+/** Past level 50 on a Best Buddy boost: a Super Mega gets there on its own Mega Level. */
+export const onBuddyBoost = (species: Species, lvl: number) => lvl > 50 && !isSuperMega(species);
+
 export function bestBuddyEligible(species: Species, league: League): boolean {
+  if (isSuperMega(species)) return false;
   const key = `${species.id}|${league.id}`;
   const hit = bbEligibleCache.get(key);
   if (hit !== undefined) return hit;
@@ -167,6 +173,7 @@ export function bestBuddyEligible(species: Species, league: League): boolean {
 
 /** Level ceiling to build a table with, honouring both the toggle and eligibility. */
 function levelCapIdx(species: Species, league: League, bestBuddy: boolean): number {
+  if (isSuperMega(species)) return SUPER_MEGA_MAX_LEVEL_IDX;
   return bestBuddy && bestBuddyEligible(species, league) ? BB_MAX_LEVEL_IDX : MAX_LEVEL_IDX;
 }
 
@@ -2550,6 +2557,11 @@ export interface LeagueVerdict {
   pct: number;
   cp: number;
   lvl: number;
+}
+
+/** Purifying a Shadow adds 2 to each IV, capped at 15. Under a CP cap that can lower the rank, which is why it is worth asking. */
+export function purifiedIv(iv: IV): IV {
+  return { a: Math.min(15, iv.a + 2), d: Math.min(15, iv.d + 2), s: Math.min(15, iv.s + 2) };
 }
 
 /** One roll in every league at once, read from the same tables as the Report. */

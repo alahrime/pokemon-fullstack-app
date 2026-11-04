@@ -2,6 +2,7 @@ import { flushSync } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { leaguePatch, useAppState } from '../state/AppState';
 import { LeagueVerdicts } from '../components/LeagueVerdicts';
+import { EvolutionLine } from '../components/EvolutionLine';
 import { SPECIES_BY_ID, makeRef, parseRef, LEAGUE_BY_ID } from '../lib/data';
 import {
   dmg,
@@ -18,6 +19,7 @@ import {
   scenarioMatrix,
   verdictLine,
   leagueVerdicts,
+  onBuddyBoost,
 } from '../lib/engine';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { OpponentGrid } from '../components/OpponentGrid';
@@ -261,7 +263,7 @@ function FullReport() {
             entry={entry}
             league={league}
             shadow={isShadow}
-            bestBuddy={entry.lvl > 50}
+            bestBuddy={onBuddyBoost(species, entry.lvl)}
             verdict={verdict}
           />
 
@@ -332,6 +334,13 @@ function FullReport() {
             <div className="hud-label mb-[7px]">Every league</div>
             <LeagueVerdicts rows={verdicts} current={league} onPick={(id) => patch(leaguePatch(id, null))} />
           </div>
+
+          <EvolutionLine
+            species={species}
+            iv={iv}
+            bestBuddy={bestBuddy}
+            onPick={(id, shown) => patch({ species: id, moveIdx: 0, chargeIds: [], iv: shown })}
+          />
 
           {/* The ranking window reads the roll above it, so it sits with the
               roll rather than in a column stealing 300px from the plot. Only

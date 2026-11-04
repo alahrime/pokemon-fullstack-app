@@ -459,7 +459,7 @@ for (const p of bases) {
     // people actually filter, and they cost a few bytes each.
     tags: (p.tags ?? []).filter((t) =>
       ['legendary', 'mythical', 'mega', 'regional', 'ultrabeast', 'starter',
-       'alolan', 'galarian', 'hisuian', 'paldean', 'shadoweligible'].includes(t)),
+       'alolan', 'galarian', 'hisuian', 'paldean', 'shadoweligible', 'supermega'].includes(t)),
     /** Evolution family id, so a search can pull a whole line together. */
     family: p.family?.id ?? null,
     shadowEligible: isShadowEligible,
@@ -481,6 +481,29 @@ for (const p of bases) {
 }
 
 species.sort((a, b) => a.dex - b.dex || a.id.localeCompare(b.id));
+
+// Evolution lines. `family` is too coarse for "what can this catch become": Alolan Vulpix shares FAMILY_VULPIX but
+// never becomes Kantonian Ninetales. So walk PvPoke's parent/evolutions links, over every entry so a form we don't
+// ship still connects its neighbours (Spewpa, Cosmoem). Most Megas carry no links, hence the suffix.
+{
+  const root = new Map();
+  const find = (x) => {
+    if (!root.has(x)) root.set(x, x);
+    while (root.get(x) !== x) x = root.get(x);
+    return x;
+  };
+  const join = (a, b) => root.set(find(a), find(b));
+  for (const p of pokemon) {
+    if (p.speciesId.endsWith('_shadow')) continue;
+    if (p.family?.parent) join(p.speciesId, p.family.parent);
+    for (const e of p.family?.evolutions ?? []) join(p.speciesId, e);
+    const base = p.speciesId.replace(/_(mega(_[xy])?|primal)$/, '');
+    if (base !== p.speciesId) join(p.speciesId, base);
+  }
+  const sizes = new Map();
+  for (const s of species) sizes.set(find(s.id), (sizes.get(find(s.id)) ?? 0) + 1);
+  for (const s of species) if (sizes.get(find(s.id)) > 1) s.line = find(s.id);
+}
 
 // Curated default opponents per league: the top of each ranking that's in our roster.
 const byId = new Map(species.map((s) => [s.id, s]));

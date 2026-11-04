@@ -8,6 +8,7 @@ import {
   ENERGY_CAP, STAGE_MAX, STAGE_MIN, bestBuddyEligible, bestSpreadFor, buffMultiplier, defaultSpreadFor, dmg, fastMoveCounts,
   getEntry, mkBattleMon, selectedCharges, shieldMatrix,
   type BaitMode, type Stages,
+  onBuddyBoost,
 } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
@@ -195,7 +196,7 @@ function Side({
 
       <div className="battle-mon">
         <span className="battle-mon-art">
-          <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} bestBuddy={entry.lvl > 50} className="sprite-holo" sparkle sparkleKey={league} />
+          <Sprite sprite={species.sprite} dex={species.dex} size={64} shadow={isShadow} bestBuddy={onBuddyBoost(species, entry.lvl)} className="sprite-holo" sparkle sparkleKey={league} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="battle-mon-title">

@@ -38,6 +38,9 @@ if (LVL(MAX_LEVEL_IDX) !== 50 || LVL(BB_MAX_LEVEL_IDX) !== 51) {
 
 /**
  * The table on to level 55, PvPoke's ceiling for a form whose level is derived from another's (Minior Meteor in
- * Ultra lands past 51). Only form stats read it; no roll is ever bought this high.
+ * Ultra lands past 51) and for a Super Mega. Otherwise only form stats read it; no roll is ever bought this high.
  */
 export const FORM_CPM: number[] = [...CPM, 0.8478037, 0.85030001, 0.85280368, 0.85530001, 0.85780365, 0.86030001, 0.86280362, 0.86530000];
+
+/** A Super Mega's ceiling, level 52 — PvPoke's Mega Level 4 (tag `supermega`), an index into FORM_CPM. */
+export const SUPER_MEGA_MAX_LEVEL_IDX = 102;

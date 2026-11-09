@@ -240,7 +240,11 @@ function moveBuffs(m) {
   };
 }
 
-function chargeMove(id, types) {
+// PvPoke's DamageMultiplier.MEGA_BONUS, float32, indexed by Mega Level - 1. The engine reads its own copy.
+const MEGA_BONUS = [1, 1.1, 1.2, 1.3].map(Math.fround);
+
+/** `megaLevel`: the Mega Level the holder starts at, which sets a Plus move's bonus (PvPoke's DamageCalculator). */
+function chargeMove(id, types, megaLevel = 0) {
   const m = MOVE_BY_ID.get(id);
   if (!m) return missingMoves.add(id), null;
   const buffs = moveBuffs(m);
@@ -255,6 +259,7 @@ function chargeMove(id, types) {
     // Omitted entirely when the move has no effect, so the interning key and
     // the emitted JSON stay unchanged for the ~73% of moves without one.
     ...(buffs ? { buffs } : {}),
+    ...(m.isMegaMove && megaLevel ? { mega: MEGA_BONUS[megaLevel - 1] } : {}),
   };
 }
 
@@ -264,7 +269,7 @@ function chargeMove(id, types) {
 const moveTable = {};
 const intern = (m) => {
   if (!m) return null;
-  const key = `${m.id}|${m.stab}`;
+  const key = `${m.id}|${m.stab}${m.mega ? `|${m.mega}` : ''}`;
   if (!moveTable[key]) moveTable[key] = m;
   return key;
 };
@@ -295,7 +300,7 @@ function formsOf(p) {
       def: f.baseStats.def,
       types,
       fastMoves: (f.fastMoves ?? []).map((id) => intern(fastMove(id, types))),
-      chargeMoves: [...(f.chargedMoves ?? []), ...(f.extraChargedMoves ?? [])].map((id) => intern(chargeMove(id, types))),
+      chargeMoves: [...(f.chargedMoves ?? []), ...(f.extraChargedMoves ?? [])].map((id) => intern(chargeMove(id, types, (f.tags ?? []).includes('supermega') ? 4 : 3))),
       rule,
       // Stat stages a form arrives with: Mimikyu Busted is -1 Defense.
       ...(f.nativeStatBuffs?.some(Boolean) ? { stages: { atk: f.nativeStatBuffs[0], def: f.nativeStatBuffs[1] } } : {}),
@@ -328,7 +333,11 @@ const skipped = [];
 for (const p of bases) {
   const types = (p.types ?? []).filter((t) => t && t !== 'none');
   const fasts = (p.fastMoves ?? []).map((id) => fastMove(id, types)).filter(Boolean);
-  const charges = (p.chargedMoves ?? []).map((id) => chargeMove(id, types)).filter(Boolean);
+  // A Mega's extra charged move (its Plus move) is part of its movepool. Other extras, Cramorant's Gulp Missile, are
+  // form-change effects rather than picks. PvPoke starts a Super Mega at Mega Level 4.
+  const megaLevel = (p.tags ?? []).includes('supermega') ? 4 : 3;
+  const plus = (p.extraChargedMoves ?? []).filter((id) => MOVE_BY_ID.get(id)?.isMegaMove);
+  const charges = [...(p.chargedMoves ?? []), ...plus].map((id) => chargeMove(id, types, megaLevel)).filter(Boolean);
   // PvPoke's Pokemon.js: a shadow-eligible species can be purified, which
   // teaches Return - in a league whose cap its level-25 CP fits under. The
   // league half of that is applied where movesets are chosen, off level25CP.

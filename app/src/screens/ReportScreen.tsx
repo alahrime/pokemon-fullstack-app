@@ -312,7 +312,7 @@ function FullReport() {
               <p className="rs-prop-note">
                 {isMega(species)
                   ? (bbEligible
-                    ? 'Level 3 stops at level 50. Level 4 adds two levels, up to 52.'
+                    ? `Level 3 stops at level 50. Level 4 adds two levels, up to 52${species.chargeMoves.some((c) => c.mega) ? ', and Plus moves hit ×1.3 instead of ×1.2' : ''}.`
                     : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`)
                   : bbEligible
                     ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'

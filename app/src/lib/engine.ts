@@ -174,7 +174,8 @@ export function bestBuddyEligible(species: Species, league: League): boolean {
   const hit = bbEligibleCache.get(key);
   if (hit !== undefined) return hit;
   const top = isMega(species) ? SUPER_MEGA_MAX_LEVEL_IDX : BB_MAX_LEVEL_IDX;
-  const out = bestAt(species, { a: 0, d: 0, s: 0 }, league, top).lvl > 50;
+  // A Plus move's damage follows Mega Level whatever the level cap does.
+  const out = (isMega(species) && species.chargeMoves.some((c) => c.mega)) || bestAt(species, { a: 0, d: 0, s: 0 }, league, top).lvl > 50;
   bbEligibleCache.set(key, out);
   return out;
 }
@@ -225,7 +226,21 @@ export function dmg(
 ): number {
   const eff = typeEffectiveness(move.type, defTypes, SE_F32);
   const stab = move.stab === 1 ? 1 : STAB_F32;
-  return Math.floor(move.power * stab * (atk / def) * eff * 0.5 * PVP_BONUS) + 1;
+  // The Mega bonus goes where PvPoke's battle damage has it, so the floor lands on the same side.
+  return Math.floor(move.power * stab * (atk / def) * eff * ((move as ChargeMove).mega ?? 1) * 0.5 * PVP_BONUS) + 1;
+}
+
+/** PvPoke's DamageMultiplier.MEGA_BONUS, float32, by Mega Level - 1. */
+const MEGA_BONUS = [1, 1.1, 1.2, 1.3].map(Math.fround);
+
+/**
+ * A Mega's charged moves at the Mega Level its flag selects. The data carries each Plus move's bonus at the
+ * starting level, so only a flipped toggle has anything to change.
+ */
+export function atMegaLevel(species: Species, flag: boolean, charges: ChargeMove[]): ChargeMove[] {
+  if (!isMega(species) || !charges.some((c) => c.mega)) return charges;
+  const bonus = MEGA_BONUS[boostShown(species, flag) ? 3 : 2];
+  return charges.map((c) => (c.mega && c.mega !== bonus ? { ...c, mega: bonus } : c));
 }
 
 /**
@@ -1009,7 +1024,7 @@ export function rankedOpponents(
   const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
   const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
   const table = getTable(ref, leagueId, bestBuddy);
-  const myCharges = selectedCharges(species, chargeIds);
+  const myCharges = atMegaLevel(species, bestBuddy, selectedCharges(species, chargeIds));
   // Exact ref, not base id: if you're running Altaria, Shadow Altaria is still
   // a real opponent with different thresholds, so only the mirror drops out.
   const candidates = opponentCandidatesFor(leagueId).filter((c) => c !== ref);

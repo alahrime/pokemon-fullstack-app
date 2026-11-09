@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EvolutionLine } from '../EvolutionLine';
 import { LEAGUE_BY_ID, SPECIES_BY_ID, canPurify, lineOf } from '../../lib/data';
-import { bestBuddyEligible, boostShown, buildTable, getEntry, onBuddyBoost, purifiedIv } from '../../lib/engine';
+import { atMegaLevel, bestBuddyEligible, boostShown, buildTable, dmg, getEntry, onBuddyBoost, purifiedIv } from '../../lib/engine';
 
 const sp = (id: string) => SPECIES_BY_ID.get(id)!;
 const ids = (id: string) => lineOf(sp(id)).map((s) => s.id);
@@ -123,5 +123,32 @@ describe('Mega Level', () => {
     expect(boostShown(sableye, false)).toBe(true);
     expect(boostShown(sableye, boostShown(sableye, true))).toBe(true);
     expect(boostShown(venusaur, false)).toBe(false);
+  });
+});
+
+describe('Mega Level damage', () => {
+  const sableye = SPECIES_BY_ID.get('sableye_mega')!;
+  const plus = (flag: boolean) => atMegaLevel(sableye, flag, sableye.chargeMoves).find((m) => m.id === 'NIGHT_SHADE_PLUS')!;
+
+  it('a Super Mega fields its Plus move, at the Level 4 bonus by default and Level 3 when flipped', () => {
+    expect(plus(false).mega).toBe(Math.fround(1.3));
+    expect(plus(true).mega).toBe(Math.fround(1.2));
+    // Nothing else in the movepool carries a bonus.
+    expect(sableye.chargeMoves.filter((m) => m.mega).map((m) => m.id)).toEqual(['NIGHT_SHADE_PLUS']);
+  });
+
+  it('the bonus scales the hit; Level 4 hits harder than Level 3', () => {
+    const azu = SPECIES_BY_ID.get('azumarill')!;
+    const at = (flag: boolean) => dmg(150, 120, plus(flag), azu.types);
+    expect(at(false)).toBeGreaterThan(at(true));
+    expect(dmg(150, 120, { ...plus(false), mega: undefined }, azu.types)).toBeLessThan(at(true));
+  });
+
+  it('the toggle is offered wherever a Plus move rides on it, even below the level cap', () => {
+    expect(bestBuddyEligible(sableye, LEAGUE_BY_ID.get('great')!)).toBe(true);
+  });
+
+  it("Cramorant's Gulp Missile is a form-change effect, not a pick", () => {
+    expect(SPECIES_BY_ID.get('cramorant')!.chargeMoves.some((m) => m.id.startsWith('GULP_MISSILE'))).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { LEAGUE_BY_ID, isSimulated, movesFor, parseRef, ratedFastIdx, speciesOf } from './data';
-import { battle, bestBuddyEligible, bestSpreadFor, defaultSpreadFor, dmg, getEntry, mkBattleMon, selectedCharges } from './engine';
+import { atMegaLevel, battle, bestBuddyEligible, bestSpreadFor, defaultSpreadFor, dmg, getEntry, mkBattleMon, selectedCharges } from './engine';
 import { DEFAULT_TIER, fieldPool } from './rankings';
 import { LIMITED_CUPS, cupLegal } from './presetFormats';
 import { rating } from './scenarios';
@@ -61,7 +61,7 @@ function buddyOn(e: MatrixEntry, league: LeagueId): boolean {
 /** The charged moves an entry fields: its own pick, or the league's rated pair for its form. */
 export function chargesFor(e: MatrixEntry, league: LeagueId): ChargeMove[] {
   const sp = speciesOf(e.ref)!;
-  return e.chargeIds.length ? selectedCharges(sp, e.chargeIds) : movesFor(sp, league, parseRef(e.ref).shadow).charges;
+  return atMegaLevel(sp, !!e.bestBuddy, e.chargeIds.length ? selectedCharges(sp, e.chargeIds) : movesFor(sp, league, parseRef(e.ref).shadow).charges);
 }
 
 export function resolve(e: MatrixEntry, league: LeagueId): ResolvedMon {

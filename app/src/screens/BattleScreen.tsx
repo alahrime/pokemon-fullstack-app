@@ -8,6 +8,7 @@ import {
   ENERGY_CAP, STAGE_MAX, STAGE_MIN, bestBuddyEligible, bestSpreadFor, buffMultiplier, defaultSpreadFor, dmg, fastMoveCounts,
   getEntry, mkBattleMon, selectedCharges, shieldMatrix,
   type BaitMode, type Stages,
+  atMegaLevel,
   boostShown,
   isMega,
   onBuddyBoost,
@@ -506,11 +507,11 @@ const isTie = (r: { hpA: number; hpB: number }): boolean => r.hpA <= 0 && r.hpB 
 
 // An empty selection is the set PvPoke rates for this league and form, not
 // the species-wide pair: Shadow Sableye runs Drain Punch, plain Sableye Power Gem.
-const monFor = (ref: string, league: LeagueId, entry: Parameters<typeof mkBattleMon>[0], fastIdx: number, chargeIds: string[]) => {
+const monFor = (ref: string, league: LeagueId, entry: Parameters<typeof mkBattleMon>[0], fastIdx: number, chargeIds: string[], flag: boolean) => {
   const { id, shadow } = parseRef(ref);
   const species = SPECIES_BY_ID.get(id)!;
   const fast = species.fastMoves[Math.min(fastIdx, species.fastMoves.length - 1)];
-  const charges = chargeIds.length ? selectedCharges(species, chargeIds) : movesFor(species, league, shadow).charges;
+  const charges = atMegaLevel(species, flag, chargeIds.length ? selectedCharges(species, chargeIds) : movesFor(species, league, shadow).charges);
   return mkBattleMon(entry, fast, charges, species.types);
 };
 
@@ -550,8 +551,8 @@ function SingleBattle() {
   const { entry: entryA } = getEntry(battleA, ivA, league, bbA);
   const { entry: entryB } = getEntry(battleB, ivB, league, bbB);
 
-  const monA = useMemo(() => monFor(battleA, league, entryA, fastA, chargeIdsA), [battleA, league, entryA, fastA, chargeIdsA]);
-  const monB = useMemo(() => monFor(battleB, league, entryB, fastB, chargeIdsB), [battleB, league, entryB, fastB, chargeIdsB]);
+  const monA = useMemo(() => monFor(battleA, league, entryA, fastA, chargeIdsA, bbA), [battleA, league, entryA, fastA, chargeIdsA, bbA]);
+  const monB = useMemo(() => monFor(battleB, league, entryB, fastB, chargeIdsB, bbB), [battleB, league, entryB, fastB, chargeIdsB, bbB]);
   // A starting HP is clamped to the roll's, so an IV change that lowers HP cannot leave it above full.
   const hpA = startHpA === null ? undefined : Math.min(startHpA, entryA.hp);
   const hpB = startHpB === null ? undefined : Math.min(startHpB, entryB.hp);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LEAGUE_BY_ID, displayName, makeRef, movesFor, parseRef, speciesOf } from '../lib/data';
-import { bestBuddyEligible, bestSpreadFor, boostShown, chargesOf, defaultSpreadFor, getEntry, isMega, selectedCharges } from '../lib/engine';
+import { atMegaLevel, bestBuddyEligible, bestSpreadFor, boostShown, chargesOf, defaultSpreadFor, getEntry, isMega, selectedCharges } from '../lib/engine';
 import { BestBuddyToggle } from './BestBuddyToggle';
 import { SpeciesSearch } from './SpeciesSearch';
 import { Sprite } from './Sprite';
@@ -343,6 +343,6 @@ export function movesForChoice(choice: AddPokemonChoice, league: LeagueId) {
   if (!sp) return null;
   const rated = movesFor(sp, league, parseRef(choice.ref).shadow);
   const fast = sp.fastMoves[Math.min(choice.fastIdx, sp.fastMoves.length - 1)] ?? rated.fast;
-  const charges = choice.chargeIds.length ? selectedCharges(sp, choice.chargeIds) : rated.charges;
+  const charges = atMegaLevel(sp, !!choice.bestBuddy, choice.chargeIds.length ? selectedCharges(sp, choice.chargeIds) : rated.charges);
   return { fast, charges };
 }

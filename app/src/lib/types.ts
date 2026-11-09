@@ -32,6 +32,8 @@ export interface ChargeMove {
   energy: number;
   stab: number;
   buffs?: MoveBuffs;
+  /** A Plus move's Mega Level damage bonus, at the holder's starting Mega Level (see atMegaLevel). */
+  mega?: number;
 }
 
 export interface Species {

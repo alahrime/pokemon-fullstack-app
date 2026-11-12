@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   META_SIZE, atRankOne, averageOf, cell, chargesFor, diffsOf, isUsable, matrix, moveAbbr, movesetAbbr, newKey,
-  quickFillRefs, quickFills, ratedEntry, recordOf, resolve, resultOf, toneOf, valueOf, type MatrixCell,
+  DEEP_META_SIZE, quickFillRefs, quickFills, ratedEntry, recordOf, resolve, resultOf, toneOf, valueOf, type MatrixCell,
 } from '../battleMatrix';
 import { battle, bestSpreadFor, dmg, getEntry } from '../engine';
 import { rating } from '../scenarios';
@@ -126,6 +126,10 @@ describe('quick fill', () => {
   it('takes the top of the league, and of a cup only what the cup allows', () => {
     const meta = quickFillRefs('meta:great', L);
     expect(meta.length).toBe(META_SIZE);
+    const deep = quickFillRefs(`meta:great@${DEEP_META_SIZE}`, L);
+    expect(deep.length).toBe(DEEP_META_SIZE);
+    expect(deep.slice(0, META_SIZE)).toEqual(meta);
+    expect(quickFills(L)[1]).toMatchObject({ label: 'Great League deep meta', note: expect.stringMatching(/Top 100/) });
     expect(new Set(meta).size).toBe(meta.length);
     const legal = cupLegal('fantasy')!;
     const retro = quickFillRefs('cup:fantasy', L);

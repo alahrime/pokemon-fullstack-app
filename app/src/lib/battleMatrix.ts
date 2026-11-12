@@ -247,6 +247,8 @@ export const CMP_DIFF_LABEL: Record<DiffKind, string> = {
 
 /** How many of a meta a quick fill takes: the top of the league or cup's own ranking. */
 export const META_SIZE = 40;
+/** The deeper cut of a league's meta, offered beside the top 40. */
+export const DEEP_META_SIZE = 100;
 
 export interface QuickFill {
   key: string;
@@ -271,6 +273,7 @@ export function quickFills(league: LeagueId): QuickFill[] {
   const cap = league === 'master' ? 'No CP cap' : `${LEAGUE_BY_ID.get(league)!.cap} CP`;
   return [
     { key: `meta:${league}`, label: `${name} meta`, note: `Top ${META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
+    { key: `meta:${league}@${DEEP_META_SIZE}`, label: `${name} deep meta`, note: `Top ${DEEP_META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
     ...LIMITED_CUPS.filter((c) => c.base === league).map((c) => {
       const types = c.cup.include?.types ?? [];
       return {
@@ -284,8 +287,10 @@ export function quickFills(league: LeagueId): QuickFill[] {
   ];
 }
 
-/** The refs a quick fill names, best first. */
-export function quickFillRefs(key: string, league: LeagueId, size = META_SIZE): string[] {
+/** The refs a quick fill names, best first. A key ending `@n` takes the top n instead of the default. */
+export function quickFillRefs(fill: string, league: LeagueId, size = META_SIZE): string[] {
+  const [key, n] = fill.split('@');
+  if (n) size = Number(n);
   const ranked = fieldPool(league, DEFAULT_TIER(league), Number.MAX_SAFE_INTEGER).filter((r) => speciesOf(r) && isSimulated(r));
   if (key.startsWith('cup:')) {
     const legal = cupLegal(key.slice(4));

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   META_SIZE, atRankOne, averageOf, cell, chargesFor, diffsOf, isUsable, matrix, moveAbbr, movesetAbbr, newKey,
-  DEEP_META_SIZE, quickFillRefs, quickFills, ratedEntry, recordOf, resolve, resultOf, toneOf, valueOf, type MatrixCell,
+  quickFillRefs, quickFills, ratedEntry, recordOf, resolve, resultOf, toneOf, valueOf, type MatrixCell,
 } from '../battleMatrix';
 import { battle, bestSpreadFor, dmg, getEntry } from '../engine';
 import { rating } from '../scenarios';
@@ -118,7 +118,7 @@ describe('differences against the baseline', () => {
 
 describe('quick fill', () => {
   it('offers the league\'s meta and only the cups played under its cap', () => {
-    expect(quickFills(L)[0]).toMatchObject({ key: 'meta:great', label: 'Great League meta', note: expect.stringMatching(/Top 40/) });
+    expect(quickFills(L)[0]).toMatchObject({ key: 'meta:great', label: 'Great League meta', note: expect.stringMatching(/Top 100/) });
     for (const f of quickFills(L)) expect(f.swatch.length).toBeGreaterThan(0);
     expect(quickFills(L).some((f) => f.key === 'cup:fantasy')).toBe(true);
     expect(quickFills('ultra').some((f) => f.key === 'cup:fantasy')).toBe(false);
@@ -126,25 +126,12 @@ describe('quick fill', () => {
   it('takes the top of the league, and of a cup only what the cup allows', () => {
     const meta = quickFillRefs('meta:great', L);
     expect(meta.length).toBe(META_SIZE);
-    const deep = quickFillRefs(`meta:great@${DEEP_META_SIZE}`, L);
-    expect(deep.length).toBe(DEEP_META_SIZE);
-    expect(deep.slice(0, META_SIZE)).toEqual(meta);
-    expect(quickFills(L)[1]).toMatchObject({ label: 'Great League meta · Top 100', note: expect.stringMatching(/Top 100/) });
     expect(new Set(meta).size).toBe(meta.length);
     const legal = cupLegal('fantasy')!;
     const retro = quickFillRefs('cup:fantasy', L);
     expect(retro.length).toBeGreaterThan(0);
     expect(retro.every((r) => legal.has(r))).toBe(true);
     expect(quickFillRefs('cup:nope', L)).toEqual([]);
-    const retroDeep = quickFillRefs(`cup:fantasy@${DEEP_META_SIZE}`, L);
-    expect(retroDeep.slice(0, retro.length)).toEqual(retro);
-    expect(retroDeep.length).toBeLessThanOrEqual(DEEP_META_SIZE);
-    expect(retroDeep.every((r) => legal.has(r))).toBe(true);
-    // Every cup's deep option exists exactly when the cup allows more than the Top 40.
-    for (const f of quickFills(L).filter((x) => x.key.startsWith('cup:') && !x.key.includes('@'))) {
-      const deep = quickFills(L).some((x) => x.key === `${f.key}@${DEEP_META_SIZE}`);
-      expect(deep).toBe(cupLegal(f.key.slice(4))!.size > META_SIZE);
-    }
   });
 });
 

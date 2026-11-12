@@ -273,16 +273,20 @@ export function quickFills(league: LeagueId): QuickFill[] {
   const cap = league === 'master' ? 'No CP cap' : `${LEAGUE_BY_ID.get(league)!.cap} CP`;
   return [
     { key: `meta:${league}`, label: `${name} meta`, note: `Top ${META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
-    { key: `meta:${league}@${DEEP_META_SIZE}`, label: `${name} deep meta`, note: `Top ${DEEP_META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
-    ...LIMITED_CUPS.filter((c) => c.base === league).map((c) => {
+    { key: `meta:${league}@${DEEP_META_SIZE}`, label: `${name} meta · Top ${DEEP_META_SIZE}`, note: `Top ${DEEP_META_SIZE} by rating · ${cap}`, swatch: LEAGUE_SWATCH[league], types: [] },
+    // A cup's Top 100 is only offered when the cup allows more than its Top 40 would take.
+    ...LIMITED_CUPS.filter((c) => c.base === league).flatMap((c) => {
       const types = c.cup.include?.types ?? [];
-      return {
+      const cup = {
         key: `cup:${c.key}`,
         label: c.name,
         note: `Top ${META_SIZE} the cup allows · ${cap}`,
         swatch: c.palette ?? (types.length ? types.slice(0, 3).map((t) => `var(--type-${t})`) : LEAGUE_SWATCH[league]),
         types,
       };
+      return cupLegal(c.key)!.size > META_SIZE
+        ? [cup, { ...cup, key: `${cup.key}@${DEEP_META_SIZE}`, label: `${c.name} · Top ${DEEP_META_SIZE}`, note: `Top ${DEEP_META_SIZE} the cup allows · ${cap}` }]
+        : [cup];
     }),
   ];
 }

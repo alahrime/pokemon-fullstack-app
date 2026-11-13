@@ -137,6 +137,11 @@
   -webkit-backdrop-filter: blur(10px) saturate(1.3);
   border-bottom-color: color-mix(in srgb, var(--color-accent-2) 24%, transparent);
 }
+/* Where the nav reveals over the page on hover (components.css), glass would
+   show the page through it: solid there, whatever the theme. */
+@media (hover: hover) and (min-width: 821px) {
+  :root[data-theme='hud'] .nav { background: var(--surface-1); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
 
 /* — panels pick up an inner sheen in HUD only — */
 :root[data-theme='hud'] .panel {

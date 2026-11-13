@@ -1397,9 +1397,11 @@ textarea.input { min-height: 90px; resize: vertical; }
   background: var(--surface-1);
 }
 /* Phones: only this bar stays pinned (the league tabs); the full nav scrolls
-   away. Same breakpoint as the Report screen's single column. */
+   away. Same breakpoint as the Report screen's single column. Touch only: a
+   narrow desktop window keeps the edge-reveal nav below, or the sections,
+   account and theme scrolled out of reach with nothing to bring them back. */
 .nav-slim { display: none; }
-@media (max-width: 820px) {
+@media (max-width: 820px) and (hover: none) {
   .nav-slim {
     position: sticky; top: 0; z-index: 50;
     display: flex; align-items: center; justify-content: center;
@@ -6757,11 +6759,11 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 
 /* Desktop with a mouse: the nav and the rail tuck away to a lit edge strip
    and overlay the page when the pointer reaches that edge, so the screens get
-   the full viewport. Touch and phones keep the layout above. --nav-h becomes
+   the full viewport, at any width. Touch keeps the layout above. --nav-h becomes
    the strip, so everything pinned under the nav now pins under the strip.
    Their menus (theme, bell) are descendants, so :hover holds while using them;
    :focus-visible opens them for the keyboard without a click leaving them open. */
-@media (hover: hover) and (min-width: 821px) {
+@media (hover: hover) {
   :root { --edge-peek: 6px; --nav-h: var(--edge-peek); }
   .nav, .section-rail {
     position: fixed;
@@ -6779,7 +6781,9 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
     background: var(--surface-1);
     border-right: var(--border-strong) solid var(--rule-strong);
     transform: translateX(calc(-100% + var(--edge-peek)));
+    flex-direction: column; /* undo the <=767px row strip */
   }
+  .section-rail .nav-tab { width: 100%; }
   .nav:hover, .nav:has(:focus-visible),
   .section-rail:hover, .section-rail:has(:focus-visible) {
     transform: none;
@@ -6787,7 +6791,7 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   }
   .shell.has-rail { max-width: var(--shell-max); display: block; }
 }
-@media (hover: hover) and (min-width: 821px) and (prefers-reduced-motion: reduce) {
+@media (hover: hover) and (prefers-reduced-motion: reduce) {
   .nav, .section-rail { transition: none; }
 }
 

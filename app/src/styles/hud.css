@@ -139,7 +139,7 @@
 }
 /* Where the nav reveals over the page on hover (components.css), glass would
    show the page through it: solid there, whatever the theme. */
-@media (hover: hover) and (min-width: 821px) {
+@media (hover: hover) {
   :root[data-theme='hud'] .nav { background: var(--surface-1); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 

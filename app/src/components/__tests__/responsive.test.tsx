@@ -154,8 +154,10 @@ describe('the layouts that have to stack', () => {
     expect(q).toMatch(/border-bottom/);
   });
 
-  it('the report splits into one column before its contents overflow', () => {
-    expect(components).toMatch(/@media \(max-width: 820px\) \{\s*\.rs-split \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  it('the report\'s two columns dissolve into one before their contents overflow', () => {
+    const at = components.indexOf('.rs-col { display: contents; }');
+    expect(at).toBeGreaterThan(components.lastIndexOf('@media (max-width: 820px)', at));
+    expect(components.lastIndexOf('@media (max-width: 820px)', at)).toBeGreaterThan(-1);
   });
 
   it('carries no rules for the detail row, which no screen renders any more', () => {

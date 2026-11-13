@@ -32,6 +32,7 @@ import { Board, BoardControls } from '../components/Board';
 import { VizTabs } from '../components/VizTabs';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { Switch } from '../components/Switch';
+import { SegButton, SegGroup } from '../components/Seg';
 import { SpeciesHero } from '../components/SpeciesHero';
 import { Sprite } from '../components/Sprite';
 import { TypeBadge } from '../components/TypeBadge';
@@ -54,7 +55,7 @@ const REPORT_BOARD = 'report-analysis';
 
 function FullReport() {
   const { state, set, patch, bumpIv } = useAppState();
-  const { league, species: speciesId, shadow, bestBuddy, chargeIds, iv, viz, colorBy, oppId, moveIdx } = state;
+  const { league, species: speciesId, shadow, bestBuddy, chargeIds, iv, viz, colorBy, oppId, moveIdx, reportPage } = state;
 
   const species = SPECIES_BY_ID.get(speciesId)!;
   // Everything downstream keys off the *ref*, which encodes Shadow. The engine
@@ -240,7 +241,7 @@ function FullReport() {
               // leagues win: scroll on until the last row is in view, letting
               // the top of the card go under the bar.
               {
-                const side = document.querySelector('.report-side > .hero');
+                const side = document.querySelector('.report-side .hero');
                 const bar = document.querySelector('.report-search-bar');
                 const leagues = document.querySelector('.report-side .league-verdicts');
                 if (!side || !bar) return;
@@ -253,11 +254,51 @@ function FullReport() {
             className="report-search"
           />
         </div>
-      {/* Widened from 340px to fit the larger sprite frame without crowding the
-          name beside it. */}
+      {/* Report | Analysis, then the picker, then Arrange (Analysis only). The
+          picker sits between the two rather than leading, and Arrange stays
+          pinned to the right edge so it lines up with the board beneath it. */}
+      <div className="rs-bar">
+        <SegGroup>
+          <SegButton active={reportPage === 'report'} onClick={() => set('reportPage', 'report')}>Report</SegButton>
+          <SegButton active={reportPage === 'analysis'} onClick={() => set('reportPage', 'analysis')}>Analysis</SegButton>
+        </SegGroup>
+        {editing && reportPage === 'analysis' && (
+          <span className="hud-label text-(--text-faint) whitespace-nowrap">Drag a panel, or use the arrows</span>
+        )}
+        <SpeciesSearch
+          id="report-species"
+          includeShowcase
+          value={speciesId}
+          onChange={(id) =>
+            // chargeIds must clear with the species. Held across a change
+            // they name moves the new species does not learn, and the moves
+            // panel then matches nothing and renders empty.
+            patch({ species: id, moveIdx: 0, chargeIds: [] })
+          }
+          placeholder="Name, type, gen1, @counter, water&!legendary…"
+          className="report-search"
+        />
+        {/* No margin of its own: the picker's auto margins absorb the row's
+            free space, which leaves nothing after this and puts it on the
+            edge anyway. */}
+        {reportPage === 'analysis' && (
+          <BoardControls
+            storageKey={REPORT_BOARD}
+            editing={editing}
+            onEditing={setEditing}
+            onReset={() => setBoardNonce((n) => n + 1)}
+          />
+        )}
+      </div>
       <div className="rs-split">
-        {/* Left column */}
+        {reportPage === 'report' ? (
+        // Two columns on a wide screen: who it is (card, form), then what the
+        // roll does (adjuster, every league, the line); the ranking window
+        // spans both beneath. On phones the columns dissolve
+        // (display: contents) so the CSS order can lead with card, roll,
+        // leagues and line.
         <div className="report-side">
+          <div className="rs-col">
           {/* Identity → form → roll. The three things you change sit together at
               the top; everything below is the readout they produce. */}
           <SpeciesHero
@@ -321,6 +362,9 @@ function FullReport() {
             </div>
           </div>
 
+          </div>
+
+          <div className="rs-col">
           <div className="side-block rs-roll">
             <div className="hud-label mb-[7px] flex items-center">
               <span className="flex-1">Adjust roll</span>
@@ -357,19 +401,6 @@ function FullReport() {
             bestBuddy={bestBuddy}
             onPick={(id, shown) => patch({ species: id, moveIdx: 0, chargeIds: [], iv: shown })}
           />
-
-          {/* The ranking window reads the roll above it, so it sits with the
-              roll rather than in a column stealing 300px from the plot. Only
-              while the heatmap is the visualisation — it describes that
-              grid. */}
-          {viz === 'heat' && (
-            <HeatmapKey
-              colorBy={colorBy}
-              onPickSpread={(a, d, s) => patch({ iv: { a, d, s } })}
-              table={table}
-              iv={iv}
-            />
-          )}
 
           {/* The rank frame that stood here is gone too: the hero's vitals
               already print this spread's rank beside its CP and level, and the
@@ -439,43 +470,19 @@ function FullReport() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Right column. The panels here are independent readouts and which one
-            matters most depends on the task, so their order is the user's. */}
-        <div className="flex min-w-0 flex-col gap-3.5 p-5">
-          {/* Row order is label, picker, Arrange: the picker sits between the
-              two rather than leading, and Arrange stays pinned to the right
-              edge so it lines up with the board beneath it. Leading the row
-              made a 620px field the first thing in the column, which read as a
-              second header rather than a control inside one. */}
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="hud-label text-(--text-faint) whitespace-nowrap">
-              {editing ? 'Drag a panel, or use the arrows' : 'Analysis'}
-            </span>
-            <SpeciesSearch
-              id="report-species"
-            includeShowcase
-              value={speciesId}
-              onChange={(id) =>
-                // chargeIds must clear with the species. Held across a change
-                // they name moves the new species does not learn, and the moves
-                // panel then matches nothing and renders empty.
-                patch({ species: id, moveIdx: 0, chargeIds: [] })
-              }
-              placeholder="Name, type, gen1, @counter, water&!legendary…"
-              className="report-search"
-            />
-            {/* No margin of its own: the picker's auto margins absorb the row's
-                free space, which leaves nothing after this and puts it on the
-                edge anyway. */}
-            <BoardControls
-              storageKey={REPORT_BOARD}
-              editing={editing}
-              onEditing={setEditing}
-              onReset={() => setBoardNonce((n) => n + 1)}
-            />
           </div>
+          {/* The ranking window reads the roll, so it lives on the Report page
+              with it — shown whatever the visualisation, which is on the other
+              page now. Six columns of numbers, so it spans both columns. */}
+          <HeatmapKey
+            colorBy={colorBy}
+            onPickSpread={(a, d, s) => patch({ iv: { a, d, s } })}
+            table={table}
+            iv={iv}
+          />
+        </div>
+        ) : (
+        <div className="flex min-w-0 flex-col gap-3.5 p-5">
           <Board
             // Remounts on reset so the board re-reads the cleared storage.
             key={boardNonce}
@@ -573,6 +580,7 @@ function FullReport() {
             ]}
           />
         </div>
+        )}
       </div>
       <p className="text-muted rs-foot-note">
         {footnote}

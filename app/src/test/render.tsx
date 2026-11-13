@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
-import type { ReactElement } from 'react';
-import { AppStateProvider } from '../state/AppState';
+import { useEffect, type ReactElement, type ReactNode } from 'react';
+import { AppStateProvider, useAppState } from '../state/AppState';
 import { ThemeProvider } from '../state/ThemeContext';
 import { SessionProvider } from '../state/SessionContext';
 import { ChannelListProvider } from '../state/ChannelListContext';
@@ -39,4 +39,14 @@ export function renderApp(ui: ReactElement) {
       </SessionProvider>
     </ThemeProvider>,
   );
+}
+
+/**
+ * Open the Report screen on its Analysis page — the loadout, opponents and
+ * visualisations live there, the roll's readout on the Report page.
+ */
+export function OnAnalysis({ children }: { children: ReactNode }) {
+  const { set } = useAppState();
+  useEffect(() => { set('reportPage', 'analysis'); }, []);
+  return <>{children}</>;
 }

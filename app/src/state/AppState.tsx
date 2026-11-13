@@ -37,6 +37,8 @@ export interface AppStateShape {
   chargeIds: string[];
   iv: IV;
   viz: Viz;
+  /** Report screen page: the roll's readout, or the matchup analysis. */
+  reportPage: 'report' | 'analysis';
   colorBy: ColorBy;
   oppId: string;
   moveIdx: number;
@@ -151,6 +153,7 @@ export const INITIAL_STATE: AppStateShape = {
   chargeIds: [],
   iv: { a: 0, d: 14, s: 15 },
   viz: 'heat',
+  reportPage: 'report',
   colorBy: 'rank',
   oppId: opponentsFor('great')[0]?.id ?? '',
   moveIdx: 0,

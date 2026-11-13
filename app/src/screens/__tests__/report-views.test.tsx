@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, waitFor } from '@testing-library/react';
-import { renderApp } from '../../test/render';
+import { OnAnalysis, renderApp } from '../../test/render';
 import { ReportScreen } from '../ReportScreen';
 import { ShinyStar } from '../../components/ShinyStar';
 import { CoresScreen } from '../CoresScreen';
@@ -21,12 +21,12 @@ const tab = (container: HTMLElement, label: string) =>
 
 describe('ReportScreen views', () => {
   it('opens on the heatmap', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     expect(tab(container, '4096 heatmap').getAttribute('aria-selected')).toBe('true');
   });
 
   it('switches to the damage ruler', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Damage ruler'));
     await waitFor(() =>
       expect(tab(container, 'Damage ruler').getAttribute('aria-selected')).toBe('true'));
@@ -34,7 +34,7 @@ describe('ReportScreen views', () => {
   });
 
   it('switches to the threshold table', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Threshold table'));
     await waitFor(() =>
       expect(tab(container, 'Threshold table').getAttribute('aria-selected')).toBe('true'));
@@ -42,7 +42,7 @@ describe('ReportScreen views', () => {
   });
 
   it('switches to matchup flips and builds the grid', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() =>
       expect(tab(container, 'Matchup flips').getAttribute('aria-selected')).toBe('true'));
@@ -143,7 +143,7 @@ describe('CoresScreen', () => {
 
 describe('Matchup flips layout', () => {
   it('puts the verdict above the grid, not at the head of the side column', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.fv-grid')).toBeTruthy());
 
@@ -163,7 +163,7 @@ describe('Matchup flips layout', () => {
     // shield column is what the grid below is drawn for, so the two now read
     // top-to-bottom as one control and its result, and the table gets the
     // whole right-hand side.
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.fv-side')).toBeTruthy());
     const col = container.querySelector('.fv-grid-col')!;
@@ -182,7 +182,7 @@ describe('Matchup flips layout', () => {
   });
 
   it('lets the grid flex rather than pinning it, so the table can sit beside it', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.fv-grid-col')).toBeTruthy());
     // jsdom applies no stylesheet, so this asserts the contract the CSS keys
@@ -244,19 +244,21 @@ describe('report left column', () => {
     expect(verdict.previousElementSibling!.className).toContain('hero-vitals');
   });
 
-  it('rides the legend on the plot and keeps the ranking window in the column', () => {
+  it('keeps the ranking window on the Report page and rides the legend on the plot', () => {
     const { container } = renderApp(<ReportScreen />);
     const side = container.querySelector('.report-side')!;
-    // The window needs the width, so it takes a block in the column; the
-    // legend needs none, so it overlays the plot's corner instead.
+    // The window reads the roll, so it stays with it; the legend needs no
+    // width, so it overlays the plot's corner on the Analysis page instead.
     expect(side.querySelector('.hv-top-row')).toBeTruthy();
     expect(side.querySelector('.hv-swatch')).toBeFalsy();
+    fireEvent.click([...container.querySelectorAll('.seg-btn')].find((b) => b.textContent === 'Analysis')!);
+    expect(container.querySelector('.report-side')).toBeFalsy();
     expect(container.querySelectorAll('.hv-plot .hv-legend-panel .hv-swatch').length).toBeGreaterThan(0);
     expect(container.querySelector('.hv-plot .hv-top-row')).toBeFalsy();
   });
 
   it('drops the legend when the plot it describes is not the view', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     expect(container.querySelector('.hv-legend-panel')).toBeTruthy();
     fireEvent.click(tab(container, 'Damage ruler'));
     expect(container.querySelector('.hv-legend-panel')).toBeFalsy();

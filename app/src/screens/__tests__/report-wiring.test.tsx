@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, waitFor } from '@testing-library/react';
-import { renderApp } from '../../test/render';
+import { OnAnalysis, renderApp } from '../../test/render';
 import { goTo } from '../../test/nav';
 import { ReportScreen } from '../ReportScreen';
 import App from '../../App';
@@ -157,7 +157,7 @@ describe('IVAdjuster dragging', () => {
 
 describe('ReportScreen wiring', () => {
   it('reorders its panels and puts them back', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const edit = container.querySelector('.board-edit-btn') as HTMLButtonElement;
     fireEvent.click(edit);
     const labels = () => [...container.querySelectorAll('.board-grip-label')].map((e) => e.textContent);
@@ -172,7 +172,7 @@ describe('ReportScreen wiring', () => {
   });
 
   it('changes the loadout from the report\'s own moves panel', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const fastCol = container.querySelectorAll('.moves-col')[0];
     const tiles = fastCol.querySelectorAll('.move-tile');
     expect(tiles.length).toBeGreaterThan(0);
@@ -181,7 +181,7 @@ describe('ReportScreen wiring', () => {
   });
 
   it('selects an opponent from the grid and pages through it', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const cells = container.querySelectorAll('.opp-cell');
     expect(cells.length).toBeGreaterThan(0);
     const target = [...cells].find((c) => c.getAttribute('aria-pressed') === 'false')!;
@@ -254,7 +254,7 @@ describe('ReportScreen wiring', () => {
   });
 
   it('sends the legend to the other corner when you pick a spread beneath it', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const cell = container.querySelector('.heat-cell')!;
     // jsdom lays nothing out, so every rect is 0×0 and the real geometry has to
     // be supplied: a panel occupying 100–200 × 100–150. The corners themselves
@@ -282,14 +282,14 @@ describe('ReportScreen wiring', () => {
   });
 
   it('moves the HP IV slice, which re-slices the 4096', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const slider = container.querySelector('.hv-slice input[type="range"]') as HTMLInputElement;
     fireEvent.change(slider, { target: { value: '7' } });
     expect(container.querySelector('.hv-slice-value')!.textContent).toBe('7');
   });
 
   it('offers the 3D terrain only where WebGL exists, and returns to the flat grid', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const controls = container.querySelector('.hv-controls')!;
     const threeD = [...controls.querySelectorAll('button')].find((b) => b.textContent === '3D');
     if (!threeD) {
@@ -304,7 +304,7 @@ describe('ReportScreen wiring', () => {
   });
 
   it('drives the flip view: a cell, the slice, and an opponent row', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.fv-grid')).toBeTruthy());
 
@@ -321,7 +321,7 @@ describe('ReportScreen wiring', () => {
   });
 
   it('sets both shield counts from the flip view\'s matrix', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     fireEvent.click(tab(container, 'Matchup flips'));
     await waitFor(() => expect(container.querySelector('.sm-col, .shield-matrix')).toBeTruthy());
     const cells = container.querySelectorAll('.shield-cell, .sm-contents button');
@@ -331,7 +331,7 @@ describe('ReportScreen wiring', () => {
 
 describe('ReportScreen loadout', () => {
   it('changes the charged moves from the report\'s own panel', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const chargeCol = container.querySelectorAll('.moves-col')[1];
     const tiles = [...chargeCol.querySelectorAll('.move-tile')];
     expect(tiles.length).toBeGreaterThan(0);
@@ -348,7 +348,7 @@ describe('ReportScreen loadout', () => {
 
 describe('opponent list ordering and the fight jump', () => {
   it('orders the breakpoint list meta-first inside each damage step', async () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const breakpoints = [...container.querySelectorAll('button')]
       .find((b) => b.textContent?.trim() === 'Breakpoints')!;
     fireEvent.click(breakpoints);
@@ -362,7 +362,7 @@ describe('opponent list ordering and the fight jump', () => {
   });
 
   it('gives every opponent a way into the simulator', () => {
-    const { container } = renderApp(<ReportScreen />);
+    const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const cells = container.querySelectorAll('.opp-cell-wrap');
     expect(cells.length).toBeGreaterThan(0);
     expect(container.querySelectorAll('.opp-fight').length).toBe(cells.length);
@@ -373,9 +373,11 @@ describe('opponent list ordering and the fight jump', () => {
   it('opens the fight with the report species and the clicked opponent', async () => {
     const { container } = renderApp(<App />);
     goTo(container, 'Report');
-    await waitFor(() => expect(container.querySelector('.opp-fight')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.hero-name')).toBeTruthy());
     // The report opens on a random species each visit; the fight must carry whichever it is.
     const mine = container.querySelector('.hero-name')!.textContent!;
+    fireEvent.click([...container.querySelectorAll('.seg-btn')].find((b) => b.textContent === 'Analysis')!);
+    await waitFor(() => expect(container.querySelector('.opp-fight')).toBeTruthy());
     const wrap = container.querySelector('.opp-cell-wrap')!;
     const opponent = wrap.querySelector('.opp-name')!.textContent!;
     fireEvent.click(wrap.querySelector('.opp-fight')!);

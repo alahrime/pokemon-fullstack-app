@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-11-13 (seventeenth session: Report screen split into Report and Analysis pages, then refined; plus GBL team-search research in `research/gbl-teams/`; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-11-13 (eighteenth session: nav and section rail tuck to an edge strip and reveal on hover; seventeenth: Report screen split into Report and Analysis pages; plus GBL team-search research in `research/gbl-teams/`; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -43,6 +43,15 @@ design authority; the plans argue from it.
 ## Start here — next session
 
 **GBL team search (research, not app code) — 2026-11-13.** The user ran a long chat-only analysis: which Great League team of 3 is most consistent into their 105 logged opponent teams and the wider meta, with full 3v3 games (HP/energy/shields carried, blind lead solved as a mixed strategy, double-oracle equilibrium). Scripts, data, findings and the **next-session scope** are in `research/gbl-teams/README.md` — read it before touching that work. Headline: Mimikyu / S. Talonflame / Rillaboom (61% vs the equilibrium, 82% vs the log); the user's Clodsire / S. Hydreigon / Dondozo sits in the equilibrium (#30). Next: moveset variants only where they flip meaningful matchups, a far larger candidate set (thousands of proposals per oracle round), and deduplicated scoring so repeated wins over look-alike teams count once. Also see the user's memory note `pvp-team-building-approach`.
+
+**Eighteenth session, 2026-11-13 (pushed straight to `main`; code commits `ef79300`, `5ef310f`; `npm run check` 2064/2064 locally; NO migrations; CSS only).** The user moves to an unrelated task in a new session.
+
+**Done this session — hover-reveal shell (`styles/components.css`, end of the SHELL block; `styles/hud.css`):**
+- Under `@media (hover: hover) and (min-width: 821px)`, `.nav` and `.section-rail` are `position: fixed` overlays translated off-screen except a `--edge-peek` (6px) strip at the top and left edges. `:hover` (and `:has(:focus-visible)`, so keyboard users get them without a click leaving them pinned open) slides them in; leaving waits 180ms (transition-delay) so a slip off the edge does not snap them shut. Reduced motion drops the transition.
+- `--nav-h` becomes the strip there, so every `top: var(--nav-h)` sticky (Report ranking window, Board drag auto-scroll's `navBottom()`) now pins under the strip with no other edit. `.shell.has-rail` drops its rail grid column and goes back to `--shell-max`.
+- Theme/bell menus are descendants of `.nav` (not portaled), so `:hover` holds while using them. If a nav menu is ever moved to a portal it will collapse the nav as the pointer leaves — keep them inside.
+- The HUD theme's glass nav is made solid (`--surface-1`, no backdrop-filter) in that media query, at the user's request: the revealed nav overlays page content. Phones (≤820px) and touch devices are unchanged, including the glass pinned bar.
+- **Measured** at 1440×900 (transitions disabled, since the pane runs none): collapsed nav −70→6px, rail −170→6px, content 24→1416px from y=32 (was ~100 with ~200px given to the rail); hovered nav 0→76px, rail 0→176px; no horizontal overflow; all 12 themes give `.nav` an opaque background and `backdrop-filter: none`. Live CSS confirmed carrying `--edge-peek` for `ef79300`; `5ef310f` was still building when this was written.
 
 **Seventeenth session, 2026-11-13 (pushed straight to `main` and live; last code commit `4b5506b`; `npm run check` 2064/2064 locally; NO migrations).** The user is refining the Report screen interactively and continues in a new session: ask what they want next, then measure, gate, push.
 

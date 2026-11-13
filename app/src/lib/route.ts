@@ -1,5 +1,7 @@
 import type { Screen } from '../state/AppState';
 import { SECTIONS, sectionOf } from './screens';
+import { isSimulated, LEAGUE_BY_ID, SPECIES_BY_ID } from './data';
+import type { IV, LeagueId } from './types';
 
 const TID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const TOURNAMENT_HASH = new RegExp(`^#/play/tournaments/(${TID})$`, 'i');
@@ -45,11 +47,45 @@ export function screenFromHash(hash: string): Screen {
   if (isAuthCallback(hash)) return 'account';
   if (tournamentIdFromHash(hash)) return 'tournaments';
   if (playerIdFromHash(hash)) return 'player';
-  const m = /^#\/([a-z]+)\/([a-z0-9]+)$/.exec(hash);
+  // A report link carries its Pokémon in a query (`#/…/report?mon=…`); the screen is the path.
+  const m = /^#\/([a-z]+)\/([a-z0-9]+)$/.exec(hash.split('?')[0]);
   if (m) {
     const section = SECTIONS.find((s) => s.id === m[1]);
     const screen = section?.screens.find((s) => s === m[2] && s !== 'match' && s !== 'player');
     if (screen) return screen;
   }
   return hash === '#/account' ? 'account' : 'landing';
+}
+
+/** What a shared Analyze link pins: the Pokémon, its roll and the league it is read in. */
+export interface ReportView {
+  species: string;
+  shadow: boolean;
+  league: LeagueId;
+  iv: IV;
+}
+
+/** `?mon=ursaluna&iv=10-8-1&league=great` (+ `&shadow=1`), appended to the report's hash. */
+export function reportQuery(v: ReportView): string {
+  const q = new URLSearchParams({ mon: v.species, iv: `${v.iv.a}-${v.iv.d}-${v.iv.s}`, league: v.league });
+  if (v.shadow) q.set('shadow', '1');
+  return `?${q}`;
+}
+
+/** The valid parts of a report link; anything missing or malformed is left out, not guessed. */
+export function reportFromHash(hash: string): Partial<ReportView> {
+  const i = hash.indexOf('?');
+  if (i < 0 || screenFromHash(hash) !== 'report') return {};
+  const q = new URLSearchParams(hash.slice(i + 1));
+  const out: Partial<ReportView> = {};
+  const mon = q.get('mon');
+  if (mon && SPECIES_BY_ID.has(mon) && isSimulated(mon)) {
+    out.species = mon;
+    out.shadow = q.get('shadow') === '1';
+  }
+  const league = q.get('league') as LeagueId | null;
+  if (league && LEAGUE_BY_ID.has(league)) out.league = league;
+  const iv = /^(\d{1,2})-(\d{1,2})-(\d{1,2})$/.exec(q.get('iv') ?? '');
+  if (iv && iv.slice(1).every((n) => +n <= 15)) out.iv = { a: +iv[1], d: +iv[2], s: +iv[3] };
+  return out;
 }

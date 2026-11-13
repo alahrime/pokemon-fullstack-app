@@ -4534,6 +4534,30 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   align-items: center;
   gap: var(--space-3);
 }
+/* Around-your-roll stat floor: a switch beside the title, two sliders under it. */
+.hv-filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.hv-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.hv-filter .hv-filter-row {
+  margin-top: 0;
+}
+.hv-filter-value {
+  font-weight: 800;
+  min-width: 5ch;
+  text-align: right;
+}
+.hv-filter-empty {
+  padding: var(--space-3);
+}
 .hv-slice-value {
   font-weight: 800;
   font-size: 18px;

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Heatmap } from '../../components/Heatmap';
 import { SegButton, SegGroup } from '../../components/Seg';
 import { HudLabel } from '../../components/Hud';
+import { Switch } from '../../components/Switch';
 import { TerrainBoundary } from '../../components/TerrainBoundary';
 import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
@@ -207,6 +208,37 @@ function HeatmapLegendRows({ colorBy, palette }: { colorBy: ColorBy; palette: He
   );
 }
 
+/** Stats as the table prints them, so a floor of 128.0 keeps a row that reads 128.0. */
+const tenth = (x: number) => Math.round(x * 10) / 10;
+
+/**
+ * The Around-your-roll filter: off by default, and when on, only spreads whose
+ * attack and defense stats reach both floors. Each slider spans the species'
+ * own range, so the floors reset to "everything" when the ranking is another
+ * species' or league's.
+ */
+function useStatFloors(ranked: SpeciesTable['all']) {
+  const bounds = useMemo(() => {
+    const span = (f: (r: SpeciesTable['all'][number]) => number): [number, number] => {
+      const v = ranked.map((r) => tenth(f(r)));
+      return [Math.min(...v), Math.max(...v)];
+    };
+    return { atk: span((r) => r.statAtk), def: span((r) => r.statDef) };
+  }, [ranked]);
+  const [filterOn, setFilterOn] = useState(false);
+  const [floors, setFloors] = useState({ atk: bounds.atk[0], def: bounds.def[0] });
+  const [floorsFor, setFloorsFor] = useState(ranked);
+  if (floorsFor !== ranked) {
+    setFloorsFor(ranked);
+    setFloors({ atk: bounds.atk[0], def: bounds.def[0] });
+  }
+  const all = useMemo(
+    () => (filterOn ? ranked.filter((r) => tenth(r.statAtk) >= floors.atk && tenth(r.statDef) >= floors.def) : ranked),
+    [ranked, filterOn, floors.atk, floors.def],
+  );
+  return { filterOn, setFilterOn, floors, setFloors, bounds, all };
+}
+
 /** Spreads shown either side of your own. 7 + you + 7 is the floor. */
 const NEIGHBOURS = 7;
 const MIN_WINDOW = NEIGHBOURS * 2 + 1;
@@ -275,13 +307,14 @@ export function HeatmapKey({
   table: SpeciesTable;
   iv: IV;
 }) {
-  const all = table.all;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const size = useRowsThatFit(scrollerRef);
-  const centre = useMemo(() => {
-    const i = all.findIndex((r) => r.a === iv.a && r.d === iv.d && r.s === iv.s);
-    return i < 0 ? 0 : i;
-  }, [all, iv.a, iv.d, iv.s]);
+  const { filterOn, setFilterOn, floors, setFloors, bounds, all } = useStatFloors(table.all);
+  const rollAt = useMemo(
+    () => all.findIndex((r) => r.a === iv.a && r.d === iv.d && r.s === iv.s),
+    [all, iv.a, iv.d, iv.s],
+  );
+  const centre = Math.max(0, rollAt);
   const maxStart = Math.max(0, all.length - size);
   // Where the window sits when it is centred on the roll. Clamped at both ends:
   // at rank 3 there is no seventh spread above to show.
@@ -309,7 +342,30 @@ export function HeatmapKey({
         <div className="stagger hv-key min-w-0 gap-3">
           {colorBy === 'rank' ? (
             <div className="panel hud-frame hv-top-panel" style={{ ['--i' as string]: 1 }}>
-              <div className="panel-title">Around your roll</div>
+              <div className="hv-filter-head">
+                <div className="panel-title">Around your roll</div>
+                <Switch label="Stat floor" checked={filterOn} onChange={setFilterOn} title="Show only spreads at or above an attack and defense stat" />
+              </div>
+              {filterOn && (
+                <div className="hv-filter">
+                  {(['atk', 'def'] as const).map((k) => (
+                    <label key={k} className="hv-slice hv-filter-row">
+                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} ≥</span>
+                      <input
+                        type="range"
+                        min={bounds[k][0]}
+                        max={bounds[k][1]}
+                        step={0.1}
+                        value={floors[k]}
+                        onChange={(e) => setFloors({ ...floors, [k]: Number(e.target.value) })}
+                        aria-label={`Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
+                        className="flex-1"
+                      />
+                      <span className="numeric hv-filter-value">{floors[k].toFixed(1)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className="table-scroll hv-top-scroll" ref={scrollerRef}>
                 <table className="table text-sm hv-top-table">
                   <thead>
@@ -349,6 +405,7 @@ export function HeatmapKey({
                     ))}
                   </tbody>
                 </table>
+                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread reaches both floors.</p>}
               </div>
               {/* Not the shared <Pager>: its readout is derived from page ×
                   size, and this window is centred on your roll rather than cut
@@ -365,7 +422,7 @@ export function HeatmapKey({
                   ‹
                 </button>
                 <span className="numeric pager-range">
-                  {from + 1}–{from + rows.length} <i>of</i> {all.length.toLocaleString()}
+                  {rows.length ? from + 1 : 0}–{from + rows.length} <i>of</i> {all.length.toLocaleString()}
                 </span>
                 <button
                   type="button"
@@ -378,7 +435,7 @@ export function HeatmapKey({
                 </button>
                 {/* Only once your roll is off the page — otherwise it is a
                     control that does nothing, sitting next to two that do. */}
-                {!inView && (
+                {!inView && rollAt >= 0 && (
                   <button type="button" className="btn chip-btn hv-top-home" onClick={() => setStart(home)}>
                     your roll
                   </button>

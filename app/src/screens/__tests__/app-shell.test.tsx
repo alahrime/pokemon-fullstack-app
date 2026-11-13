@@ -14,7 +14,7 @@ describe('App shell', () => {
   it('mirrors the screen into the URL hash and follows the hash back', async () => {
     const { container } = renderApp(<App />);
     fireEvent.click(container.querySelector('.landing-route')!);
-    await waitFor(() => expect(window.location.hash).toBe('#/analyze/report'));
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/analyze\/report\?mon=[a-z0-9_]+&iv=\d+-\d+-\d+&league=great$/));
     act(() => {
       window.location.hash = '#/analyze/rankings';
       window.dispatchEvent(new HashChangeEvent('hashchange'));

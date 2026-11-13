@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashFor, isAuthCallback, hashForPlayer, hashForTournament, hashForView, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../route';
+import { hashFor, isAuthCallback, hashForPlayer, hashForTournament, hashForView, playerIdFromHash, screenFromHash, tournamentIdFromHash, reportFromHash, reportQuery } from '../route';
 import { SCREEN_DEFS } from '../screens';
 
 describe('hash routing', () => {
@@ -54,5 +54,19 @@ describe('hash routing', () => {
   it('sends anything unrecognised to landing', () => {
     for (const h of ['', '#', '#/', '#/nope', '#/analyze/nope', '#/play/rankings', 'garbage'])
       expect(screenFromHash(h), h).toBe('landing');
+  });
+});
+
+describe('report links', () => {
+  it('round-trips a Pokémon, roll and league through the hash', () => {
+    const v = { species: 'ursaluna', shadow: false, league: 'ultra' as const, iv: { a: 10, d: 8, s: 1 } };
+    const hash = hashFor('report') + reportQuery(v);
+    expect(screenFromHash(hash)).toBe('report');
+    expect(reportFromHash(hash)).toEqual(v);
+  });
+
+  it('drops malformed or unknown parts rather than guessing', () => {
+    expect(reportFromHash('#/analyze/report?mon=notamon&iv=16-0-0&league=little')).toEqual({});
+    expect(reportFromHash('#/analyze/battle?mon=ursaluna')).toEqual({});
   });
 });

@@ -3,7 +3,7 @@ import type { IV, LeagueId } from '../lib/types';
 import { opponentsFor, randomMatchup, ratedFastIdx, SPECIES_BY_ID } from '../lib/data';
 import { defaultSpreadFor, isMega, type BaitMode, type Stages } from '../lib/engine';
 import type { Match } from '../lib/matches';
-import { hashForView, isAuthCallback, playerIdFromHash, screenFromHash, tournamentIdFromHash } from '../lib/route';
+import { hashForView, isAuthCallback, playerIdFromHash, reportFromHash, reportQuery, screenFromHash, tournamentIdFromHash, type ReportView } from '../lib/route';
 
 export type Screen = 'landing' | 'report' | 'battle' | 'rankings' | 'gbl' | 'show6' | 'cores' | 'diagnostics' | 'moves' | 'formats' | 'matchmaking' | 'match' | 'friends' | 'chat' | 'tournaments' | 'records' | 'player' | 'tracker' | 'account';
 export type Viz = 'heat' | 'ruler' | 'table' | 'flip';
@@ -193,6 +193,18 @@ export const INITIAL_STATE: AppStateShape = {
   activePlayerId: null,
 };
 
+/** A shared Analyze link's Pokémon, roll and league laid over `s`; `s` itself when it already says all that. */
+function applyReport(s: AppStateShape, v: Partial<ReportView>): AppStateShape {
+  let n = s;
+  if (v.league && v.league !== n.league) n = { ...n, ...leaguePatch(v.league, null) };
+  if (v.species && (v.species !== n.species || v.shadow !== n.shadow)) {
+    const crossed = v.species !== n.species && (isMega(SPECIES_BY_ID.get(v.species)!) || isMega(SPECIES_BY_ID.get(n.species)!));
+    n = { ...n, species: v.species, shadow: !!v.shadow, ...(v.species !== n.species ? { moveIdx: 0, chargeIds: [] } : {}), ...(crossed ? { bestBuddy: false } : {}) };
+  }
+  if (v.iv && (v.iv.a !== n.iv.a || v.iv.d !== n.iv.d || v.iv.s !== n.iv.s)) n = { ...n, iv: v.iv };
+  return n;
+}
+
 interface AppStateContextValue {
   state: AppStateShape;
   set: <K extends keyof AppStateShape>(key: K, value: AppStateShape[K]) => void;
@@ -206,7 +218,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // INITIAL_STATE stays the exported default (tests assert it); only the
   // starting screen is taken from the address, so a shared link lands where
   // it points.
-  const [state, setState] = useState<AppStateShape>(() => ({
+  const [state, setState] = useState<AppStateShape>(() => applyReport({
     ...INITIAL_STATE,
     // Analyze opens on a random Pokémon each visit (the battle screen's opening
     // left side), not the same fixed one; a species the user picks then stays.
@@ -214,13 +226,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     screen: typeof window === 'undefined' ? 'landing' : screenFromHash(window.location.hash),
     activeTournamentId: typeof window === 'undefined' ? null : tournamentIdFromHash(window.location.hash),
     activePlayerId: typeof window === 'undefined' ? null : playerIdFromHash(window.location.hash),
-  }));
+  }, typeof window === 'undefined' ? {} : reportFromHash(window.location.hash)));
 
   // State → URL. An empty hash is the landing page, so a fresh visit writes
   // nothing and adds no history entry.
   const wanted = useRef('#/');
   useEffect(() => {
-    const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId);
+    // The report carries its Pokémon and roll, so a link to it opens that analysis.
+    const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId)
+      + (state.screen === 'report' ? reportQuery(state) : '');
     wanted.current = want;
     const have = window.location.hash || '#/';
     if (have === want) return;
@@ -230,9 +244,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // An unknown route is not ours to keep: replace it so Back does not land on
     // it again. replaceState fires no hashchange, and state already says
     // `want`, so nothing else to sync.
-    if (hashForView(screenFromHash(have), tournamentIdFromHash(have), playerIdFromHash(have)) !== have) history.replaceState(null, '', want);
+    // A roll tweaked on the report replaces its own entry too: every IV bump
+    // is not a page Back should step through.
+    const haveScreen = screenFromHash(have);
+    const known = hashForView(haveScreen, tournamentIdFromHash(have), playerIdFromHash(have)) === have.split('?')[0];
+    if (!known || (haveScreen === 'report' && state.screen === 'report')) history.replaceState(null, '', want);
     else window.location.hash = want;
-  }, [state.screen, state.activeTournamentId, state.activePlayerId]);
+  }, [state.screen, state.activeTournamentId, state.activePlayerId, state.species, state.shadow, state.league, state.iv]);
 
   // URL → state, for back/forward and hand-edited addresses.
   useEffect(() => {
@@ -248,11 +266,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const nextId = tournamentIdFromHash(window.location.hash);
       const nextPlayer = playerIdFromHash(window.location.hash);
       // An open match keeps its screen when the address still says Matches.
-      setState((s) =>
+      setState((s) => applyReport(
         hashForView(s.screen, s.activeTournamentId, s.activePlayerId) === hashForView(next, nextId, nextPlayer)
           ? s
           : { ...s, screen: next, activeTournamentId: nextId, activePlayerId: nextPlayer },
-      );
+        reportFromHash(window.location.hash),
+      ));
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);

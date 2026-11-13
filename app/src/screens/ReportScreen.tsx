@@ -207,6 +207,15 @@ function FullReport() {
     };
   }, [species, speciesId, iv, league, opp, mv]);
 
+  // Rendered twice: in the bar at the top on wide screens, and in the pinned
+  // phone bar beside its search, so switching pages never needs a scroll up.
+  const pageTabs = (
+    <SegGroup>
+      <SegButton active={reportPage === 'report'} onClick={() => set('reportPage', 'report')}>Report</SegButton>
+      <SegButton active={reportPage === 'analysis'} onClick={() => set('reportPage', 'analysis')}>Analysis</SegButton>
+    </SegGroup>
+  );
+
   return (
     <>
       {/* The whole report takes the colour of what it is reporting on.
@@ -228,6 +237,7 @@ function FullReport() {
             slim nav instead, and picking scrolls the new Pokémon's card, roll
             and every-league panel up under it. The column's own search hides there. */}
         <div className="report-search-bar">
+          {pageTabs}
           <SpeciesSearch
             id="report-species-pinned"
             includeShowcase
@@ -258,10 +268,7 @@ function FullReport() {
           picker sits between the two rather than leading, and Arrange stays
           pinned to the right edge so it lines up with the board beneath it. */}
       <div className="rs-bar">
-        <SegGroup>
-          <SegButton active={reportPage === 'report'} onClick={() => set('reportPage', 'report')}>Report</SegButton>
-          <SegButton active={reportPage === 'analysis'} onClick={() => set('reportPage', 'analysis')}>Analysis</SegButton>
-        </SegGroup>
+        {pageTabs}
         {editing && reportPage === 'analysis' && (
           <span className="hud-label text-(--text-faint) whitespace-nowrap">Drag a panel, or use the arrows</span>
         )}

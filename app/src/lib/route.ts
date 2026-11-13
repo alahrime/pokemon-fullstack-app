@@ -1,6 +1,7 @@
 import type { Screen } from '../state/AppState';
 import { SECTIONS, sectionOf } from './screens';
 import { isSimulated, LEAGUE_BY_ID, SPECIES_BY_ID } from './data';
+import { LIMITED_CUPS } from './presetFormats';
 import type { IV, LeagueId } from './types';
 
 const TID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -62,13 +63,22 @@ export interface ReportView {
   species: string;
   shadow: boolean;
   league: LeagueId;
+  /** A limited cup key, played under `league`'s cap; null for the plain league. */
+  cup: string | null;
   iv: IV;
+  /** Around-your-roll stat floor, or null when the filter is off. */
+  statFloor: { atk: number; def: number } | null;
 }
 
-/** `?mon=ursaluna&iv=10-8-1&league=great` (+ `&shadow=1`), appended to the report's hash. */
+/** `?mon=ursaluna&iv=10-8-1&league=great` (+ `&shadow=1`, `&cup=…`, `&atk=128&def=90.4`), appended to the report's hash. */
 export function reportQuery(v: ReportView): string {
   const q = new URLSearchParams({ mon: v.species, iv: `${v.iv.a}-${v.iv.d}-${v.iv.s}`, league: v.league });
   if (v.shadow) q.set('shadow', '1');
+  if (v.cup) q.set('cup', v.cup);
+  if (v.statFloor) {
+    q.set('atk', v.statFloor.atk.toFixed(1));
+    q.set('def', v.statFloor.def.toFixed(1));
+  }
   return `?${q}`;
 }
 
@@ -85,6 +95,13 @@ export function reportFromHash(hash: string): Partial<ReportView> {
   }
   const league = q.get('league') as LeagueId | null;
   if (league && LEAGUE_BY_ID.has(league)) out.league = league;
+  // A cup decides its own cap, whatever `league` says; a link without one is the plain league.
+  const cup = LIMITED_CUPS.find((c) => c.key === q.get('cup'));
+  out.cup = cup?.key ?? null;
+  if (cup) out.league = cup.base;
+  // Absent is "filter off", not "unspecified": every link this app writes says which.
+  const atk = Number(q.get('atk')), def = Number(q.get('def'));
+  out.statFloor = q.has('atk') && q.has('def') && Number.isFinite(atk) && Number.isFinite(def) ? { atk, def } : null;
   const iv = /^(\d{1,2})-(\d{1,2})-(\d{1,2})$/.exec(q.get('iv') ?? '');
   if (iv && iv.slice(1).every((n) => +n <= 15)) out.iv = { a: +iv[1], d: +iv[2], s: +iv[3] };
   return out;

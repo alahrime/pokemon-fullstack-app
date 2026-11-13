@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { hashFor, isAuthCallback, hashForPlayer, hashForTournament, hashForView, playerIdFromHash, screenFromHash, tournamentIdFromHash, reportFromHash, reportQuery } from '../route';
 import { SCREEN_DEFS } from '../screens';
+import { LIMITED_CUPS } from '../presetFormats';
 
 describe('hash routing', () => {
   it('writes readable paths', () => {
@@ -59,14 +60,20 @@ describe('hash routing', () => {
 
 describe('report links', () => {
   it('round-trips a Pokémon, roll and league through the hash', () => {
-    const v = { species: 'ursaluna', shadow: false, league: 'ultra' as const, iv: { a: 10, d: 8, s: 1 } };
+    const v = { species: 'ursaluna', shadow: false, league: 'ultra' as const, cup: null, iv: { a: 10, d: 8, s: 1 }, statFloor: { atk: 128, def: 90.4 } };
     const hash = hashFor('report') + reportQuery(v);
     expect(screenFromHash(hash)).toBe('report');
     expect(reportFromHash(hash)).toEqual(v);
   });
 
+  it('a cup sets its own league, whatever the link says', () => {
+    const cup = LIMITED_CUPS.find((c) => c.base === 'ultra')!;
+    const got = reportFromHash(`#/analyze/report?mon=ursaluna&iv=1-2-3&league=great&cup=${cup.key}`);
+    expect(got).toMatchObject({ cup: cup.key, league: 'ultra', statFloor: null });
+  });
+
   it('drops malformed or unknown parts rather than guessing', () => {
-    expect(reportFromHash('#/analyze/report?mon=notamon&iv=16-0-0&league=little')).toEqual({});
+    expect(reportFromHash('#/analyze/report?mon=notamon&iv=16-0-0&league=little&cup=nope&atk=x&def=1')).toEqual({ cup: null, statFloor: null });
     expect(reportFromHash('#/analyze/battle?mon=ursaluna')).toEqual({});
   });
 });

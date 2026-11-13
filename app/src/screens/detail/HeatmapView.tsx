@@ -11,6 +11,8 @@ import type { ColorBy } from '../../state/AppState';
 import { paletteRamp, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
 
+type StatFloor = { atk: number; def: number };
+
 /* three.js + R3F is ~1.1MB of the bundle, so it's split out and fetched when
    the terrain first renders. The 2D grid stays in the main chunk. */
 const Heatmap3D = lazy(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
@@ -208,16 +210,21 @@ function HeatmapLegendRows({ colorBy, palette }: { colorBy: ColorBy; palette: He
   );
 }
 
-/** Stats as the table prints them, so a floor of 128.0 keeps a row that reads 128.0. */
-const tenth = (x: number) => Math.round(x * 10) / 10;
+/**
+ * Stats as the table prints them: cut to one decimal, not rounded. 9/9/1 Ursaluna's attack is 128.1928, which is
+ * not 128.2 of anything — and with the cut, "≥ 128.0" keeps exactly the rows that really reach 128, where a rounded
+ * 127.96 would print as 128.0 and miss the breakpoint it appears to make. The epsilon only absorbs float error
+ * (12.3 × 10 is 122.99999…).
+ */
+const tenth = (x: number) => Math.floor(x * 10 + 1e-9) / 10;
 
 /**
- * The Around-your-roll filter: off by default, and when on, only spreads whose
- * attack and defense stats reach both floors. Each slider spans the species'
- * own range, so the floors reset to "everything" when the ranking is another
- * species' or league's.
+ * The Around-your-roll filter: off (null) by default, and when on, only spreads
+ * whose attack and defense stats reach both floors. Each slider spans the
+ * species' own range. The floor lives in app state so the link carries it; a
+ * new species or league clears it there.
  */
-function useStatFloors(ranked: SpeciesTable['all']) {
+function useStatFloors(ranked: SpeciesTable['all'], floor: StatFloor | null) {
   const bounds = useMemo(() => {
     const span = (f: (r: SpeciesTable['all'][number]) => number): [number, number] => {
       const v = ranked.map((r) => tenth(f(r)));
@@ -225,18 +232,11 @@ function useStatFloors(ranked: SpeciesTable['all']) {
     };
     return { atk: span((r) => r.statAtk), def: span((r) => r.statDef) };
   }, [ranked]);
-  const [filterOn, setFilterOn] = useState(false);
-  const [floors, setFloors] = useState({ atk: bounds.atk[0], def: bounds.def[0] });
-  const [floorsFor, setFloorsFor] = useState(ranked);
-  if (floorsFor !== ranked) {
-    setFloorsFor(ranked);
-    setFloors({ atk: bounds.atk[0], def: bounds.def[0] });
-  }
   const all = useMemo(
-    () => (filterOn ? ranked.filter((r) => tenth(r.statAtk) >= floors.atk && tenth(r.statDef) >= floors.def) : ranked),
-    [ranked, filterOn, floors.atk, floors.def],
+    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def) : ranked),
+    [ranked, floor],
   );
-  return { filterOn, setFilterOn, floors, setFloors, bounds, all };
+  return { bounds, all };
 }
 
 /** Spreads shown either side of your own. 7 + you + 7 is the floor. */
@@ -300,16 +300,20 @@ export function HeatmapKey({
   onPickSpread,
   table,
   iv,
+  floor,
+  onFloor,
 }: {
   colorBy: ColorBy;
   /** Loads a whole spread — these rows cross HP slices, unlike the grid's. */
   onPickSpread: (a: number, d: number, s: number) => void;
   table: SpeciesTable;
   iv: IV;
+  floor: StatFloor | null;
+  onFloor: (f: StatFloor | null) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const size = useRowsThatFit(scrollerRef);
-  const { filterOn, setFilterOn, floors, setFloors, bounds, all } = useStatFloors(table.all);
+  const { bounds, all } = useStatFloors(table.all, floor);
   const rollAt = useMemo(
     () => all.findIndex((r) => r.a === iv.a && r.d === iv.d && r.s === iv.s),
     [all, iv.a, iv.d, iv.s],
@@ -344,9 +348,9 @@ export function HeatmapKey({
             <div className="panel hud-frame hv-top-panel" style={{ ['--i' as string]: 1 }}>
               <div className="hv-filter-head">
                 <div className="panel-title">Around your roll</div>
-                <Switch label="Stat floor" checked={filterOn} onChange={setFilterOn} title="Show only spreads at or above an attack and defense stat" />
+                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0] } : null)} title="Show only spreads at or above an attack and defense stat" />
               </div>
-              {filterOn && (
+              {floor && (
                 <div className="hv-filter">
                   {(['atk', 'def'] as const).map((k) => (
                     <label key={k} className="hv-slice hv-filter-row">
@@ -356,12 +360,12 @@ export function HeatmapKey({
                         min={bounds[k][0]}
                         max={bounds[k][1]}
                         step={0.1}
-                        value={floors[k]}
-                        onChange={(e) => setFloors({ ...floors, [k]: Number(e.target.value) })}
+                        value={floor[k]}
+                        onChange={(e) => onFloor({ ...floor, [k]: Number(e.target.value) })}
                         aria-label={`Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
                         className="flex-1"
                       />
-                      <span className="numeric hv-filter-value">{floors[k].toFixed(1)}</span>
+                      <span className="numeric hv-filter-value">{floor[k].toFixed(1)}</span>
                     </label>
                   ))}
                 </div>
@@ -397,8 +401,8 @@ export function HeatmapKey({
                         {/* The stats these IVs actually buy, at this spread's
                             own level under the cap — which is the whole reason
                             a lower attack IV can outrank a higher one. */}
-                        <td className="numeric">{r.statAtk.toFixed(1)}</td>
-                        <td className="numeric">{r.statDef.toFixed(1)}</td>
+                        <td className="numeric">{tenth(r.statAtk).toFixed(1)}</td>
+                        <td className="numeric">{tenth(r.statDef).toFixed(1)}</td>
                         <td className="numeric">{r.hp}</td>
                         <td className="numeric hv-top-pct">{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
                       </tr>

@@ -98,6 +98,8 @@ export interface AppStateShape {
   activeTournamentId: string | null;
   /** The profile open on the `player` screen (`#/play/players/<id>`), linkable like a tournament. */
   activePlayerId: string | null;
+  /** Around-your-roll filter: spreads at or above these stats, or null for every spread. Species-specific. */
+  statFloor: { atk: number; def: number } | null;
 }
 
 // Rolled once per page load, so the battle screen opens somewhere different
@@ -125,6 +127,7 @@ export function leaguePatch(id: LeagueId, cup: string | null): Partial<AppStateS
   return {
     league: id,
     cup,
+    statFloor: null,
     oppId: opponentsFor(id)[0]?.id ?? '',
     battleA: a,
     battleB: b,
@@ -191,17 +194,22 @@ export const INITIAL_STATE: AppStateShape = {
   activeMatch: null,
   activeTournamentId: null,
   activePlayerId: null,
+  statFloor: null,
 };
 
 /** A shared Analyze link's Pokémon, roll and league laid over `s`; `s` itself when it already says all that. */
 function applyReport(s: AppStateShape, v: Partial<ReportView>): AppStateShape {
   let n = s;
-  if (v.league && v.league !== n.league) n = { ...n, ...leaguePatch(v.league, null) };
+  const cup = v.cup === undefined ? n.cup : v.cup;
+  if ((v.league && v.league !== n.league) || cup !== n.cup) n = { ...n, ...leaguePatch(v.league ?? n.league, cup) };
   if (v.species && (v.species !== n.species || v.shadow !== n.shadow)) {
     const crossed = v.species !== n.species && (isMega(SPECIES_BY_ID.get(v.species)!) || isMega(SPECIES_BY_ID.get(n.species)!));
-    n = { ...n, species: v.species, shadow: !!v.shadow, ...(v.species !== n.species ? { moveIdx: 0, chargeIds: [] } : {}), ...(crossed ? { bestBuddy: false } : {}) };
+    n = { ...n, species: v.species, shadow: !!v.shadow, ...(v.species !== n.species ? { moveIdx: 0, chargeIds: [], statFloor: null } : {}), ...(crossed ? { bestBuddy: false } : {}) };
   }
   if (v.iv && (v.iv.a !== n.iv.a || v.iv.d !== n.iv.d || v.iv.s !== n.iv.s)) n = { ...n, iv: v.iv };
+  if (v.statFloor !== undefined && (v.statFloor?.atk !== n.statFloor?.atk || v.statFloor?.def !== n.statFloor?.def)) {
+    n = { ...n, statFloor: v.statFloor };
+  }
   return n;
 }
 
@@ -250,7 +258,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const known = hashForView(haveScreen, tournamentIdFromHash(have), playerIdFromHash(have)) === have.split('?')[0];
     if (!known || (haveScreen === 'report' && state.screen === 'report')) history.replaceState(null, '', want);
     else window.location.hash = want;
-  }, [state.screen, state.activeTournamentId, state.activePlayerId, state.species, state.shadow, state.league, state.iv]);
+  }, [state.screen, state.activeTournamentId, state.activePlayerId, state.species, state.shadow, state.league, state.iv, state.cup, state.statFloor]);
 
   // URL → state, for back/forward and hand-edited addresses.
   useEffect(() => {
@@ -284,7 +292,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // On a Mega `bestBuddy` is its Mega Level, which means nothing to the next species.
       const next = partial.species && partial.species !== s.species ? SPECIES_BY_ID.get(partial.species) : undefined;
       const crossed = next && (isMega(next) || isMega(SPECIES_BY_ID.get(s.species)!));
-      return { ...s, ...(crossed ? { bestBuddy: false } : {}), ...partial };
+      // The stat floor is a range of this species' stats; the next one's starts unfiltered.
+      const species = next ? { statFloor: null } : {};
+      return { ...s, ...(crossed ? { bestBuddy: false } : {}), ...species, ...partial };
     });
     const bumpIv = (key: keyof IV, delta: number) =>
       setState((s) => ({ ...s, iv: { ...s.iv, [key]: Math.max(0, Math.min(15, s.iv[key] + delta)) } }));

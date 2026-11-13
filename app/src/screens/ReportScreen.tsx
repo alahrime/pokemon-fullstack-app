@@ -478,6 +478,8 @@ function FullReport() {
             onPickSpread={(a, d, s) => patch({ iv: { a, d, s } })}
             table={table}
             iv={iv}
+            floor={state.statFloor}
+            onFloor={(f) => set('statFloor', f)}
           />
         </div>
         ) : (

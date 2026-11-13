@@ -465,6 +465,24 @@ input[type='range'] { accent-color: var(--color-accent); }
   min-width: 0;
 }
 .report-side .hero { margin-bottom: var(--space-1); }
+/* Analysis keeps the card where Report has it: the same padding and column
+   split, so switching pages leaves the subject in place. The board's first
+   panel takes the cell beside it; the rest run the full width beneath. The
+   board's own wrapper dissolves so its panels are the grid's items. */
+.rs-analysis {
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+.rs-analysis-board { display: contents; }
+.rs-analysis > .hero { margin-bottom: var(--space-1); }
+.rs-analysis-board > .board-slot ~ .board-slot { grid-column: 1 / -1; }
+@media (max-width: 820px) {
+  .rs-analysis { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+}
 /* Report | Analysis, the picker, and Arrange on the Analysis page. */
 .rs-bar {
   display: flex;

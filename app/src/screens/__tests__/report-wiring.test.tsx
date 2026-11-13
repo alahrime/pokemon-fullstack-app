@@ -215,18 +215,28 @@ describe('ReportScreen wiring', () => {
     expect(rows.findIndex((r) => r.className.includes('is-selected'))).toBe(7);
   });
 
-  it('follows the adjuster: a new roll re-centres the window on it', () => {
+  it('follows the adjuster without moving a window that already shows the new roll', () => {
     const { container } = renderApp(<ReportScreen />);
     const before = container.querySelector('.hv-top-row.is-selected')!.textContent;
+    const body = container.querySelector('.hv-top-table tbody');
+    const range = container.querySelector('.hv-top-pager .pager-range')!.textContent;
     fireEvent.click(container.querySelector('[aria-label="Decrease Defense"]')!);
-    const rows = [...container.querySelectorAll('.hv-top-row')];
-    const selected = rows.findIndex((r) => r.className.includes('is-selected'));
-    expect(rows[selected].textContent).not.toBe(before);
-    // Centred on the new roll, except where the ranking runs out above it:
-    // dropping a defense point here lands on rank 7, which has only six
-    // spreads above it to show.
-    const rank = Number(rows[selected].querySelector('.hv-top-rank')!.textContent);
-    expect(selected).toBe(Math.min(7, rank - 1));
+    const selected = container.querySelector('.hv-top-row.is-selected')!;
+    expect(selected.textContent).not.toBe(before);
+    // Still on the page, so the window holds: same rows, same body element —
+    // a re-keyed body would replay the whole cascade for rows already shown.
+    expect(container.querySelector('.hv-top-pager .pager-range')!.textContent).toBe(range);
+    expect(container.querySelector('.hv-top-table tbody')).toBe(body);
+  });
+
+  it('keeps the window still when a row in it is picked', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const body = container.querySelector('.hv-top-table tbody');
+    const rows = container.querySelectorAll('.hv-top-row');
+    fireEvent.click(rows[rows.length - 1]);
+    expect(container.querySelectorAll('.hv-top-row')[rows.length - 1].className).toContain('is-selected');
+    expect(container.querySelector('.hv-top-table tbody')).toBe(body);
+    expect(container.querySelector('.hv-top-home')).toBeFalsy();
   });
 
   it('reports the stats a spread buys, not the stat product twice over', () => {

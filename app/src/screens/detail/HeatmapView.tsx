@@ -288,17 +288,21 @@ export function HeatmapKey({
   const home = Math.min(Math.max(0, centre - (size >> 1)), maxStart);
 
   const [start, setStart] = useState(home);
-  // Re-centre when the roll moves — and when the window resizes, since a taller
-  // panel wants a different top row for the same spread. Adjusted during render
-  // rather than in an effect so the table never paints one frame around the old
-  // spread, or one frame offset from where the first measurement puts it.
-  const [homedAt, setHomedAt] = useState({ centre, size });
-  if (homedAt.centre !== centre || homedAt.size !== size) {
-    setHomedAt({ centre, size });
-    setStart(home);
-  }
   // A window that grew past the end of the ranking pulls back to fit it.
   const from = Math.min(start, maxStart);
+  const inView = centre >= from && centre < from + size;
+  // Re-centre when the roll leaves the window, when the ranking is another
+  // species' or league's, and when the window resizes (a taller panel wants a
+  // different top row). A roll that moves *within* the window — a row clicked
+  // here, a bump of one rank — leaves it where it is: re-centring by a row
+  // or two re-keys the body and replays the whole cascade for numbers that
+  // were already on screen. Adjusted during render rather than in an effect so
+  // the table never paints one frame around the old spread.
+  const [homedAt, setHomedAt] = useState({ centre, size, all });
+  if (homedAt.centre !== centre || homedAt.size !== size || homedAt.all !== all) {
+    setHomedAt({ centre, size, all });
+    if (!inView || homedAt.size !== size || homedAt.all !== all) setStart(home);
+  }
   const rows = all.slice(from, from + size);
 
   return (
@@ -372,9 +376,9 @@ export function HeatmapKey({
                 >
                   ›
                 </button>
-                {/* Only once you have paged away from it — otherwise it is a
+                {/* Only once your roll is off the page — otherwise it is a
                     control that does nothing, sitting next to two that do. */}
-                {from !== home && (
+                {!inView && (
                   <button type="button" className="btn chip-btn hv-top-home" onClick={() => setStart(home)}>
                     your roll
                   </button>

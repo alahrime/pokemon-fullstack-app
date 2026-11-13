@@ -402,3 +402,198 @@
   .hero-meter-pct { display: none; }
 }
 
+
+/* ── hero, lit ─────────────────────────────────────────────────────────────
+   The card is the subject of the page, so it carries the HUD language at full
+   strength: a chamfered plate, a rail lit in the species' own two type colours
+   (--t1/--t2 from .report-frame), a targeting reticle on the sprite, segmented
+   gauges with a hot leading edge, and one scan pass on arrival. Everything
+   moving here runs once, on mount — the card is keyed on the species, so a new
+   subject replays it and an IV bump does not — and every duration is a motion
+   token, so reduced motion collapses it. */
+.hero {
+  --hero-t1: var(--t1, var(--lg-accent));
+  --hero-t2: var(--t2, var(--lg));
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  border-color: color-mix(in srgb, var(--hero-t1) 35%, var(--rule-strong));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hero-t1) 10%, transparent);
+}
+/* The lit rail: both types, glowing, along the top edge. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--hero-t1) 18%, var(--hero-t2) 82%, transparent);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--hero-t1) 70%, transparent);
+  transform-origin: left;
+  animation: grow-x var(--dur-5) var(--ease-out) both;
+  pointer-events: none;
+}
+.hero.is-shadow::before {
+  background: linear-gradient(90deg, transparent, var(--shadow-aura) 18%, var(--hero-t1) 82%, transparent);
+}
+/* The chamfer's cut edges get a hairline of their own, or the clip reads as damage. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(225deg, transparent 9.5px, color-mix(in srgb, var(--hero-t1) 80%, transparent) 9.5px 10.5px, transparent 10.5px) top right / 14px 14px no-repeat,
+    linear-gradient(45deg, transparent 9.5px, color-mix(in srgb, var(--hero-t2) 80%, transparent) 9.5px 10.5px, transparent 10.5px) bottom left / 14px 14px no-repeat;
+}
+
+.hero-stage {
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 42% 60% at 18% 70%, color-mix(in srgb, var(--hero-t1) 34%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 80% at 85% 0%, color-mix(in srgb, var(--hero-t2) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--lg-deep) 45%, transparent), transparent 65%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--grid-line) 60%, transparent) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
+    var(--surface-1);
+}
+/* One scan pass on arrival, then gone. */
+.hero-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    transparent 0 42%,
+    color-mix(in srgb, var(--hero-t1) 22%, transparent) 49%,
+    color-mix(in srgb, var(--color-text) 35%, transparent) 50%,
+    transparent 51% 100%);
+  opacity: 0;
+  animation: hero-scan var(--dur-5) var(--ease-out) both;
+}
+@keyframes hero-scan {
+  0% { opacity: 1; transform: translateY(-55%); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(55%); }
+}
+
+/* Targeting reticle: four corner brackets framing the sprite. */
+.hero-subject::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  --rc: color-mix(in srgb, var(--hero-t1) 75%, var(--color-text));
+  background:
+    linear-gradient(var(--rc), var(--rc)) top left / 12px 1.5px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) top left / 1.5px 12px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) top right / 12px 1.5px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) top right / 1.5px 12px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) bottom left / 12px 1.5px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) bottom left / 1.5px 12px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) bottom right / 12px 1.5px no-repeat,
+    linear-gradient(var(--rc), var(--rc)) bottom right / 1.5px 12px no-repeat;
+  opacity: 0.7;
+  animation: hero-lock var(--dur-4) var(--ease-out) both;
+}
+@keyframes hero-lock {
+  from { opacity: 0; transform: scale(1.18); }
+  to { opacity: 0.7; transform: none; }
+}
+/* The contact shadow becomes a lit pad the subject stands on. */
+.hero-subject::after {
+  height: 12px;
+  background:
+    radial-gradient(ellipse at center, color-mix(in srgb, var(--lg-deep) 70%, transparent) 30%, transparent 72%);
+  box-shadow: 0 0 18px 2px color-mix(in srgb, var(--hero-t1) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hero-t1) 45%, transparent);
+}
+
+.hero-dex {
+  font-family: var(--font-mono);
+  border-color: color-mix(in srgb, var(--hero-t1) 45%, var(--rule-hairline));
+  box-shadow: inset 2px 0 0 var(--hero-t1);
+}
+
+/* Gauges: segmented, with a hot cap on the leading edge, filling on arrival. */
+.hero-meter-track {
+  height: 10px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--surface-1));
+}
+.hero-meter-fill {
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 6.5px);
+  mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 6.5px);
+  transform-origin: left;
+  animation: grow-x var(--dur-5) var(--ease-out) both;
+}
+.hero-meter.is-def .hero-meter-fill { animation-delay: calc(80ms * var(--motion-scale)); }
+.hero-meter.is-hp .hero-meter-fill { animation-delay: calc(160ms * var(--motion-scale)); }
+/* The cap sits outside the masked fill, so it is a solid bright edge. */
+.hero-meter-track::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  left: var(--cap, 0%);
+  background: var(--color-text);
+  box-shadow: 0 0 8px 1px var(--cap-c, var(--lg-accent));
+  transition: left var(--dur-3) var(--ease-out);
+  animation: hero-cap var(--dur-5) var(--ease-out) both;
+}
+/* Rides the fill's leading edge in on arrival (grow-x scales the fill from 0). */
+@keyframes hero-cap { from { left: 0; opacity: 0; } }
+.hero-meter.is-def .hero-meter-track::after { animation-delay: calc(80ms * var(--motion-scale)); }
+.hero-meter.is-hp .hero-meter-track::after { animation-delay: calc(160ms * var(--motion-scale)); }
+.hero-meter.is-atk { --cap-c: var(--meter-atk); }
+.hero-meter.is-def { --cap-c: var(--meter-def); }
+.hero-meter.is-hp { --cap-c: var(--meter-hp); }
+.hero-meter-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-md, var(--text-sm));
+  font-weight: 800;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--cap-c) 40%, transparent);
+}
+
+/* The name: large, set in its type colours where it catches the light. */
+.hero-name {
+  font-size: 36px;
+  font-weight: 800;
+  background: linear-gradient(100deg, var(--color-text) 40%, color-mix(in srgb, var(--hero-t1) 60%, var(--color-text)) 75%, color-mix(in srgb, var(--hero-t2) 60%, var(--color-text)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rise-in var(--dur-4) var(--ease-out) both;
+}
+.hero-shadow-mark { -webkit-text-fill-color: var(--shadow-aura); }
+
+.hero-vital-value { font-family: var(--font-mono); font-size: 26px; animation: flicker-in var(--dur-4) linear both; }
+.hero-vital:nth-child(2) .hero-vital-value { animation-delay: calc(60ms * var(--motion-scale)); }
+.hero-vital:nth-child(3) .hero-vital-value { animation-delay: calc(120ms * var(--motion-scale)); }
+.hero-vital.is-lead .hero-vital-value {
+  text-shadow: 0 0 14px color-mix(in srgb, var(--lg-accent) 60%, transparent);
+}
+.hero-vital.is-lead .hero-vital-label { color: color-mix(in srgb, var(--lg-accent) 70%, var(--text-muted)); }
+
+/* The verdict reads as a readout line, on a lit rail. */
+.hero-verdict {
+  position: relative;
+  padding: 6px 10px 6px 22px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-text) 78%, var(--text-muted));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hero-t1) 12%, transparent), transparent 70%);
+  border-left: 2px solid var(--hero-t1);
+}
+.hero-verdict::before {
+  content: '▸';
+  position: absolute;
+  left: 8px;
+  color: var(--hero-t1);
+}
+
+@container (max-width: 420px) {
+  .hero-name { font-size: 28px; }
+  .hero-vital-value { font-size: 20px; }
+}

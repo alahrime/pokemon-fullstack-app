@@ -114,7 +114,7 @@ export function SpeciesHero({
             return (
               <div className={`hero-meter is-${kind}`} key={label}>
                 <span className="hero-meter-label">{label}</span>
-                <span className="hero-meter-track">
+                <span className="hero-meter-track" style={{ ['--cap' as string]: `${hi}%` }}>
                   <span className="hero-meter-fill" style={{ width: `${lo}%` }} />
                   {shifted && (
                     <span

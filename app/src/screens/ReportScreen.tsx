@@ -216,6 +216,59 @@ function FullReport() {
     </SegGroup>
   );
 
+  // The card heads both pages, in the same place, so flipping Report and
+  // Analysis changes what is under it rather than moving the subject. Keyed on
+  // the species: its entrance plays for a new subject, not for every IV bump.
+  const hero = (
+      <SpeciesHero
+        key={speciesId}
+        species={species}
+        entry={entry}
+        league={league}
+        shadow={isShadow}
+        bestBuddy={onBuddyBoost(species, entry.lvl)}
+        verdict={verdict}
+        aside={
+          // Two yes/no properties of the subject, so they sit on its name.
+          // Their explanations ride in the titles.
+          <div className="rs-props">
+            <Switch
+              label="Shadow"
+              tone="shadow"
+              checked={isShadow}
+              disabled={!species.shadowEligible}
+              onChange={(v) => set('shadow', v)}
+              title={species.shadowEligible
+                ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
+                : `${species.name} has no Shadow form`}
+            />
+            {isMega(species) ? (
+              <Switch
+                label="Mega Level 4"
+                checked={boostShown(species, bestBuddy)}
+                disabled={!bbEligible}
+                onChange={(v) => set('bestBuddy', boostShown(species, v))}
+                title={bbEligible
+                  ? `Level 3 stops at level 50. Level 4 adds two levels, up to 52${species.chargeMoves.some((c) => c.mega) ? ', and Plus moves hit ×1.3 instead of ×1.2' : ''}.`
+                  : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`}
+              />
+            ) : (
+              <Switch
+                label="Best Buddy"
+                tone="buddy"
+                checked={bestBuddy && bbEligible}
+                disabled={!bbEligible}
+                onChange={(v) => set('bestBuddy', v)}
+                title={bbEligible
+                  ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
+                  : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
+              />
+            )}
+          </div>
+        }
+      />
+  );
+
   return (
     <>
       {/* The whole report takes the colour of what it is reporting on.
@@ -309,52 +362,7 @@ function FullReport() {
         // dissolves (display: contents) so the window can follow the roll.
         <div className="report-side">
           <div className="rs-col">
-          <SpeciesHero
-            species={species}
-            entry={entry}
-            league={league}
-            shadow={isShadow}
-            bestBuddy={onBuddyBoost(species, entry.lvl)}
-            verdict={verdict}
-            aside={
-              // Two yes/no properties of the subject, so they sit on its name.
-              // Their explanations ride in the titles.
-              <div className="rs-props">
-                <Switch
-                  label="Shadow"
-                  tone="shadow"
-                  checked={isShadow}
-                  disabled={!species.shadowEligible}
-                  onChange={(v) => set('shadow', v)}
-                  title={species.shadowEligible
-                    ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
-                    : `${species.name} has no Shadow form`}
-                />
-                {isMega(species) ? (
-                  <Switch
-                    label="Mega Level 4"
-                    checked={boostShown(species, bestBuddy)}
-                    disabled={!bbEligible}
-                    onChange={(v) => set('bestBuddy', boostShown(species, v))}
-                    title={bbEligible
-                      ? `Level 3 stops at level 50. Level 4 adds two levels, up to 52${species.chargeMoves.some((c) => c.mega) ? ', and Plus moves hit ×1.3 instead of ×1.2' : ''}.`
-                      : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`}
-                  />
-                ) : (
-                  <Switch
-                    label="Best Buddy"
-                    tone="buddy"
-                    checked={bestBuddy && bbEligible}
-                    disabled={!bbEligible}
-                    onChange={(v) => set('bestBuddy', v)}
-                    title={bbEligible
-                      ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
-                      : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
-                  />
-                )}
-              </div>
-            }
-          />
+          {hero}
 
           <div className="side-block rs-roll">
             <div className="hud-label mb-[7px] flex items-center">
@@ -473,13 +481,14 @@ function FullReport() {
           />
         </div>
         ) : (
-        <div className="flex min-w-0 flex-col gap-3.5 p-5">
+        <div className="rs-analysis">
+          {hero}
           <Board
             // Remounts on reset so the board re-reads the cleared storage.
             key={boardNonce}
             storageKey={REPORT_BOARD}
             editing={editing}
-            className="flex flex-col gap-3.5"
+            className="rs-analysis-board"
             blocks={[
               {
                 id: 'moves',

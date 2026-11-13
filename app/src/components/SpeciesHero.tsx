@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { leagueStatRange } from '../lib/engine';
+import { leagueStatRange, statText } from '../lib/engine';
 import { Sprite } from './Sprite';
 import { ShinyBurst } from './ShinyBurst';
 import { TypeBadge } from './TypeBadge';
@@ -120,12 +120,12 @@ export function SpeciesHero({
                     <span
                       className={`hero-meter-shadow${gain ? ' is-gain' : ' is-loss'}`}
                       style={{ left: `${lo}%`, width: `${hi - lo}%` }}
-                      title={`Shadow ${gain ? 'deals' : 'takes'} damage as if ${effective.toFixed(1)} — the ${label} stat itself stays ${stat.toFixed(1)}`}
+                      title={`Shadow ${gain ? 'deals' : 'takes'} damage as if ${statText(effective)} — the ${label} stat itself stays ${statText(stat)}`}
                     />
                   )}
                 </span>
                 <span className="hero-meter-value numeric">
-                  {kind === 'hp' ? stat : stat.toFixed(1)}
+                  {kind === 'hp' ? stat : statText(stat)}
                 </span>
                 <span className="hero-meter-pct numeric" title={`${statPct.toFixed(0)}% of the league best`}>
                   {statPct.toFixed(0)}%

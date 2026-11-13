@@ -12,6 +12,7 @@ import {
   boostShown,
   isMega,
   onBuddyBoost,
+  statText,
 } from '../lib/engine';
 import { BestBuddyToggle } from '../components/BestBuddyToggle';
 import { MovesPanel } from '../components/MovesPanel';
@@ -235,8 +236,8 @@ function Side({
                     key={lab}
                     title={
                       Math.abs(effective - stat) > 0.05
-                        ? `${lab} ${stat.toFixed(1)} — Shadow ${gain ? 'deals' : 'takes'} damage as if ${effective.toFixed(1)}`
-                        : `${lab} ${stat.toFixed(1)}`
+                        ? `${lab} ${statText(stat)} — Shadow ${gain ? 'deals' : 'takes'} damage as if ${statText(effective)}`
+                        : `${lab} ${lab === 'HP' ? stat : statText(stat)}`
                     }
                   >
                     <i>{lab}</i>

@@ -30,6 +30,17 @@ import type {
   StatLine,
 } from './types';
 
+/**
+ * An attack or defense stat as text: cut to `dp` decimals, never rounded up. 9/9/1 Ursaluna's Great League attack is
+ * 128.1928 by the CP formula — 128.1, not 128.2 — and a rounded 127.96 would read 128.0 while missing a 128
+ * breakpoint, so a printed stat always means the spread really has at least that much. The epsilon absorbs float
+ * error (12.3 × 10 is 122.99999…).
+ */
+export function statText(x: number, dp = 1): string {
+  const k = 10 ** dp;
+  return (Math.floor(x * k + 1e-9) / k).toFixed(dp);
+}
+
 export function ivKey(iv: IV): number {
   return iv.a * 256 + iv.d * 16 + iv.s;
 }
@@ -1267,7 +1278,7 @@ export function bpRowsFor(
       rows.push({
         kind: 'Breakpoint',
         move: `${mv.name} (${mv.turns}t)`,
-        needLabel: `atk ${v.atk.toFixed(2)}`,
+        needLabel: `atk ${statText(v.atk, 2)}`,
         need: v.atk,
         spread: `${v.e.a}/${v.e.d}/${v.e.s}`,
         dmgLabel: `${d} dmg`,
@@ -1289,7 +1300,7 @@ export function bpRowsFor(
     rows.push({
       kind: 'Bulkpoint',
       move: `${opp.name} ${opp.fastMove.name}`,
-      needLabel: `def ${v.def.toFixed(2)}`,
+      needLabel: `def ${statText(v.def, 2)}`,
       need: v.def,
       spread: `${v.e.a}/${v.e.d}/${v.e.s}`,
       dmgLabel: `takes ${d}`,
@@ -1372,12 +1383,12 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
           ? 'The incoming move deals the same damage across every reachable defense value — no bulkpoint exists for this pairing.'
           : "This target's defense flattens the move — every reachable spread deals the same damage. Try another opponent."
         : note,
-      min: lo.toFixed(1),
-      max: hi.toFixed(1),
+      min: statText(lo),
+      max: statText(hi),
       bands,
       ticks,
       youPos: Math.min(99.6, Math.max(0, pos(you, lo, hi))),
-      youLabel: you.toFixed(2),
+      youLabel: statText(you, 2),
       flat,
     };
   }
@@ -1397,7 +1408,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
     out.push(
       mk(
         `${mv.name} → ${opp.name}`,
-        `${mv.turns}-turn · ${mv.power} power · target def ${opp.def.toFixed(1)}`,
+        `${mv.turns}-turn · ${mv.power} power · target def ${statText(opp.def)}`,
         aMin,
         aMax,
         entry.atk,
@@ -1420,7 +1431,7 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
   out.push(
     mk(
       `Bulkpoints vs ${opp.name} ${opp.fastMove.name}`,
-      `your defense axis · attacker atk ${opp.atk.toFixed(1)}`,
+      `your defense axis · attacker atk ${statText(opp.atk)}`,
       dMin,
       dMax,
       entry.def,

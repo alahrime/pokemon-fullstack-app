@@ -242,7 +242,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // The report carries its Pokémon and roll, so a link to it opens that analysis.
     const want = hashForView(state.screen, state.activeTournamentId, state.activePlayerId)
-      + (state.screen === 'report' ? reportQuery(state) : '');
+      + (state.screen === 'report'
+        ? reportQuery({ species: state.species, shadow: state.shadow, league: state.league, cup: state.cup, iv: state.iv, statFloor: state.statFloor })
+        : '');
     wanted.current = want;
     const have = window.location.hash || '#/';
     if (have === want) return;

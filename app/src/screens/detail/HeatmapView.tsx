@@ -8,7 +8,7 @@ import { MotionToggle } from '../../components/ThemeSwitch';
 import { hasWebGL } from '../../lib/cssColor';
 import { usePhone } from '../../lib/usePhone';
 import type { ColorBy } from '../../state/AppState';
-import { paletteRamp, type HeatCell, type HeatPalette } from '../../lib/engine';
+import { paletteRamp, statText, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
 
 type StatFloor = { atk: number; def: number };
@@ -210,13 +210,8 @@ function HeatmapLegendRows({ colorBy, palette }: { colorBy: ColorBy; palette: He
   );
 }
 
-/**
- * Stats as the table prints them: cut to one decimal, not rounded. 9/9/1 Ursaluna's attack is 128.1928, which is
- * not 128.2 of anything — and with the cut, "≥ 128.0" keeps exactly the rows that really reach 128, where a rounded
- * 127.96 would print as 128.0 and miss the breakpoint it appears to make. The epsilon only absorbs float error
- * (12.3 × 10 is 122.99999…).
- */
-const tenth = (x: number) => Math.floor(x * 10 + 1e-9) / 10;
+/** Stats as the table prints them ({@link statText}), so "≥ 128.0" keeps exactly the rows that read 128.0 or more. */
+const tenth = (x: number) => Number(statText(x));
 
 /**
  * The Around-your-roll filter: off (null) by default, and when on, only spreads
@@ -376,6 +371,7 @@ export function HeatmapKey({
                     <tr>
                       <th>#</th>
                       <th>IV</th>
+                      <th>CP</th>
                       <th>Atk</th>
                       <th>Def</th>
                       <th>HP</th>
@@ -395,14 +391,15 @@ export function HeatmapKey({
                         className={`hv-top-row${r.a === iv.a && r.d === iv.d && r.s === iv.s ? ' is-selected' : ''}`}
                       >
                         <td className="numeric hv-top-rank">{r.rank}</td>
-                        <td className="numeric">
+                        <td className="numeric hv-top-iv">
                           {r.a}/{r.d}/{r.s}
                         </td>
+                        <td className="numeric">{r.cp}</td>
                         {/* The stats these IVs actually buy, at this spread's
                             own level under the cap — which is the whole reason
                             a lower attack IV can outrank a higher one. */}
-                        <td className="numeric">{tenth(r.statAtk).toFixed(1)}</td>
-                        <td className="numeric">{tenth(r.statDef).toFixed(1)}</td>
+                        <td className="numeric">{statText(r.statAtk)}</td>
+                        <td className="numeric">{statText(r.statDef)}</td>
                         <td className="numeric">{r.hp}</td>
                         <td className="numeric hv-top-pct">{((r.sp / table.best.sp) * 100).toFixed(1)}%</td>
                       </tr>

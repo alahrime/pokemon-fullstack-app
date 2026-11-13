@@ -1,6 +1,6 @@
 import { Sprite } from '../../components/Sprite';
 import { ShieldMatrix } from '../../components/ShieldMatrix';
-import type { FlipGrid, FlipMatchupRow, ScenarioCell } from '../../lib/engine';
+import { statText, type FlipGrid, type FlipMatchupRow, type ScenarioCell } from '../../lib/engine';
 
 /** One face of a matchup flip card. Both faces always render; CSS turns the card. */
 function FlipFace({ win, margin, back = false }: { win: boolean; margin: number; back?: boolean }) {
@@ -72,7 +72,7 @@ export function FlipView({
       ? `Cheapest winning spread here: ${cheapest.entry.a}/${cheapest.entry.d}/${cheapest.entry.s} (#${cheapest.entry.rank})`
       : ''
     : minAtkWin
-      ? `Flips to a win at attack ${minAtkWin.entry.atk.toFixed(1)} — spread ${minAtkWin.entry.a}/${minAtkWin.entry.d}/${minAtkWin.entry.s} (#${minAtkWin.entry.rank})`
+      ? `Flips to a win at attack ${statText(minAtkWin.entry.atk)} — spread ${minAtkWin.entry.a}/${minAtkWin.entry.d}/${minAtkWin.entry.s} (#${minAtkWin.entry.rank})`
       : 'No spread in this slice wins — the matchup is lost on stats alone';
 
   const cmpLine = cmpWin

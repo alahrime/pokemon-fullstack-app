@@ -1844,6 +1844,13 @@ textarea.input { min-height: 90px; resize: vertical; }
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
   position: relative;
 }
+/* The engaged sweep (::after, below) travels a full button width past its own
+   edge. clip-path hides it but does not stop it counting as scrollable
+   overflow, so in a .seg-group — which scrolls sideways on a narrow screen —
+   selecting the last option flashed a scrollbar for the length of the sweep.
+   `clip` (not `hidden`) contains it without making the button a scroller. */
+.seg-btn,
+.chip-btn { overflow: clip; }
 
 /* Approach state: the border lifts before the fill does, so hover reads as
    "armed" rather than "pressed". */
@@ -7344,15 +7351,19 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .report-search, .landing-search-input {
   --spot: #ffd23f;
   --spot: oklch(from var(--color-accent) 0.84 0.16 calc(h + 180));
+  /* The outline. The spot itself is pinned light for dark grounds and drew a
+     1.4:1 edge on the light themes; pulled toward the theme's text colour it
+     darkens there and barely moves on a dark one. */
+  --spot-edge: color-mix(in oklab, var(--spot) 55%, var(--color-text));
 }
 .report-search .input, .landing-search-input .input {
-  border: 2px solid var(--spot);
+  border: 2px solid var(--spot-edge);
   background: color-mix(in srgb, var(--spot) 9%, var(--surface-2));
   box-shadow: 0 0 16px -4px color-mix(in srgb, var(--spot) 55%, transparent);
 }
 .report-search .input:focus, .landing-search-input .input:focus {
-  border-color: var(--spot);
-  box-shadow: 0 0 0 1px var(--spot), 0 0 22px color-mix(in srgb, var(--spot) 45%, transparent);
+  border-color: var(--spot-edge);
+  box-shadow: 0 0 0 1px var(--spot-edge), 0 0 22px color-mix(in srgb, var(--spot) 45%, transparent);
 }
 .report-search .nav-search-glyph, .landing-search-input .nav-search-glyph,
 .report-search:focus-within .nav-search-glyph, .landing-search-input:focus-within .nav-search-glyph { color: var(--spot); }

@@ -68,7 +68,7 @@ export function SpeciesHero({
             worth it for one badge that sits in the same place on every screen
             instead of one position here and another in Battle. */}
         {/* The one place on this screen the shiny cue plays: the subject, not the dozens of small sprites. */}
-        <div className="relative grid place-items-center">
+        <div className="hero-subject relative grid place-items-center">
           <Sprite
             sprite={species.sprite}
             dex={species.dex}
@@ -79,41 +79,6 @@ export function SpeciesHero({
           />
           <ShinyBurst spark={26} reach={96} />
         </div>
-      </div>
-
-      <div className="hero-body">
-        <div className="hero-head">
-          <h2 className="hero-name">
-            {species.name}
-            {shadow && <span className="hero-shadow-mark">⟡</span>}
-          </h2>
-          {aside}
-        </div>
-
-        <div className="hero-types">
-          {species.types.map((t) => (
-            <TypeBadge key={t} type={t} />
-          ))}
-          {shadow && <span className="tag tag-shadow hero-shadow-tag">SHADOW</span>}
-        </div>
-
-        <div className="hero-vitals">
-          <span className="hero-vital is-lead">
-            <span className="hero-vital-value numeric">{entry.cp}</span>
-            <span className="hero-vital-label">CP</span>
-          </span>
-          <span className="hero-vital">
-            <span className="hero-vital-value numeric">{entry.lvl}</span>
-            <span className="hero-vital-label">Level</span>
-          </span>
-          <span className="hero-vital">
-            <span className="hero-vital-value numeric">{entry.rank}</span>
-            <span className="hero-vital-label">Rank</span>
-          </span>
-        </div>
-
-        {verdict ? <p className="hero-verdict">{verdict}</p> : null}
-
         {/* Attack, defence and HP as meters against the strongest in the
             league, so the bar answers "how does this compare" rather than
             just restating the number beside it.
@@ -169,6 +134,43 @@ export function SpeciesHero({
             );
           })}
         </div>
+      </div>
+
+      <div className="hero-body">
+        {/* Name and types, then CP · level · rank, then the switches: one
+            row, so the roll and every league sit higher on the page. */}
+        <div className="hero-head">
+          <div className="hero-id">
+            <h2 className="hero-name">
+              {species.name}
+              {shadow && <span className="hero-shadow-mark">⟡</span>}
+            </h2>
+            <div className="hero-types">
+              {species.types.map((t) => (
+                <TypeBadge key={t} type={t} />
+              ))}
+              {shadow && <span className="tag tag-shadow hero-shadow-tag">SHADOW</span>}
+            </div>
+          </div>
+          <div className="hero-vitals">
+            <span className="hero-vital is-lead">
+              <span className="hero-vital-value numeric">{entry.cp}</span>
+              <span className="hero-vital-label">CP</span>
+            </span>
+            <span className="hero-vital">
+              <span className="hero-vital-value numeric">{entry.lvl}</span>
+              <span className="hero-vital-label">Level</span>
+            </span>
+            <span className="hero-vital">
+              <span className="hero-vital-value numeric">{entry.rank}</span>
+              <span className="hero-vital-label">Rank</span>
+            </span>
+          </div>
+          {aside}
+        </div>
+
+        {verdict ? <p className="hero-verdict">{verdict}</p> : null}
+
       </div>
     </div>
   );

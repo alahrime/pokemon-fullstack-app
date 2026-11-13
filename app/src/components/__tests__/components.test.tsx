@@ -77,23 +77,25 @@ describe('the hero stat meters', () => {
   const types = readFileSync('src/styles/types.css', 'utf8');
   const leagues = readFileSync('src/styles/leagues.css', 'utf8');
 
-  it('gives each stat its own hue rather than one league accent for all three', () => {
-    for (const stat of ['atk', 'def', 'hp']) {
-      expect(types, stat).toMatch(new RegExp(`--meter-${stat}:\\s*color-mix`));
+  it('takes each stat\'s hue from the theme, a different one per stat', () => {
+    // Attack the theme's accent, defence its second accent, HP the hue between.
+    const tokens = { atk: /var\(--color-accent\)/, def: /var\(--color-accent-2\)/, hp: /in oklch, var\(--color-accent\), var\(--color-accent-2\)/ };
+    for (const [stat, re] of Object.entries(tokens)) {
+      expect(types.match(new RegExp(`--meter-${stat}:[^;]*;`))![0], stat).toMatch(re);
       expect(leagues, stat).toMatch(
         new RegExp(`\\.hero-meter\\.is-${stat} \\.hero-meter-fill \\{[^}]*var\\(--meter-${stat}\\)`),
       );
     }
-    // Three different base hues, not one colour at three strengths.
-    const bases = ['atk', 'def', 'hp'].map(
-      (s) => types.match(new RegExp(`--meter-${s}:[^;]*var\\((--type-[a-z]+)\\)`))![1],
-    );
-    expect(new Set(bases).size).toBe(3);
   });
 
-  it('keeps them clear of the appraisal bars stacked directly below', () => {
-    // The roll's ticks and the stats they produce are different quantities in
-    // the same column; sharing the warm palette made them read as one scale.
+  it('is not repainted in the one accent by the meter-glow rule', () => {
+    // futuristic.css gives every other meter the theme accent; listing the hero's
+    // there painted all three stats one colour, whatever --meter-* said.
+    const futuristic = readFileSync('src/styles/futuristic.css', 'utf8');
+    expect(futuristic).not.toMatch(/\.hero-meter-fill/);
+  });
+
+  it('never borrows the appraisal bars\' own tokens', () => {
     const appraisal = ['--iv-fill', '--iv-fill-max'];
     for (const stat of ['atk', 'def', 'hp']) {
       const decl = types.match(new RegExp(`--meter-${stat}:[^;]*;`))![0];
@@ -103,8 +105,6 @@ describe('the hero stat meters', () => {
 
   it('mixes toward the ground\'s own ink, so one value does not have to suit both', () => {
     // Fixed hex would be too pale on a light theme and too dark on a dark one.
-    // Measured after this change: 3.2, 3.4 and 3.9 against the light hero
-    // surface, all clear of the 3:1 a graphical element wants.
     for (const stat of ['atk', 'def', 'hp']) {
       expect(types, stat).toMatch(new RegExp(`--meter-${stat}:[^;]*var\\(--color-text\\)`));
     }

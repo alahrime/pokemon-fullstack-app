@@ -246,7 +246,8 @@ describe('report left column', () => {
     // Inside the hero, after the vitals — not a panel of its own restating the
     // rank to introduce it, which is what it used to be.
     expect(verdict.closest('.hero')).toBeTruthy();
-    expect(verdict.previousElementSibling!.className).toContain('hero-vitals');
+    // The vitals sit on the name row now, so the verdict follows that row.
+    expect(verdict.previousElementSibling!.querySelector('.hero-vitals')).toBeTruthy();
   });
 
   it('keeps the ranking window on the Report page and rides the legend on the plot', () => {

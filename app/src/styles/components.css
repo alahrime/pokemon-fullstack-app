@@ -553,10 +553,6 @@ input[type='range'] { accent-color: var(--color-accent); }
   .rs-col > :not(.hero):not(.rs-roll) { order: 1; }
   /* In the flow here, and sized so it and the roll share one screen. */
   .report-side > .hv-key { height: 340px; }
-  /* A smaller subject, so the card, roll and leagues share one screen. Sprite
-     sizes itself inline (its img fills the box), hence !important. */
-  .report-side .hero-stage { padding: var(--space-2) var(--space-3); }
-  .report-side .hero-stage .sprite-holo { width: 88px !important; height: 88px !important; }
   /* Tighter seams between them: at 360x780 the last league row sat ~15-30px under the fold. */
   .report-side { gap: var(--space-3); }
   .report-side .hero-body { padding-bottom: var(--space-2); }

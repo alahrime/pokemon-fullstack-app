@@ -35,29 +35,36 @@
 .hero {
   border: var(--border-hairline) solid var(--rule-strong);
   background: var(--surface-2);
+  /* Sized by its own width, not the viewport: the report column is ~290px at
+     900 wide and on phones alike. */
+  container-type: inline-size;
 }
 
 .hero-stage {
   position: relative;
+  /* The subject on the left, its three stats on the right. */
   display: grid;
-  place-items: center;
-  padding: var(--space-4) var(--space-3) var(--space-3);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-5);
+  /* Top clears the dex chip and league emblem in the corners. */
+  padding: var(--space-6) var(--space-5) var(--space-4) var(--space-4);
   /* Light pooling under the subject, plus a faint survey grid, so the sprite
      stands on something instead of floating on a flat panel. */
   background:
-    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--lg) 45%, transparent), transparent 70%),
+    radial-gradient(ellipse 45% 55% at 18% 78%, color-mix(in srgb, var(--lg) 45%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--lg-deep) 45%, transparent), transparent 65%),
     repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
     var(--surface-1);
   border-bottom: var(--border-hairline) solid color-mix(in srgb, var(--lg) 40%, transparent);
 }
 /* Contact shadow — grounds the sprite against the stage. */
-.hero-stage::after {
+.hero-subject::after {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: 12px;
-  width: 46%;
+  bottom: -2px;
+  width: 80%;
   height: 9px;
   transform: translateX(-50%);
   border-radius: 50%;
@@ -66,7 +73,7 @@
 }
 .hero.is-shadow .hero-stage {
   background:
-    radial-gradient(ellipse 65% 55% at 50% 78%, color-mix(in srgb, var(--shadow-aura) 42%, transparent), transparent 70%),
+    radial-gradient(ellipse 45% 55% at 18% 78%, color-mix(in srgb, var(--shadow-aura) 42%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--shadow-ink) 65%, transparent), transparent 65%),
     repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 26px),
     var(--surface-1);
@@ -107,24 +114,19 @@
 .hero-shadow-tag { letter-spacing: 0.08em; font-size: 10px; }
 
 .hero-types { display: flex; gap: 4px; flex-wrap: wrap; }
+.hero-id { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 
-/* Vitals read as instrument panel figures, not body copy. */
-.hero-vitals {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  margin-top: 2px;
-  background: var(--rule-hairline);
-  border: var(--border-hairline) solid var(--rule-hairline);
-}
+/* Vitals read as instrument panel figures, not body copy — three figures on
+   the name row, split by hairlines rather than boxed. */
+.hero-vitals { display: flex; }
 .hero-vital {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 6px 4px;
-  background: var(--surface-2);
+  gap: 3px;
+  padding: 2px var(--space-3);
 }
+.hero-vital + .hero-vital { border-left: var(--border-hairline) solid var(--rule-hairline); }
 .hero-vital-value {
   font-size: var(--text-xl);
   font-weight: 800;
@@ -132,10 +134,11 @@
 }
 .hero-vital-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 /* Reads the rank directly above it, so it hangs off the vitals rather than
    standing as a block of its own — same hairline, no second frame. */
@@ -284,8 +287,8 @@
 .hero-meters {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 5px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 .hero-meter {
   display: grid;
@@ -295,13 +298,14 @@
 }
 .hero-meter-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--text-faint);
 }
 .hero-meter-track {
   position: relative;
-  height: 7px;
+  height: 9px;
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
   border: var(--border-hairline) solid var(--rule-hairline);
   overflow: hidden;
@@ -380,10 +384,21 @@
 }
 .hero-meter-pct {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 700;
   text-align: right;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .hero-vital.is-lead .hero-vital-value { color: var(--lg-accent); }
+
+/* A narrow card: a smaller subject so the bars beside it keep a readable
+   length, and the % column goes (it is the bar's own length, and in the
+   title). Sprite sizes itself inline, hence !important. */
+@container (max-width: 420px) {
+  .hero-stage { column-gap: var(--space-3); padding: var(--space-6) var(--space-3) var(--space-3); }
+  .hero-stage .sprite-holo { width: 72px !important; height: 72px !important; }
+  .hero-meter { grid-template-columns: 26px 1fr 40px; }
+  .hero-meter-pct { display: none; }
+}
 

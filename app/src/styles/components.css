@@ -6730,6 +6730,42 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   .section-rail .nav-tab { width: auto; flex: none; }
 }
 
+/* Desktop with a mouse: the nav and the rail tuck away to a lit edge strip
+   and overlay the page when the pointer reaches that edge, so the screens get
+   the full viewport. Touch and phones keep the layout above. --nav-h becomes
+   the strip, so everything pinned under the nav now pins under the strip.
+   Their menus (theme, bell) are descendants, so :hover holds while using them;
+   :focus-visible opens them for the keyboard without a click leaving them open. */
+@media (hover: hover) and (min-width: 821px) {
+  :root { --edge-peek: 6px; --nav-h: var(--edge-peek); }
+  .nav, .section-rail {
+    position: fixed;
+    transition: transform var(--dur-3) var(--ease-out) 180ms; /* the delay forgives a brief slip off the edge */
+  }
+  .nav {
+    top: 0; left: 0; right: 0;
+    transform: translateY(calc(-100% + var(--edge-peek)));
+  }
+  .section-rail {
+    top: 0; bottom: 0; left: 0; z-index: 45; /* under the nav's 50 */
+    width: var(--rail-w);
+    padding: calc(var(--space-6) + var(--edge-peek)) var(--space-3) var(--space-4);
+    overflow-y: auto;
+    background: var(--surface-1);
+    border-right: var(--border-strong) solid var(--rule-strong);
+    transform: translateX(calc(-100% + var(--edge-peek)));
+  }
+  .nav:hover, .nav:has(:focus-visible),
+  .section-rail:hover, .section-rail:has(:focus-visible) {
+    transform: none;
+    transition-delay: 0s;
+  }
+  .shell.has-rail { max-width: var(--shell-max); display: block; }
+}
+@media (hover: hover) and (min-width: 821px) and (prefers-reduced-motion: reduce) {
+  .nav, .section-rail { transition: none; }
+}
+
 .challenge-card {
   padding: var(--space-3);
   border: var(--border-hairline) solid var(--rule-hairline);

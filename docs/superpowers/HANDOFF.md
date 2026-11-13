@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-11-13 (seventeenth session: Report screen split into Report and Analysis pages, then refined; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-11-13 (seventeenth session: Report screen split into Report and Analysis pages, then refined; plus GBL team-search research in `research/gbl-teams/`; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,8 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**GBL team search (research, not app code) — 2026-11-13.** The user ran a long chat-only analysis: which Great League team of 3 is most consistent into their 105 logged opponent teams and the wider meta, with full 3v3 games (HP/energy/shields carried, blind lead solved as a mixed strategy, double-oracle equilibrium). Scripts, data, findings and the **next-session scope** are in `research/gbl-teams/README.md` — read it before touching that work. Headline: Mimikyu / S. Talonflame / Rillaboom (61% vs the equilibrium, 82% vs the log); the user's Clodsire / S. Hydreigon / Dondozo sits in the equilibrium (#30). Next: moveset variants only where they flip meaningful matchups, a far larger candidate set (thousands of proposals per oracle round), and deduplicated scoring so repeated wins over look-alike teams count once. Also see the user's memory note `pvp-team-building-approach`.
 
 **Seventeenth session, 2026-11-13 (pushed straight to `main` and live; last code commit `4b5506b`; `npm run check` 2064/2064 locally; NO migrations).** The user is refining the Report screen interactively and continues in a new session: ask what they want next, then measure, gate, push.
 

@@ -449,6 +449,9 @@
 
 .hero-stage {
   overflow: hidden;
+  /* Extra head room over the base rule: the reticle reaches 6px past the
+     sprite, which put its top brackets under the dex chip. */
+  padding-top: calc(var(--space-6) + var(--space-4));
   background:
     radial-gradient(ellipse 42% 60% at 18% 70%, color-mix(in srgb, var(--hero-t1) 34%, transparent), transparent 70%),
     radial-gradient(ellipse 60% 80% at 85% 0%, color-mix(in srgb, var(--hero-t2) 16%, transparent), transparent 70%),
@@ -594,6 +597,7 @@
 }
 
 @container (max-width: 420px) {
+  .hero-stage { padding-top: calc(var(--space-6) + var(--space-4)); }
   .hero-name { font-size: 28px; }
   .hero-vital-value { font-size: 20px; }
 }

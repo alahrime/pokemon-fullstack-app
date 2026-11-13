@@ -9,7 +9,7 @@ import type { ColorBy } from '../state/AppState';
  */
 export function MetricTabs({ value, onChange }: { value: ColorBy; onChange: (c: ColorBy) => void }) {
   return (
-    <SegGroup>
+    <SegGroup className="seg-lit metric-tabs">
       {METRICS.map(({ id, label, hint, Icon }) => (
         <SegButton key={id} active={value === id} onClick={() => onChange(id)} title={hint}>
           <Icon />

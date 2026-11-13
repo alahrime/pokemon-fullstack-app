@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-10-29 (sixteenth session: the Battle Matrix card's duplicate icon now carries a +; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-11-13 (seventeenth session: Report screen split into Report and Analysis pages, then refined; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,22 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Seventeenth session, 2026-11-13 (pushed straight to `main` and live; last code commit `4b5506b`; `npm run check` 2064/2064 locally; NO migrations).** The user is refining the Report screen interactively and continues in a new session: ask what they want next, then measure, gate, push.
+
+**Done this session (Analyze → Report, `app/src/screens/ReportScreen.tsx`):**
+- **Two pages** (`726dc45`, `543d4b0`): `reportPage: 'report' | 'analysis'` in AppState. A `pageTabs` SegGroup sits in the top `.rs-bar` (desktop, with the species search and, on Analysis, `BoardControls`) and in the sticky `.report-search-bar` on phones (≤820px). Analysis = the `Board` (loadout, metric, opponents, visualisation) full width. Tests reach it with `OnAnalysis` from `src/test/render.tsx`.
+- **Report page layout** (`8f1ffd1`): `.report-side` is a two-column grid. Left `.rs-col`: hero, Adjust roll, Every league, evolution line, Master note, Shadow damage. Right: `HeatmapKey` ("Around your roll"), `position: sticky` under the nav (`top: nav-h + space-5`, `height: 100dvh − nav-h − 2·space-5`, only ≥821px), so each IV bump shows its rank without scrolling. The table fits its row count to its height (`useRowsThatFit`) and centres on the roll.
+- **Phones:** `.rs-col { display: contents }` plus `order` gives hero → roll → ranking window (fixed 340px) → leagues → line → rest. Picking from the pinned search scrolls so the roll and the whole window are on screen; it now measures against the bar's *pinned* position (`getComputedStyle(bar).top + height`). The bar is not stuck at scroll 0, which used to throw the landing ~260px off.
+- **Compact hero** (`4b5506b`, `components/SpeciesHero.tsx`, CSS in `styles/leagues.css`): the stage is a grid with the sprite (`.hero-subject`) on the left and the ATK/DEF/HP meters on the right. `.hero-head` holds name + types (`.hero-id`), then CP/Level/Rank (`.hero-vitals`, inline, hairline-split, bold labels), then the `aside` slot holding the Shadow/Best Buddy (or Mega Level 4) switches. The switches' explanations moved into their `title`. `flex-wrap` drops pieces to new lines when they do not fit; on phones that is three short lines. `.hero` is a size container: under 420px of card the sprite is 72px, gaps tighten and the % column hides, so the bars stay ~100px at 900 wide (column ~294px) and on phones.
+- **Meter colours follow the theme** (`styles/types.css`): `--meter-atk` = `--color-accent`, `--meter-def` = `--color-accent-2`, `--meter-hp` = their oklch midpoint, each mixed 82% with `--color-text`. **Gotcha:** `styles/futuristic.css` had `.hero-meter-fill` in its single-accent meter rule, which repainted all three bars one colour whatever `--meter-*` said (why they were all orange). Removed it, and a test now guards against it coming back. In warm themes (HUD) attack sits near the appraisal red; the labels separate them.
+- **Measured** with `getBoundingClientRect` at 1440×900, 900×900 and 375×812: no horizontal page overflow; hero 324px at 1440, 343 at 900 (was 425), 327 at 375 (was 392); roll top at 1440 637 → 526px.
+
+**Deploy note:** `8f1ffd1`'s Workers Build failed in the Deploying step with no log output after a clean install; "Retry build" in the Cloudflare dashboard (paragon2 → Deployments → the build) deployed it. Check `gh api repos/{owner}/{repo}/commits/<sha>/check-runs` for "Workers Builds: paragon2" to tell failed from slow. `4b5506b` deployed normally (~140s).
+
+**Also on `main` since the sixteenth session, from other sessions and not written up here:** Top 100 quick fill in the Battle Matrix (`700ae10`, `599273d`, `6f5bd6b`); Mega Level toggle, PvPoke CP multipliers and Plus-move bonus (`b31ea9d`, `9cf2bb0`); evolution-line ranking with Mega scaling and Purified (`5b5c4ae`); Minior form change, four species and a PvPoke refresh (`a4d5ff7`); limited cups from PvPoke's dropdown (`5b37288`); a News section, added then reverted (`70b9955`..`d4fbcd0`).
+
+### Previous session (sixteenth)
 
 **Sixteenth session, 2026-10-29 (pushed straight to `main` and live; last code commit `7ee13b8`; `npm run check` 2036/2036 locally; NO migrations).**
 

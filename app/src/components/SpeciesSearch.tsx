@@ -86,6 +86,26 @@ function score(entry: RosterEntry, q: string): number {
   return -1;
 }
 
+/**
+ * The name with the typed text marked, when the query reads as a name. A
+ * structural query ("water", "@counter", "gen1&!legendary") matches on
+ * properties, not on the name, so a stray hit inside one would mark nothing
+ * meaningful — those pass through untouched.
+ */
+function highlight(name: string, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q || /[^a-z0-9 .'-]/.test(q)) return name;
+  const at = name.toLowerCase().indexOf(q);
+  if (at < 0) return name;
+  return (
+    <>
+      {name.slice(0, at)}
+      <mark className="search-hit">{name.slice(at, at + q.length)}</mark>
+      {name.slice(at + q.length)}
+    </>
+  );
+}
+
 export function SpeciesSearch({
   value,
   onChange,
@@ -368,6 +388,9 @@ export function SpeciesSearch({
     // `species-search` is the stable hook every variant is styled from, so the
     // field does not depend on whichever class the caller happened to pass.
     <div ref={wrapRef} className={`species-search${className ? ' ' + className : ''}`} style={{ position: 'relative', ...style }}>
+      {/* Reticle, rail and a scan pass, all keyed off :focus-within in CSS:
+          the field powers up when it is entered, once, and never idles. */}
+      <span className="search-fx" aria-hidden />
       <span className="nav-search-glyph" aria-hidden>
         ⌕
       </span>
@@ -433,14 +456,45 @@ export function SpeciesSearch({
         // A press anywhere on the panel (its scrollbar, the padding between rows, the empty-result note) must not
         // blur the input: blur closes the list, which dropped it under the cursor before a pick was made.
         <div className={`search-dropdown${dropUp ? ' is-up' : ''}`} onMouseDown={(e) => e.preventDefault()}>
+        {/* A readout of what the list is: how many matched, or that an empty
+            box is a random draw. Keyboard hints ride on the right (hidden on
+            touch, where there are no keys). Its height is panel chrome, which
+            the fit above measures rather than assumes. */}
+        <div className="search-status" aria-hidden>
+          <span className="search-status-count numeric">
+            {debounced.trim() ? (
+              <>
+                <b>{results.length}</b>
+                {results.length === RESULT_LIMIT ? '+' : ''} {results.length === 1 ? 'match' : 'matches'}
+              </>
+            ) : (
+              <>random draw · <b>{results.length}</b></>
+            )}
+          </span>
+          <span className="search-status-keys">
+            <kbd>↑↓</kbd> move <kbd>↵</kbd> pick <kbd>esc</kbd> close
+          </span>
+        </div>
         {/* The scroll box is this wrapper, not the list. Padding on the list
             would sit outside its own max-height and the box would grow to the
             full 5,500px instead of clipping at `listHeight`. */}
         <div
           ref={listRef}
           onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
+          className="search-scroll"
           style={{ maxHeight: boxH, overflowY: 'auto' }}
         >
+        {/* One highlight that travels between rows instead of a background
+            switched off one row and on to the next. Positioned from the index
+            by the same ROW_H arithmetic as the windowing, so it is right for
+            rows not yet rendered too. */}
+        {results.length > 0 && (
+          <span
+            className="search-cursor"
+            aria-hidden
+            style={{ height: ROW_H, transform: `translateY(${activeIndex * ROW_H}px)` }}
+          />
+        )}
         <ul
           id={listboxId}
           role="listbox"
@@ -476,7 +530,7 @@ export function SpeciesSearch({
                 <Sprite sprite={r.species.sprite} dex={r.species.dex} size={38} shadow={r.shadow} />
               </span>
               <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <span className="search-row-name">{r.name}</span>
+                <span className="search-row-name">{highlight(r.name, debounced)}</span>
                 {/* Typing is the fastest way to tell near-identical forms apart
                     while scanning; icons carry it without stealing name width. */}
                 <span className="search-row-meta">

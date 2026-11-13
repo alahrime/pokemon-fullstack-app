@@ -30,15 +30,16 @@ import type { IV, LeagueId } from '../lib/types';
  * move whenever that floor does. `.modal-panel` now stands at least
  * `min(500px, 88vh)`; on the shortest viewport that matters (720) that is 500,
  * less the 46px head, the 51px foot, the body's 16px of padding above the
- * search, the 40px search box itself and 16px of clearance under the list —
- * which leaves 330 for a dropdown that spends 2 on its own border.
+ * search, the 40px search box itself, 16px of clearance under the list and
+ * the dropdown's 29px status strip — which leaves 302 for a list in a
+ * dropdown that spends 2 on its own border.
  *
- * Six rows at the 52px the search uses. Fewer than the nine the taller panel
+ * Nearly six rows at the 52px the search uses. Fewer than the nine the taller panel
  * held, which is the trade: the dialog no longer covers most of the screen.
  * Raising this past the space the panel has puts the last rows back under the
  * footer, out of reach — the bug the floor exists to prevent.
  */
-export const MODAL_LIST_H = 328;
+export const MODAL_LIST_H = 300;
 
 export interface AddPokemonChoice {
   ref: string;

@@ -210,7 +210,7 @@ function FullReport() {
   // Rendered twice: in the bar at the top on wide screens, and in the pinned
   // phone bar beside its search, so switching pages never needs a scroll up.
   const pageTabs = (
-    <SegGroup>
+    <SegGroup className="rs-page-tabs">
       <SegButton active={reportPage === 'report'} onClick={() => set('reportPage', 'report')}>Report</SegButton>
       <SegButton active={reportPage === 'analysis'} onClick={() => set('reportPage', 'analysis')}>Analysis</SegButton>
     </SegGroup>

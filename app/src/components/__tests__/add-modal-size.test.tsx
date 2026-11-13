@@ -75,7 +75,7 @@ describe('SpeciesSearch — fitting the list to the room it has', () => {
     fireEvent.change(input, { target: { value: 'a' } });
     return container;
   };
-  const scroller = (c: ParentNode) => c.querySelector('.search-dropdown > div') as HTMLElement;
+  const scroller = (c: ParentNode) => c.querySelector('.search-dropdown .search-scroll') as HTMLElement;
 
   it('never asks for a taller box than the window renders rows for', () => {
     // The invariant the whole thing rests on: rows past `listHeight` are never
@@ -120,13 +120,13 @@ describe('SpeciesSearch — fitting the list to the room it has', () => {
     const input = document.querySelector('.modal-search input') as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'a' } });
-    const box = document.querySelector('.modal-search .search-dropdown > div') as HTMLElement;
+    const box = document.querySelector('.modal-search .search-dropdown .search-scroll') as HTMLElement;
     expect(parseFloat(box.style.maxHeight)).toBeLessThanOrEqual(MODAL_LIST_H);
 
     // The two move together or the dropdown escapes the panel again: the list
     // plus the chrome above and below it has to fit the panel's floor.
     const floor = Number(block('.modal-panel').match(/min-height:\s*min\((\d+)px/)![1]);
-    const CHROME = 46 + 51 + 16 + 40 + 16; // head, foot, body padding, search, clearance
+    const CHROME = 46 + 51 + 16 + 40 + 16 + 29; // head, foot, body padding, search, clearance, status strip
     expect(MODAL_LIST_H + CHROME).toBeLessThanOrEqual(floor);
   });
 });

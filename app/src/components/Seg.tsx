@@ -9,13 +9,13 @@ import { useSlidingMarker } from '../lib/useSlidingMarker';
  * both themes plus all hover/active/focus states come for free.
  */
 
-export function SegGroup({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export function SegGroup({ children, style, className }: { children: ReactNode; style?: CSSProperties; className?: string }) {
   // The accent fill is one element that travels, rather than a background
   // switched off one button and on to another. Every segmented control in the
   // app is this component, so category, pass, pool and league all gain it here.
   const { ref, box } = useSlidingMarker<HTMLDivElement>('.seg-btn.is-active');
   return (
-    <div className={`seg-group${box ? ' has-marker' : ''}`} style={style} ref={ref}>
+    <div className={`seg-group${box ? ' has-marker' : ''}${className ? ' ' + className : ''}`} style={style} ref={ref}>
       {box && (
         <span
           className="seg-marker"

@@ -8975,3 +8975,242 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   .bm-arrow, .bm-stat-tile, .bm-undo, .sp-sweep, .sp-btn.is-on .sp-glyph, .fs-flash, .fs-list, .fs-option, .bm-swap-spin,
   .bm-tab.is-active svg, .bm-pill-toggle button.is-on) { animation: none !important; }
 :root[data-motion='off'] :is(.sp-sweep, .fs-flash, .bm-swap-spin) { display: none; }
+
+/* ── Report | Analysis, lit ────────────────────────────────────────────────
+   The page switch under the hero speaks its language: a chamfered plate in the
+   species' type colours (--t1/--t2 from .report-frame), mono indexed labels,
+   and a travelling marker that is a lit slab rather than a flat accent fill.
+   Scoped to this one SegGroup; every other segmented control is unchanged.
+   The index is generated content, so a button's text is still its label. */
+.rs-page-tabs {
+  --tab-a: var(--t1, var(--color-accent));
+  --tab-b: var(--t2, var(--tab-a));
+  counter-reset: rs-tab;
+  flex: none;
+  gap: 3px;
+  padding: 3px;
+  border: var(--border-hairline) solid color-mix(in srgb, var(--tab-a) 45%, var(--rule-strong));
+  background:
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 14px),
+    var(--surface-1);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  box-shadow: inset 0 0 14px -6px color-mix(in srgb, var(--tab-a) 60%, transparent);
+}
+/* A lit seam along the foot, in both types. */
+.rs-page-tabs::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--tab-a), var(--tab-b), transparent);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.rs-page-tabs .seg-btn {
+  counter-increment: rs-tab;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: color var(--dur-2) var(--ease-out), text-shadow var(--dur-2) var(--ease-out);
+}
+/* The index ("01", "02"). Replaces the generic engaged rail this pseudo
+   draws on other seg buttons — the marker below carries that here. */
+.rs-page-tabs .seg-btn::before,
+.rs-page-tabs .seg-btn.is-active::before {
+  content: counter(rs-tab, decimal-leading-zero);
+  position: static;
+  height: auto;
+  background: none;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+  transition: opacity var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+.rs-page-tabs .seg-btn:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--tab-a) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tab-a) 45%, transparent);
+}
+.rs-page-tabs .seg-btn.is-active {
+  color: var(--color-text);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--tab-a) 70%, transparent);
+  box-shadow: none;
+}
+.rs-page-tabs .seg-btn.is-active::before { opacity: 1; color: var(--tab-a); }
+/* Before the marker is measured (and in jsdom) the active button paints the
+   slab itself, so the engaged state is never missing. */
+.rs-page-tabs:not(.has-marker) .seg-btn.is-active,
+.rs-page-tabs .seg-marker {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--tab-a) 34%, var(--surface-2)),
+      color-mix(in srgb, var(--tab-a) 12%, var(--surface-1)));
+  box-shadow:
+    inset 0 -2px 0 var(--tab-a),
+    inset 0 1px 0 color-mix(in srgb, var(--color-text) 18%, transparent),
+    0 0 18px -4px color-mix(in srgb, var(--tab-a) 65%, transparent);
+}
+.rs-page-tabs .seg-marker {
+  top: 3px;
+  bottom: 3px;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+/* ── Search, powered up ────────────────────────────────────────────────────
+   Every SpeciesSearch: the field locks on when entered (two reticle brackets
+   close in on the corners the chamfer leaves square, a rail draws along its
+   foot, one scan pass crosses it), and the panel opens as a readout — a status
+   strip naming what the list is, a highlight that travels between rows, and
+   the typed text lit inside each name. All motion fires on focus or open and
+   rests; durations are motion tokens, so reduced motion collapses it.
+   --fx is the field's own colour: the complement spot on Report and landing,
+   the accent everywhere else. */
+.species-search { --fx: var(--spot, var(--color-accent)); }
+.search-fx {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--field-h);
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--fx), color-mix(in srgb, var(--fx) 0%, transparent)) left bottom / 0% 2px no-repeat;
+  transition: background-size var(--dur-4) var(--ease-out);
+}
+.species-search:focus-within .search-fx { background-size: 100% 2px; }
+.search-fx::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  opacity: 0;
+  background:
+    linear-gradient(var(--fx), var(--fx)) top right / 10px 2px no-repeat,
+    linear-gradient(var(--fx), var(--fx)) top right / 2px 10px no-repeat,
+    linear-gradient(var(--fx), var(--fx)) bottom left / 10px 2px no-repeat,
+    linear-gradient(var(--fx), var(--fx)) bottom left / 2px 10px no-repeat;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--fx) 70%, transparent));
+  transition: inset var(--dur-3) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+}
+.species-search:focus-within .search-fx::before { inset: -4px; opacity: 1; }
+.search-fx::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--fx) 30%, transparent) 70%,
+    color-mix(in srgb, var(--fx) 70%, transparent) 99%, transparent);
+}
+.species-search:focus-within .search-fx::after { animation: search-scan var(--dur-5) var(--ease-out) 1; }
+@keyframes search-scan {
+  0% { left: 0; opacity: 0; }
+  20% { opacity: 1; }
+  100% { left: 70%; opacity: 0; }
+}
+
+.search-dropdown {
+  display: flex;
+  flex-direction: column;
+  border-color: color-mix(in srgb, var(--fx) 40%, var(--rule-strong));
+  box-shadow: var(--shadow-md), 0 0 26px -10px color-mix(in srgb, var(--fx) 60%, transparent);
+  animation: search-open var(--dur-3) var(--ease-out) backwards;
+}
+.search-dropdown.is-up { animation-name: search-open-up; }
+@keyframes search-open { from { clip-path: inset(0 0 100% 0); } }
+@keyframes search-open-up { from { clip-path: inset(100% 0 0 0); } }
+/* The edge nearest the field is lit, so the panel reads as coming out of it. */
+.search-dropdown::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  z-index: 3;
+  background: linear-gradient(90deg, var(--fx), color-mix(in srgb, var(--fx) 0%, transparent));
+  pointer-events: none;
+}
+.search-dropdown.is-up::before { top: auto; bottom: -1px; }
+.search-dropdown.is-up .search-status { order: 1; border-bottom: 0; border-top: var(--border-hairline) solid var(--rule-hairline); }
+
+.search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+  background:
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 12px),
+    color-mix(in srgb, var(--fx) 5%, var(--surface-2));
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+}
+.search-status b { color: var(--fx); font-weight: 800; }
+.search-status-keys { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; }
+.search-status kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 4px;
+  color: var(--text-muted);
+  background: var(--surface-1);
+  border: var(--border-hairline) solid var(--rule-strong);
+  border-bottom-width: 2px;
+}
+@media (hover: none) { .search-status-keys { display: none; } }
+
+.search-scroll { position: relative; }
+.search-cursor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--fx) 22%, transparent),
+    color-mix(in srgb, var(--fx) 7%, transparent) 65%,
+    transparent);
+  box-shadow:
+    inset 3px 0 0 var(--fx),
+    inset 0 1px 0 color-mix(in srgb, var(--fx) 30%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--fx) 30%, transparent);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+/* The cursor is the highlight now; the row only recolours its figures. */
+.search-row { z-index: 1; }
+.search-row.is-active { background: transparent; border-left-color: transparent; }
+.search-row.is-active .search-row-rank,
+.search-row.is-active .search-row-dex { color: var(--fx); }
+.search-hit {
+  background: none;
+  color: var(--fx);
+  font-weight: 800;
+  text-decoration: underline 1px color-mix(in srgb, var(--fx) 60%, transparent);
+  text-underline-offset: 3px;
+}
+/* Phones: the tabs share the pinned bar with the search, which needs the
+   room. The index goes and the tracking tightens; the slab and seam stay. */
+@media (max-width: 820px) {
+  .rs-page-tabs .seg-btn { padding: 0 var(--space-2); letter-spacing: 0.06em; font-size: 10px; }
+  .rs-page-tabs .seg-btn::before,
+  .rs-page-tabs .seg-btn.is-active::before { display: none; }
+}

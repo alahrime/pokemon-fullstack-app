@@ -449,13 +449,15 @@ input[type='range'] { accent-color: var(--color-accent); }
 .report-side {
   padding: var(--space-5);
   display: grid;
-  /* Two columns once each gets 400px — the every-league row's width with its
-     names — and one stacked column below that. */
-  grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
+  /* The report on the left, the ranking window on the right. Phones stack. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
   min-width: 0;
 }
+/* Name on the left, Shadow and Best Buddy on its right — dropping beneath it
+   when the whole name would not fit beside them, rather than squeezing it. */
+.hero-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-3); }
 .rs-col {
   display: flex;
   flex-direction: column;
@@ -545,7 +547,12 @@ input[type='range'] { accent-color: var(--color-accent); }
   /* The two columns dissolve so the order below runs across both. */
   .report-side { display: flex; flex-direction: column; align-items: stretch; }
   .rs-col { display: contents; }
-  .rs-col > .hero, .rs-col > .rs-roll, .rs-col > .rs-leagues, .rs-col > .rs-line { order: -1; }
+  /* Card, roll, then the ranking window right under it, so a bump's new rank
+     is on the same screen as the button; the rest follows. */
+  .rs-col > .hero, .rs-col > .rs-roll { order: -1; }
+  .rs-col > :not(.hero):not(.rs-roll) { order: 1; }
+  /* In the flow here, and sized so it and the roll share one screen. */
+  .report-side > .hv-key { height: 340px; }
   /* A smaller subject, so the card, roll and leagues share one screen. Sprite
      sizes itself inline (its img fills the box), hence !important. */
   .report-side .hero-stage { padding: var(--space-2) var(--space-3); }
@@ -4571,7 +4578,17 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
    against the board's bottom edge. The block takes the leftover height, the
    panel fills the block, and the scroller inside it takes what the title and
    the pager leave — which is the height the row count is measured against. */
-.report-side > .hv-key { grid-column: 1 / -1; min-height: 0; }
+/* The right column, held in view while the page scrolls, so every bump of the
+   roll shows its new rank without leaving the adjuster. */
+.report-side > .hv-key { min-height: 0; }
+@media (min-width: 821px) {
+  .report-side > .hv-key {
+    position: sticky;
+    top: calc(var(--nav-h) + var(--space-5));
+    height: calc(100dvh - var(--nav-h) - 2 * var(--space-5));
+    min-height: 320px;
+  }
+}
 .hv-key { display: flex; flex-direction: column; }
 .hv-top-panel {
   flex: 1;
@@ -4595,6 +4612,8 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .hv-top-table td:first-child { padding-left: 2px; }
 .hv-top-table th:last-child,
 .hv-top-table td:last-child { padding-right: 2px; }
+/* Phones: six columns in ~260px, and that padding was a 9px sideways scroll. */
+@media (max-width: 820px) { .hv-top-table th, .hv-top-table td { padding-inline: 3px; } }
 /* The window's own controls. Same parts as the shared pager — a step either
    side of a range readout — at the scale of a side panel. */
 .hv-top-pager {
@@ -5563,21 +5582,8 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   border: var(--border-strong) solid var(--rule-strong);
 }
 .rs-label { margin-bottom: 7px; }
-/* Shadow and Best Buddy read as one pair of properties, so they share a row.
-   Equal columns rather than content width: the two switches line up under
-   their labels, and the notes wrap to the same measure. */
-.rs-props {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-.rs-prop { min-width: 0; }
-.rs-prop-note {
-  margin-top: 7px;
-  font-size: var(--text-2xs);
-  line-height: 1.5;
-  color: var(--text-muted);
-}
+/* Shadow and Best Buddy, side by side on the hero's name row. */
+.rs-props { display: flex; gap: var(--space-3); flex-shrink: 0; }
 /* The inverted rank panel that lived here is gone with the block it framed —
    the hero prints the same rank beside CP and level. */
 .rs-uncapped {

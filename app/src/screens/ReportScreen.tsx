@@ -246,18 +246,21 @@ function FullReport() {
               // Rendered now, so the new species' card is the one measured below.
               flushSync(() => patch({ species: id, moveIdx: 0, chargeIds: [] }));
               // The card lands right under the pinned bars, with the roll and
-              // every league beneath it; measured, since the bars' height is
-              // the theme's. On a short screen (or a two-line form name) the
-              // leagues win: scroll on until the last row is in view, letting
-              // the top of the card go under the bar.
+              // its ranking window beneath it; measured, since the bars' height
+              // is the theme's. On a short screen the window wins: scroll on
+              // until its foot is in view, letting the top of the card go
+              // under the bar.
               {
                 const side = document.querySelector('.report-side .hero');
                 const bar = document.querySelector('.report-search-bar');
-                const leagues = document.querySelector('.report-side .league-verdicts');
+                const win = document.querySelector('.report-side > .hv-key');
                 if (!side || !bar) return;
-                const toCard = side.getBoundingClientRect().top - bar.getBoundingClientRect().bottom;
-                const toLeagues = leagues ? leagues.getBoundingClientRect().bottom - window.innerHeight : -Infinity;
-                window.scrollTo({ top: window.scrollY + Math.max(toCard, Math.min(toLeagues, toCard + side.getBoundingClientRect().height)) });
+                // Where the bar's foot will be once pinned, not where it is: at
+                // the top of the page it has not stuck yet and sits ~260px lower.
+                const pinned = (parseFloat(getComputedStyle(bar).top) || 0) + bar.getBoundingClientRect().height;
+                const toCard = side.getBoundingClientRect().top - pinned;
+                const toWin = win ? win.getBoundingClientRect().bottom - window.innerHeight : -Infinity;
+                window.scrollTo({ top: window.scrollY + Math.max(toCard, Math.min(toWin, toCard + side.getBoundingClientRect().height)) });
               }
             }}
             placeholder="Search a Pokémon…"
@@ -299,15 +302,13 @@ function FullReport() {
       </div>
       <div className="rs-split">
         {reportPage === 'report' ? (
-        // Two columns on a wide screen: who it is (card, form), then what the
-        // roll does (adjuster, every league, the line); the ranking window
-        // spans both beneath. On phones the columns dissolve
-        // (display: contents) so the CSS order can lead with card, roll,
-        // leagues and line.
+        // Two columns on a wide screen: the card (Shadow and Best Buddy beside
+        // its name), the roll, every league and the line on the left; the
+        // ranking window holds the right, pinned in view, so each bump of the
+        // roll shows its rank without a scroll. On phones the left column
+        // dissolves (display: contents) so the window can follow the roll.
         <div className="report-side">
           <div className="rs-col">
-          {/* Identity → form → roll. The three things you change sit together at
-              the top; everything below is the readout they produce. */}
           <SpeciesHero
             species={species}
             entry={entry}
@@ -315,63 +316,46 @@ function FullReport() {
             shadow={isShadow}
             bestBuddy={onBuddyBoost(species, entry.lvl)}
             verdict={verdict}
+            aside={
+              // Two yes/no properties of the subject, so they sit on its name.
+              // Their explanations ride in the titles.
+              <div className="rs-props">
+                <Switch
+                  label="Shadow"
+                  tone="shadow"
+                  checked={isShadow}
+                  disabled={!species.shadowEligible}
+                  onChange={(v) => set('shadow', v)}
+                  title={species.shadowEligible
+                    ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
+                    : `${species.name} has no Shadow form`}
+                />
+                {isMega(species) ? (
+                  <Switch
+                    label="Mega Level 4"
+                    checked={boostShown(species, bestBuddy)}
+                    disabled={!bbEligible}
+                    onChange={(v) => set('bestBuddy', boostShown(species, v))}
+                    title={bbEligible
+                      ? `Level 3 stops at level 50. Level 4 adds two levels, up to 52${species.chargeMoves.some((c) => c.mega) ? ', and Plus moves hit ×1.3 instead of ×1.2' : ''}.`
+                      : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`}
+                  />
+                ) : (
+                  <Switch
+                    label="Best Buddy"
+                    tone="buddy"
+                    checked={bestBuddy && bbEligible}
+                    disabled={!bbEligible}
+                    onChange={(v) => set('bestBuddy', v)}
+                    title={bbEligible
+                      ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
+                      : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
+                  />
+                )}
+              </div>
+            }
           />
 
-          {/* Two booleans, side by side. They took two stacked full-width
-              channels before, which is most of a screenful of column for a
-              pair of yes/no properties that the readouts below them are the
-              actual subject of. */}
-          <div className="side-block rs-props">
-            <div className="rs-prop">
-              <Switch
-                label="Shadow"
-                tone="shadow"
-                checked={isShadow}
-                disabled={!species.shadowEligible}
-                onChange={(v) => set('shadow', v)}
-                title={species.shadowEligible ? 'Attack x1.2, defense x5/6' : `${species.name} has no Shadow form`}
-              />
-              <p className="rs-prop-note">
-                {species.shadowEligible
-                  ? 'Attack x1.2, defense x5/6. Those cancel exactly, so your rank never moves — but every damage threshold does.'
-                  : 'No Shadow form exists for this Pokémon.'}
-              </p>
-            </div>
-
-            <div className="rs-prop">
-              {isMega(species) ? (
-                <Switch
-                  label="Mega Level 4"
-                  checked={boostShown(species, bestBuddy)}
-                  disabled={!bbEligible}
-                  onChange={(v) => set('bestBuddy', boostShown(species, v))}
-                  title="Mega Level 4 adds two levels, up to 52"
-                />
-              ) : (
-                <Switch
-                  label="Best Buddy"
-                  tone="buddy"
-                  checked={bestBuddy && bbEligible}
-                  disabled={!bbEligible}
-                  onChange={(v) => set('bestBuddy', v)}
-                  title={bbEligible ? 'Include levels 50.5 and 51' : 'No spread here can exceed level 50'}
-                />
-              )}
-              <p className="rs-prop-note">
-                {isMega(species)
-                  ? (bbEligible
-                    ? `Level 3 stops at level 50. Level 4 adds two levels, up to 52${species.chargeMoves.some((c) => c.mega) ? ', and Plus moves hit ×1.3 instead of ×1.2' : ''}.`
-                    : `${species.name} tops out below level 50 here, so its Mega Level changes nothing.`)
-                  : bbEligible
-                    ? 'Adds levels 50.5 and 51 to your spread. Opponents are always priced at their own Best Buddy ceiling, toggle or not.'
-                    : `${species.name} tops out below level 50 here, so the boost changes nothing for it. Opponents are still priced at theirs.`}
-              </p>
-            </div>
-          </div>
-
-          </div>
-
-          <div className="rs-col">
           <div className="side-block rs-roll">
             <div className="hud-label mb-[7px] flex items-center">
               <span className="flex-1">Adjust roll</span>
@@ -480,7 +464,7 @@ function FullReport() {
           </div>
           {/* The ranking window reads the roll, so it lives on the Report page
               with it — shown whatever the visualisation, which is on the other
-              page now. Six columns of numbers, so it spans both columns. */}
+              page now. */}
           <HeatmapKey
             colorBy={colorBy}
             onPickSpread={(a, d, s) => patch({ iv: { a, d, s } })}

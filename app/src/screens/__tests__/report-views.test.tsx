@@ -63,7 +63,12 @@ describe('ReportScreen views', () => {
   it('says plainly when no Shadow form exists', async () => {
     // Pinned: the opening species is a seeded draw, and which species have a Shadow moves with the data.
     const { container } = renderApp(<With species="clefable"><ReportScreen /></With>);
-    await waitFor(() => expect(container.textContent).toMatch(/No Shadow form exists/));
+    // The switch sits on the hero's name row now, so the reason rides in its title.
+    await waitFor(() => {
+      const sw = container.querySelector<HTMLButtonElement>('[role=switch][aria-label="Shadow"]');
+      expect(sw?.disabled).toBe(true);
+      expect(sw?.title).toMatch(/has no Shadow form/);
+    });
   });
 
   it('does not move the displayed stats when the form changes', async () => {

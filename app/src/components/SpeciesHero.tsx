@@ -25,6 +25,7 @@ export function SpeciesHero({
   shadow,
   bestBuddy = false,
   verdict,
+  aside,
 }: {
   species: Species;
   entry: RankedEntry;
@@ -39,6 +40,8 @@ export function SpeciesHero({
    * about, which is the only place it needs to be.
    */
   verdict?: string;
+  /** Controls set on the name's right — the report's Shadow and Best Buddy switches. */
+  aside?: React.ReactNode;
 }) {
   const range = useMemo(() => leagueStatRange(league), [league]);
 
@@ -79,10 +82,13 @@ export function SpeciesHero({
       </div>
 
       <div className="hero-body">
-        <h2 className="hero-name">
-          {species.name}
-          {shadow && <span className="hero-shadow-mark">⟡</span>}
-        </h2>
+        <div className="hero-head">
+          <h2 className="hero-name">
+            {species.name}
+            {shadow && <span className="hero-shadow-mark">⟡</span>}
+          </h2>
+          {aside}
+        </div>
 
         <div className="hero-types">
           {species.types.map((t) => (

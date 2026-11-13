@@ -9020,7 +9020,7 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: color-mix(in oklab, var(--color-text) 78%, transparent);
   clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
   transition: color var(--dur-2) var(--ease-out), text-shadow var(--dur-2) var(--ease-out);
 }
@@ -9034,7 +9034,7 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   background: none;
   font-size: 9px;
   letter-spacing: 0.08em;
-  opacity: 0.55;
+  opacity: 0.7;
   transition: opacity var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
 }
 .rs-page-tabs .seg-btn:hover:not(.is-active):not(:disabled) {
@@ -9047,7 +9047,7 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   text-shadow: 0 0 10px color-mix(in srgb, var(--tab-a) 70%, transparent);
   box-shadow: none;
 }
-.rs-page-tabs .seg-btn.is-active::before { opacity: 1; color: var(--tab-a); }
+.rs-page-tabs .seg-btn.is-active::before { opacity: 1; color: color-mix(in oklab, var(--tab-a) 50%, var(--color-text)); }
 /* Before the marker is measured (and in jsdom) the active button paints the
    slab itself, so the engaged state is never missing. */
 .rs-page-tabs:not(.has-marker) .seg-btn.is-active,
@@ -9076,7 +9076,14 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
    rests; durations are motion tokens, so reduced motion collapses it.
    --fx is the field's own colour: the complement spot on Report and landing,
    the accent everywhere else. */
-.species-search { --fx: var(--spot, var(--color-accent)); }
+.species-search {
+  --fx: var(--spot, var(--color-accent));
+  /* --fx as *text*. The spot is pinned at a high lightness for dark grounds
+     and read 1.2:1 on the light themes; pulled toward the theme's own text
+     colour it darkens on a light theme and stays pale on a dark one, so one
+     rule holds AA on both. Decoration (rails, brackets, cursor) keeps --fx. */
+  --fx-ink: color-mix(in oklab, var(--fx) 40%, var(--color-text));
+}
 .search-fx {
   position: absolute;
   left: 0;
@@ -9157,20 +9164,20 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: color-mix(in oklab, var(--color-text) 72%, transparent);
   white-space: nowrap;
   background:
     repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 12px),
     color-mix(in srgb, var(--fx) 5%, var(--surface-2));
   border-bottom: var(--border-hairline) solid var(--rule-hairline);
 }
-.search-status b { color: var(--fx); font-weight: 800; }
+.search-status b { color: var(--fx-ink); font-weight: 800; }
 .search-status-keys { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; }
 .search-status kbd {
   font-family: var(--font-mono);
   font-size: 9px;
   padding: 1px 4px;
-  color: var(--text-muted);
+  color: var(--color-text);
   background: var(--surface-1);
   border: var(--border-hairline) solid var(--rule-strong);
   border-bottom-width: 2px;
@@ -9199,10 +9206,10 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
 .search-row { z-index: 1; }
 .search-row.is-active { background: transparent; border-left-color: transparent; }
 .search-row.is-active .search-row-rank,
-.search-row.is-active .search-row-dex { color: var(--fx); }
+.search-row.is-active .search-row-dex { color: var(--fx-ink); }
 .search-hit {
   background: none;
-  color: var(--fx);
+  color: var(--fx-ink);
   font-weight: 800;
   text-decoration: underline 1px color-mix(in srgb, var(--fx) 60%, transparent);
   text-underline-offset: 3px;

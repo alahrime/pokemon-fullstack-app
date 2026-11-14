@@ -9393,3 +9393,7 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
   .ftc-row { grid-template-columns: 28px minmax(0, 1fr) 48px; }
   .ftc-name { display: none; }
 }
+/* Your roll: a ring on every row, over the steps, so it reads against the floor line. */
+.ftc-you, .ftc-key { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--color-text); background: var(--surface-1); }
+.ftc-you { position: absolute; top: 50%; left: var(--r); transform: translate(-50%, -50%); z-index: 1; }
+.ftc-key { display: inline-block; vertical-align: -1px; }

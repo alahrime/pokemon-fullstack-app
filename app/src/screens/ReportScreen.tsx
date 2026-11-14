@@ -483,7 +483,7 @@ function FullReport() {
             onFloor={(f) => set('statFloor', f)}
           />
           {state.statFloor && (
-            <FloorThresholds subject={ref} league={league} moveIdx={moveIdx} bestBuddy={bestBuddy} floor={state.statFloor} palette={palette} />
+            <FloorThresholds subject={ref} league={league} moveIdx={moveIdx} bestBuddy={bestBuddy} floor={state.statFloor} roll={{ atk: entry.statAtk, def: entry.statDef }} palette={palette} />
           )}
         </div>
         ) : (

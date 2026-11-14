@@ -13,8 +13,9 @@ describe('FloorThresholds', () => {
 
   it('lists exactly the opponents the attack floor clears, and switches to bulkpoints', () => {
     expect(rows.filter((r) => stepsCleared(r, mid) > 0).length).toBeGreaterThan(0);
-    const { container } = renderApp(<FloorThresholds {...props} floor={{ atk: mid, def: 0 }} />);
+    const { container } = renderApp(<FloorThresholds {...props} floor={{ atk: mid, def: 0 }} roll={{ atk: mid, def: 0 }} />);
     expect(container.querySelectorAll('.ftc-row:not(.ftc-axis)')).toHaveLength(rows.filter((r) => stepsCleared(r, mid) > 0).length);
+    expect(container.querySelectorAll(".ftc-row:not(.ftc-axis) .ftc-you")).toHaveLength(rows.filter((r) => stepsCleared(r, mid) > 0).length);
     fireEvent.click(screen.getByRole('tab', { name: /Bulkpoints/ }));
     // A defense floor of 0 clears nothing: no rows, and the next step is named.
     expect(container.querySelector('.ftc-rows')).toBeNull();

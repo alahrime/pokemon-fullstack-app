@@ -28,17 +28,20 @@ export const stepsCleared = (row: ThresholdLadder, v: number) => row.steps.filte
  * staircase — the line cuts its lower edge, and the rows just above the cut
  * are the newest gains.
  */
-export function FloorThresholds({ subject: ref, league, moveIdx, bestBuddy, floor, palette }: {
+export function FloorThresholds({ subject: ref, league, moveIdx, bestBuddy, floor, roll, palette }: {
   subject: string;
   league: Parameters<typeof thresholdLadders>[1];
   moveIdx: number;
   bestBuddy: boolean;
   floor: { atk: number; def: number };
+  /** The current spread's Attack and Defense stats, marked on every row. */
+  roll: { atk: number; def: number };
   palette: HeatPalette;
 }) {
   const [kind, setKind] = useState<Kind>('break');
   const { lo, hi, rows } = useMemo(() => thresholdLadders(ref, league, moveIdx, kind, bestBuddy), [ref, league, moveIdx, kind, bestBuddy]);
   const v = kind === 'break' ? floor.atk : floor.def;
+  const you = Number(statText(kind === 'break' ? roll.atk : roll.def));
   const unit = kind === 'break' ? 'Atk' : 'Def';
   const pos = (x: number) => (hi === lo ? 0 : ((x - lo) / (hi - lo)) * 100);
   const gained = useMemo(
@@ -71,9 +74,10 @@ export function FloorThresholds({ subject: ref, league, moveIdx, bestBuddy, floo
         {kind === 'break' ? `${move.name} into each opponent` : "Each opponent's fast move into you"} · {unit} ≥{' '}
         <b className="numeric">{statText(v)}</b> secures a step against <b className="numeric">{gained.length}</b> of {rows.length}
         {next && <> · next: <b className="numeric">{statText(next.steps[1].from)}</b> vs {next.info.name}</>}
+        {' · '}<span className="ftc-key" aria-hidden="true" /> your roll <b className="numeric">{statText(you)}</b>
       </p>
       {gained.length > 0 && (
-        <div className="ftc-rows" style={{ ['--v' as string]: `${pos(v)}%` }}>
+        <div className="ftc-rows" style={{ ['--v' as string]: `${pos(v)}%`, ['--r' as string]: `${Math.min(100, Math.max(0, pos(you)))}%` }}>
           <div className="ftc-row ftc-axis" aria-hidden="true">
             <span />
             <span className="ftc-plot numeric">
@@ -103,6 +107,7 @@ export function FloorThresholds({ subject: ref, league, moveIdx, bestBuddy, floo
                     );
                   })}
                   <span className="ftc-line" />
+                  <span className="ftc-you" title={`Your roll, ${unit} ${statText(you)}: ${kind === 'break' ? 'deals' : 'takes'} ${r.steps[stepsCleared(r, you)].dmg}`} />
                 </span>
                 <span className="numeric ftc-gain" title={`${k} of ${n - 1} ${kind === 'break' ? 'breakpoints' : 'bulkpoints'}`}>
                   {r.steps[0].dmg}→{r.steps[k].dmg}

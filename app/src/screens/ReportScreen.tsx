@@ -40,6 +40,7 @@ import { HeatmapKey, HeatmapView } from './detail/HeatmapView';
 import { RulerView } from './detail/RulerView';
 import { ThresholdTable } from './detail/ThresholdTable';
 import { FlipView } from './detail/FlipView';
+import { FloorThresholds } from './detail/FloorThresholds';
 
 /**
  * Cells per page. The scan itself is uncapped — every league-legal opponent
@@ -481,6 +482,9 @@ function FullReport() {
             floor={state.statFloor}
             onFloor={(f) => set('statFloor', f)}
           />
+          {state.statFloor && (
+            <FloorThresholds subject={ref} league={league} moveIdx={moveIdx} bestBuddy={bestBuddy} floor={state.statFloor} palette={palette} />
+          )}
         </div>
         ) : (
         <div className="rs-analysis">

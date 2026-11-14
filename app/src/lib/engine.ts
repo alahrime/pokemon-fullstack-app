@@ -1444,6 +1444,59 @@ export function rulersFor(speciesId: string, iv: IV, leagueId: LeagueId, opp: Op
   return out;
 }
 
+/** One damage step: from this stat (in the stat floor's units) up, at least / at most `dmg`. */
+export interface LadderStep { from: number; dmg: number }
+export interface ThresholdLadder { info: OpponentInfo; rank: number; steps: LadderStep[] }
+export interface ThresholdLadders { lo: number; hi: number; rows: ThresholdLadder[] }
+
+const ladderCache = new Map<string, ThresholdLadders>();
+
+/**
+ * Every opponent whose damage steps somewhere in this species' stat range, and
+ * where each step lands — on the Attack stat axis for breakpoints (your fast
+ * move into them) or the Defense stat axis for bulkpoints (their fast move into
+ * you).
+ *
+ * Stated in the stat floor's terms, so "floor ≥ step.from" is exactly "every
+ * spread the floor keeps is past this step". Spreads are grouped by the stat
+ * as the floor reads it (one decimal); a group's damage is its worst member's,
+ * since a floor at that value keeps the whole group. A step that only some of
+ * one group reach cannot be guaranteed by any floor, so it is not a step here.
+ */
+export function thresholdLadders(ref: string, leagueId: LeagueId, moveIdx: number, kind: 'break' | 'bulk', bestBuddy = false): ThresholdLadders {
+  const key = `${ref}|${leagueId}|${moveIdx}|${kind}|${bestBuddy ? 'bb' : ''}`;
+  const hit = ladderCache.get(key);
+  if (hit) return hit;
+  const table = getTable(ref, leagueId, bestBuddy);
+  const species = SPECIES_BY_ID.get(parseRef(ref).id)!;
+  const move = species.fastMoves[Math.min(moveIdx, species.fastMoves.length - 1)];
+  const brk = kind === 'break';
+  // The weakest spread of each one-decimal stat group, in stat order. Damage
+  // rises with atk and falls with def, so the first of a group is its worst.
+  const sorted = [...table.all].sort(brk ? (x, y) => x.atk - y.atk : (x, y) => x.def - y.def);
+  const groups: { t: number; e: RankedEntry }[] = [];
+  for (const e of sorted) {
+    const t = Number(statText(brk ? e.statAtk : e.statDef));
+    if (groups.at(-1)?.t !== t) groups.push({ t, e });
+  }
+  const rows: ThresholdLadder[] = [];
+  for (const oppRef of opponentCandidatesFor(leagueId)) {
+    if (oppRef === ref) continue;
+    const info = opponentInfo(oppRef, leagueId);
+    const flat = brk ? !hasBreakpoint(table, move, info.def, info.types) : !hasBulkpoint(table, info.atk, info.fastMove, species.types);
+    if (flat) continue;
+    const steps: LadderStep[] = [];
+    for (const g of groups) {
+      const d = brk ? dmg(g.e.atk, info.def, move, info.types) : dmg(info.atk, g.e.def, info.fastMove, species.types);
+      if (steps.at(-1)?.dmg !== d) steps.push({ from: g.t, dmg: d });
+    }
+    if (steps.length > 1) rows.push({ info, rank: rankOfRef(oppRef, leagueId), steps });
+  }
+  const out = { lo: groups[0].t, hi: groups.at(-1)!.t, rows };
+  ladderCache.set(key, out);
+  return out;
+}
+
 // ── Heatmap cell data (rank / breakpoint-tier / bulkpoint-tier colouring) ──
 export interface HeatCell {
   a: number;

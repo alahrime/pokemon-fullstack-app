@@ -1,0 +1,56 @@
+236 pieces, 2112786 teams (same-species pairs dropped)
+check: replaying meta3's 642 strategies
+  grow: 205761 pairs, 205761 new games in 754s
+  mimikyu / quagsire / melmetal: meta3 9.36%, now 9.36% ok
+  azumarill / charjabug / dunsparce#ASTONISH: meta3 8.48%, now 8.48% ok
+  melmetal / mimikyu / talonflame_shadow: meta3 8.43%, now 8.43% ok
+  ninetales_shadow / mimikyu / walrein: meta3 5.59%, now 5.59% ok
+  dunsparce#ASTONISH / azumarill / charjabug: meta3 5.43%, now 5.43% ok
+round 1: 214 teams, support 32, in-pool edge 0.05%
+  prefilter: 2112572 teams in 516s, top 0.673, #4000 0.568
+  played 432000 proposal games in 1450s
+  best: snorlax / hydreigon_shadow / dunsparce#ASTONISH 55.6% (prefilter #3910); best random-sample team 52.3% (#1435988)
+  prefilter ranks of the best 50 proposals: median #2075, worst #3910, 0 from the random sample
+  + snorlax / hydreigon_shadow / dunsparce#ASTONISH 55.6% prefilter #3910
+  + clodsire / snorlax_shadow / charjabug 55.4% prefilter #1082
+  + snorlax_shadow / charjabug / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 55.2% prefilter #502
+  + snorlax_shadow / guzzlord / clodsire 55.0% prefilter #3656
+  + snorlax_shadow / melmetal / dunsparce#ASTONISH 54.4% prefilter #2249
+  + mimikyu / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / charjabug 54.4% prefilter #1362
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / lapras / charjabug 54.4% prefilter #892
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / snorlax_shadow / empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 54.3% prefilter #2075
+  + mimikyu / charjabug / clodsire 54.2% prefilter #3101
+  + clodsire / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / charjabug 54.2% prefilter #1046
+  + clodsire / snorlax / charjabug 54.2% prefilter #625
+  + snorlax_shadow / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / umbreon 54.2% prefilter #2126
+  + diggersby / lapras / hydreigon_shadow 54.1% prefilter #3336
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / snorlax / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 54.1% prefilter #1836
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / dunsparce#ASTONISH / lapras 54.0% prefilter #142
+  + clodsire / dunsparce#ASTONISH / kingdra 53.9% prefilter #3524
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / snorlax_shadow / houndoom_shadow 53.9% prefilter #3734
+  + snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / melmetal / dunsparce#ASTONISH 53.9% prefilter #3863
+  + diggersby / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / charjabug 53.9% prefilter #668
+  + rillaboom / hydreigon_shadow / dunsparce#ASTONISH 53.8% prefilter #2216
+  + clodsire / snorlax_shadow / dunsparce#ASTONISH 53.8% prefilter #618
+  + mimikyu / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / clodsire 53.8% prefilter #2163
+  + snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / umbreon 53.8% prefilter #1403
+  + snorlax / dunsparce#ASTONISH / mimikyu 53.8% prefilter #3613
+  + toxapex / dunsparce / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 53.7% prefilter #2623
+  + diggersby / snorlax_shadow / hydreigon_shadow 53.7% prefilter #1051
+  + clodsire / lapras / charjabug 53.7% prefilter #1568
+  + lapras / snorlax / hydreigon_shadow 53.7% prefilter #2528
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / dunsparce / wartortle 53.7% prefilter #3200
+  + mimikyu / lapras / clodsire 53.7% prefilter #1855
+  + clodsire / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / araquanid 53.7% prefilter #3033
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / hydreigon_shadow / lapras 53.7% prefilter #286
+  + snorlax_shadow / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 53.7% prefilter #1559
+  + clodsire / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / jellicent 53.6% prefilter #2252
+  + mimikyu / hydreigon_shadow / diggersby 53.6% prefilter #1683
+  + snorlax_shadow / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / dunsparce 53.6% prefilter #438
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / snorlax / guzzlord 53.6% prefilter #1662
+  + dunsparce#ASTONISH / snorlax / blastoise 53.6% prefilter #3822
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / snorlax / wartortle 53.6% prefilter #219
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / dunsparce#ASTONISH / blastoise 53.5% prefilter #281
+  grow: 84180 pairs, 81748 new games in 282s
+round 2: 254 teams, support 32, in-pool edge 0.05%
+EXIT 143

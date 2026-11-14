@@ -4,7 +4,7 @@ import { speciesOf, movesFor } from '../../../app/src/lib/data';
 import { battle, bestSpreadFor, mkBattleMon } from '../../../app/src/lib/engine';
 const lg = 'great' as const;
 const S = process.env.S!;
-const uni = JSON.parse(readFileSync(`${S}/universe2.json`, 'utf8'));
+const uni = JSON.parse(readFileSync(`${S}/${process.env.UNI ?? "universe2.json"}`, "utf8"));
 const MV: Record<string, string[]> = Object.fromEntries(uni.U.map((u: string, i: number) => [u, uni.moves[i]]));
 const cache = new Map<string, any>();
 export function mon(ref: string) {

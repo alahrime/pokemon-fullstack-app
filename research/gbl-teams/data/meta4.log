@@ -1,0 +1,283 @@
+236 pieces, 2112786 teams (same-species pairs dropped)
+check: replaying meta3's 642 strategies
+  grow: 205761 pairs, 0 new games in 0s
+  mimikyu / quagsire / melmetal: meta3 9.36%, now 9.36% ok
+  azumarill / charjabug / dunsparce#ASTONISH: meta3 8.48%, now 8.48% ok
+  melmetal / mimikyu / talonflame_shadow: meta3 8.43%, now 8.43% ok
+  ninetales_shadow / mimikyu / walrein: meta3 5.59%, now 5.59% ok
+  dunsparce#ASTONISH / azumarill / charjabug: meta3 5.43%, now 5.43% ok
+round 1: 214 teams, support 32, in-pool edge 0.05%
+  mix: mimikyu/quagsire/melmetal 9.4%, azumarill/charjabug/dunsparce#ASTONISH 8.5%, melmetal/mimikyu/talonflame_shadow 8.4%, ninetales_shadow/mimikyu/walrein 5.6%, dunsparce#ASTONISH/azumarill/charjabug 5.4%, regidrago/cramorant/dunsparce#ASTONISH 4.5%
+  prefilter: 2112572 teams in 364s, top 0.673, #4000 0.568
+  played 432000 proposal games in 0s
+  wave 2: 1000 teams by corrected score in 256s; best 56.6% vs wave 1 best 55.6%; corr with result: prefilter 0.70 (wave 1), corrected 0.20 (wave 2, out of sample); teams > 51%: wave 1 794, wave 2 890
+  best: blastoise / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / hydreigon_shadow 56.6% (prefilter #22572); best random-sample team 52.3% (#1435988)
+  prefilter ranks of the best 50 proposals: median #32238, worst #480985, 0 from the random sample
+  + blastoise / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / hydreigon_shadow 56.6% prefilter #22572 (wave 2)
+  + blastoise / snorlax_shadow / hydreigon_shadow 56.4% prefilter #26778 (wave 2)
+  + mimikyu / ursaluna_shadow / hydreigon_shadow 56.4% prefilter #249199 (wave 2)
+  + houndoom_shadow / snorlax / hydreigon_shadow 56.3% prefilter #129946 (wave 2)
+  + mimikyu / hydreigon_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE 56.3% prefilter #13476 (wave 2)
+  + mimikyu / guzzlord / snorlax_shadow 56.3% prefilter #30654 (wave 2)
+  + mimikyu / snorlax / guzzlord 56.1% prefilter #32225 (wave 2)
+  + houndoom_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / dunsparce#ASTONISH 56.0% prefilter #27194 (wave 2)
+  + snorlax_shadow / hydreigon_shadow / dunsparce#ASTONISH 56.0% prefilter #7149 (wave 2)
+  + houndoom_shadow / hydreigon_shadow / snorlax_shadow 55.9% prefilter #160020 (wave 2)
+  + mimikyu / guzzlord / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE 55.8% prefilter #39664 (wave 2)
+  + houndoom_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / ludicolo 55.7% prefilter #37962 (wave 2)
+  + mimikyu / hydreigon_shadow / snorlax_shadow 55.7% prefilter #10791 (wave 2)
+  + houndoom_shadow / snorlax / blastoise 55.7% prefilter #44215 (wave 2)
+  + houndoom_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / blastoise 55.6% prefilter #81270 (wave 2)
+  + snorlax / hydreigon_shadow / dunsparce#ASTONISH 55.6% prefilter #3910
+  + snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / houndoom_shadow / lapras 55.5% prefilter #20810 (wave 2)
+  + houndoom_shadow / hydreigon_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE 55.4% prefilter #130102 (wave 2)
+  + snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / hydreigon_shadow / dunsparce#ASTONISH 55.4% prefilter #7062 (wave 2)
+  + clodsire / snorlax_shadow / charjabug 55.4% prefilter #1082
+  + houndoom_shadow / dunsparce#ASTONISH / blastoise 55.3% prefilter #94669 (wave 2)
+  + mimikyu / wartortle / morgrem 55.3% prefilter #91682 (wave 2)
+  + blastoise / snorlax / hydreigon_shadow 55.3% prefilter #15701 (wave 2)
+  + mimikyu / hydreigon_shadow / umbreon 55.2% prefilter #91878 (wave 2)
+  + snorlax_shadow / charjabug / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 55.2% prefilter #502
+  + blastoise / snorlax_shadow / houndoom_shadow 55.2% prefilter #65897 (wave 2)
+  + houndoom_shadow / ursaluna_shadow / snorlax_shadow 55.2% prefilter #480985 (wave 2)
+  + snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / ursaluna_shadow#SCRATCH-HIGH_HORSEPOWER-TRAILBLAZE / dunsparce#ASTONISH 55.1% prefilter #13002 (wave 2)
+  + mimikyu / dunsparce#ASTONISH / guzzlord 55.1% prefilter #32238 (wave 2)
+  + snorlax / guzzlord / dunsparce#ASTONISH 55.1% prefilter #15044 (wave 2)
+  + snorlax_shadow / hydreigon_shadow / morgrem 55.1% prefilter #121896 (wave 2)
+  + ursaluna_shadow#SCRATCH-HIGH_HORSEPOWER-TRAILBLAZE / snorlax / hydreigon_shadow 55.1% prefilter #32256 (wave 2)
+  + snorlax_shadow / guzzlord / dunsparce#ASTONISH 55.1% prefilter #18736 (wave 2)
+  + snorlax_shadow / hydreigon_shadow / umbreon 55.1% prefilter #93136 (wave 2)
+  + houndoom_shadow / mimikyu / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE 55.1% prefilter #41784 (wave 2)
+  + mimikyu / dunsparce#ASTONISH / hydreigon_shadow 55.1% prefilter #7337 (wave 2)
+  + snorlax_shadow / guzzlord / clodsire 55.0% prefilter #3656
+  + houndoom_shadow / snorlax_shadow#PSYWAVE-BODY_SLAM-OUTRAGE / morgrem 55.0% prefilter #266327 (wave 2)
+  + houndoom_shadow / snorlax / dunsparce#ASTONISH 55.0% prefilter #16632 (wave 2)
+  + blastoise / hydreigon_shadow / mimikyu 55.0% prefilter #20466 (wave 2)
+  grow: 84180 pairs, 74106 new games in 207s
+round 2: 254 teams, support 36, in-pool edge 0.06%
+  mix: mimikyu/marowak/melmetal 11.0%, clodsire/snorlax_shadow/charjabug 7.1%, carbink/cramorant/rillaboom 5.9%, cramorant/carbink/electrode_hisuian 5.5%, mimikyu/annihilape_shadow/walrein 5.4%, mimikyu/hydreigon_shadow/umbreon 5.4%
+  prefilter: 2112532 teams in 1717s, top 0.686, #4000 0.565
+  played 486000 proposal games in 1588s
+  wave 2: 1000 teams by corrected score in 409s; best 53.2% vs wave 1 best 52.7%; corr with result: prefilter 0.70 (wave 1), corrected 0.13 (wave 2, out of sample); teams > 51%: wave 1 103, wave 2 199
+  best: mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff_shadow 53.2% (prefilter #18849); best random-sample team 51.1% (#607266)
+  prefilter ranks of the best 50 proposals: median #7395, worst #1022830, 0 from the random sample
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff_shadow 53.2% prefilter #18849 (wave 2)
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff 52.7% prefilter #22175 (wave 2)
+  + jumpluff / melmetal / marowak_shadow 52.7% prefilter #1897
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / chesnaught 52.7% prefilter #23378 (wave 2)
+  + rillaboom / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff 52.7% prefilter #2435
+  + empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff / dondozo 52.6% prefilter #25264 (wave 2)
+  + empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / melmetal / jumpluff 52.6% prefilter #3578
+  + empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / charjabug / jumpluff 52.5% prefilter #46540 (wave 2)
+  + snorlax_shadow / ninetales / jumpluff 52.5% prefilter #42454 (wave 2)
+  + melmetal / chesnaught_shadow / jumpluff_shadow 52.5% prefilter #1878
+  + houndoom / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / wartortle#WATER_GUN-AQUA_JET-HYDRO_PUMP 52.5% prefilter #676856 (wave 2)
+  + mimikyu / corviknight / jumpluff 52.5% prefilter #35795 (wave 2)
+  + ninetales / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / jumpluff 52.4% prefilter #42648 (wave 2)
+  + melmetal / morgrem#SUCKER_PUNCH-FOUL_PLAY-PLAY_ROUGH / jumpluff 52.4% prefilter #9039 (wave 2)
+  + quagsire_shadow / jumpluff_shadow / carbink 52.4% prefilter #16799 (wave 2)
+  + quagsire_shadow / melmetal / jumpluff_shadow 52.3% prefilter #836
+  + snorlax_shadow / jumpluff / chesnaught_shadow 52.3% prefilter #7706 (wave 2)
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / chesnaught_shadow 52.3% prefilter #34683 (wave 2)
+  + melmetal / marowak_shadow / jumpluff_shadow 52.3% prefilter #1852
+  + chesnaught / jumpluff / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON 52.3% prefilter #7395 (wave 2)
+  + melmetal / talonflame / jumpluff 52.3% prefilter #18672 (wave 2)
+  + swampert_shadow / melmetal / walrein 52.3% prefilter #20467 (wave 2)
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / charjabug 52.2% prefilter #175234 (wave 2)
+  + melmetal / annihilape_shadow / jumpluff_shadow 52.2% prefilter #650
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.2% prefilter #6524 (wave 2)
+  + mimikyu / empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / corviknight 52.2% prefilter #132216 (wave 2)
+  + empoleon_shadow#WATERFALL-BLIZZARD-HYDRO_CANNON / houndoom_shadow / jumpluff 52.2% prefilter #141408 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / umbreon / jumpluff 52.2% prefilter #168843 (wave 2)
+  + quagsire_shadow / jumpluff / carbink 52.2% prefilter #29923 (wave 2)
+  + jumpluff / marowak_shadow / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.1% prefilter #313
+  + jumpluff / melmetal / chesnaught_shadow 52.1% prefilter #2036
+  + swampert_shadow / melmetal / jumpluff_shadow 52.1% prefilter #3973
+  + swampert_shadow / melmetal / jumpluff 52.1% prefilter #4868 (wave 2)
+  + melmetal / ninetales / jumpluff_shadow 52.1% prefilter #10530 (wave 2)
+  + houndoom / guzzlord / mimikyu 52.1% prefilter #1022830 (wave 2)
+  + quagsire_shadow / melmetal / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.1% prefilter #367
+  + empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / jumpluff 52.0% prefilter #2939
+  + melmetal / morgrem / jumpluff 52.0% prefilter #7913 (wave 2)
+  + jumpluff / houndoom_shadow / melmetal 52.0% prefilter #51098 (wave 2)
+  + swampert_shadow / jumpluff / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.0% prefilter #2246
+  grow: 98580 pairs, 95151 new games in 736s
+round 3: 294 teams, support 56, in-pool edge 0.07%
+  mix: mimikyu/houndoom/guzzlord 5.7%, quagsire_shadow/jumpluff/carbink 4.4%, mimikyu/annihilape_shadow/clodsire 4.1%, azumarill/charjabug/dunsparce#ASTONISH 3.5%, melmetal/talonflame/jumpluff 3.4%, carbink/cramorant/annihilape_shadow 2.9%
+  prefilter: 2112492 teams in 883s, top 0.685, #4000 0.571
+  played 756000 proposal games in 2106s
+  wave 2: 1000 teams by corrected score in 423s; best 52.6% vs wave 1 best 52.4%; corr with result: prefilter 0.72 (wave 1), corrected 0.23 (wave 2, out of sample); teams > 51%: wave 1 72, wave 2 172
+  best: melmetal / dusclops / azumarill 52.6% (prefilter #19714); best random-sample team 50.6% (#93501)
+  prefilter ranks of the best 50 proposals: median #19033, worst #224162, 0 from the random sample
+  + melmetal / dusclops / azumarill 52.6% prefilter #19714 (wave 2)
+  + melmetal / umbreon / mimikyu 52.5% prefilter #19232 (wave 2)
+  + melmetal / stunfisk / azumarill 52.4% prefilter #615
+  + mimikyu / umbreon / azumarill 52.3% prefilter #28545 (wave 2)
+  + mimikyu / azumarill / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 52.2% prefilter #30675 (wave 2)
+  + walrein / stunfisk / carbink 52.2% prefilter #9642 (wave 2)
+  + mimikyu / umbreon / walrein 52.2% prefilter #66491 (wave 2)
+  + houndoom / melmetal / dunsparce#ASTONISH 52.2% prefilter #82050 (wave 2)
+  + carbink / dusclops / azumarill 52.1% prefilter #52202 (wave 2)
+  + melmetal / umbreon / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.0% prefilter #693
+  + mimikyu / corviknight / carbink 52.0% prefilter #19033 (wave 2)
+  + stunfisk / umbreon / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.0% prefilter #1409
+  + snorlax_shadow / melmetal / clodsire 52.0% prefilter #904
+  + houndoom / azumarill / dunsparce#ASTONISH 51.9% prefilter #103139 (wave 2)
+  + melmetal / azumarill / charjabug 51.9% prefilter #4118 (wave 2)
+  + houndoom / melmetal / azumarill 51.9% prefilter #17221 (wave 2)
+  + mimikyu / melmetal / corviknight 51.9% prefilter #4734 (wave 2)
+  + mimikyu / stunfisk / azumarill 51.9% prefilter #9773 (wave 2)
+  + mimikyu / stunfisk / carbink 51.9% prefilter #16374 (wave 2)
+  + lapras / stunfisk / carbink 51.9% prefilter #18915 (wave 2)
+  + houndoom_shadow / melmetal / stunfisk 51.9% prefilter #9502 (wave 2)
+  + mimikyu / houndoom_shadow / azumarill 51.9% prefilter #32419 (wave 2)
+  + houndoom / melmetal / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.9% prefilter #1428
+  + mimikyu / blastoise / carbink 51.9% prefilter #24562 (wave 2)
+  + melmetal / moltres_galarian / mimikyu 51.9% prefilter #4843 (wave 2)
+  + walrein / umbreon / stunfisk 51.9% prefilter #27720 (wave 2)
+  + mimikyu / charjabug / azumarill 51.9% prefilter #55721 (wave 2)
+  + melmetal / azumarill / corviknight_shadow 51.9% prefilter #2554
+  + stunfisk / dunsparce#ROLLOUT / azumarill 51.9% prefilter #27541 (wave 2)
+  + houndoom / melmetal / stunfisk 51.8% prefilter #35509 (wave 2)
+  + lapras / carbink / melmetal 51.8% prefilter #2695
+  + mimikyu / marowak / carbink 51.8% prefilter #21626 (wave 2)
+  + corviknight / umbreon / melmetal 51.8% prefilter #19512 (wave 2)
+  + clodsire / umbreon / wartortle 51.8% prefilter #21771 (wave 2)
+  + melmetal / azumarill / corviknight 51.8% prefilter #2320
+  + mimikyu / talonflame / azumarill 51.8% prefilter #26068 (wave 2)
+  + mimikyu / dunsparce#ROLLOUT / jellicent 51.8% prefilter #224162 (wave 2)
+  + stunfisk / carbink / azumarill 51.8% prefilter #13474 (wave 2)
+  + melmetal / umbreon / stunfisk 51.8% prefilter #20197 (wave 2)
+  + azumarill / dunsparce / melmetal 51.8% prefilter #850
+  grow: 112980 pairs, 107234 new games in 296s
+round 4: 334 teams, support 56, in-pool edge 0.07%
+  mix: jumpluff/melmetal/marowak_shadow 7.3%, mimikyu/cramorant/araquanid_shadow 4.6%, mimikyu/houndoom_shadow/azumarill 4.2%, mimikyu/melmetal/umbreon 4.0%, mimikyu/talonflame_shadow/rillaboom 3.6%, carbink/cramorant/rillaboom 3.5%
+  prefilter: 2112452 teams in 665s, top 0.663, #4000 0.564
+  played 756000 proposal games in 1946s
+  wave 2: 1000 teams by corrected score in 437s; best 52.2% vs wave 1 best 51.8%; corr with result: prefilter 0.72 (wave 1), corrected 0.22 (wave 2, out of sample); teams > 51%: wave 1 17, wave 2 84
+  best: ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / melmetal / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 52.2% (prefilter #14899); best random-sample team 50.6% (#30177)
+  prefilter ranks of the best 50 proposals: median #27494, worst #235153, 0 from the random sample
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / melmetal / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 52.2% prefilter #14899 (wave 2)
+  + mimikyu / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 52.2% prefilter #61070 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 52.1% prefilter #6978 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / umbreon / mimikyu 52.1% prefilter #235153 (wave 2)
+  + mimikyu / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 52.0% prefilter #143599 (wave 2)
+  + ninetales_shadow / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / charjabug 51.9% prefilter #8932 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / melmetal / umbreon 51.8% prefilter #119309 (wave 2)
+  + lapras / melmetal / marowak_shadow 51.8% prefilter #2408
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / hydreigon_shadow / melmetal 51.8% prefilter #69542 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / wartortle / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.7% prefilter #22505 (wave 2)
+  + electrode_hisuian / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.7% prefilter #2003
+  + lapras / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.7% prefilter #5058 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / jellicent / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.7% prefilter #15224 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT / clodsire 51.6% prefilter #12699 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / kingdra / mimikyu 51.6% prefilter #144313 (wave 2)
+  + diggersby / charjabug / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.6% prefilter #1120
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / vigoroth / mimikyu 51.6% prefilter #38127 (wave 2)
+  + greninja / charjabug / mimikyu 51.6% prefilter #100611 (wave 2)
+  + mimikyu / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / chesnaught 51.6% prefilter #78119 (wave 2)
+  + ninetales_shadow / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT / mimikyu 51.5% prefilter #40235 (wave 2)
+  + snorlax_shadow / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.5% prefilter #114333 (wave 2)
+  + ninetales_shadow / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.5% prefilter #3610
+  + houndoom_shadow / mimikyu / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL 51.5% prefilter #162911 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / lapras / toxapex 51.5% prefilter #27494 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / hydreigon_shadow / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.5% prefilter #101924 (wave 2)
+  + greninja / melmetal / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL 51.5% prefilter #55730 (wave 2)
+  + mimikyu / hydreigon_shadow / melmetal 51.4% prefilter #13954 (wave 2)
+  + swampert_shadow / melmetal / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.4% prefilter #164
+  + ninetales_shadow / melmetal / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.4% prefilter #9137 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.4% prefilter #101369 (wave 2)
+  + lapras / charjabug / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.4% prefilter #3942
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / lapras / mimikyu 51.4% prefilter #48986 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / carbink / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.4% prefilter #153477 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / kingdra / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.4% prefilter #16245 (wave 2)
+  + ninetales_shadow / umbreon / mimikyu 51.4% prefilter #166553 (wave 2)
+  + mimikyu / marowak_shadow / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.3% prefilter #2187
+  + walrein / dunsparce#ASTONISH / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL 51.3% prefilter #48937 (wave 2)
+  + ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / hydreigon_shadow / toxapex 51.3% prefilter #90210 (wave 2)
+  + walrein / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.3% prefilter #40729 (wave 2)
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / vigoroth / ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL 51.3% prefilter #3937
+  grow: 127380 pairs, 120175 new games in 356s
+round 5: 374 teams, support 67, in-pool edge 0.08%
+  mix: cramorant/rillaboom/carbink 4.9%, carbink/cramorant/rillaboom 4.0%, mimikyu/hydreigon_shadow/umbreon 3.3%, melmetal/talonflame/jumpluff 3.0%, mimikyu/marowak_shadow/clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 2.9%, walrein/mimikyu/annihilape_shadow 2.8%
+  prefilter: 2112412 teams in 859s, top 0.642, #4000 0.553
+  played 904500 proposal games in 2251s
+  wave 2: 1000 teams by corrected score in 3764s; best 51.9% vs wave 1 best 51.4%; corr with result: prefilter 0.74 (wave 1), corrected 0.13 (wave 2, out of sample); teams > 51%: wave 1 3, wave 2 19
+  best: mimikyu / guzzlord / marowak_shadow 51.9% (prefilter #122435); best random-sample team 49.7% (#292233)
+  prefilter ranks of the best 50 proposals: median #16571, worst #137318, 0 from the random sample
+  + mimikyu / guzzlord / marowak_shadow 51.9% prefilter #122435 (wave 2)
+  + chesnaught_mega#LOW_KICK-SOLAR_BEAM-SEED_BOMB_PLUS / guzzlord / mimikyu 51.8% prefilter #137318 (wave 2)
+  + mimikyu / quagsire_shadow / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.5% prefilter #45892 (wave 2)
+  + mimikyu / hydreigon_shadow / chesnaught 51.4% prefilter #25602 (wave 2)
+  + mimikyu / chesnaught / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.4% prefilter #87651 (wave 2)
+  + mimikyu / cramorant / chesnaught 51.4% prefilter #3510
+  + melmetal / altaria / diggersby 51.3% prefilter #1588
+  + mimikyu / corviknight / altaria 51.3% prefilter #101170 (wave 2)
+  + mimikyu / walrein / marowak 51.2% prefilter #22691 (wave 2)
+  + mimikyu / marowak / guzzlord 51.2% prefilter #102138 (wave 2)
+  + melmetal / chesnaught_shadow / mimikyu 51.2% prefilter #19020 (wave 2)
+  + jumpluff / annihilape_shadow / clodsire 51.1% prefilter #908
+  + mimikyu / cramorant / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.1% prefilter #15845 (wave 2)
+  + mimikyu / diggersby / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.1% prefilter #23420 (wave 2)
+  + melmetal / mimikyu / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.1% prefilter #8227 (wave 2)
+  + mimikyu / corviknight / rillaboom 51.1% prefilter #7209 (wave 2)
+  + cramorant / chesnaught / dunsparce#ASTONISH 51.1% prefilter #8220 (wave 2)
+  + mimikyu / houndoom_shadow / chesnaught 51.1% prefilter #77396 (wave 2)
+  + mimikyu / umbreon / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.1% prefilter #24150 (wave 2)
+  + mimikyu / houndoom_shadow / cramorant 51.0% prefilter #48486 (wave 2)
+  + mimikyu / hydreigon_shadow / rillaboom 51.0% prefilter #8653 (wave 2)
+  + stunfisk / guzzlord / walrein 51.0% prefilter #57151 (wave 2)
+  grow: 76197 pairs, 73000 new games in 337s
+round 6: 396 teams, support 72, in-pool edge 0.08%
+  mix: mimikyu/ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL/empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 3.1%, melmetal/altaria/diggersby 3.0%, mimikyu/walrein/marowak 3.0%, melmetal/talonflame/jumpluff 2.8%, mimikyu/houndoom_shadow/cramorant 2.7%, stunfisk/walrein/carbink 2.5%
+  prefilter: 2112390 teams in 837s, top 0.657, #4000 0.559
+  played 972000 proposal games in 2090s
+  wave 2: 1000 teams by corrected score in 528s; best 51.7% vs wave 1 best 51.2%; corr with result: prefilter 0.72 (wave 1), corrected 0.11 (wave 2, out of sample); teams > 51%: wave 1 5, wave 2 27
+  best: walrein / dunsparce#ROLLOUT / talonflame 51.7% (prefilter #62211); best random-sample team 50.7% (#39883)
+  prefilter ranks of the best 50 proposals: median #82891, worst #413545, 0 from the random sample
+  + walrein / dunsparce#ROLLOUT / talonflame 51.7% prefilter #62211 (wave 2)
+  + blastoise / umbreon / talonflame 51.6% prefilter #157246 (wave 2)
+  + swampert_shadow / lapras / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.5% prefilter #107189 (wave 2)
+  + blastoise / houndoom_shadow / talonflame 51.5% prefilter #91423 (wave 2)
+  + dunsparce / talonflame / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.3% prefilter #169455 (wave 2)
+  + lapras / dunsparce#ROLLOUT / talonflame 51.3% prefilter #100565 (wave 2)
+  + ninetales_shadow / dunsparce#ROLLOUT / lapras 51.3% prefilter #70195 (wave 2)
+  + swampert_shadow / umbreon / empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.3% prefilter #344154 (wave 2)
+  + dondozo / dunsparce#ROLLOUT / talonflame 51.3% prefilter #202799 (wave 2)
+  + umbreon / talonflame / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.3% prefilter #208758 (wave 2)
+  + melmetal / talonflame / dunsparce#ROLLOUT 51.3% prefilter #82891 (wave 2)
+  + blastoise / lapras / talonflame 51.2% prefilter #36225 (wave 2)
+  + blastoise / dunsparce#ROLLOUT / talonflame 51.2% prefilter #184244 (wave 2)
+  + mimikyu / dunsparce#ROLLOUT / talonflame 51.2% prefilter #178640 (wave 2)
+  + blastoise / umbreon / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE 51.2% prefilter #3210
+  + mimikyu / dunsparce#ROLLOUT / annihilape_shadow 51.2% prefilter #32691 (wave 2)
+  + lapras / talonflame / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.2% prefilter #63104 (wave 2)
+  + swampert_shadow / umbreon / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.2% prefilter #301400 (wave 2)
+  + walrein / dunsparce#ASTONISH / annihilape_shadow 51.2% prefilter #3446
+  + cramorant / dunsparce#ROLLOUT / talonflame 51.2% prefilter #39631 (wave 2)
+  + walrein / umbreon / talonflame 51.2% prefilter #41966 (wave 2)
+  + clodsire / dunsparce#ROLLOUT / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.1% prefilter #11537 (wave 2)
+  + quagsire_shadow / umbreon / talonflame 51.1% prefilter #102411 (wave 2)
+  + lapras / dunsparce#ROLLOUT / annihilape_shadow 51.1% prefilter #23060 (wave 2)
+  + quagsire / umbreon / walrein 51.1% prefilter #3820
+  + empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK / talonflame / dunsparce#ROLLOUT 51.0% prefilter #413545 (wave 2)
+  + mimikyu / umbreon / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.0% prefilter #117955 (wave 2)
+  + melmetal / dunsparce#ROLLOUT / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.0% prefilter #83184 (wave 2)
+  + empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK / dunsparce#ROLLOUT / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT 51.0% prefilter #166664 (wave 2)
+  + clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE / lapras / empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK 51.0% prefilter #2988
+  + registeel / dunsparce#ROLLOUT / annihilape_shadow 51.0% prefilter #1985
+  + empoleon_shadow#METAL_SOUND-HYDRO_CANNON-DRILL_PECK / umbreon / talonflame 51.0% prefilter #267610 (wave 2)
+  grow: 118608 pairs, 114248 new games in 354s
+done: 428 teams, 1284 strategies, support 74, final in-pool edge 0.08%
+  4.2%  mimikyu / houndoom_shadow / cramorant
+  4.2%  cramorant / rillaboom / carbink
+  3.7%  ninetales_shadow#EMBER-WEATHER_BALL_FIRE-ENERGY_BALL / melmetal / umbreon
+  3.1%  stunfisk / walrein / carbink
+  2.9%  greninja / charjabug / mimikyu
+  2.9%  mimikyu / marowak / guzzlord
+  2.8%  melmetal / altaria / diggersby
+  2.8%  blastoise / umbreon / clodsire#POISON_STING-SLUDGE_BOMB-EARTHQUAKE
+  2.7%  mimikyu / cramorant / araquanid#INFESTATION-BUBBLE_BEAM-MIRROR_COAT
+  2.7%  swampert_shadow / melmetal / walrein
+  2.2%  melmetal / azumarill / corviknight
+  2.0%  mimikyu / chesnaught / empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK

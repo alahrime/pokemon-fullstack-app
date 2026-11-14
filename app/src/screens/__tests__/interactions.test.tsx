@@ -4,6 +4,7 @@ import { renderApp } from '../../test/render';
 import { CoresScreen } from '../CoresScreen';
 import { RankingsScreen } from '../RankingsScreen';
 import { DiagnosticsScreen } from '../DiagnosticsScreen';
+import { pieceName } from '../TeamSearchFindings';
 import { TeamBuilderScreen } from '../TeamBuilderScreen';
 import { ReportScreen } from '../ReportScreen';
 import { FlipView } from '../detail/FlipView';
@@ -73,6 +74,29 @@ describe('Diagnostics screen', () => {
     const { container } = renderApp(<DiagnosticsScreen />);
     expect(clickAll(container, '.diag-tier', 8)).toBeGreaterThan(0);
     clickAll(container, '.seg-btn', 12);
+  });
+  it('switches to the GL team search and walks every phase and chart column', () => {
+    const { container, getByText } = renderApp(<DiagnosticsScreen />);
+    fireEvent.click(getByText('GL team search'));
+    const phases = [...container.querySelectorAll('.ts-phases .chip-btn')];
+    // Variants, Check, six rounds, Ranking
+    expect(phases.length).toBe(9);
+    for (const p of phases) {
+      fireEvent.click(p);
+      expect(p.getAttribute('aria-selected')).toBe('true');
+      expect(container.querySelectorAll('.diag-list > li').length).toBeGreaterThan(0);
+    }
+    // a round column in either chart selects that round
+    fireEvent.click(container.querySelectorAll('.ts-band')[2]);
+    expect(container.querySelector('.ts-phases .is-active')?.textContent).toBe('Round 3');
+    expect(container.querySelectorAll('.ts-dot.is-w2').length).toBeGreaterThan(0);
+    fireEvent.click(getByText('Ranking fit'));
+    expect(container.querySelectorAll('.diag-col').length).toBeGreaterThanOrEqual(2);
+  });
+  it('names moveset variants by their moves', () => {
+    expect(pieceName('dunsparce#ASTONISH')).toBe('Dunsparce · Astonish');
+    expect(pieceName('empoleon#METAL_SOUND-HYDRO_CANNON-DRILL_PECK')).toBe('Empoleon · Metal Sound / Hydro Cannon / Drill Peck');
+    expect(pieceName('melmetal')).toBe('Melmetal');
   });
   it('shows both rankings side by side', () => {
     const { container } = renderApp(<DiagnosticsScreen />);

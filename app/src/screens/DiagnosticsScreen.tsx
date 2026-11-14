@@ -6,6 +6,8 @@ import { SegButton, SegGroup } from '../components/Seg';
 import { Sprite } from '../components/Sprite';
 import { displayName, parseRef, speciesOf } from '../lib/data';
 import { downloadCsv, stamp } from '../lib/exportData';
+import type { ReactNode } from 'react';
+import { TeamSearchFindings } from './TeamSearchFindings';
 
 /**
  * Two rankings of the same data, and the question of whether either can be
@@ -33,7 +35,37 @@ function Mon({ refId, size = 28 }: { refId: string; size?: number }) {
   );
 }
 
+/**
+ * Two diagnostics share the screen: the ranking fit below, and the Great League
+ * team search from research/gbl-teams (TeamSearchFindings). Both are about
+ * method rather than about a Pokémon, which is why they live here and not in
+ * the nav.
+ */
 export function DiagnosticsScreen() {
+  const [view, setView] = useState<'fit' | 'teams'>('fit');
+  const tabs = (
+    <div className="panel mb-4">
+      <div className="hud-label">View</div>
+      <SegGroup>
+        <SegButton active={view === 'fit'} onClick={() => setView('fit')}>Ranking fit</SegButton>
+        <SegButton active={view === 'teams'} onClick={() => setView('teams')}>GL team search</SegButton>
+      </SegGroup>
+    </div>
+  );
+  if (view === 'fit') return <RankingFit tabs={tabs} />;
+  return (
+    <>
+      <ScreenHeader
+        title="Diagnostics"
+        blurb="The Great League team search: every three-piece team played as full 3v3 games, a double-oracle equilibrium, and a ranking that counts look-alike opponents once. Pick a phase to see that step's data."
+      />
+      {tabs}
+      <TeamSearchFindings />
+    </>
+  );
+}
+
+function RankingFit({ tabs }: { tabs: ReactNode }) {
   const { state } = useAppState();
   const league = state.league;
   const [tier, setTier] = useState<string>(() => DEFAULT_TIER(league));
@@ -73,6 +105,7 @@ export function DiagnosticsScreen() {
           title="Diagnostics"
           blurb="No usable Bradley-Terry fit in this build — the artefact is missing fields this screen needs. Re-run `npm run matrix`."
         />
+        {tabs}
       </>
     );
   }
@@ -87,6 +120,7 @@ export function DiagnosticsScreen() {
         title="Diagnostics"
         blurb="Two rankings built from the same matchup matrix — the composite Overall, and a Bradley-Terry fit that derives one latent strength per Pokémon. The disagreement between them is interesting. What the fit cannot explain is more interesting."
       />
+      {tabs}
 
       {/* ── The headline: how much of the format is even rankable ─────────── */}
       <section className="panel panel-strong diag-headline">

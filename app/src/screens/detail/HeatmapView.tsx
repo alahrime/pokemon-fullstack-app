@@ -215,8 +215,7 @@ const tenth = (x: number) => Number(statText(x));
 
 /**
  * The Around-your-roll filter: off (null) by default, and when on, only spreads
- * whose attack and defense stats reach both floors at or under the level cap
- * (`lvl` is a ceiling: levels cost dust and XL candy). Each slider spans the
+ * whose attack and defense stats and level reach all three floors. Each slider spans the
  * species' own range. The floor lives in app state so the link carries it; a
  * new species or league clears it there.
  */
@@ -229,7 +228,7 @@ function useStatFloors(ranked: SpeciesTable['all'], floor: StatFloor | null) {
     return { atk: span((r) => r.statAtk), def: span((r) => r.statDef), lvl: span((r) => r.lvl) };
   }, [ranked]);
   const all = useMemo(
-    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def && r.lvl <= floor.lvl) : ranked),
+    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def && r.lvl >= floor.lvl) : ranked),
     [ranked, floor],
   );
   return { bounds, all };
@@ -344,24 +343,24 @@ export function HeatmapKey({
             <div className="panel hud-frame hv-top-panel" style={{ ['--i' as string]: 1 }}>
               <div className="hv-filter-head">
                 <div className="panel-title">Around your roll</div>
-                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0], lvl: bounds.lvl[1] } : null)} title="Show only spreads at or above an attack and defense stat, at or under a level" />
+                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0], lvl: bounds.lvl[0] } : null)} title="Show only spreads at or above an attack stat, a defense stat and a level" />
               </div>
               {floor && (
                 <div className="hv-filter">
                   {(['atk', 'def', 'lvl'] as const).map((k) => (
                     <label key={k} className="hv-slice hv-filter-row">
-                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} {k === 'lvl' ? '≤' : '≥'}</span>
+                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} ≥</span>
                       <input
                         type="range"
                         min={bounds[k][0]}
                         max={bounds[k][1]}
                         step={k === 'lvl' ? 0.5 : 0.1}
-                        value={Math.min(floor[k], bounds[k][1])}
+                        value={Math.max(floor[k], bounds[k][0])}
                         onChange={(e) => onFloor({ ...floor, [k]: Number(e.target.value) })}
-                        aria-label={k === 'lvl' ? 'Maximum level' : `Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
+                        aria-label={k === 'lvl' ? 'Minimum level' : `Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
                         className="flex-1"
                       />
-                      <span className="numeric hv-filter-value">{Math.min(floor[k], bounds[k][1]).toFixed(1)}</span>
+                      <span className="numeric hv-filter-value">{Math.max(floor[k], bounds[k][0]).toFixed(1)}</span>
                     </label>
                   ))}
                 </div>
@@ -409,7 +408,7 @@ export function HeatmapKey({
                     ))}
                   </tbody>
                 </table>
-                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread passes the filter.</p>}
+                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread reaches all three floors.</p>}
               </div>
               {/* Not the shared <Pager>: its readout is derived from page ×
                   size, and this window is centred on your roll rather than cut

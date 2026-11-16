@@ -77,7 +77,7 @@ describe('report links', () => {
     expect(reportFromHash('#/analyze/battle?mon=ursaluna')).toEqual({});
   });
 
-  it('reads a floor link with no level as uncapped', () => {
-    expect(reportFromHash('#/analyze/report?atk=128&def=90').statFloor).toEqual({ atk: 128, def: 90, lvl: 51 });
+  it('reads a floor link with no level as unfiltered', () => {
+    expect(reportFromHash('#/analyze/report?atk=128&def=90').statFloor).toEqual({ atk: 128, def: 90, lvl: 1 });
   });
 });

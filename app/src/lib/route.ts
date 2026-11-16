@@ -101,9 +101,9 @@ export function reportFromHash(hash: string): Partial<ReportView> {
   out.cup = cup?.key ?? null;
   if (cup) out.league = cup.base;
   // Absent is "filter off", not "unspecified": every link this app writes says which.
-  // A link from before the level cap has no `lvl`: 51 (Best Buddy's top) caps nothing.
-  const atk = Number(q.get('atk')), def = Number(q.get('def')), lvl = Number(q.get('lvl') ?? 51);
-  out.statFloor = q.has('atk') && q.has('def') && Number.isFinite(atk) && Number.isFinite(def) ? { atk, def, lvl: Number.isFinite(lvl) ? lvl : 51 } : null;
+  // A link from before the level floor has no `lvl`: level 1 excludes nothing.
+  const atk = Number(q.get('atk')), def = Number(q.get('def')), lvl = Number(q.get('lvl') ?? 1);
+  out.statFloor = q.has('atk') && q.has('def') && Number.isFinite(atk) && Number.isFinite(def) ? { atk, def, lvl: Number.isFinite(lvl) ? lvl : 1 } : null;
   const iv = /^(\d{1,2})-(\d{1,2})-(\d{1,2})$/.exec(q.get('iv') ?? '');
   if (iv && iv.slice(1).every((n) => +n <= 15)) out.iv = { a: +iv[1], d: +iv[2], s: +iv[3] };
   return out;

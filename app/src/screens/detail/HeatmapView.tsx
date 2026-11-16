@@ -9,9 +9,18 @@ import { hasWebGL } from '../../lib/cssColor';
 import { usePhone } from '../../lib/usePhone';
 import type { ColorBy } from '../../state/AppState';
 import { paletteRamp, statText, type HeatCell, type HeatPalette } from '../../lib/engine';
+import { FloorSlider } from '../../components/FloorSlider';
 import type { IV, SpeciesTable } from '../../lib/types';
 
-type StatFloor = { atk: number; def: number; lvl: number };
+type StatFloor = { atk: number; def: number; lvl: number; cp: number };
+
+/** The floor's four sliders, in the order they stack. `cp` and `lvl` are read off the row as they are; the stats in tenths. */
+const FLOORS = [
+  { k: 'atk', label: 'Atk', name: 'attack stat', step: 0.1, digits: 1 },
+  { k: 'def', label: 'Def', name: 'defense stat', step: 0.1, digits: 1 },
+  { k: 'lvl', label: 'Lvl', name: 'level', step: 0.5, digits: 1 },
+  { k: 'cp', label: 'CP', name: 'CP', step: 1, digits: 0 },
+] as const;
 
 /* three.js + R3F is ~1.1MB of the bundle, so it's split out and fetched when
    the terrain first renders. The 2D grid stays in the main chunk. */
@@ -215,7 +224,7 @@ const tenth = (x: number) => Number(statText(x));
 
 /**
  * The Around-your-roll filter: off (null) by default, and when on, only spreads
- * whose attack and defense stats and level reach all three floors. Each slider spans the
+ * whose attack stat, defense stat, level and CP reach all four floors. Each slider spans the
  * species' own range. The floor lives in app state so the link carries it; a
  * new species or league clears it there.
  */
@@ -225,10 +234,10 @@ function useStatFloors(ranked: SpeciesTable['all'], floor: StatFloor | null) {
       const v = ranked.map((r) => tenth(f(r)));
       return [Math.min(...v), Math.max(...v)];
     };
-    return { atk: span((r) => r.statAtk), def: span((r) => r.statDef), lvl: span((r) => r.lvl) };
+    return { atk: span((r) => r.statAtk), def: span((r) => r.statDef), lvl: span((r) => r.lvl), cp: span((r) => r.cp) };
   }, [ranked]);
   const all = useMemo(
-    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def && r.lvl >= floor.lvl) : ranked),
+    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def && r.lvl >= floor.lvl && r.cp >= floor.cp) : ranked),
     [ranked, floor],
   );
   return { bounds, all };
@@ -313,6 +322,11 @@ export function HeatmapKey({
     () => all.findIndex((r) => r.a === iv.a && r.d === iv.d && r.s === iv.s),
     [all, iv.a, iv.d, iv.s],
   );
+  // Your roll's own figures, notched on each floor slider. From the whole ranking: the floor may have filtered it out.
+  const mine = useMemo(() => {
+    const r = table.all.find((r) => r.a === iv.a && r.d === iv.d && r.s === iv.s);
+    return r && { atk: tenth(r.statAtk), def: tenth(r.statDef), lvl: r.lvl, cp: r.cp };
+  }, [table.all, iv.a, iv.d, iv.s]);
   const centre = Math.max(0, rollAt);
   const maxStart = Math.max(0, all.length - size);
   // Where the window sits when it is centred on the roll. Clamped at both ends:
@@ -343,25 +357,22 @@ export function HeatmapKey({
             <div className="panel hud-frame hv-top-panel" style={{ ['--i' as string]: 1 }}>
               <div className="hv-filter-head">
                 <div className="panel-title">Around your roll</div>
-                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0], lvl: bounds.lvl[0] } : null)} title="Show only spreads at or above an attack stat, a defense stat and a level" />
+                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0], lvl: bounds.lvl[0], cp: bounds.cp[0] } : null)} title="Show only spreads at or above an attack stat, a defense stat, a level and a CP" />
               </div>
               {floor && (
                 <div className="hv-filter">
-                  {(['atk', 'def', 'lvl'] as const).map((k) => (
-                    <label key={k} className="hv-slice hv-filter-row">
-                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} ≥</span>
-                      <input
-                        type="range"
-                        min={bounds[k][0]}
-                        max={bounds[k][1]}
-                        step={k === 'lvl' ? 0.5 : 0.1}
-                        value={Math.max(floor[k], bounds[k][0])}
-                        onChange={(e) => onFloor({ ...floor, [k]: Number(e.target.value) })}
-                        aria-label={k === 'lvl' ? 'Minimum level' : `Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
-                        className="flex-1"
-                      />
-                      <span className="numeric hv-filter-value">{Math.max(floor[k], bounds[k][0]).toFixed(1)}</span>
-                    </label>
+                  {FLOORS.map(({ k, ...f }) => (
+                    <FloorSlider
+                      key={k}
+                      tone={k}
+                      {...f}
+                      min={bounds[k][0]}
+                      max={bounds[k][1]}
+                      // A link may carry a floor from under this species' range (an old one has no level or CP at all).
+                      value={Math.max(floor[k], bounds[k][0])}
+                      mark={mine?.[k]}
+                      onChange={(v) => onFloor({ ...floor, [k]: v })}
+                    />
                   ))}
                 </div>
               )}
@@ -408,7 +419,7 @@ export function HeatmapKey({
                     ))}
                   </tbody>
                 </table>
-                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread reaches all three floors.</p>}
+                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread reaches every floor.</p>}
               </div>
               {/* Not the shared <Pager>: its readout is derived from page ×
                   size, and this window is centred on your roll rather than cut

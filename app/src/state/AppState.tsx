@@ -99,7 +99,7 @@ export interface AppStateShape {
   /** The profile open on the `player` screen (`#/play/players/<id>`), linkable like a tournament. */
   activePlayerId: string | null;
   /** Around-your-roll filter: spreads at or above these stats, or null for every spread. Species-specific. */
-  statFloor: { atk: number; def: number; lvl: number } | null;
+  statFloor: { atk: number; def: number; lvl: number; cp: number } | null;
 }
 
 // Rolled once per page load, so the battle screen opens somewhere different
@@ -207,7 +207,7 @@ function applyReport(s: AppStateShape, v: Partial<ReportView>): AppStateShape {
     n = { ...n, species: v.species, shadow: !!v.shadow, ...(v.species !== n.species ? { moveIdx: 0, chargeIds: [], statFloor: null } : {}), ...(crossed ? { bestBuddy: false } : {}) };
   }
   if (v.iv && (v.iv.a !== n.iv.a || v.iv.d !== n.iv.d || v.iv.s !== n.iv.s)) n = { ...n, iv: v.iv };
-  if (v.statFloor !== undefined && (v.statFloor?.atk !== n.statFloor?.atk || v.statFloor?.def !== n.statFloor?.def || v.statFloor?.lvl !== n.statFloor?.lvl)) {
+  if (v.statFloor !== undefined && (['atk', 'def', 'lvl', 'cp'] as const).some((k) => v.statFloor?.[k] !== n.statFloor?.[k])) {
     n = { ...n, statFloor: v.statFloor };
   }
   return n;

@@ -67,10 +67,10 @@ export interface ReportView {
   cup: string | null;
   iv: IV;
   /** Around-your-roll stat floor, or null when the filter is off. */
-  statFloor: { atk: number; def: number; lvl: number } | null;
+  statFloor: { atk: number; def: number; lvl: number; cp: number } | null;
 }
 
-/** `?mon=ursaluna&iv=10-8-1&league=great` (+ `&shadow=1`, `&cup=…`, `&atk=128&def=90.4&lvl=40`), appended to the report's hash. */
+/** `?mon=ursaluna&iv=10-8-1&league=great` (+ `&shadow=1`, `&cup=…`, `&atk=128&def=90.4&lvl=40&cp=1480`), appended to the report's hash. */
 export function reportQuery(v: ReportView): string {
   const q = new URLSearchParams({ mon: v.species, iv: `${v.iv.a}-${v.iv.d}-${v.iv.s}`, league: v.league });
   if (v.shadow) q.set('shadow', '1');
@@ -79,6 +79,7 @@ export function reportQuery(v: ReportView): string {
     q.set('atk', v.statFloor.atk.toFixed(1));
     q.set('def', v.statFloor.def.toFixed(1));
     q.set('lvl', String(v.statFloor.lvl));
+    q.set('cp', String(v.statFloor.cp));
   }
   return `?${q}`;
 }
@@ -101,9 +102,9 @@ export function reportFromHash(hash: string): Partial<ReportView> {
   out.cup = cup?.key ?? null;
   if (cup) out.league = cup.base;
   // Absent is "filter off", not "unspecified": every link this app writes says which.
-  // A link from before the level floor has no `lvl`: level 1 excludes nothing.
-  const atk = Number(q.get('atk')), def = Number(q.get('def')), lvl = Number(q.get('lvl') ?? 1);
-  out.statFloor = q.has('atk') && q.has('def') && Number.isFinite(atk) && Number.isFinite(def) ? { atk, def, lvl: Number.isFinite(lvl) ? lvl : 1 } : null;
+  // A link from before the level and CP floors has neither: level 1 and CP 0 exclude nothing.
+  const atk = Number(q.get('atk')), def = Number(q.get('def')), lvl = Number(q.get('lvl') ?? 1), cp = Number(q.get('cp') ?? 0);
+  out.statFloor = q.has('atk') && q.has('def') && Number.isFinite(atk) && Number.isFinite(def) ? { atk, def, lvl: Number.isFinite(lvl) ? lvl : 1, cp: Number.isFinite(cp) ? cp : 0 } : null;
   const iv = /^(\d{1,2})-(\d{1,2})-(\d{1,2})$/.exec(q.get('iv') ?? '');
   if (iv && iv.slice(1).every((n) => +n <= 15)) out.iv = { a: +iv[1], d: +iv[2], s: +iv[3] };
   return out;

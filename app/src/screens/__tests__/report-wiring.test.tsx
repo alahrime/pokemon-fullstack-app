@@ -300,6 +300,29 @@ describe('ReportScreen wiring', () => {
     expect(container.querySelector('.hv-slice-value')!.textContent).toBe('7');
   });
 
+  it('floors the ranking on attack, defense, level and CP, each a minimum', () => {
+    const { container } = renderApp(<ReportScreen />);
+    const total = () => container.querySelector('.hv-top-pager .pager-range')!.textContent!.split('of')[1].trim();
+    const whole = total();
+    fireEvent.click(container.querySelector('[role="switch"][aria-label="Stat floor"]')!);
+    const sliders = [...container.querySelectorAll<HTMLInputElement>('.fs-input')];
+    expect(sliders.map((s) => s.getAttribute('aria-label'))).toEqual(['Minimum attack stat', 'Minimum defense stat', 'Minimum level', 'Minimum CP']);
+    // Switched on at the bottom of every range: nothing is filtered yet.
+    expect(total()).toBe(whole);
+    const cp = sliders[3];
+    fireEvent.change(cp, { target: { value: cp.max } });
+    expect(total()).not.toBe(whole);
+    const cpCol = [...container.querySelectorAll('.hv-top-row')].map((r) => r.querySelectorAll('td')[3].textContent);
+    expect(cpCol.length).toBeGreaterThan(0);
+    expect(new Set(cpCol)).toEqual(new Set([cp.max]));
+    // Held, the tag reads the comparison; released, the sweep runs and the tag is gone.
+    fireEvent.pointerDown(cp);
+    expect(container.querySelector('.fs-cp .fs-bubble')!.textContent).toBe(`≥ ${cp.max}`);
+    fireEvent.pointerUp(window);
+    expect(container.querySelector('.fs-cp .fs-bubble')).toBeFalsy();
+    expect(container.querySelector('.fs-cp .fs-lock')).toBeTruthy();
+  });
+
   it('offers the 3D terrain only where WebGL exists, and returns to the flat grid', () => {
     const { container } = renderApp(<OnAnalysis><ReportScreen /></OnAnalysis>);
     const controls = container.querySelector('.hv-controls')!;

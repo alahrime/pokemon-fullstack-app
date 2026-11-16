@@ -41,7 +41,7 @@ const TRACK_COLUMNS = Array.from({ length: MAX_IV / GROUP }, () => `repeat(${GRO
  * timer rather than an animation token — it should still clear itself when
  * motion is disabled; only the colour transition gets suppressed.
  */
-function useChanged(value: number, ms = 420): boolean {
+export function useChanged(value: number, ms = 420): boolean {
   const [changed, setChanged] = useState(false);
   const first = useRef(true);
   useEffect(() => {

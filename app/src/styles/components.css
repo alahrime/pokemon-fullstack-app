@@ -4589,14 +4589,170 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
-.hv-filter .hv-filter-row {
-  margin-top: 0;
+
+/* ── stat-floor sliders ───────────────────────────────────────────────────
+   One hue per floor, and they cannot collide in any theme, custom ones
+   included: attack and defense are the app's own stat hues, level is the
+   point on the hue wheel farthest from both (the midpoint of the *longer* arc
+   between them, so it is at least a quarter turn from each), and CP is no hue
+   at all — the game prints CP in white, and a neutral is distinct from any
+   accent a theme can pick.
+
+   Not the appraisal bar: see FloorSlider.tsx for what is kept apart and why. */
+.fs {
+  --fs-thumb-w: 14px;
+  /* Thumb centre along the rail; the native thumb travels the same span. */
+  --fs-x: calc(var(--p) * (100% - var(--fs-thumb-w)) + var(--fs-thumb-w) / 2);
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr) 6ch;
+  align-items: center;
+  gap: var(--space-3);
+  /* Arrives once when the floor is switched on, each row a beat after the last. */
+  animation: fs-in var(--dur-4) var(--ease-out) both;
 }
-.hv-filter-value {
+.fs:nth-child(2) { animation-delay: calc(60ms * var(--motion-scale)); }
+.fs:nth-child(3) { animation-delay: calc(120ms * var(--motion-scale)); }
+.fs:nth-child(4) { animation-delay: calc(180ms * var(--motion-scale)); }
+.fs-atk { --fs: var(--meter-atk); }
+.fs-def { --fs: var(--meter-def); }
+.fs-lvl { --fs: color-mix(in srgb, color-mix(in oklch longer hue, var(--color-accent), var(--color-accent-2)) 82%, var(--color-text)); }
+.fs-cp { --fs: color-mix(in srgb, var(--color-text) 80%, var(--surface-1)); }
+
+.fs-label {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--fs);
+}
+.fs-rail {
+  position: relative;
+  height: 16px;
+  /* A ruled rail: a hairline every tenth of the range, under whatever is lit. */
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), color-mix(in srgb, var(--color-text) 16%, transparent) calc(10% - 1px) 10%),
+    var(--iv-track);
+  box-shadow: inset 0 0 0 var(--border-hairline) var(--rule-hairline);
+  transition: box-shadow var(--dur-2) var(--ease-out);
+}
+.fs:hover .fs-rail,
+.fs.is-dragging .fs-rail { box-shadow: inset 0 0 0 var(--border-hairline) color-mix(in srgb, var(--fs) 55%, transparent); }
+.fs-input {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.fs.is-dragging .fs-input { cursor: grabbing; }
+.fs-input::-webkit-slider-thumb { -webkit-appearance: none; width: var(--fs-thumb-w); height: 16px; }
+.fs-input::-moz-range-thumb { width: var(--fs-thumb-w); height: 16px; border: 0; }
+/* Below the floor: struck out. */
+.fs-cut {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fs-x);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-text) 20%, transparent) 0 1px, transparent 1px 5px);
+  pointer-events: none;
+}
+/* At or above it: lit, hottest at the floor itself. Drawn in from the right when the row arrives. */
+.fs-keep {
+  position: absolute;
+  inset: 0 0 0 var(--fs-x);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--fs) 85%, transparent), color-mix(in srgb, var(--fs) 30%, transparent));
+  transform-origin: right;
+  animation: fs-draw var(--dur-5) var(--ease-out) both;
+  pointer-events: none;
+}
+/* Release: one pass of light through the kept stretch, floor to ceiling, and it is gone. */
+.fs-lock {
+  position: absolute;
+  inset: 0 0 0 var(--fs-x);
+  overflow: hidden;
+  pointer-events: none;
+}
+.fs-lock::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, #fff 75%, var(--fs)), transparent);
+  animation: fs-sweep var(--dur-5) var(--ease-out) both;
+}
+/* Your roll: a notch through the rail. Hollowed out once the floor has passed it. */
+.fs-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: calc(var(--m) * (100% - var(--fs-thumb-w)) + var(--fs-thumb-w) / 2 - 1px);
+  width: 2px;
+  background: var(--color-text);
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.fs-mark.is-out { opacity: 0.35; }
+/* A machined slide, pointed at both ends, standing proud of the rail. `filter` because clip-path eats a box-shadow. */
+.fs-thumb {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: var(--fs-x);
+  z-index: 2;
+  width: var(--fs-thumb-w);
+  translate: -50% 0;
+  pointer-events: none;
+  transition: scale var(--dur-2) var(--ease-spring), filter var(--dur-2) var(--ease-out);
+}
+.fs-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 6px, var(--surface-1) 6px 8px, transparent 8px), var(--fs);
+  clip-path: polygon(50% 0, 100% 5px, 100% calc(100% - 5px), 50% 100%, 0 calc(100% - 5px), 0 5px);
+}
+.fs:hover .fs-thumb { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--fs) 70%, transparent)); }
+.fs.is-dragging .fs-thumb { scale: 1.18; filter: drop-shadow(0 0 9px var(--fs)); }
+.fs-input:focus-visible ~ .fs-thumb { outline: var(--ring-width) solid var(--focus-ring); outline-offset: 2px; }
+/* Held: a flat chamfered tag in the floor's own hue, reading the comparison it sets. The digits roll on each change. */
+.fs-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 4px 8px;
+  white-space: nowrap;
   font-weight: 800;
-  min-width: 5ch;
-  text-align: right;
+  font-size: var(--text-sm);
+  line-height: 1;
+  color: var(--surface-1);
+  background: var(--fs);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  animation: fs-bubble-in var(--dur-3) var(--ease-spring) both;
 }
+.fs-num { display: inline-block; animation: iv-num-roll var(--dur-2) var(--ease-out) both; }
+.fs-value {
+  font-weight: 800;
+  text-align: right;
+  transition: color var(--dur-3) var(--ease-out);
+}
+.fs-value.is-changing { color: var(--fs); }
+@keyframes fs-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes fs-draw { from { transform: scaleX(0); } }
+@keyframes fs-sweep { from { transform: translateX(-100%); } to { transform: translateX(260%); opacity: 0; } }
+@keyframes fs-bubble-in { from { opacity: 0; transform: translateY(8px) scale(0.6); } }
+@media (prefers-reduced-motion: reduce) {
+  .fs, .fs-keep, .fs-bubble, .fs-num { animation: none; }
+  .fs-lock { display: none; }
+  .fs-thumb { transition: none; }
+}
+[data-motion='off'] .fs-lock { display: none; }
 .hv-filter-empty {
   padding: var(--space-3);
 }

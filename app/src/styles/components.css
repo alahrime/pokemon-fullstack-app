@@ -4591,12 +4591,15 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 
 /* ── stat-floor sliders ───────────────────────────────────────────────────
-   One hue per floor, and they cannot collide in any theme, custom ones
-   included: attack and defense are the app's own stat hues, level is the
-   point on the hue wheel farthest from both (the midpoint of the *longer* arc
-   between them, so it is at least a quarter turn from each), and CP is no hue
-   at all — the game prints CP in white, and a neutral is distinct from any
-   accent a theme can pick.
+   One fixed hue per floor, a quarter turn or more apart: attack red, defense
+   blue, level violet, CP neutral (the game prints CP in white). Fixed rather
+   than taken from the theme, because a theme's two accents can be the same
+   hue (Light's are both red) and a custom theme can pick anything; the stat
+   meters follow the theme and collide there, these must not. Each is pulled
+   toward the ground's text colour, as the meters are, so it darkens on a light
+   theme and brightens on a dark one. 72% is measured, across all twelve
+   themes: the closest pair stays 0.118 apart in OKLab, and the faintest label
+   is 4.7:1 on its panel (AA is 4.5). Pulling less fails AA on the light ones.
 
    Not the appraisal bar: see FloorSlider.tsx for what is kept apart and why. */
 .fs {
@@ -4613,9 +4616,9 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .fs:nth-child(2) { animation-delay: calc(60ms * var(--motion-scale)); }
 .fs:nth-child(3) { animation-delay: calc(120ms * var(--motion-scale)); }
 .fs:nth-child(4) { animation-delay: calc(180ms * var(--motion-scale)); }
-.fs-atk { --fs: var(--meter-atk); }
-.fs-def { --fs: var(--meter-def); }
-.fs-lvl { --fs: color-mix(in srgb, color-mix(in oklch longer hue, var(--color-accent), var(--color-accent-2)) 82%, var(--color-text)); }
+.fs-atk { --fs: color-mix(in oklab, oklch(0.64 0.2 25) 72%, var(--color-text)); }
+.fs-def { --fs: color-mix(in oklab, oklch(0.64 0.16 240) 72%, var(--color-text)); }
+.fs-lvl { --fs: color-mix(in oklab, oklch(0.64 0.18 305) 72%, var(--color-text)); }
 .fs-cp { --fs: color-mix(in srgb, var(--color-text) 80%, var(--surface-1)); }
 
 .fs-label {

@@ -60,7 +60,7 @@ describe('hash routing', () => {
 
 describe('report links', () => {
   it('round-trips a Pokémon, roll and league through the hash', () => {
-    const v = { species: 'ursaluna', shadow: false, league: 'ultra' as const, cup: null, iv: { a: 10, d: 8, s: 1 }, statFloor: { atk: 128, def: 90.4 } };
+    const v = { species: 'ursaluna', shadow: false, league: 'ultra' as const, cup: null, iv: { a: 10, d: 8, s: 1 }, statFloor: { atk: 128, def: 90.4, lvl: 40.5 } };
     const hash = hashFor('report') + reportQuery(v);
     expect(screenFromHash(hash)).toBe('report');
     expect(reportFromHash(hash)).toEqual(v);
@@ -75,5 +75,9 @@ describe('report links', () => {
   it('drops malformed or unknown parts rather than guessing', () => {
     expect(reportFromHash('#/analyze/report?mon=notamon&iv=16-0-0&league=little&cup=nope&atk=x&def=1')).toEqual({ cup: null, statFloor: null });
     expect(reportFromHash('#/analyze/battle?mon=ursaluna')).toEqual({});
+  });
+
+  it('reads a floor link with no level as uncapped', () => {
+    expect(reportFromHash('#/analyze/report?atk=128&def=90').statFloor).toEqual({ atk: 128, def: 90, lvl: 51 });
   });
 });

@@ -11,7 +11,7 @@ import type { ColorBy } from '../../state/AppState';
 import { paletteRamp, statText, type HeatCell, type HeatPalette } from '../../lib/engine';
 import type { IV, SpeciesTable } from '../../lib/types';
 
-type StatFloor = { atk: number; def: number };
+type StatFloor = { atk: number; def: number; lvl: number };
 
 /* three.js + R3F is ~1.1MB of the bundle, so it's split out and fetched when
    the terrain first renders. The 2D grid stays in the main chunk. */
@@ -215,7 +215,8 @@ const tenth = (x: number) => Number(statText(x));
 
 /**
  * The Around-your-roll filter: off (null) by default, and when on, only spreads
- * whose attack and defense stats reach both floors. Each slider spans the
+ * whose attack and defense stats reach both floors at or under the level cap
+ * (`lvl` is a ceiling: levels cost dust and XL candy). Each slider spans the
  * species' own range. The floor lives in app state so the link carries it; a
  * new species or league clears it there.
  */
@@ -225,10 +226,10 @@ function useStatFloors(ranked: SpeciesTable['all'], floor: StatFloor | null) {
       const v = ranked.map((r) => tenth(f(r)));
       return [Math.min(...v), Math.max(...v)];
     };
-    return { atk: span((r) => r.statAtk), def: span((r) => r.statDef) };
+    return { atk: span((r) => r.statAtk), def: span((r) => r.statDef), lvl: span((r) => r.lvl) };
   }, [ranked]);
   const all = useMemo(
-    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def) : ranked),
+    () => (floor ? ranked.filter((r) => tenth(r.statAtk) >= floor.atk && tenth(r.statDef) >= floor.def && r.lvl <= floor.lvl) : ranked),
     [ranked, floor],
   );
   return { bounds, all };
@@ -343,24 +344,24 @@ export function HeatmapKey({
             <div className="panel hud-frame hv-top-panel" style={{ ['--i' as string]: 1 }}>
               <div className="hv-filter-head">
                 <div className="panel-title">Around your roll</div>
-                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0] } : null)} title="Show only spreads at or above an attack and defense stat" />
+                <Switch label="Stat floor" checked={!!floor} onChange={(on) => onFloor(on ? { atk: bounds.atk[0], def: bounds.def[0], lvl: bounds.lvl[1] } : null)} title="Show only spreads at or above an attack and defense stat, at or under a level" />
               </div>
               {floor && (
                 <div className="hv-filter">
-                  {(['atk', 'def'] as const).map((k) => (
+                  {(['atk', 'def', 'lvl'] as const).map((k) => (
                     <label key={k} className="hv-slice hv-filter-row">
-                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} ≥</span>
+                      <span className="text-muted text-xs tracking-[0.08em] uppercase whitespace-nowrap">{k} {k === 'lvl' ? '≤' : '≥'}</span>
                       <input
                         type="range"
                         min={bounds[k][0]}
                         max={bounds[k][1]}
-                        step={0.1}
-                        value={floor[k]}
+                        step={k === 'lvl' ? 0.5 : 0.1}
+                        value={Math.min(floor[k], bounds[k][1])}
                         onChange={(e) => onFloor({ ...floor, [k]: Number(e.target.value) })}
-                        aria-label={`Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
+                        aria-label={k === 'lvl' ? 'Maximum level' : `Minimum ${k === 'atk' ? 'attack' : 'defense'} stat`}
                         className="flex-1"
                       />
-                      <span className="numeric hv-filter-value">{floor[k].toFixed(1)}</span>
+                      <span className="numeric hv-filter-value">{Math.min(floor[k], bounds[k][1]).toFixed(1)}</span>
                     </label>
                   ))}
                 </div>
@@ -371,6 +372,7 @@ export function HeatmapKey({
                     <tr>
                       <th>#</th>
                       <th>IV</th>
+                      <th>LVL</th>
                       <th>CP</th>
                       <th>Atk</th>
                       <th>Def</th>
@@ -394,6 +396,7 @@ export function HeatmapKey({
                         <td className="numeric hv-top-iv">
                           {r.a}/{r.d}/{r.s}
                         </td>
+                        <td className="numeric">{r.lvl}</td>
                         <td className="numeric">{r.cp}</td>
                         {/* The stats these IVs actually buy, at this spread's
                             own level under the cap — which is the whole reason
@@ -406,7 +409,7 @@ export function HeatmapKey({
                     ))}
                   </tbody>
                 </table>
-                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread reaches both floors.</p>}
+                {all.length === 0 && <p className="text-muted text-sm hv-filter-empty">No spread passes the filter.</p>}
               </div>
               {/* Not the shared <Pager>: its readout is derived from page ×
                   size, and this window is centred on your roll rather than cut

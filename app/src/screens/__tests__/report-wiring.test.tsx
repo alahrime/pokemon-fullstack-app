@@ -242,13 +242,14 @@ describe('ReportScreen wiring', () => {
   it('reports the stats a spread buys, not the stat product twice over', () => {
     const { container } = renderApp(<ReportScreen />);
     const heads = [...container.querySelectorAll('.hv-top-table th')].map((h) => h.textContent);
-    expect(heads).toEqual(['#', 'IV', 'CP', 'Atk', 'Def', 'HP', 'SP %']);
-    // Seven cells per row, and the last is the share of rank 1 — the raw stat
+    expect(heads).toEqual(['#', 'IV', 'LVL', 'CP', 'Atk', 'Def', 'HP', 'SP %']);
+    // Eight cells per row, and the last is the share of rank 1 — the raw stat
     // product column it used to sit beside is gone.
     const cells = container.querySelectorAll('.hv-top-row')[0].querySelectorAll('td');
-    expect(cells).toHaveLength(7);
-    expect(cells[2].textContent).toMatch(/^\d+$/);
-    expect(cells[6].textContent).toMatch(/^\d+\.\d%$/);
+    expect(cells).toHaveLength(8);
+    expect(cells[2].textContent).toMatch(/^\d+(\.5)?$/);
+    expect(cells[3].textContent).toMatch(/^\d+$/);
+    expect(cells[7].textContent).toMatch(/^\d+\.\d%$/);
   });
 
   it('pages through the rest of the 4096, and finds its way back', () => {

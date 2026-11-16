@@ -4835,10 +4835,17 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 /* The right column, held in view while the page scrolls, so every bump of the
    roll shows its new rank without leaving the adjuster. */
 .report-side > .hv-key { min-height: 0; }
+/* The block stretches down its own grid row and the panel inside it is what
+   sticks. Sticky on the block itself was bounded by the whole grid, not the
+   row, so it rode on down over the full-width floor chart in the row below. */
 @media (min-width: 821px) {
-  .report-side > .hv-key {
+  .report-side > .hv-key { align-self: stretch; }
+  .report-side > .hv-key > .panel {
     position: sticky;
     top: calc(var(--nav-h) + var(--space-5));
+  }
+  .report-side > .hv-key > .hv-top-panel {
+    flex: none;
     height: calc(100dvh - var(--nav-h) - 2 * var(--space-5));
     min-height: 320px;
   }

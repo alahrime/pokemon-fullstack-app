@@ -571,6 +571,11 @@ input[type='range'] { accent-color: var(--color-accent); }
   .rs-col > :not(.hero):not(.rs-roll) { order: 1; }
   /* In the flow here, and sized so it and the roll share one screen. */
   .report-side > .hv-key { height: 340px; }
+  /* With the stat floor on, the panel grows by the sliders rather than taking
+     their 129px out of the table (which left it 104px, three rows). 233px is
+     what the 340px panel gives the table with the floor off, measured at 375. */
+  .report-side > .hv-key:has(.hv-filter) { height: auto; }
+  .report-side > .hv-key:has(.hv-filter) .hv-top-scroll { flex: none; height: 233px; }
   /* Tighter seams between them: at 360x780 the last league row sat ~15-30px under the fold. */
   .report-side { gap: var(--space-3); }
   .report-side .hero-body { padding-bottom: var(--space-2); }
@@ -4874,8 +4879,7 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .hv-top-table td:nth-child(n + 3) { text-align: right; }
 /* The first column clears the frame and the selected row's rail. */
 .hv-top-table th:first-child,
-.hv-top-table td:first-child { padding-left: var(--space-3); }
-.hv-top-table th:last-child,
+.hv-top-table td:first-child { padding-left: var(--space-3); }.hv-top-table th:last-child,
 .hv-top-table td:last-child { padding-right: var(--space-2); }
 /* The header stays put while the window scrolls under it. */
 .hv-top-table thead th {

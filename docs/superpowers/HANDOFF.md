@@ -1,6 +1,6 @@
 # Handoff — paragon-iv platform build
 
-**Written:** 2026-09-01. **Last updated:** 2026-11-13 (nineteenth session: lit species hero on both Report pages, ranking window holds still, lit Report/Analysis + Rank/Breakpoints/Bulkpoints tabs, powered-up search, light-theme contrast, edge-reveal nav on narrow desktop windows; nothing outstanding; eighteenth: nav and section rail tuck to an edge strip and reveal on hover; seventeenth: Report screen split into Report and Analysis pages; plus GBL team-search research in `research/gbl-teams/`; see "Start here"). **Branch:** `main`, pushed and up to date
+**Written:** 2026-09-01. **Last updated:** 2026-11-17 (twentieth session: Around-your-roll stat floor grows level and CP minimums and a LVL column, the four floor sliders redrawn, ranking panel no longer slides over the floor chart; the user refines this in the next session; nineteenth session: lit species hero on both Report pages, ranking window holds still, lit Report/Analysis + Rank/Breakpoints/Bulkpoints tabs, powered-up search, light-theme contrast, edge-reveal nav on narrow desktop windows; nothing outstanding; eighteenth: nav and section rail tuck to an edge strip and reveal on hover; seventeenth: Report screen split into Report and Analysis pages; plus GBL team-search research in `research/gbl-teams/`; see "Start here"). **Branch:** `main`, pushed and up to date
 with `origin/main`. Start at **"Start here — next session"** directly below the milestone table, then
 the newest "Where this session left off" — those are the only parts of this document that are
 about *right now*; everything under them is standing reference.
@@ -41,6 +41,54 @@ design authority; the plans argue from it.
 ---
 
 ## Start here — next session
+
+**Twentieth session, 2026-11-16/17: the stat floor (pushed straight to `main`; NO migrations).** The user continues in a new session to **refine this work**: start here, ask what they want changed, then measure, gate and push.
+
+Commits: `5f6d54d`, `4a69c12`, `7377e22`, `166b9cb`, `e62bc53`, plus a final commit with this entry and the phone layout fix below.
+
+*Not recorded by any earlier entry.* Commits `864c799`, `a83d525`, `9a4445d`, `bfde5d9`, `40544df`, `b67a429` and `8b73226` came from sessions that wrote no handoff. From their messages only (not reviewed here), they added:
+- shareable Analyze links;
+- the original Atk/Def stat floor and a CP column on Around your roll;
+- the Diagnostics GL team-search view;
+- GBL team search v4 (`research/gbl-teams/`);
+- "What your floor buys" (`FloorThresholds.tsx`), with your roll marked on every row.
+
+**What exists now** (all in `HeatmapKey`, `screens/detail/HeatmapView.tsx`):
+- **Four floors, every one a minimum:** Atk, Def, Lvl, CP. `FLOORS` lists them. `useStatFloors` filters on `tenth(statAtk) >= atk && tenth(statDef) >= def && lvl >= lvl && cp >= cp`. Switching the floor on starts every slider at the bottom of the species' range, so nothing is filtered yet.
+  - The level was a ceiling for one commit. The user flipped it to a minimum for consistency with Atk/Def, which are breakpoint/bulkpoint minimums. Do not flip it back.
+- **State and links:** `statFloor` is `{ atk, def, lvl, cp } | null` in `AppState`, cleared on species change. The link writes `&atk=&def=&lvl=&cp=`. A link missing `lvl`/`cp` reads them as 1/0, i.e. unfiltered (`route.ts`, tested).
+- **LVL column** between IV and CP. The table is now eight columns.
+- **`components/FloorSlider.tsx`** is the new control: a native `<input type=range>` at opacity 0, stretched over a drawn rail, so keyboard, pointer and assistive tech are the browser's own.
+  - Drawn parts: a ruled rail, hatched below the thumb (`.fs-cut`) and lit above it (`.fs-keep`, the stretch the floor keeps); a pointed thumb whose drawn position is computed with the native thumb's own formula (`--fs-x`, 14px thumb); your roll's notch (`.fs-mark`, hollow once the floor passes it); a "≥ value" tag while held (`.fs-bubble`, digits roll); and one light sweep on release (`.fs-lock`, keyed per release).
+  - Rows slide in staggered when the floor is switched on. `useChanged` is now exported from `IVAdjuster.tsx` and shared.
+  - It is deliberately **not** the appraisal bar's vocabulary: no blocks, no green→red, no spinning bubble, no sparkle. The user asked for appraisal-level motion that stays distinct from it.
+- **Colours** (CSS block "stat-floor sliders" in `components.css`): fixed hues, atk red 25°, def blue 240°, lvl violet 305°, each `color-mix(in oklab, oklch(0.64 C h) 72%, var(--color-text))`; CP is neutral.
+  - Why fixed: the first cut followed the theme's accents, and Light's two accents are both red, so atk and def collided at ΔE 0.056.
+  - **Measured across all 12 picker themes:** closest pair 0.118 apart in OKLab; faintest label 4.71:1 against `--surface-1` (Light). Mixing less than 72% fails AA on the light themes.
+  - Not measured: the custom theme.
+- **Sticky overlap fix** (`e62bc53`). At ≥821px `.hv-key` was `position: sticky`, and sticky is bounded by the whole `.report-side` grid. So the panel rode down over the full-width `.ftc` in row 2: 687px of overlap at 1440×900.
+  - Now `.hv-key` is `align-self: stretch`, and the `.panel` inside it is what sticks, so it is bounded by row 1. Measured overlap 0 across 0–2400px of scroll.
+  - Trade-off: it now sticks for only ~280px of scroll at 1440×900.
+- **Phones, floor on** (final commit). The 340px `.hv-key` left the table 104px with four sliders in it. Under ≤820px, `.hv-key:has(.hv-filter)` is now `height: auto`, with the scroller pinned at 233px (what it gets with the floor off). Measured 233px both ways at 375 and 320; no page overflow at either.
+
+**Open, for the refine session (measured, not fixed):**
+- **The table scrolls sideways on phones.** Eight columns at the existing ≤420px 2px gutters total 279px:
+
+  | Width | Table | Box | Sideways scroll |
+  |---|---|---|---|
+  | 375 | 279px | 257px | 23px |
+  | 320 | — | — | 78px |
+
+  LVL (30px) tipped 375 over. Padding is already minimal, so the fix is a design choice: hide a column on phones (HP or SP %), or let the scroller bleed to the panel edges (gains ~26px).
+- **The slider rails are short on phones:** 139px at 375 and 84px at 320, because the label (5ch) and value (6ch) columns take the rest. A stacked label-over-rail layout under ~420px would roughly double the rail.
+- **Not seen in motion.** The pane runs no animations, so the arrive, draw, sweep and tag motion were checked only as preconditions: classes and keys appear and clear, plus the jsdom test `floors the ranking on attack, defense, level and CP` in `report-wiring.test.tsx`.
+- **Live deploy not checked** for any of this session's commits.
+
+**Measuring gotchas hit this session:**
+- `requestAnimationFrame` never fires in the hidden pane. A script awaiting it times out at 45s; use `setTimeout`.
+- `data-theme` attribute swaps were enough for computed colours here. The earlier note about localStorage `paragon.theme` applies to full-page theming.
+- Read the background colour from `var(--surface-1)` via a probe element, not from the panel's `backgroundColor`, which reads wrong on the light themes.
+- The gate took more than 5 minutes once. Run it in the background.
 
 **GBL team search (research, not app code) — 2026-11-13.** The user ran a long chat-only analysis: which Great League team of 3 is most consistent into their 105 logged opponent teams and the wider meta, with full 3v3 games (HP/energy/shields carried, blind lead solved as a mixed strategy, double-oracle equilibrium). Scripts, data, findings and the **next-session scope** are in `research/gbl-teams/README.md` — read it before touching that work. Headline: Mimikyu / S. Talonflame / Rillaboom (61% vs the equilibrium, 82% vs the log); the user's Clodsire / S. Hydreigon / Dondozo sits in the equilibrium (#30). Next: moveset variants only where they flip meaningful matchups, a far larger candidate set (thousands of proposals per oracle round), and deduplicated scoring so repeated wins over look-alike teams count once. Also see the user's memory note `pvp-team-building-approach`.
 

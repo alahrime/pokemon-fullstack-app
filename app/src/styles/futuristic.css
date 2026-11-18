@@ -211,8 +211,8 @@
 .swap-row:hover, .bt-list > *:hover { box-shadow: inset 3px 0 0 var(--color-accent); }
 
 /* — account forms read as glass panels — */
-.account-panel, .account-form { backdrop-filter: blur(4px); }
-.account-modes .seg-btn.is-active, .league-tabs [aria-selected='true'] { box-shadow: 0 0 18px -6px var(--color-accent); }
+.account-panel { backdrop-filter: blur(4px); }
+.league-tabs [aria-selected='true'] { box-shadow: 0 0 18px -6px var(--color-accent); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    BATTLE / REPORT / CORES / FORMATS / LANDING

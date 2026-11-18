@@ -6567,6 +6567,291 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .account-summary dd { font-family: var(--font-mono); }
 
+/* — account console —
+   The sign-in panel reads as a trainer-access terminal rather than a stack of
+   form rows: a header with a sigil and a link-status lamp, a segmented mode
+   switch whose lit rail slides between the two tabs, and indexed fields with
+   a corner bracket that lights on focus. Everything is tokens and color-mix,
+   so every theme inherits it; the lamp's pulse runs once on a state change
+   (keyed by data-link) and never idles. */
+.acct-console {
+  position: relative;
+  max-width: 36rem;
+  padding: 0;
+  overflow: hidden;
+}
+/* A faint scan grid behind the whole console, fading out down the panel. */
+.acct-console::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-accent) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 6%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black, transparent 55%);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 55%);
+}
+.acct-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: var(--border-hairline) solid var(--rule-hairline);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 65%);
+}
+/* A lit seam under the header that runs out from the left. */
+.acct-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 38%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-accent), transparent);
+}
+.acct-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acct-title {
+  margin: 0;
+  font-size: var(--size-h4);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.acct-sigil { display: block; width: 40px; height: 40px; flex: none; }
+.acct-sigil svg { width: 100%; height: 100%; overflow: visible; }
+.acct-sigil-hex {
+  fill: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+}
+.acct-sigil-core { fill: var(--color-accent); }
+.acct-sigil-arc {
+  fill: none;
+  stroke: var(--color-accent-2-700);
+  stroke-width: 2;
+  stroke-linecap: square;
+  transform-origin: 20px 20px;
+}
+.acct-console[data-link='online'] .acct-sigil-arc { stroke: var(--color-accent); }
+.acct-console[data-link='pending'] .acct-sigil-arc { animation: acct-spin var(--dur-5) var(--ease-in-out) 3; }
+@keyframes acct-spin { to { transform: rotate(360deg); } }
+
+.acct-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: var(--border-hairline) solid var(--rule-strong);
+  white-space: nowrap;
+}
+.acct-status i {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  background: var(--text-faint);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.acct-status[data-link='online'] { color: var(--color-accent); border-color: color-mix(in srgb, var(--color-accent) 55%, transparent); }
+.acct-status[data-link='online'] i { background: var(--color-accent); animation: acct-ping var(--dur-5) var(--ease-out) 1; }
+.acct-status[data-link='pending'] i { background: var(--color-accent-2-700); }
+.acct-status[data-link='locked'] { color: var(--color-accent-2-700); border-color: color-mix(in srgb, var(--color-accent-2-700) 55%, transparent); }
+.acct-status[data-link='locked'] i { background: var(--color-accent-2-700); }
+@keyframes acct-ping {
+  0% { box-shadow: 0 0 0 0 var(--color-accent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.acct-body {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-6);
+}
+/* Bottom-right corner tick, answering the panel's lit top-left one. */
+.acct-body::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--color-accent);
+  border-bottom: 2px solid var(--color-accent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.acct-body > .account-form { animation: acct-in var(--dur-4) var(--ease-out) backwards; }
+@keyframes acct-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Mode switch: two tabs on one track, a lit rail that slides to the active one. */
+.acct-modes {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border: var(--border-hairline) solid var(--rule-strong);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+.acct-modes-rail {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 22%, transparent), color-mix(in srgb, var(--color-accent) 8%, transparent));
+  border-bottom: var(--border-strong) solid var(--color-accent);
+  box-shadow: 0 6px 18px -10px var(--color-accent);
+  transition: transform var(--dur-3) var(--ease-out);
+  pointer-events: none;
+}
+.acct-modes[data-mode='signin'] .acct-modes-rail { transform: translateX(100%); }
+.acct-mode {
+  position: relative;
+  z-index: 1;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--dur-2) var(--ease-out);
+}
+.acct-mode:hover { color: var(--color-text); }
+.acct-mode.is-active { color: var(--color-accent); }
+.acct-mode:focus-visible { outline: var(--ring-width) solid var(--color-accent); outline-offset: -3px; }
+
+/* Indexed fields with a focus bracket. */
+.acct-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.acct-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--dur-2) var(--ease-out);
+}
+.acct-index { color: var(--color-accent); opacity: 0.7; }
+.acct-field:focus-within .acct-label { color: var(--color-text); }
+.acct-field:focus-within .acct-index { opacity: 1; }
+.acct-field .input {
+  min-height: 42px;
+  padding-inline: var(--space-3);
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+}
+/* The engaged field gets the lit rail: a bar down its left edge that draws in on focus. */
+.acct-field::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: var(--border-strong);
+  background: linear-gradient(180deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 20%, transparent));
+  box-shadow: 0 0 10px -2px var(--color-accent);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--dur-3) var(--ease-out);
+  pointer-events: none;
+}
+.acct-field:focus-within::before { transform: scaleY(1); }
+.acct-field-note { font-size: var(--text-xs); color: var(--text-faint); }
+.acct-mono { font-family: var(--font-mono); letter-spacing: var(--tracking-wide); }
+
+.acct-submit { width: 100%; min-height: 44px; letter-spacing: var(--tracking-wider); text-transform: uppercase; }
+.acct-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.acct-actions > .btn { flex: 1 1 10rem; }
+.acct-notice {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  border-left: var(--border-strong) solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.acct-refusal { display: flex; flex-direction: column; gap: var(--space-3); }
+.acct-scan {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+/* "or", set as a rule with a gap rather than a word floating on its own. */
+.account-oauth.account-oauth { border-top: 0; padding-top: 0; }
+.acct-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.acct-divider::before,
+.acct-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rule-strong));
+}
+.acct-divider::after { background: linear-gradient(90deg, var(--rule-strong), transparent); }
+.acct-provider { min-height: 42px; justify-content: space-between; padding-inline: var(--space-4); }
+.acct-provider-arrow { transition: transform var(--dur-2) var(--ease-out); }
+.acct-provider:hover .acct-provider-arrow { transform: translateX(3px); }
+
+/* Signed-in readout: a stacked plate per row instead of a bare definition list. */
+.acct-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: var(--border-hairline) solid var(--rule-hairline);
+}
+.acct-readout-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.acct-readout-row + .acct-readout-row { border-top: var(--border-hairline) solid var(--rule-hairline); }
+.acct-readout-row:hover { box-shadow: inset 2px 0 0 var(--color-accent); }
+.acct-readout dd { margin: 0; overflow-wrap: anywhere; }
+.acct-readout dd.is-missing { color: var(--color-accent-2-700); font-family: inherit; font-size: var(--text-sm); }
+
+@media (max-width: 560px) {
+  .acct-head { grid-template-columns: auto 1fr; padding: var(--space-4); }
+  .acct-status { grid-column: 1 / -1; justify-self: start; }
+  .acct-body { padding: var(--space-4); }
+  .acct-readout-row { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .acct-body > .account-form,
+  .acct-console[data-link='pending'] .acct-sigil-arc,
+  .acct-status i { animation: none !important; }
+  .acct-modes-rail, .acct-field::before { transition: none; }
+}
+
 /* — team saves —
    A roster that survives closing the tab. The name field and the Save button
    sit in the same row as the .team-add search below the slots; the saved-team

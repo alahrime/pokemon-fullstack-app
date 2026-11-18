@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import type { Session } from '@supabase/supabase-js';
 
 /**
- * The account screen: the age gate, the two ways in, and the state where an
+ * The account screen: the two ways in, the age question asked only when an
+ * account is created, and the state where an
  * account exists but a profile does not.
  *
  * The whole Supabase package is mocked at its boundary, so nothing here reaches
@@ -102,13 +103,9 @@ async function mount(options: HarnessOptions = {}) {
   return { ...stub, view, container: view.container };
 }
 
-/** Pass the age gate with a date that clears 13. */
-async function passAgeGate(container: HTMLElement, date = '2000-05-04') {
-  const input = container.querySelector('#birth-date') as HTMLInputElement;
-  fireEvent.change(input, { target: { value: date } });
-  await act(async () => {
-    fireEvent.submit(input.closest('form')!);
-  });
+/** Fill the date of birth on whichever creating form is showing; clears 13 by default. */
+function enterBirthDate(container: HTMLElement, date = '2000-05-04') {
+  fireEvent.change(container.querySelector('#birth-date') as HTMLInputElement, { target: { value: date } });
 }
 
 const text = (c: HTMLElement) => c.textContent ?? '';
@@ -118,13 +115,44 @@ const button = (c: HTMLElement, label: string) =>
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
 
-describe('the age gate', () => {
-  it('asks for a date of birth before offering any way to sign in', async () => {
+describe('the age question', () => {
+  const fill = (c: HTMLElement, id: string, value: string) =>
+    fireEvent.change(c.querySelector(id) as HTMLInputElement, { target: { value } });
+
+  /** Everything but the date, so each test decides only the age. */
+  function fillRegistration(c: HTMLElement) {
+    fill(c, '#display-name', 'AshK');
+    fill(c, '#go-username', 'AshKetchum99');
+    fill(c, '#email', 'ash@example.com');
+    fill(c, '#password', 'correct horse battery');
+    fill(c, '#friend-code', '1234 5678 9012');
+    fireEvent.click(c.querySelector('.account-terms input') as HTMLInputElement);
+  }
+
+  async function submitRegistration(c: HTMLElement) {
+    await act(async () => {
+      fireEvent.submit((c.querySelector('#email') as HTMLInputElement).closest('form')!);
+    });
+  }
+
+  it('offers both ways in straight away, with no gate in front', async () => {
+    const { container } = await mount();
+    expect(container.querySelector('#email')).toBeTruthy();
+    expect(container.querySelector('#password')).toBeTruthy();
+    expect(button(container, 'Continue with Discord')).toBeTruthy();
+  });
+
+  it('asks the date of birth on the create-account form', async () => {
     const { container } = await mount();
     expect(container.querySelector('#birth-date')).toBeTruthy();
-    expect(container.querySelector('#email')).toBeFalsy();
-    expect(container.querySelector('#password')).toBeFalsy();
-    expect(button(container, 'Discord')).toBeUndefined();
+  });
+
+  /** A returning trainer already answered when the account was made. */
+  it('does not ask it of someone signing in', async () => {
+    const { container } = await mount();
+    fireEvent.click(button(container, 'Sign in')!);
+    expect(container.querySelector('#birth-date')).toBeFalsy();
+    expect(container.querySelector('#email')).toBeTruthy();
   });
 
   /** Not "are you 13?", which only ever collects the answer it telegraphs. */
@@ -135,63 +163,74 @@ describe('the age gate', () => {
     expect(text(container)).not.toMatch(/are you|confirm that you are|13 or over\?/i);
   });
 
-  it('refuses an under-13 and offers no way in at all', async () => {
-    const { container } = await mount();
-    await passAgeGate(container, '2014-09-02'); // 12, one day short of 13
+  it('refuses an under-13 without creating anything', async () => {
+    const { container, auth } = await mount();
+    fillRegistration(container);
+    enterBirthDate(container, '2014-09-02'); // 12, one day short of 13
+    await submitRegistration(container);
+    expect(auth.signUp).not.toHaveBeenCalled();
     expect(text(container)).toMatch(/at least 13/i);
-    expect(container.querySelector('#email')).toBeFalsy();
-    expect(container.querySelector('#password')).toBeFalsy();
+    expect(button(container, 'Create account')?.getAttribute('type')).not.toBe('submit');
     expect(button(container, 'Discord')).toBeUndefined();
-    expect(button(container, 'Create account')).toBeUndefined();
-    expect(button(container, 'Sign in')).toBeUndefined();
   });
 
   it('admits someone who turns 13 today, and refuses one day short', async () => {
     const older = await mount();
-    await passAgeGate(older.container, '2013-09-01');
-    expect(older.container.querySelector('#email')).toBeTruthy();
+    fillRegistration(older.container);
+    enterBirthDate(older.container, '2013-09-01');
+    await submitRegistration(older.container);
+    expect(older.auth.signUp).toHaveBeenCalledTimes(1);
 
     cleanup();
     localStorage.clear();
 
     const younger = await mount();
-    await passAgeGate(younger.container, '2013-09-02');
-    expect(younger.container.querySelector('#email')).toBeFalsy();
+    fillRegistration(younger.container);
+    enterBirthDate(younger.container, '2013-09-02');
+    await submitRegistration(younger.container);
+    expect(younger.auth.signUp).not.toHaveBeenCalled();
     expect(text(younger.container)).toMatch(/at least 13/i);
   });
 
   it('rejects a malformed date as a typo rather than as an age', async () => {
-    const { container } = await mount();
-    await passAgeGate(container, '');
+    const { container, auth } = await mount();
+    fillRegistration(container);
+    await submitRegistration(container);
+    expect(auth.signUp).not.toHaveBeenCalled();
     expect(text(container)).toMatch(/date of birth as year, month and day/i);
     expect(text(container)).not.toMatch(/at least 13/i);
   });
 
-  /** The provider round trip leaves the page; an answer in state would not survive. */
-  it('remembers the answer, so it survives leaving for the provider and coming back', async () => {
+  /** Otherwise the form is simply retried with a different year. */
+  it('remembers a refusal on this device, but still lets an existing account sign in', async () => {
     const first = await mount();
-    await passAgeGate(first.container, '2000-05-04');
-    expect(localStorage.getItem('paragon.birth-date')).toBe('2000-05-04');
+    fillRegistration(first.container);
+    enterBirthDate(first.container, '2014-09-02');
+    await submitRegistration(first.container);
+    expect(localStorage.getItem('paragon.birth-date')).toBe('2014-09-02');
 
     cleanup();
     const again = await mount();
     expect(again.container.querySelector('#birth-date')).toBeFalsy();
+    expect(text(again.container)).toMatch(/at least 13/i);
+    fireEvent.click(button(again.container, 'Sign in')!);
     expect(again.container.querySelector('#email')).toBeTruthy();
+    expect(button(again.container, 'Continue with Discord')).toBeTruthy();
   });
 
-  it('reveals both ways in once the gate is passed', async () => {
+  it('does not store an accepted date in the browser', async () => {
     const { container } = await mount();
-    await passAgeGate(container);
-    expect(container.querySelector('#email')).toBeTruthy();
-    expect(container.querySelector('#password')).toBeTruthy();
-    expect(button(container, `Continue with Discord`)).toBeTruthy();
+    fillRegistration(container);
+    enterBirthDate(container);
+    await submitRegistration(container);
+    expect(localStorage.getItem('paragon.birth-date')).toBeNull();
   });
 });
 
 describe('registration', () => {
   async function ready(options: HarnessOptions = {}) {
     const h = await mount(options);
-    await passAgeGate(h.container);
+    enterBirthDate(h.container);
     return h;
   }
 
@@ -331,7 +370,6 @@ describe('registration', () => {
 describe('signing in', () => {
   it('calls the password method with what was typed', async () => {
     const { container, auth } = await mount();
-    await passAgeGate(container);
     fireEvent.click(button(container, 'Sign in')!);
     fireEvent.change(container.querySelector('#email') as HTMLInputElement, {
       target: { value: 'misty@example.com' },
@@ -353,7 +391,7 @@ describe('signing in', () => {
     // before confirming ("Email not confirmed"), then confirmed in another tab.
     // The session arrived and the page said "Signed in as" above both.
     const { container, auth } = await mount({ profile: { display_name: 'polymathematics', go_username: 'polymathematics' } });
-    await passAgeGate(container);
+    enterBirthDate(container);
     fireEvent.change(container.querySelector('#display-name') as HTMLInputElement, { target: { value: 'polymathematics' } });
     fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, { target: { value: 'polymathematics' } });
     fireEvent.change(container.querySelector('#email') as HTMLInputElement, { target: { value: 'misty@example.com' } });
@@ -380,7 +418,6 @@ describe('signing in', () => {
 
   it('sends the provider button to signInWithOAuth', async () => {
     const { container, auth } = await mount();
-    await passAgeGate(container);
     await act(async () => {
       fireEvent.click(button(container, 'Continue with Discord')!);
     });
@@ -401,7 +438,7 @@ describe('an account with no profile yet', () => {
 
   async function ready(extra: HarnessOptions = {}) {
     const h = await mount({ ...signedIn, ...extra });
-    await passAgeGate(h.container);
+    enterBirthDate(h.container);
     return h;
   }
 
@@ -462,6 +499,16 @@ describe('an account with no profile yet', () => {
     expect(row.go_username).toBe('AshKetchum99');
     expect(row.birth_date).toBe('2000-05-04');
     expect(row.tos_accepted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  /** A first-time Discord account is asked here, and refused here. */
+  it('writes no profile for an under-13, and closes the provider session', async () => {
+    const { container, insert, auth } = await ready();
+    enterBirthDate(container, '2014-09-02');
+    await completeIt(container);
+    expect(insert).not.toHaveBeenCalled();
+    expect(auth.signOut).toHaveBeenCalled();
+    expect(localStorage.getItem('paragon.birth-date')).toBe('2014-09-02');
   });
 
   /** profiles has no email column, by design. Writing one would fail loudly. */
@@ -542,10 +589,9 @@ describe('an account with no profile yet', () => {
 
 describe('a complete account', () => {
   /**
-   * No age gate here, deliberately: an account that already has a profile has
-   * been through it, and re-asking on every cleared browser storage is friction
-   * with nothing behind it. Everything that can still CREATE an account is
-   * still behind the gate.
+   * No age question here, deliberately: an account that already has a profile
+   * answered it when it was made, and re-asking is friction with nothing behind
+   * it. Only the two forms that CREATE a profile ask.
    */
   it('is not asked its date of birth again', async () => {
     const { container } = await mount({
@@ -662,8 +708,8 @@ describe('a complete account', () => {
  * Supabase reports a failed Discord round trip only on the URL it redirects
  * back to — `#error=...` for the implicit flow, `?error=...` for PKCE — and
  * nothing else ever surfaces it. The birth date is pre-seeded in these tests
- * because it is genuinely already on the device by the time Discord redirects
- * back: the age gate runs before the provider button is ever shown.
+ * as an older build would have left it: an accepted date only prefills the
+ * field, so it must not change what the screen shows.
  */
 describe('an OAuth error returned by the provider', () => {
   afterEach(() => window.history.replaceState(null, '', '/'));

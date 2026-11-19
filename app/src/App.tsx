@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { isChunkError, lazyChunk } from './lib/lazyChunk';
 import { AppStateProvider, leaguePatch, useAppState } from './state/AppState';
 import { SECTIONS, sectionOf } from './lib/screens';
 import { ThemeProvider } from './state/ThemeContext';
@@ -10,7 +11,7 @@ import { NotificationBell } from './components/NotificationBell';
 import { NotificationsProvider } from './state/NotificationsContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from './components/Toaster';
-import { HudGround } from './components/Hud';
+import { HudGround, LoadingPanel } from './components/Hud';
 import { SiteFooter } from './components/SiteFooter';
 import { ChatDock } from './components/ChatDock';
 import { ShinyStar } from './components/ShinyStar';
@@ -34,31 +35,31 @@ import { myMatches } from './lib/matches';
  * buy a few kB of app code and cost a spinner. These three are where the
  * megabytes are, and none of them is the first thing anyone sees.
  */
-const RankingsScreen = lazy(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })));
-const TeamBuilderScreen = lazy(() => import('./screens/TeamBuilderScreen').then((m) => ({ default: m.TeamBuilderScreen })));
-const CoresScreen = lazy(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
-const DiagnosticsScreen = lazy(() => import('./screens/DiagnosticsScreen').then((m) => ({ default: m.DiagnosticsScreen })));
-const MovesScreen = lazy(() => import('./screens/MovesScreen').then((m) => ({ default: m.MovesScreen })));
-const FormatBuilderScreen = lazy(() =>
+const RankingsScreen = lazyChunk(() => import('./screens/RankingsScreen').then((m) => ({ default: m.RankingsScreen })));
+const TeamBuilderScreen = lazyChunk(() => import('./screens/TeamBuilderScreen').then((m) => ({ default: m.TeamBuilderScreen })));
+const CoresScreen = lazyChunk(() => import('./screens/CoresScreen').then((m) => ({ default: m.CoresScreen })));
+const DiagnosticsScreen = lazyChunk(() => import('./screens/DiagnosticsScreen').then((m) => ({ default: m.DiagnosticsScreen })));
+const MovesScreen = lazyChunk(() => import('./screens/MovesScreen').then((m) => ({ default: m.MovesScreen })));
+const FormatBuilderScreen = lazyChunk(() =>
   import('./screens/FormatBuilderScreen').then((m) => ({ default: m.FormatBuilderScreen })),
 );
 // Lazy for a different reason than the others: not megabytes of data, just a
 // screen most visits never open. It does NOT keep @supabase/supabase-js out of
 // the entry chunk — SessionProvider is mounted at the root below, so the client
 // is in the entry chunk either way. Only this screen's own code is deferred.
-const SignInScreen = lazy(() => import('./screens/SignInScreen').then((m) => ({ default: m.SignInScreen })));
-const MatchmakingScreen = lazy(() =>
+const SignInScreen = lazyChunk(() => import('./screens/SignInScreen').then((m) => ({ default: m.SignInScreen })));
+const MatchmakingScreen = lazyChunk(() =>
   import('./screens/MatchmakingScreen').then((m) => ({ default: m.MatchmakingScreen })),
 );
 // Lazy for the same reason as SignInScreen just above: a secondary screen
 // most visits never open, not a source of the megabyte data files the split
 // at the top of this file is actually drawn around.
-const PlayerScreen = lazy(() => import('./screens/PlayerScreen').then((m) => ({ default: m.PlayerScreen })));
-const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then((m) => ({ default: m.RecordsScreen })));
-const BattleTrackerScreen = lazy(() => import('./screens/BattleTrackerScreen').then((m) => ({ default: m.BattleTrackerScreen })));
-const TournamentsScreen = lazy(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
-const ChatScreen = lazy(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
-const FriendsScreen = lazy(() =>
+const PlayerScreen = lazyChunk(() => import('./screens/PlayerScreen').then((m) => ({ default: m.PlayerScreen })));
+const RecordsScreen = lazyChunk(() => import('./screens/RecordsScreen').then((m) => ({ default: m.RecordsScreen })));
+const BattleTrackerScreen = lazyChunk(() => import('./screens/BattleTrackerScreen').then((m) => ({ default: m.BattleTrackerScreen })));
+const TournamentsScreen = lazyChunk(() => import('./screens/TournamentsScreen').then((m) => ({ default: m.TournamentsScreen })));
+const ChatScreen = lazyChunk(() => import('./screens/ChatScreen').then((m) => ({ default: m.ChatScreen })));
+const FriendsScreen = lazyChunk(() =>
   import('./screens/FriendsScreen').then((m) => ({ default: m.FriendsScreen })),
 );
 function Nav() {
@@ -208,11 +209,7 @@ function Screens() {
 function LazyScreen({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
-      fallback={
-        <div className="panel hud-frame text-muted lazy-fallback">
-          Loading…
-        </div>
-      }
+      fallback={<LoadingPanel label="Loading screen data" className="lazy-fallback" />}
     >
       {children}
     </Suspense>
@@ -244,7 +241,7 @@ function Shell() {
               <div className="panel" role="alert">
                 <div className="hud-label">This screen hit an error</div>
                 <p className="text-muted">Pick another screen above, or try this one again. ({e.message})</p>
-                <button type="button" className="btn" onClick={reset}>Try again</button>
+                <button type="button" className="btn" onClick={isChunkError(e) ? () => window.location.reload() : reset}>Try again</button>
               </div>
             )}>
               <Screens />

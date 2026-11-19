@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyChunk } from '../../lib/lazyChunk';
 import { Heatmap } from '../../components/Heatmap';
 import { SegButton, SegGroup } from '../../components/Seg';
-import { HudLabel } from '../../components/Hud';
+import { HudLabel, LoadingPanel } from '../../components/Hud';
 import { Switch } from '../../components/Switch';
 import { TerrainBoundary } from '../../components/TerrainBoundary';
 import { MotionToggle } from '../../components/ThemeSwitch';
@@ -24,7 +25,7 @@ const FLOORS = [
 
 /* three.js + R3F is ~1.1MB of the bundle, so it's split out and fetched when
    the terrain first renders. The 2D grid stays in the main chunk. */
-const Heatmap3D = lazy(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
+const Heatmap3D = lazyChunk(() => import('../../components/Heatmap3D').then((m) => ({ default: m.Heatmap3D })));
 
 const NOTES: Record<ColorBy, string> = {
   rank: 'Rank ridges run diagonally: trading one attack point for one defense point barely moves stat product, which is why so many spreads cluster near the top.',
@@ -156,11 +157,7 @@ export function HeatmapView({
               <div className="mt-1.5 hv-terrain-canvas">
                 {legend}
                 <Suspense
-                  fallback={
-                    <div className="panel hud-frame text-muted hv-terrain-fallback">
-                      Loading terrain…
-                    </div>
-                  }
+                  fallback={<LoadingPanel label="Loading terrain" className="hv-terrain-fallback" />}
                 >
                   <TerrainBoundary onError={(m) => { setTerrainError(m); setDim('2d'); }}>
                     <Heatmap3D cells={cells} onPick={onPick} />

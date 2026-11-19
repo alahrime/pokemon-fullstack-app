@@ -4604,9 +4604,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 }
 .hv-terrain-fallback {
   height: 460px;
-  display: grid;
-  place-items: center;
-  font-size: var(--text-sm);
 }
 .hv-axis-y {
   display: flex;
@@ -5950,9 +5947,6 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 /* ── Odds and ends that were inline ─────────────────────────────────────── */
 .lazy-fallback {
   min-height: 460px;
-  display: grid;
-  place-items: center;
-  font-size: var(--text-sm);
 }
 /* An SVG that must not be clipped by its own box — the ribbon and the emblem
    both draw slightly outside their viewBox. */
@@ -9626,3 +9620,55 @@ button.bm-val:focus-visible { outline: var(--ring-width) solid var(--focus-ring)
 .ftc-you, .ftc-key { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--color-text); background: var(--surface-1); }
 .ftc-you { position: absolute; top: 50%; left: var(--r); transform: translate(-50%, -50%); z-index: 1; }
 .ftc-key { display: inline-block; vertical-align: -1px; }
+
+/* ── lazy-chunk loading panel (LoadingPanel in Hud.tsx) ────────────────── */
+.loading-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4, 1rem);
+  overflow: hidden;
+}
+.loading-reticle {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+.loading-ring,
+.loading-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.loading-ring {
+  border: 2px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border-top-color: var(--color-accent);
+  border-right-color: var(--color-accent);
+  animation: loading-spin 0.9s linear infinite;
+}
+.loading-core {
+  inset: 18px;
+  background: var(--color-accent);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  animation: loading-pulse 1.2s ease-in-out infinite;
+}
+.loading-bar {
+  position: relative;
+  width: min(220px, 60%);
+  height: 2px;
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  overflow: hidden;
+}
+.loading-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: var(--color-accent);
+  animation: loading-scan 1.1s ease-in-out infinite;
+}
+/* .hud-label's trailing rule would stretch across the panel; centred here. */
+.loading-label::after { display: none; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@keyframes loading-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes loading-scan { from { transform: translateX(-100%); } to { transform: translateX(290%); } }

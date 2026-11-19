@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyChunk } from '../lib/lazyChunk';
 import type { CSSProperties } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { BattleModeTabs } from '../components/BattleModeTabs';
@@ -21,7 +22,7 @@ import { Sprite } from '../components/Sprite';
 import { SpeciesSearch } from '../components/SpeciesSearch';
 import { IVAdjuster } from '../components/IVAdjuster';
 import { BattleTimeline, frameAt, type Frame } from '../components/BattleTimeline';
-import { HudLabel } from '../components/Hud';
+import { HudLabel, LoadingPanel } from '../components/Hud';
 import { TypeBadge } from '../components/TypeBadge';
 import { isPokemonType } from '../lib/pokemonTypes';
 
@@ -516,14 +517,14 @@ const monFor = (ref: string, league: LeagueId, entry: Parameters<typeof mkBattle
   return mkBattleMon(entry, fast, charges, species.types);
 };
 
-const MatrixBattle = lazy(() => import('./MatrixBattle').then((m) => ({ default: m.MatrixBattle })));
+const MatrixBattle = lazyChunk(() => import('./MatrixBattle').then((m) => ({ default: m.MatrixBattle })));
 
 /** One head-to-head, or the Matrix: the mode is app state, so leaving the screen and coming back keeps it. */
 export function BattleScreen() {
   const { state } = useAppState();
   if (state.battleMode === 'matrix') {
     return (
-      <Suspense fallback={<p className="text-faint">Loading the matrix…</p>}>
+      <Suspense fallback={<LoadingPanel label="Loading the matrix" className="lazy-fallback" />}>
         <MatrixBattle />
       </Suspense>
     );

@@ -1901,6 +1901,66 @@ textarea.input { min-height: 90px; resize: vertical; }
   from { transform: translateX(-100%); }
   to { transform: translateX(100%); }
 }
+/* ── Moves wear their type (.move-chip) ───────────────────────────────────
+   One rule for every place a fast or charged move sits in a container: the
+   add-Pokémon chips, the Battle Tracker's seen-move chips, the move picker's
+   rows, the Matrix card's move selects (trigger and options) and the Cores
+   timing rows. `--move-type` comes from moveTypeStyle(), the same helper the
+   .pc-move chips on cards use, and falls back to the accent for a type the
+   palette does not know.
+
+   The hue goes on the border, rail and wash; the text stays on the theme's own
+   colours. A filled type-colour slab with white text (what the tracker chips
+   used to do) fails contrast for electric and ice, the same reason .pc-move
+   keeps its text neutral. Selected reads from a heavier wash, a full ring and
+   a lit top rail in the move's colour — the accent never replaces the type. */
+.move-chip { --move-tint: var(--move-type, var(--color-accent)); }
+
+.chip-btn.move-chip {
+  border-color: color-mix(in srgb, var(--move-tint) 60%, var(--rule-strong));
+  background: color-mix(in srgb, var(--move-tint) 10%, transparent);
+  color: var(--color-text);
+}
+.chip-btn.move-chip:hover:not(.is-active):not(:disabled) {
+  border-color: var(--move-tint);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--move-tint) 18%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--move-tint) 30%, transparent);
+}
+.chip-btn.move-chip.is-active {
+  border-color: var(--move-tint);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--move-tint) 32%, var(--surface-1));
+  box-shadow: inset 0 0 0 1px var(--move-tint), 0 0 14px color-mix(in srgb, var(--move-tint) 45%, transparent);
+}
+.chip-btn.move-chip.is-active::before { background: var(--move-tint); opacity: 1; height: 3px; }
+
+.move-picker-row.move-chip { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--move-tint) 70%, transparent); }
+.move-picker-row.move-chip:hover { background: color-mix(in srgb, var(--move-tint) 14%, transparent); }
+.move-picker-row.move-chip.is-active {
+  background: color-mix(in srgb, var(--move-tint) 28%, transparent);
+  box-shadow: inset 3px 0 0 var(--move-tint);
+}
+
+.fs-trigger.move-chip {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--move-tint) 22%, var(--surface-2)), color-mix(in srgb, var(--move-tint) 8%, var(--surface-1)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--move-tint) 60%, var(--rule-strong)), inset 3px 0 0 var(--move-tint);
+}
+.fs-trigger.move-chip:hover, .fs-trigger.move-chip.is-open {
+  box-shadow: inset 0 0 0 1px var(--move-tint), inset 3px 0 0 var(--move-tint), 0 0 14px -6px var(--move-tint);
+}
+.fs-option.move-chip::before { background: var(--move-tint); transform: scaleY(0.6); }
+.fs-option.move-chip.is-active { background: linear-gradient(90deg, color-mix(in srgb, var(--move-tint) 24%, transparent), transparent 85%); }
+.fs-option.move-chip.is-active::before, .fs-option.move-chip.is-selected::before { transform: scaleY(1); }
+.fs-option.move-chip.is-selected { background: linear-gradient(90deg, color-mix(in srgb, var(--move-tint) 16%, transparent), transparent 85%); }
+
+.core-timing-fast.move-chip, .core-timing-move.move-chip {
+  padding-left: var(--space-1);
+  border-left: 2px solid color-mix(in srgb, var(--move-tint) 70%, transparent);
+  background: color-mix(in srgb, var(--move-tint) 9%, transparent);
+}
+.core-timing-fast.move-chip { border-left-width: 3px; color: var(--color-text); background: color-mix(in srgb, var(--move-tint) 14%, transparent); }
+
 @media (prefers-reduced-motion: reduce) {
   .seg-btn.is-active::after,
   .chip-btn.is-active::after { animation: none; }
@@ -8660,17 +8720,9 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .gt-move-editor-head .btn { margin-left: auto; }
 .gt-move-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .gt-move-group > .hud-label { min-width: 64px; }
-.gt-move-chip {
-  --type: var(--color-neutral-500);
-  position: relative; min-height: 30px; padding: 0 12px; cursor: pointer; font-size: var(--text-sm); color: var(--color-text);
-  background: color-mix(in srgb, var(--type) 10%, var(--surface-1)); border: var(--border-hairline) solid color-mix(in srgb, var(--type) 45%, transparent);
-  border-radius: 999px; transition: background-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), transform var(--dur-1) var(--ease-out);
-}
-.gt-move-chip.is-rated::after { content: '★'; margin-left: 5px; font-size: 9px; color: var(--text-faint); }
-.gt-move-chip:hover { box-shadow: 0 0 0 1px var(--type); }
-.gt-move-chip:active { transform: scale(0.96); }
-.gt-move-chip.is-on { color: #fff; background: linear-gradient(160deg, color-mix(in srgb, var(--type) 85%, #fff), var(--type)); border-color: var(--type); box-shadow: 0 0 12px color-mix(in srgb, var(--type) 55%, transparent); }
-.gt-move-chip.is-on::after { color: rgb(255 255 255 / 0.8); }
+.gt-move-chip { min-height: 30px; }
+/* The league's rated moves. Drawn by CSS so the button's name stays the move's name. */
+.gt-move-star::after { content: '★'; margin-left: 5px; font-size: 9px; color: var(--text-faint); }
 
 /* ── Notes and logged battles ── */
 .gt-note { display: flex; flex-direction: column; gap: 4px; }

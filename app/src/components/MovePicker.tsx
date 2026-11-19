@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isPokemonType, typeIconUrl } from '../lib/pokemonTypes';
+import { isPokemonType, typeIconUrl, moveTypeStyle } from '../lib/pokemonTypes';
 import type { ChargeMove, FastMove } from '../lib/types';
 
 /**
@@ -64,7 +64,8 @@ export function MovePicker({
               <li key={m.id}>
                 <button
                   type="button"
-                  className={`move-picker-row${isActive(m) ? ' is-active' : ''}`}
+                  className={`move-picker-row move-chip${isActive(m) ? ' is-active' : ''}`}
+                  style={moveTypeStyle(m.type ?? '')}
                   onClick={() => onPick(m)}
                 >
                   {isPokemonType(m.type) && <img src={typeIconUrl(m.type)} alt="" width={13} height={13} />}

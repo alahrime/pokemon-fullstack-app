@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { renderApp } from '../../test/render';
 import { PokemonCard } from '../PokemonCard';
+import { AddPokemonModal } from '../AddPokemonModal';
+import { FancySelect } from '../FancySelect';
 import { moveTypeStyle } from '../../lib/pokemonTypes';
 import { SPECIES_BY_ID, movesFor } from '../../lib/data';
 
@@ -63,5 +66,45 @@ describe('a move chip takes its own type', () => {
     const rule = css.slice(i, css.indexOf('}', i)).replace(/\/\*[\s\S]*?\*\//g, '');
     expect(rule).toMatch(/border-left-width/);
     expect(rule).not.toMatch(/border-left-color:\s*var\(--color-accent\)/);
+  });
+});
+
+/**
+ * The same rule wherever a move sits in a container: the add-Pokémon chips and
+ * the Matrix card's move selects carry the move's own `--move-type` and the
+ * shared `.move-chip` class, so one stylesheet block colours all of them.
+ */
+describe('move containers outside the card take the move type too', () => {
+  it('tints each move chip in the add-Pokémon dialog by its own type', () => {
+    const sp = SPECIES_BY_ID.get('registeel')!;
+    render(<AddPokemonModal league="great" initial={{ ref: 'registeel', chargeIds: [], fastIdx: 0, iv: { a: 0, d: 15, s: 15 } }}
+      onCommit={vi.fn()} onClose={vi.fn()} />);
+    const chips = [...document.querySelectorAll('.modal-moves .chip-btn')] as HTMLElement[];
+    expect(chips.length).toBe(sp.fastMoves.length + new Set(sp.chargeMoves.map((m) => m.id)).size);
+    for (const c of chips) expect(c.classList.contains('move-chip')).toBe(true);
+    // Fast chips come first, in the species' own order.
+    sp.fastMoves.forEach((m, i) => expect(chips[i].style.getPropertyValue('--move-type')).toBe(`var(--type-${m.type})`));
+    // A mono-Steel body, and still more than one hue.
+    expect(new Set(chips.map((c) => c.style.getPropertyValue('--move-type'))).size).toBeGreaterThan(1);
+  });
+
+  it('tints a select trigger by the chosen move, and each option by its own', () => {
+    const options = [
+      { value: 'a', label: 'Water Gun', tint: 'water' },
+      { value: 'b', label: 'Ember', tint: 'fire' },
+      { value: 'c', label: 'None' },
+    ];
+    const { rerender } = render(<FancySelect value="a" label="Fast move" options={options} onChange={vi.fn()} />);
+    const trigger = screen.getByRole('button', { name: 'Fast move' });
+    expect(trigger.classList.contains('move-chip')).toBe(true);
+    expect(trigger.style.getPropertyValue('--move-type')).toBe('var(--type-water)');
+    fireEvent.click(trigger);
+    const opts = screen.getAllByRole('option') as HTMLElement[];
+    expect(opts.map((o) => o.style.getPropertyValue('--move-type'))).toEqual(['var(--type-water)', 'var(--type-fire)', '']);
+    // The option keeps its stagger index alongside the tint.
+    expect(opts[1].style.getPropertyValue('--i')).toBe('1');
+    // An untinted choice leaves the trigger plain.
+    rerender(<FancySelect value="c" label="Fast move" options={options} onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Fast move' }).classList.contains('move-chip')).toBe(false);
   });
 });

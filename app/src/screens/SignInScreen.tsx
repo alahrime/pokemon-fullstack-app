@@ -149,7 +149,12 @@ export function SignInScreen({ now = new Date() }: { now?: Date }) {
     return stored !== null && !isOldEnough(stored, now);
   });
   const [dateDraft, setDateDraft] = useState(() => storedBirthDate() ?? '');
-  const [mode, setMode] = useState<'register' | 'signin'>('register');
+  /**
+   * Opens on sign-in: most visits to this screen are a returning trainer, and
+   * the age question lives only on the create-account tab, so the common path
+   * asks nothing beyond email and password.
+   */
+  const [mode, setMode] = useState<'register' | 'signin'>('signin');
   const [displayName, setDisplayName] = useState('');
   const [goUsername, setGoUsername] = useState('');
   const [email, setEmail] = useState('');

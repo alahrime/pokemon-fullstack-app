@@ -103,6 +103,13 @@ async function mount(options: HarnessOptions = {}) {
   return { ...stub, view, container: view.container };
 }
 
+/** Mount signed out and switch to the create-account tab; the screen opens on sign-in. */
+async function mountRegister(options: HarnessOptions = {}) {
+  const h = await mount(options);
+  fireEvent.click(button(h.container, 'Create account')!);
+  return h;
+}
+
 /** Fill the date of birth on whichever creating form is showing; clears 13 by default. */
 function enterBirthDate(container: HTMLElement, date = '2000-05-04') {
   fireEvent.change(container.querySelector('#birth-date') as HTMLInputElement, { target: { value: date } });
@@ -135,6 +142,15 @@ describe('the age question', () => {
     });
   }
 
+  /** Most visits are a returning trainer, so the screen opens on sign-in. */
+  it('opens on sign-in, asking nothing but email and password', async () => {
+    const { container } = await mount();
+    const active = container.querySelector('[role="tab"][aria-selected="true"]');
+    expect(active?.textContent).toMatch(/sign in/i);
+    expect(container.querySelector('#birth-date')).toBeFalsy();
+    expect(container.querySelector('#display-name')).toBeFalsy();
+  });
+
   it('offers both ways in straight away, with no gate in front', async () => {
     const { container } = await mount();
     expect(container.querySelector('#email')).toBeTruthy();
@@ -143,7 +159,7 @@ describe('the age question', () => {
   });
 
   it('asks the date of birth on the create-account form', async () => {
-    const { container } = await mount();
+    const { container } = await mountRegister();
     expect(container.querySelector('#birth-date')).toBeTruthy();
   });
 
@@ -157,14 +173,14 @@ describe('the age question', () => {
 
   /** Not "are you 13?", which only ever collects the answer it telegraphs. */
   it('asks neutrally, without naming the answer that gets you in', async () => {
-    const { container } = await mount();
+    const { container } = await mountRegister();
     const label = container.querySelector('label[for="birth-date"]');
     expect(label?.textContent).toMatch(/date of birth/i);
     expect(text(container)).not.toMatch(/are you|confirm that you are|13 or over\?/i);
   });
 
   it('refuses an under-13 without creating anything', async () => {
-    const { container, auth } = await mount();
+    const { container, auth } = await mountRegister();
     fillRegistration(container);
     enterBirthDate(container, '2014-09-02'); // 12, one day short of 13
     await submitRegistration(container);
@@ -175,7 +191,7 @@ describe('the age question', () => {
   });
 
   it('admits someone who turns 13 today, and refuses one day short', async () => {
-    const older = await mount();
+    const older = await mountRegister();
     fillRegistration(older.container);
     enterBirthDate(older.container, '2013-09-01');
     await submitRegistration(older.container);
@@ -184,7 +200,7 @@ describe('the age question', () => {
     cleanup();
     localStorage.clear();
 
-    const younger = await mount();
+    const younger = await mountRegister();
     fillRegistration(younger.container);
     enterBirthDate(younger.container, '2013-09-02');
     await submitRegistration(younger.container);
@@ -193,7 +209,7 @@ describe('the age question', () => {
   });
 
   it('rejects a malformed date as a typo rather than as an age', async () => {
-    const { container, auth } = await mount();
+    const { container, auth } = await mountRegister();
     fillRegistration(container);
     await submitRegistration(container);
     expect(auth.signUp).not.toHaveBeenCalled();
@@ -203,7 +219,7 @@ describe('the age question', () => {
 
   /** Otherwise the form is simply retried with a different year. */
   it('remembers a refusal on this device, but still lets an existing account sign in', async () => {
-    const first = await mount();
+    const first = await mountRegister();
     fillRegistration(first.container);
     enterBirthDate(first.container, '2014-09-02');
     await submitRegistration(first.container);
@@ -211,15 +227,17 @@ describe('the age question', () => {
 
     cleanup();
     const again = await mount();
-    expect(again.container.querySelector('#birth-date')).toBeFalsy();
-    expect(text(again.container)).toMatch(/at least 13/i);
-    fireEvent.click(button(again.container, 'Sign in')!);
+    // Signing in is untouched by the refusal…
     expect(again.container.querySelector('#email')).toBeTruthy();
     expect(button(again.container, 'Continue with Discord')).toBeTruthy();
+    // …but the create-account tab stays closed.
+    fireEvent.click(button(again.container, 'Create account')!);
+    expect(again.container.querySelector('#birth-date')).toBeFalsy();
+    expect(text(again.container)).toMatch(/at least 13/i);
   });
 
   it('does not store an accepted date in the browser', async () => {
-    const { container } = await mount();
+    const { container } = await mountRegister();
     fillRegistration(container);
     enterBirthDate(container);
     await submitRegistration(container);
@@ -229,7 +247,7 @@ describe('the age question', () => {
 
 describe('registration', () => {
   async function ready(options: HarnessOptions = {}) {
-    const h = await mount(options);
+    const h = await mountRegister(options);
     enterBirthDate(h.container);
     return h;
   }
@@ -390,7 +408,7 @@ describe('signing in', () => {
     // The reported state: signed up ("check your email"), tried to sign in
     // before confirming ("Email not confirmed"), then confirmed in another tab.
     // The session arrived and the page said "Signed in as" above both.
-    const { container, auth } = await mount({ profile: { display_name: 'polymathematics', go_username: 'polymathematics' } });
+    const { container, auth } = await mountRegister({ profile: { display_name: 'polymathematics', go_username: 'polymathematics' } });
     enterBirthDate(container);
     fireEvent.change(container.querySelector('#display-name') as HTMLInputElement, { target: { value: 'polymathematics' } });
     fireEvent.change(container.querySelector('#go-username') as HTMLInputElement, { target: { value: 'polymathematics' } });

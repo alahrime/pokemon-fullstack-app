@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { moveTypeStyle } from '../lib/pokemonTypes';
 import { LEAGUE_BY_ID, displayName, makeRef, movesFor, parseRef, speciesOf } from '../lib/data';
 import { atMegaLevel, bestBuddyEligible, bestSpreadFor, boostShown, chargesOf, defaultSpreadFor, getEntry, isMega, selectedCharges } from '../lib/engine';
 import { BestBuddyToggle } from './BestBuddyToggle';
@@ -282,7 +283,8 @@ export function AddPokemonModal({
                   {sp.fastMoves.map((m, i) => (
                     <button
                       key={m.id}
-                      className={`btn chip-btn${i === fastIdx ? ' is-active' : ''}`}
+                      className={`btn chip-btn move-chip${i === fastIdx ? ' is-active' : ''}`}
+                      style={moveTypeStyle(m.type)}
                       onClick={() => setFastIdx(i)}
                       title={`${m.energyGain} energy over ${m.turns} turn${m.turns > 1 ? 's' : ''}`}
                     >
@@ -303,7 +305,8 @@ export function AddPokemonModal({
                   {chargePool.map((c) => (
                     <button
                       key={c.id}
-                      className={`btn chip-btn${chargeIds.includes(c.id) ? ' is-active' : ''}`}
+                      className={`btn chip-btn move-chip${chargeIds.includes(c.id) ? ' is-active' : ''}`}
+                      style={moveTypeStyle(c.type)}
                       onClick={() => toggleCharge(c.id)}
                       title={c.id === RETURN_ID
                         ? `Non-Shadow only · ${c.energy} energy · ${(c.power / c.energy).toFixed(2)} damage per energy`

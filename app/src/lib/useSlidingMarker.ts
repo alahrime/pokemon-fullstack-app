@@ -18,7 +18,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
  * page run sliding, a font finishing loading, a container query reflowing the
  * group — without a render loop.
  */
-export type MarkerBox = { x: number; w: number };
+/** y/h matter only to a group that wraps onto several rows; one-row groups pin the marker top to bottom and ignore them. */
+export type MarkerBox = { x: number; w: number; y: number; h: number };
 
 export function useSlidingMarker<T extends HTMLElement>(activeSelector: string) {
   const ref = useRef<T>(null);
@@ -41,12 +42,16 @@ export function useSlidingMarker<T extends HTMLElement>(activeSelector: string) 
     // back (these groups scroll sideways on a narrow screen).
     const hostRect = host.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
-    const borderLeft = parseFloat(getComputedStyle(host).borderLeftWidth) || 0;
+    const cs = getComputedStyle(host);
+    const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+    const borderTop = parseFloat(cs.borderTopWidth) || 0;
     const next = {
       x: rect.left - hostRect.left - borderLeft + host.scrollLeft,
       w: rect.width,
+      y: rect.top - hostRect.top - borderTop + host.scrollTop,
+      h: rect.height,
     };
-    setBox((prev) => (prev && prev.x === next.x && prev.w === next.w ? prev : next));
+    setBox((prev) => (prev && prev.x === next.x && prev.w === next.w && prev.y === next.y && prev.h === next.h ? prev : next));
   }, [activeSelector]);
 
   useLayoutEffect(measure);

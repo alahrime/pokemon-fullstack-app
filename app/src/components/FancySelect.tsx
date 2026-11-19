@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { moveTypeStyle } from '../lib/pokemonTypes';
 
 /**
  * A select drawn by the app instead of the browser: each option can carry a leading mark (a swatch, a type icon), a
@@ -22,6 +23,8 @@ export interface FancyOption {
   lead?: ReactNode;
   /** After the label: figures. */
   trail?: ReactNode;
+  /** A move's type: the option, and the trigger while it is chosen, wear it as a rail and a wash (`.move-chip`). */
+  tint?: string;
 }
 
 const LIST_MAX = 320;
@@ -148,7 +151,8 @@ export function FancySelect({
       <button
         ref={trigger}
         type="button"
-        className={`fs-trigger is-${size}${open ? ' is-open' : ''} ${className}`}
+        className={`fs-trigger is-${size}${open ? ' is-open' : ''}${current?.tint ? ' move-chip' : ''} ${className}`}
+        style={current?.tint ? moveTypeStyle(current.tint) : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? `${id}-list` : undefined}
@@ -196,8 +200,8 @@ export function FancySelect({
               data-i={i}
               role="option"
               aria-selected={o.value === value}
-              className={`fs-option${i === active ? ' is-active' : ''}${o.value === value ? ' is-selected' : ''}`}
-              style={{ ['--i' as string]: Math.min(i, 12) }}
+              className={`fs-option${i === active ? ' is-active' : ''}${o.value === value ? ' is-selected' : ''}${o.tint ? ' move-chip' : ''}`}
+              style={{ ['--i' as string]: Math.min(i, 12), ...(o.tint ? moveTypeStyle(o.tint) : {}) }}
               onMouseEnter={() => setActive(i)}
               onClick={() => pick(i)}
             >

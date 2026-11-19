@@ -130,14 +130,14 @@ function CoreTiming({ ref: r, league }: { ref: string; league: LeagueId }) {
   return (
     <div className="core-timing">
       <span className="hud-label core-timing-who">{displayName(r)}</span>
-      <span className="core-timing-fast numeric">
+      <span className="core-timing-fast move-chip numeric" style={moveTypeStyle(moves.fast.type)}>
         {moves.fast.name}
         <i>{(moves.fast.energyGain / moves.fast.turns).toFixed(1)}e/t</i>
       </span>
       <span className="flex flex-col gap-0.5 mt-[3px]">
         {moves.charges.map((m) => (
           <span className="core-timing-row" key={m.id}>
-            <span className="core-timing-move">{m.name}</span>
+            <span className="core-timing-move move-chip" style={moveTypeStyle(m.type)}>{m.name}</span>
             <MoveCounts fast={moves.fast} charge={m} />
           </span>
         ))}

@@ -11,6 +11,7 @@ import { TrainerAvatar, useProfiles } from '../components/TrainerBits';
 import { confirmDialog } from '../components/ConfirmDialog';
 import { HudLabel } from '../components/Hud';
 import { displayName, movesFor, parseRef, speciesOf } from '../lib/data';
+import { moveTypeStyle } from '../lib/pokemonTypes';
 import { DEFAULT_TIER, fieldPool } from '../lib/rankings';
 import { PRESET_FORMATS, cupLegal } from '../lib/presetFormats';
 import type { LeagueId } from '../lib/types';
@@ -729,18 +730,20 @@ function MoveEditor({ refId, format, value, onChange }: { refId: string; format:
       <div className="gt-move-group" role="group" aria-label="Fast move">
         <span className="hud-label">Fast</span>
         {order(sp.fastMoves).map((m) => (
-          <button key={m.id} type="button" className={`gt-move-chip${value.fast === m.id ? ' is-on' : ''}${ratedIds.has(m.id) ? ' is-rated' : ''}`}
-            aria-pressed={value.fast === m.id} style={typeVar(m.type)} onClick={() => onChange({ ...value, fast: value.fast === m.id ? null : m.id })}>
+          <button key={m.id} type="button" className={`btn chip-btn move-chip gt-move-chip${value.fast === m.id ? ' is-active' : ''}${ratedIds.has(m.id) ? ' is-rated' : ''}`}
+            aria-pressed={value.fast === m.id} style={moveTypeStyle(m.type)} onClick={() => onChange({ ...value, fast: value.fast === m.id ? null : m.id })}>
             {m.name}
+            {ratedIds.has(m.id) && <span className="gt-move-star" aria-hidden="true" />}
           </button>
         ))}
       </div>
       <div className="gt-move-group" role="group" aria-label="Charged moves">
         <span className="hud-label">Charged</span>
         {order(sp.chargeMoves).map((m) => (
-          <button key={m.id} type="button" className={`gt-move-chip${value.charges.includes(m.id) ? ' is-on' : ''}${ratedIds.has(m.id) ? ' is-rated' : ''}`}
-            aria-pressed={value.charges.includes(m.id)} style={typeVar(m.type)} onClick={() => toggleCharge(m.id)}>
+          <button key={m.id} type="button" className={`btn chip-btn move-chip gt-move-chip${value.charges.includes(m.id) ? ' is-active' : ''}${ratedIds.has(m.id) ? ' is-rated' : ''}`}
+            aria-pressed={value.charges.includes(m.id)} style={moveTypeStyle(m.type)} onClick={() => toggleCharge(m.id)}>
             {m.name}
+            {ratedIds.has(m.id) && <span className="gt-move-star" aria-hidden="true" />}
           </button>
         ))}
       </div>

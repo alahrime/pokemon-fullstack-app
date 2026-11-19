@@ -333,6 +333,7 @@ const fastOption = (m: FastMove): FancyOption => ({
   label: m.name,
   hint: m.archetype ?? undefined,
   lead: <TypeIcon type={m.type} size={16} />,
+  tint: m.type,
   trail: <span className="fs-fig">{m.turns}t · {(m.energyGain / m.turns).toFixed(1)}<i>e/t</i></span>,
 });
 const chargeOption = (c: ChargeMove): FancyOption => ({
@@ -340,6 +341,7 @@ const chargeOption = (c: ChargeMove): FancyOption => ({
   label: c.name,
   hint: c.archetype ?? undefined,
   lead: <TypeIcon type={c.type} size={16} />,
+  tint: c.type,
   trail: <span className="fs-fig">{c.energy}<i>e</i> · {(c.power / c.energy).toFixed(2)}<i>dpe</i></span>,
 });
 const NONE: FancyOption = { value: '', label: 'None', hint: 'One charged move only' };

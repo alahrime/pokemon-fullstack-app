@@ -213,7 +213,7 @@ export function MatrixResults({ rows, cols, cells, league, stale, shields }: {
         </div>
 
         <div className={`bm-tabs${box ? ' has-marker' : ''}`} role="tablist" aria-label="Matrix view" ref={tabsRef}>
-          {box && <span className="bm-tab-marker" aria-hidden="true" style={{ transform: `translateX(${box.x}px)`, width: `${box.w}px` }} />}
+          {box && <span className="bm-tab-marker" aria-hidden="true" style={{ transform: `translate(${box.x}px, ${box.y}px)`, width: `${box.w}px`, height: `${box.h}px` }} />}
           {METRICS.map((m) => (
             <button key={m.id} type="button" role="tab" aria-selected={metric === m.id}
               className={`bm-tab${metric === m.id ? ' is-active' : ''}`} onClick={() => setMetric(m.id)}>

@@ -9086,10 +9086,12 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 
 /* View tabs: one lit fill that slides to the chosen view (useSlidingMarker); the active one paints itself until measured. */
 .bm-tabs { position: relative; display: flex; flex-wrap: wrap; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+/* The marker is placed on both axes: on a narrow screen the tabs sit two to a row, and a marker pinned top to bottom
+   lit the tab below the selected one as well. */
 .bm-tab-marker {
-  position: absolute; top: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none;
+  position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(110deg, var(--color-accent), var(--color-accent-700));
-  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out);
+  transition: transform var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out), height var(--dur-3) var(--ease-out);
 }
 .bm-tab {
   position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 16px;
@@ -9102,6 +9104,11 @@ tr:hover > td > .core-mon { transform: translateY(-2px) scale(1.06); }
 .bm-tabs:not(.has-marker) .bm-tab.is-active { background: var(--color-accent); }
 .bm-tab.is-active svg { animation: bm-pop var(--dur-4) var(--ease-spring); }
 .bm-tab:focus-visible { outline: var(--ring-width) solid var(--focus-ring); outline-offset: -2px; }
+/* Phones: a 2×2 grid of equal tabs rather than a ragged wrap. */
+@media (max-width: 560px) {
+  .bm-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+  .bm-tab { justify-content: center; padding: 0 var(--space-2); }
+}
 .bm-view-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
 .bm-slot { width: min(260px, 100%); }
 .bm-lede { margin: 0; font-size: var(--text-sm); max-width: 70ch; }
